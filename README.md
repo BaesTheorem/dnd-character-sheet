@@ -28,6 +28,29 @@ with the same kind of live calculation, in a runtime everyone already has.
    re-downloadable but only previews in Safari. The image is saved under its own key so a large photo
    can't break the rest of autosave (very large images may not persist locally — use Save to keep them).
 
+## Pages
+Tabs at the top switch pages on screen; **printing outputs every page on its own sheet**.
+1. **Core** — identity, abilities, saves, skills (left), combat, attacks, a Limited Features
+   tracker (Feature / Max / Recover LR·SR·Dawn / Used), and Proficiencies & Languages (right).
+2. **Inventory** — currency (PP/GP/EP/SP/CP) with coin weight, an item table with total weight, and
+   Strength-based carrying capacity (Encumbered ×5, Heavily ×10, Max Carry ×15, Push/Drag/Lift ×30)
+   with a live status, plus an Equipment & Notes box.
+3. **Features** — Features & Traits (background features land here).
+3b. **Background** — appearance (age/height/weight/eyes/skin/hair) + Personality / Ideals / Bonds / Flaws.
+3c. **Backstory** — Character Backstory, Allies & Organizations, Notes.
+4. **Spells** — pick a spellcasting class and the spell list adapts along two axes:
+   - **Pre-populates the full class list** (Cleric/Druid/Paladin) — every class spell is listed with a
+     Prep checkbox; others (Wizard/Bard/Sorcerer/Warlock/Ranger) are blank rows you write into.
+   - **Shows a Prep column** for classes that prepare daily (Wizard + the full-list classes); known
+     casters (Bard/Sorcerer/Warlock/Ranger) just list their spells (always ready).
+   Auto Spell Save DC (8 + prof + mod) and attack bonus, slot totals (1–9), and cantrips. The
+   "include spell sheet" checkbox (for non-casters) never prints.
+
+## Pen & paper
+A fresh sheet (before "Create Character" is used) is completely empty — no scores, no `0`/`+0`
+computed values, just blank boxes — and the free-write areas are sized for handwriting. So you can
+print a blank copy and fill it in by hand. Fill any value digitally and the math fills itself in.
+
 ## Toolbar
 - **Create Character** → guided wizard (Race → Class/Subclass/Level → Background → ability method →
   name) that fills the sheet. Needs sourcebook data loaded (baked into the `(PHB)` build, or imported).
@@ -40,6 +63,8 @@ with the same kind of live calculation, in a runtime everyone already has.
   **one page** (builder UI hidden; text sections render as full-content mirrors; two balanced columns).
 - **New** → opens a fresh blank character in a new tab (current one untouched). Each tab gets its own
   storage slot via a `#slot=…` URL hash; the imported sourcebook is shared across slots.
+- **Reset** (red) → after confirmation, clears *this* sheet back to defaults (deletes the character
+  and portrait in place). The imported sourcebook is kept.
 
 `New` clears the character from the current browser (export first if you want to keep it).
 

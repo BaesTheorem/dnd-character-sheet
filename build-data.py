@@ -188,6 +188,26 @@ def build_spells():
     spells.sort(key=lambda x: (x["level"], x["name"]))
     return spells
 
+# Per-class PHB spell lists (levels 1-9) for classes that prepare from their whole list.
+def build_class_spells():
+    levels = {}
+    for fn in os.listdir(os.path.join(SRC, "spells")):
+        if not re.match(r"spells-phb\.json$", fn): continue
+        for s in load("spells", fn).get("spell", []):
+            if is_phb(s): levels[s["name"]] = s.get("level", 0)
+    try: src = load("spells", "sources.json").get("PHB", {})
+    except Exception: return {}
+    FULL = {"Cleric", "Druid", "Paladin", "Artificer"}
+    out = {}
+    for name, info in src.items():
+        lv = levels.get(name)
+        if lv is None or lv == 0: continue            # PHB, leveled spells only (cantrips go in their own box)
+        for c in info.get("class", []):
+            if c.get("source") == PHB and c.get("name") in FULL:
+                out.setdefault(c["name"], []).append({"n": name, "l": lv})
+    for cn in out: out[cn].sort(key=lambda x: (x["l"], x["n"]))
+    return out
+
 def render_range(r):
     if not isinstance(r, dict): return str(r)
     d = r.get("distance", {})
@@ -211,6 +231,7 @@ def main():
         "classes": build_classes(),
         "feats": build_feats(load("feats.json")),
         "spells": build_spells(),
+        "classSpells": build_class_spells(),
     }
     weapons, armor = build_items(load("items-base.json"))
     out["weapons"], out["armor"] = weapons, armor

@@ -54,6 +54,8 @@
   .btn.primary:hover{filter:brightness(1.08)}
   .btn.ghost{border-color:transparent; background:transparent; color:var(--muted)}
   .btn.ghost:hover{color:var(--ink); background:var(--accent-soft)}
+  .btn.danger{background:#b42318; color:#fff; border-color:#b42318}
+  .btn.danger:hover{filter:brightness(1.1); background:#b42318; border-color:#b42318}
   .status{font-size:12px; color:var(--muted); min-width:54px}
 
   /* ---- Sheet layout ---- */
@@ -80,7 +82,7 @@
   }
   input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
   input[type=number]{appearance:textfield; -moz-appearance:textfield}
-  textarea{resize:vertical; min-height:84px; line-height:1.5}
+  textarea{resize:vertical; min-height:140px; line-height:1.6}   /* roomy enough to hand-write a blank copy */
   .ta-print{display:none}
 
   /* Header */
@@ -89,7 +91,7 @@
   .charname input:focus{border-bottom-color:var(--accent); outline:none}
   .header-grid{display:flex; align-items:stretch; gap:16px}
   .header-main{flex:1; min-width:0; display:flex; flex-direction:column}
-  .portrait{position:relative; flex:none; width:150px; align-self:stretch; min-height:120px;
+  .portrait{position:relative; flex:none; width:150px; height:190px; align-self:flex-start;
     border:1px solid var(--line2); background:var(--field); cursor:pointer; overflow:hidden;
     display:flex; align-items:center; justify-content:center}
   .portrait.has-img{background:transparent}
@@ -129,11 +131,11 @@
   .ability:last-child{border-bottom:none}
   .ability .name{flex:1; min-width:0; font-size:11px; font-weight:700; letter-spacing:.01em;
     text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .ability .score{width:60px; flex:none}
-  .ability .score input{text-align:center; font-size:18px; font-weight:700; padding:6px}
+  .ability .score{width:40px; flex:none}
+  .ability .score input{text-align:center; font-size:18px; font-weight:700; padding:0; height:40px; box-sizing:border-box}
   .ability .mod{
-    width:44px; flex:none; text-align:center; font-size:20px; font-weight:700; color:var(--accent);
-    background:var(--accent-soft); border-radius:8px; padding:6px 0;
+    width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:8px;
   }
   .gen-control{display:flex; align-items:center; gap:5px; flex:none}
   .gen-control select{width:52px; padding:6px 2px; text-align:center; font-weight:700; font-size:14px}
@@ -145,8 +147,8 @@
   .stepper .basev{width:22px; text-align:center; font-size:17px; font-weight:700}
   .racial{display:flex; flex-direction:column; align-items:center; flex:none}
   .racial label{font-size:8px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); margin:0}
-  .racial input{width:36px; text-align:center; padding:4px 2px; font-weight:700}
-  .score-out{width:38px; flex:none; text-align:center; font-size:19px; font-weight:700}
+  .racial input{width:40px; text-align:center; padding:0; font-weight:700; height:40px; box-sizing:border-box}
+  .score-out{width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:700}
 
   /* small stat chips */
   .chips{display:flex; gap:10px; flex-wrap:wrap}
@@ -161,8 +163,8 @@
   /* rows of save/skill */
   .row{display:flex; align-items:center; gap:9px; padding:5px 0; border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:none}
-  .row .total{width:42px; text-align:center; font-weight:700; font-size:15px;
-    background:var(--accent-soft); color:var(--accent); border-radius:7px; padding:3px 0}
+  .row .total{width:34px; height:34px; flex:none; display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:15px; background:var(--accent-soft); color:var(--accent); border-radius:7px}
   .row .rname{flex:1; font-size:13px}
   .row .rname .ab{color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em}
   .marks{display:flex; gap:6px; align-items:center}
@@ -217,6 +219,48 @@
   .mini{font-size:11px; padding:4px 8px}
   .stack{display:flex; flex-direction:column; gap:12px}
 
+  /* ---- pages + tabs ---- */
+  .pagetabs{display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--line)}
+  .ptab{font:inherit; font-size:13px; font-weight:700; letter-spacing:.02em; border:1px solid var(--line2);
+    border-bottom:none; background:var(--field); color:var(--muted); padding:8px 16px; cursor:pointer; margin-bottom:-1px}
+  .ptab:hover{color:var(--ink)}
+  .ptab.active{background:#fff; color:var(--accent); border-bottom:1px solid #fff}
+  .ptab.muted{opacity:.45}
+  .page{display:none}
+  .page.active{display:block}
+
+  /* ---- inventory ---- */
+  .coins{display:grid; grid-template-columns:repeat(6,1fr); gap:10px}
+  .coins .coin input{text-align:center; font-size:18px; font-weight:700}
+  .invtable input{background:var(--field)}
+  .invtable td:nth-child(2) input,.invtable td:nth-child(3) input{text-align:center}
+  .lftable input{background:var(--field)}
+  .lftable td:nth-child(2) input,.lftable td:nth-child(3) input,.lftable td:nth-child(4) input{text-align:center}
+  .rowtotal{display:flex; justify-content:space-between; align-items:center; margin-top:12px;
+    background:var(--field); border:1px solid var(--line); padding:10px 12px}
+  .rowtotal .k{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
+  .rowtotal .v{font-size:20px; font-weight:700; color:var(--accent)}
+  .encgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  @media (max-width:560px){ .coins{grid-template-columns:repeat(3,1fr)} .encgrid{grid-template-columns:repeat(2,1fr)} }
+
+  /* ---- spell sheet ---- */
+  .incl{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600}
+  .spell-hidden-note{display:none}
+  #page-spells.excluded #spellbody{display:none}
+  #page-spells.excluded .spell-hidden-note{display:block}
+  .spellhead{display:grid; grid-template-columns:1.4fr .8fr 1fr 1fr; gap:10px; align-items:end}
+  @media (max-width:560px){ .spellhead{grid-template-columns:1fr 1fr} }
+  .slots{display:grid; grid-template-columns:repeat(9,1fr); gap:8px}
+  @media (max-width:560px){ .slots{grid-template-columns:repeat(5,1fr)} }
+  .slot{background:var(--field); border:1px solid var(--line); padding:6px; text-align:center}
+  .slot .k{font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+  .slot input{text-align:center; font-size:16px; font-weight:700; background:transparent; border:none; padding:2px}
+  .spelltable input{background:var(--field)}
+  .spelltable .col-lvl{text-align:center; font-weight:700; color:var(--muted)}
+  .spelltable .col-lvl input{text-align:center; font-weight:400; color:var(--ink)}
+  .spelltable .col-prep{text-align:center}
+  .spelltable.hide-prep .col-prep{display:none}
+
   /* ---- Flat / sharp theme: square corners, no shadows, no shading ---- */
   *{border-radius:0 !important; box-shadow:none !important}
   .toolbar{backdrop-filter:none !important; background:#fff !important}
@@ -246,28 +290,33 @@
     /* hide builder/interaction chrome — print character data only */
     .toolbar,.noprint,#phb-build,.gen-status,.build-note{display:none !important}
     .sheet{margin:0; max-width:none; padding:0}
-    /* flow all cards into 2 balanced newspaper columns (grid paginates poorly) */
-    .columns{display:block; column-count:2; column-gap:8px}
-    .stack{display:contents}
-    .card{padding:5px 7px; margin:0 0 7px; border-color:#999; break-inside:avoid}
+    .pagetabs{display:none !important}
+    .page{display:block !important}                 /* print every page... */
+    .page:not(#page-core){break-before:page}  /* ...each on its own sheet */
+    #page-spells.excluded{display:none !important}  /* unless the player hid the spell sheet */
+    /* keep the on-screen two-column grouping (left = abilities/saves/skills, right = combat/etc.) */
+    .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:start}
+    .stack{display:flex; flex-direction:column; gap:7px}
+    .card{padding:5px 7px; margin:0; border-color:#999; break-inside:avoid}
     .card>h2{margin:0 0 3px; font-size:8px; letter-spacing:.07em}
     input,select,textarea{background:#fff !important; padding:1px 3px}
     label.lbl{font-size:7px; margin-bottom:0}
     .charname input{font-size:15px; padding:0 1px; border-bottom-width:1px}
     .header-grid{gap:8px}
-    .portrait{width:96px; min-height:0}
+    .portrait{width:110px; height:138px}
     .portrait-menu{display:none !important}
+    input::placeholder, textarea::placeholder{color:transparent !important}  /* no hint text on a printed sheet */
     .meta-grid{gap:3px 8px; margin-top:5px}
 
     .ability{padding:1.5px 0; gap:4px}
     .ability .name{font-size:8px}
-    .ability .score{width:34px}
-    .ability .score input{font-size:11px; padding:1px}
-    .ability .mod{width:28px; font-size:12px; padding:1px 0}
-    .score-out{width:24px; font-size:12px}
+    .ability .score{width:22px}
+    .ability .score input{font-size:11px; padding:0; height:22px}
+    .ability .mod{width:22px; height:22px; font-size:11px}
+    .score-out{width:22px; height:22px; font-size:11px}
     .racial{}
     .racial label{font-size:6px}
-    .racial input{width:26px; padding:1px}
+    .racial input{width:22px; padding:0; height:22px}
     .gen-control{gap:3px}
     .gen-control select{width:40px; padding:1px}
 
@@ -277,7 +326,7 @@
     .chip .k{font-size:6px}
 
     .row{padding:0.5px 0; gap:5px}
-    .row .total{width:26px; font-size:10px; padding:1px 0}
+    .row .total{width:16px; height:16px; font-size:9px}
     .row .rname{font-size:8px}
     .row .rname .ab{font-size:6px}
     .marks{gap:4px}
@@ -303,7 +352,7 @@
 
     textarea{display:none !important}
     .ta-print{display:block; font-size:8px; line-height:1.32; white-space:pre-wrap; word-wrap:break-word;
-      border:1px solid #999; padding:3px 5px; min-height:16px}
+      border:1px solid #999; padding:3px 5px; min-height:120px}   /* blank fields print large enough to write in */
   }
 </style>
 </head>
@@ -316,10 +365,21 @@
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file">Save</button>
     <button class="btn" onclick="window.print()">Print / PDF</button>
     <button class="btn ghost" id="btn-new" title="Open a new blank character in another tab">New</button>
+    <button class="btn danger" id="btn-reset" title="Clear this sheet and reset to defaults">Reset</button>
     <input type="file" id="file-input" accept="application/json,.json" style="display:none">
   </div>
 
   <div class="sheet">
+    <nav class="pagetabs noprint" id="pagetabs">
+      <button class="ptab active" data-page="core" type="button">Core</button>
+      <button class="ptab" data-page="inv" type="button">Inventory</button>
+      <button class="ptab" data-page="feat" type="button">Features</button>
+      <button class="ptab" data-page="bg" type="button">Background</button>
+      <button class="ptab" data-page="story" type="button">Backstory</button>
+      <button class="ptab" data-page="spells" type="button">Spells</button>
+    </nav>
+
+    <section class="page active" id="page-core" data-page="core">
     <!-- HEADER -->
     <div class="card">
       <div class="header-grid">
@@ -338,7 +398,7 @@
         <div class="header-main">
           <div class="charname"><input data-save id="charname" placeholder="Character name"></div>
           <div class="meta-grid">
-            <div><label class="lbl">Class & Level</label><input data-save id="classlevel" placeholder="e.g. Rogue 5"></div>
+            <div><label class="lbl">Class & Level</label><input data-save id="classlevel"></div>
             <div><label class="lbl">Background</label><input data-save id="background"></div>
             <div><label class="lbl">Race</label><input data-save id="race"></div>
             <div><label class="lbl">Alignment</label><input data-save id="alignment"></div>
@@ -392,8 +452,7 @@
           <div class="combat-top">
             <div class="stat">
               <div class="k">Armor Class</div>
-              <input data-save type="number" id="ac" placeholder="10">
-              <button class="btn mini noprint" id="btn-ac" type="button" title="Set to 10 + Dex modifier">10 + Dex</button>
+              <input data-save type="number" id="ac">
             </div>
             <div class="stat">
               <div class="k">Initiative</div>
@@ -432,19 +491,138 @@
         </div>
 
         <div class="card">
-          <h2>Features & Traits</h2>
-          <textarea data-save id="features" placeholder="Class features, racial traits, feats…"></textarea>
+          <h2>Limited Features</h2>
+          <table class="lftable">
+            <thead><tr>
+              <th>Feature</th>
+              <th style="width:48px">Max</th>
+              <th style="width:112px">Recover</th>
+              <th style="width:48px">Used</th>
+            </tr></thead>
+            <tbody id="limited"></tbody>
+          </table>
+          <p class="help noprint">Track uses per rest — Recover: LR (long rest), SR (short rest), or Dawn.</p>
         </div>
+
         <div class="card">
-          <h2>Other Proficiencies & Languages</h2>
+          <h2>Proficiencies and Languages</h2>
           <textarea data-save id="proficiencies" placeholder="Armor, weapons, tools, languages…"></textarea>
         </div>
-        <div class="card">
-          <h2>Equipment & Notes</h2>
-          <textarea data-save id="equipment" placeholder="Gear, currency, notes…"></textarea>
-        </div>
+
       </div>
     </div>
+    </section>
+
+    <!-- PAGE 2: INVENTORY -->
+    <section class="page" id="page-inv" data-page="inv">
+      <div class="card"><h2>Currency</h2>
+        <div class="coins">
+          <div class="coin"><label class="lbl">PP</label><input data-save type="number" id="pp" min="0"></div>
+          <div class="coin"><label class="lbl">GP</label><input data-save type="number" id="gp" min="0"></div>
+          <div class="coin"><label class="lbl">EP</label><input data-save type="number" id="ep" min="0"></div>
+          <div class="coin"><label class="lbl">SP</label><input data-save type="number" id="sp" min="0"></div>
+          <div class="coin"><label class="lbl">CP</label><input data-save type="number" id="cp" min="0"></div>
+          <div class="coin"><label class="lbl">Coin wt</label><div class="calc" id="coinwt">0</div></div>
+        </div>
+      </div>
+      <div class="card"><h2>Inventory</h2>
+        <table class="invtable">
+          <thead><tr><th>Item</th><th style="width:52px">Qty</th><th style="width:78px">Wt ea (lb)</th></tr></thead>
+          <tbody id="inv"></tbody>
+        </table>
+        <div class="rowtotal"><span class="k">Total weight (items + coins)</span><span class="v" id="totalwt">0 lb</span></div>
+      </div>
+      <div class="card"><h2>Carrying Capacity</h2>
+        <div class="encgrid">
+          <div class="stat"><div class="k">Carried</div><div class="calc" id="carried">0 lb</div></div>
+          <div class="stat"><div class="k">Status</div><div class="calc" id="encstatus">—</div></div>
+          <div class="stat"><div class="k">Encumbered ×5</div><div class="calc" id="enc5">—</div></div>
+          <div class="stat"><div class="k">Heavily Enc. ×10</div><div class="calc" id="enc10">—</div></div>
+          <div class="stat"><div class="k">Max Carry ×15</div><div class="calc" id="carry">—</div></div>
+          <div class="stat"><div class="k">Push / Drag / Lift ×30</div><div class="calc" id="pushdrag">—</div></div>
+        </div>
+        <p class="help">Thresholds use your Strength score (lb). Encumbered / Heavily are the optional variant rule.</p>
+      </div>
+      <div class="card"><h2>Equipment & Notes</h2>
+        <textarea data-save id="equipment" placeholder="Containers, mounts, attuned items, misc notes…"></textarea>
+      </div>
+    </section>
+
+    <!-- PAGE 3: FEATURES & TRAITS -->
+    <section class="page" id="page-feat" data-page="feat">
+      <div class="card"><h2>Features & Traits</h2>
+        <textarea data-save id="features" placeholder="Class features, racial traits, feats…"></textarea>
+      </div>
+    </section>
+
+    <!-- PAGE 4: BACKGROUND & PERSONALITY -->
+    <section class="page" id="page-bg" data-page="bg">
+      <div class="card"><h2>Appearance</h2>
+        <div class="meta-grid">
+          <div><label class="lbl">Age</label><input data-save id="age"></div>
+          <div><label class="lbl">Height</label><input data-save id="height"></div>
+          <div><label class="lbl">Weight</label><input data-save id="weight"></div>
+          <div><label class="lbl">Eyes</label><input data-save id="eyes"></div>
+          <div><label class="lbl">Skin</label><input data-save id="skin"></div>
+          <div><label class="lbl">Hair</label><input data-save id="hair"></div>
+        </div>
+      </div>
+      <div class="card"><h2>Personality Traits</h2><textarea data-save id="personality"></textarea></div>
+      <div class="card"><h2>Ideals</h2><textarea data-save id="ideals"></textarea></div>
+      <div class="card"><h2>Bonds</h2><textarea data-save id="bonds"></textarea></div>
+      <div class="card"><h2>Flaws</h2><textarea data-save id="flaws"></textarea></div>
+    </section>
+
+    <!-- PAGE 5: BACKSTORY -->
+    <section class="page" id="page-story" data-page="story">
+      <div class="card"><h2>Character Backstory</h2><textarea data-save id="backstory" style="min-height:360px"></textarea></div>
+      <div class="card"><h2>Allies &amp; Organizations</h2><textarea data-save id="allies"></textarea></div>
+      <div class="card"><h2>Additional Notes</h2><textarea data-save id="notes"></textarea></div>
+    </section>
+
+    <!-- PAGE 6: SPELL SHEET -->
+    <section class="page" id="page-spells" data-page="spells">
+      <div class="card noprint">
+        <label class="incl"><input data-save type="checkbox" id="spell-include" checked> Include spell sheet (uncheck for non-casters)</label>
+        <p class="help spell-hidden-note">Spell sheet hidden — it won't print. Re-check above to include it.</p>
+      </div>
+      <div id="spellbody">
+        <div class="card"><h2>Spellcasting</h2>
+          <div class="spellhead">
+            <div><label class="lbl">Spellcasting Class</label>
+              <select data-save id="spellclass">
+                <option value="">— (blank: flexible)</option>
+                <option>Artificer</option><option>Bard</option><option>Cleric</option><option>Druid</option>
+                <option>Paladin</option><option>Ranger</option><option>Sorcerer</option><option>Warlock</option>
+                <option>Wizard</option><option value="Other">Other</option>
+              </select></div>
+            <div><label class="lbl">Ability</label>
+              <select data-save id="spellability">
+                <option value="">—</option>
+                <option value="int">Int</option><option value="wis">Wis</option><option value="cha">Cha</option>
+                <option value="str">Str</option><option value="dex">Dex</option><option value="con">Con</option>
+              </select></div>
+            <div class="stat"><div class="k">Spell Save DC</div><div class="calc" id="spelldc"></div></div>
+            <div class="stat"><div class="k">Spell Attack</div><div class="calc" id="spellatk"></div></div>
+          </div>
+          <p class="help" id="cast-note">Pick a class to tailor the spell list, or leave blank for a flexible layout.</p>
+        </div>
+        <div class="card"><h2>Spell Slots (total per level)</h2><div class="slots" id="slots"></div></div>
+        <div class="card"><h2>Cantrips</h2>
+          <textarea data-save id="cantrips" placeholder="At-will cantrips…"></textarea>
+        </div>
+        <div class="card"><h2 id="spells-h2">Spells</h2>
+          <table class="spelltable" id="spelltable">
+            <thead><tr>
+              <th class="col-lvl" style="width:38px">Lvl</th>
+              <th class="col-prep" style="width:46px">Prep</th>
+              <th class="col-name">Name</th>
+            </tr></thead>
+            <tbody id="spells"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- Guided character creation (uses baked PHB data) -->
@@ -524,6 +702,9 @@
   ];
   const ABBR = {str:"Str",dex:"Dex",con:"Con",int:"Int",wis:"Wis",cha:"Cha"};
   const NATTACKS = 5;
+  const NINV = 20;          // inventory rows
+  const NSPELLROWS = 24;    // spell list rows
+  const NLIMITED = 8;       // limited-feature rows
 
   // 5e (2014) ability-score generation
   const POINTBUY_COST = {8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9};
@@ -536,14 +717,14 @@
 
   // ---- Generator state (managed in JS, not via data-save attributes) ----
   let genMode = "manual";                                   // manual | array | pointbuy
-  let manualScores = {str:"10",dex:"10",con:"10",int:"10",wis:"10",cha:"10"};
+  let manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
   let baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null}; // array/pointbuy base
   let racialVals = {str:0,dex:0,con:0,int:0,wis:0,cha:0};
   let inspState = false;
 
   // ---- Derived score helpers (work in every mode) ----
   function baseScore(k){
-    if(genMode === "manual") return num(manualScores[k],10);
+    if(genMode === "manual"){ const n = parseInt(manualScores[k],10); return isNaN(n) ? null : n; }   // blank → null
     return baseVals[k];                                     // may be null (unassigned array)
   }
   function finalScore(k){
@@ -563,7 +744,7 @@
     $("saves").innerHTML = ABILITIES.map(([k,name]) => `
       <div class="row">
         <span class="total" id="savetot-${k}">+0</span>
-        <label class="marks"><input data-save type="checkbox" id="savep-${k}"> Prof</label>
+        <span class="marks"><label><input data-save type="checkbox" id="savep-${k}"> Prof</label></span>
         <span class="rname">${name}</span>
       </div>`).join("");
 
@@ -586,17 +767,38 @@
     for (let i=0;i<NATTACKS;i++){
       rows += `<tr>
         <td><input data-save id="atkname-${i}"></td>
-        <td><input data-save id="atkbonus-${i}" placeholder="+0"></td>
+        <td><input data-save id="atkbonus-${i}"></td>
         <td><input data-save id="atkdmg-${i}" placeholder="1d8 slashing"></td>
       </tr>`;
     }
     $("attacks").innerHTML = rows;
+
+    let lf = "";
+    for(let i=0;i<NLIMITED;i++) lf +=
+      `<tr><td><input data-save id="lfname-${i}"></td>`+
+      `<td><input data-save id="lfmax-${i}"></td>`+
+      `<td><input data-save id="lfrec-${i}" placeholder="LR / SR / Dawn"></td>`+
+      `<td><input data-save id="lfused-${i}"></td></tr>`;
+    $("limited").innerHTML = lf;
+
+    let inv = "";
+    for(let i=0;i<NINV;i++) inv +=
+      `<tr><td><input data-save id="invname-${i}"></td>`+
+      `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
+      `<td><input data-save type="number" id="invwt-${i}" min="0" step="0.1"></td></tr>`;
+    $("inv").innerHTML = inv;
+
+    let sl = "";
+    for(let l=1;l<=9;l++) sl +=
+      `<div class="slot"><div class="k">Lv ${l}</div><input data-save type="number" id="slot${l}" min="0"></div>`;
+    $("slots").innerHTML = sl;
+    // spell rows are built by renderSpellTable() (class-dependent), called from renderSpellStyle()
   }
 
   // ---- Build the abilities section for the current mode ----
   function racialCell(k){
     return `<span class="racial"><label>+race</label>
-      <input class="ab-racial" data-ab="${k}" type="number" min="0" id="racial-${k}" value="${racialVals[k]||0}"></span>`;
+      <input class="ab-racial" data-ab="${k}" type="number" min="0" id="racial-${k}" value="${racialVals[k] ? racialVals[k] : ''}"></span>`;
   }
   function renderAbilities(){
     $("abilities").innerHTML = ABILITIES.map(([k,name]) => {
@@ -670,43 +872,142 @@
     baseVals[k] = nb; save(); compute();
   }
 
+  // ---- pages + spell-sheet visibility ----
+  function showPage(name){
+    document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.dataset.page === name));
+    document.querySelectorAll(".ptab").forEach(t => t.classList.toggle("active", t.dataset.page === name));
+    document.querySelectorAll("#page-"+name+" textarea").forEach(autoGrow);   // re-fit now that it's visible
+  }
+  function applySpellInclude(){
+    const on = $("spell-include").checked;
+    $("page-spells").classList.toggle("excluded", !on);
+    const tab = document.querySelector('.ptab[data-page="spells"]');
+    if(tab) tab.classList.toggle("muted", !on);
+  }
+  const round1 = n => (Math.round(n*10)/10).toString();
+
+  // ---- class-specific spell-sheet formatting ----
+  // fullList: pre-populate the class's entire spell list.   prepares: show a "Prep" (prepared) column.
+  const CASTERS = {
+    Wizard:    {fullList:false, prepares:true,  ability:"int", note:"Wizard: write the spells in your spellbook, then check which you have prepared today."},
+    Cleric:    {fullList:true,  prepares:true,  ability:"wis", note:"Cleric: your whole class list is pre-filled — check which spells you have prepared today."},
+    Druid:     {fullList:true,  prepares:true,  ability:"wis", note:"Druid: your whole class list is pre-filled — check which spells you have prepared today."},
+    Paladin:   {fullList:true,  prepares:true,  ability:"cha", note:"Paladin: your whole class list is pre-filled — check which spells you have prepared."},
+    Artificer: {fullList:true,  prepares:true,  ability:"int", note:"Artificer: prepare from your class list (the PHB has no Artificer spells, so write your own)."},
+    Bard:      {fullList:false, prepares:false, ability:"cha", note:"Bard: write your spells known — they're always ready (no preparation)."},
+    Sorcerer:  {fullList:false, prepares:false, ability:"cha", note:"Sorcerer: write your spells known — always ready (no preparation)."},
+    Ranger:    {fullList:false, prepares:false, ability:"wis", note:"Ranger: write your spells known — always ready (no preparation)."},
+    Warlock:   {fullList:false, prepares:false, ability:"cha", note:"Warlock (Pact Magic): write your spells known — always ready; slots recharge on a short rest."},
+  };
+  let preparedSpells = {};                     // {spellName: true} for pre-filled full-list classes
+  let manualSpells = [];                       // [{lvl,name,prep}] for write-your-own classes
+  function defaultManualSpells(){ return Array.from({length:NSPELLROWS}, ()=>({lvl:"",name:"",prep:false})); }
+  function classSpellList(cls){
+    const info = CASTERS[cls];
+    return (info && info.fullList && PHB && PHB.classSpells && (PHB.classSpells[cls]||[]).length)
+      ? PHB.classSpells[cls] : null;
+  }
+  function renderSpellTable(){
+    const cls = $("spellclass").value, info = CASTERS[cls];
+    $("spelltable").classList.toggle("hide-prep", !(info ? info.prepares : true));   // blank/Other shows Prep
+    const list = classSpellList(cls);
+    let body = "";
+    if(list){                                  // pre-populated entire class list (Prep checkbox per spell)
+      list.forEach(sp => {
+        body += `<tr><td class="col-lvl">${sp.l}</td>`+
+          `<td class="col-prep"><input type="checkbox" class="prep-spell" data-sp="${esc(sp.n)}" ${preparedSpells[sp.n] ? "checked" : ""}></td>`+
+          `<td class="col-name">${esc(sp.n)}</td></tr>`;
+      });
+      $("spells").dataset.mode = "full";
+    } else {                                   // write-your-own rows (backed by manualSpells state)
+      for(let i=0;i<NSPELLROWS;i++){
+        const m = manualSpells[i] || {};
+        body += `<tr><td class="col-lvl"><input id="splvl-${i}" value="${esc(m.lvl||'')}"></td>`+
+          `<td class="col-prep"><input type="checkbox" id="spprep-${i}" ${m.prep ? "checked" : ""}></td>`+
+          `<td class="col-name"><input id="spname-${i}" value="${esc(m.name||'')}"></td></tr>`;
+      }
+      $("spells").dataset.mode = "manual";
+    }
+    $("spells").innerHTML = body;
+  }
+  function renderSpellStyle(setAbility){
+    const cls = $("spellclass").value, info = CASTERS[cls];
+    $("cast-note").textContent = info ? info.note : "Flexible layout — fill in as needed. Pick a class to tailor it.";
+    if(info && setAbility && info.ability) $("spellability").value = info.ability;
+    renderSpellTable();
+  }
+
   // ---- The automation ----
   // Character level is read from the top "Class & Level" field (sum of any numbers, e.g. multiclass).
-  function charLevel(){
+  function charLevel(){                                   // null when no level is entered yet
     const m = ($("classlevel").value || "").match(/\d+/g);
-    const total = m ? m.reduce((a,b)=>a+parseInt(b,10),0) : 1;
-    return Math.min(20, Math.max(1, total));
+    if(!m) return null;
+    return Math.min(20, Math.max(1, m.reduce((a,b)=>a+parseInt(b,10),0)));
   }
   function compute(){
+    // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
     const level = charLevel();
-    const pb = 2 + Math.floor((level - 1) / 4);
-    $("pb").textContent = sgn(pb);
+    const pb = (level == null) ? null : 2 + Math.floor((level - 1) / 4);
+    const pbAdd = pb || 0;
+    $("pb").textContent = (pb == null) ? "" : sgn(pb);
 
     const mods = {};
     ABILITIES.forEach(([k]) => {
       const s = finalScore(k);
-      const m = modOf(k);
-      mods[k] = (s == null ? 0 : m);
-      $("mod-"+k).textContent = (s == null ? "–" : sgn(m));
-      const o = $("score-"+k+"-out"); if(o) o.textContent = (s == null ? "—" : s);
+      mods[k] = (s == null) ? null : modOf(k);
+      $("mod-"+k).textContent = (mods[k] == null) ? "" : sgn(mods[k]);
+      const o = $("score-"+k+"-out"); if(o) o.textContent = (s == null) ? "" : s;
     });
 
     ABILITIES.forEach(([k]) => {
-      const t = mods[k] + ($("savep-"+k).checked ? pb : 0);
-      $("savetot-"+k).textContent = sgn(t);
+      $("savetot-"+k).textContent = (mods[k] == null) ? "" : sgn(mods[k] + ($("savep-"+k).checked ? pbAdd : 0));
     });
 
-    let perceptionTotal = 0;
+    let perceptionTotal = null;
     SKILLS.forEach(([k,,ab]) => {
+      if(mods[ab] == null){ $("sktot-"+k).textContent = ""; if(k==="perception") perceptionTotal = null; return; }
       const exp = $("ske-"+k).checked, prof = $("skp-"+k).checked;
-      const bonus = exp ? pb*2 : (prof ? pb : 0);
-      const t = mods[ab] + bonus;
+      const t = mods[ab] + (exp ? pbAdd*2 : (prof ? pbAdd : 0));
       $("sktot-"+k).textContent = sgn(t);
       if(k === "perception") perceptionTotal = t;
     });
-    $("passive").textContent = 10 + perceptionTotal;
+    $("passive").textContent = (perceptionTotal == null) ? "" : (10 + perceptionTotal);
 
-    $("init").textContent = sgn(mods.dex + num($("init-misc").value,0));
+    $("init").textContent = (mods.dex == null) ? "" : sgn(mods.dex + num($("init-misc").value,0));
+
+    // --- inventory weight + carrying capacity (Strength-based) ---
+    const coins = num($("pp").value)+num($("gp").value)+num($("ep").value)+num($("sp").value)+num($("cp").value);
+    const coinWt = coins/50;                                   // 50 coins = 1 lb
+    $("coinwt").textContent = coins ? round1(coinWt) + " lb" : "";
+    let invWt = 0;
+    for(let i=0;i<NINV;i++){
+      const w = parseFloat($("invwt-"+i).value) || 0;
+      if(!w) continue;
+      const qv = $("invqty-"+i).value;
+      invWt += (qv === "" ? 1 : (num(qv,1) || 1)) * w;
+    }
+    const carried = invWt + coinWt;
+    const carriedTxt = (carried > 0) ? round1(carried) + " lb" : "";
+    $("totalwt").textContent = carriedTxt;
+    $("carried").textContent = carriedTxt;
+    const strScore = finalScore("str");
+    if(strScore == null){
+      ["enc5","enc10","carry","pushdrag","encstatus"].forEach(id => $(id).textContent = "");
+    } else {
+      const enc5=strScore*5, enc10=strScore*10, carry=strScore*15;
+      $("enc5").textContent = enc5+" lb"; $("enc10").textContent = enc10+" lb";
+      $("carry").textContent = carry+" lb"; $("pushdrag").textContent = (strScore*30)+" lb";
+      $("encstatus").textContent = carried>carry ? "Over capacity" : carried>enc10 ? "Heavily encumbered"
+        : carried>enc5 ? "Encumbered" : "Unencumbered";
+    }
+
+    // --- spellcasting (DC/attack need a level, an ability, and that ability's score) ---
+    const sa = $("spellability").value;
+    if(sa && pb != null && mods[sa] != null){
+      $("spelldc").textContent = 8 + pb + mods[sa];
+      $("spellatk").textContent = sgn(pb + mods[sa]);
+    } else { $("spelldc").textContent = ""; $("spellatk").textContent = ""; }
+    applySpellInclude();
 
     updateGenStatus();
     updateStepStates();
@@ -724,6 +1025,8 @@
     data.baseVals = baseVals;
     data.racialVals = racialVals;
     data.portrait = portraitData;
+    data.manualSpells = manualSpells;
+    data.preparedSpells = preparedSpells;
     return data;
   }
   function applyFields(data){                 // restores data-save fields + inspiration
@@ -737,7 +1040,7 @@
   }
   function applyAll(data){                     // full restore (generator + fields), then render
     genMode = (data && data.genMode) || "manual";
-    manualScores = {str:"10",dex:"10",con:"10",int:"10",wis:"10",cha:"10"};
+    manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
     baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
     racialVals = {str:0,dex:0,con:0,int:0,wis:0,cha:0};
     if(data){
@@ -746,6 +1049,13 @@
       if(data.baseVals)  baseVals  = {...baseVals,  ...data.baseVals};
       if(data.racialVals) racialVals = {...racialVals, ...data.racialVals};
     }
+    preparedSpells = (data && data.preparedSpells) || {};
+    manualSpells = defaultManualSpells();
+    if(data){
+      if(Array.isArray(data.manualSpells)) data.manualSpells.forEach((v,i)=>{ if(i<NSPELLROWS && v) manualSpells[i] = {lvl:v.lvl||"", name:v.name||"", prep:!!v.prep}; });
+      else for(let i=0;i<NSPELLROWS;i++){ if(("spname-"+i) in data || ("splvl-"+i) in data || ("spprep-"+i) in data)   // legacy
+        manualSpells[i] = {lvl:data["splvl-"+i]||"", name:data["spname-"+i]||"", prep:!!data["spprep-"+i]}; }
+    }
     renderAbilities();
     applyFields(data);
     portraitData = (data && data.portrait) || null;
@@ -753,6 +1063,7 @@
     document.querySelectorAll("textarea").forEach(autoGrow);
     updateModeUI();
     renderInsp();
+    renderSpellStyle(false);
     compute();
   }
   let saveTimer = null;
@@ -795,6 +1106,13 @@
     const t = e.target;
     if(t.id === "inspiration") return;
     if(t.tagName === "TEXTAREA") autoGrow(t);
+    const sm = t.id && t.id.match(/^(splvl|spname|spprep)-(\d+)$/);   // write-your-own spell rows
+    if(sm){ const i=+sm[2]; manualSpells[i] = manualSpells[i] || {lvl:"",name:"",prep:false};
+            if(sm[1]==="splvl") manualSpells[i].lvl = t.value;
+            else if(sm[1]==="spname") manualSpells[i].name = t.value;
+            else manualSpells[i].prep = t.checked; }
+    if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
+      if(t.checked) preparedSpells[t.dataset.sp] = true; else delete preparedSpells[t.dataset.sp]; }
     if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
     else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
     else if(t.classList.contains("ab-racial")) racialVals[t.dataset.ab] = Math.max(0, num(t.value,0));
@@ -924,7 +1242,7 @@
       (b.skills||[]).forEach(s=>{ const key=SKILL_KEY[s], box=key&&$("skp-"+key); if(box) box.checked=true; });
       if(b.feature && b.feature.name){
         const line = `${b.feature.name} (${name}). ${b.feature.text}`;
-        const t=$("proficiencies"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t);
+        const t=$("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t);
       }
       let n = `Skill proficiencies: ${(b.skills||[]).join(", ")||"(choices only)"}.`;
       if(b.skillChoose) n += `\nAlso choose ${b.skillChoose.count} from ${b.skillChoose.from.join(", ")}.`;
@@ -968,6 +1286,7 @@
       const c = findBy(PHB.classes, cls);
       $("classlevel").value = cls + " " + lvl + (sub ? ` (${sub})` : "");
       if(c && c.hd) $("hitdice").value = lvl + "d" + c.hd;
+      if(CASTERS[cls]){ $("spellclass").value = cls; renderSpellStyle(true); }   // tailor the spell sheet
     }
     if(bg) applyBackground(bg);
     genMode = wizMethod;
@@ -991,13 +1310,14 @@
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
 
+    $("pagetabs").addEventListener("click", e => { const b = e.target.closest(".ptab"); if(b) showPage(b.dataset.page); });
+    $("spellclass").addEventListener("change", ()=>{ renderSpellStyle(true); save(); compute(); });
     $("modes").addEventListener("click", e => { const b = e.target.closest(".mode-btn"); if(b) setMode(b.dataset.mode); });
     $("abilities").addEventListener("click", e => {
       const btn = e.target.closest(".step"); if(btn) stepPointBuy(btn.dataset.ab, parseInt(btn.dataset.dir,10));
     });
 
     $("inspiration").addEventListener("click", ()=>{ inspState = !inspState; renderInsp(); save(); });
-    $("btn-ac").addEventListener("click", ()=>{ $("ac").value = 10 + modOf("dex"); save(); compute(); });
 
     const closeMenu = ()=> $("portrait").classList.remove("menu-open");
     $("portrait").addEventListener("click", e=>{
@@ -1049,6 +1369,14 @@
     $("btn-new").addEventListener("click", ()=>{
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
       window.open(location.href.split("#")[0] + "#slot=" + id, "_blank");   // fresh blank sheet, current one untouched
+    });
+
+    $("btn-reset").addEventListener("click", ()=>{
+      if(!confirm("Are you sure? This will delete your character.")) return;
+      localStorage.removeItem(KEY);                 // clear this slot's character
+      localStorage.removeItem(KEY + "_img");        // and its portrait
+      $("embedded-data").textContent = "null";      // ignore any baked-in character
+      location.reload();                            // re-init blank (sourcebook is kept)
     });
 
     $("btn-create").addEventListener("click", openWizard);
