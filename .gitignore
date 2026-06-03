@@ -1,0 +1,13 @@
+# Personal PHB (2014) data extracted from a local 5eTools copy — copyrighted WotC content.
+# Owning the book covers personal use, NOT redistribution. Do not commit or share these.
+# Regenerate locally any time with:  python3 build-data.py
+phb-data.json
+
+# Built sheet with PHB data baked in (personal use only — don't hand this copy out)
+*(PHB)*.html
+*-phb.html
+
+# OS / editor / python cruft
+.DS_Store
+__pycache__/
+*.pyc

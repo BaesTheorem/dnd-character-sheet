@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Character Sheet</title>
+<style>
+  /* ---- Clean minimal modern, fully self-contained (no external assets) ---- */
+  :root{
+    --bg:#eef0f3;
+    --card:#ffffff;
+    --ink:#1a1d23;
+    --muted:#6b7280;
+    --line:#e3e6ea;
+    --line2:#d6dbe1;
+    --accent:#3b4a63;
+    --accent-soft:#eef1f6;
+    --field:#f7f8fa;
+    --radius:12px;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.05);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:var(--font);
+    color:var(--ink);
+    background:var(--bg);
+    line-height:1.4;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:60px;
+  }
+
+  /* ---- Toolbar ---- */
+  .toolbar{
+    position:sticky; top:0; z-index:20;
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+    padding:10px 16px;
+    background:rgba(255,255,255,.85);
+    backdrop-filter:saturate(180%) blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .toolbar .brand{font-weight:700; letter-spacing:.04em; margin-right:auto; font-size:14px}
+  .toolbar .brand span{color:var(--accent)}
+  .btn{
+    font:inherit; font-size:13px; font-weight:600;
+    border:1px solid var(--line2); background:#fff; color:var(--ink);
+    padding:7px 12px; border-radius:8px; cursor:pointer;
+    transition:background .12s, border-color .12s, transform .02s;
+  }
+  .btn:hover{background:var(--accent-soft); border-color:var(--accent)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{border-color:transparent; background:transparent; color:var(--muted)}
+  .btn.ghost:hover{color:var(--ink); background:var(--accent-soft)}
+  .status{font-size:12px; color:var(--muted); min-width:54px}
+
+  /* ---- Sheet layout ---- */
+  .sheet{max-width:1120px; margin:22px auto; padding:0 16px}
+  .card{
+    background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:16px 18px; margin-bottom:16px;
+  }
+  .card > h2{
+    margin:0 0 12px; font-size:11px; font-weight:700;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--accent);
+  }
+  .columns{display:grid; grid-template-columns:352px 1fr; gap:16px; align-items:start}
+  @media (max-width:860px){ .columns{grid-template-columns:1fr} }
+
+  label.lbl{display:block; font-size:10px; font-weight:700; letter-spacing:.09em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:3px}
+
+  input,select,textarea{
+    font:inherit; color:var(--ink); width:100%;
+    background:var(--field); border:1px solid var(--line);
+    border-radius:8px; padding:7px 9px;
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft); border-color:var(--accent)}
+  input[type=number]{appearance:textfield; -moz-appearance:textfield}
+  textarea{resize:vertical; min-height:84px; line-height:1.5}
+  .ta-print{display:none}
+
+  /* Header */
+  .charname input{font-size:24px; font-weight:700; background:transparent;
+    border:none; border-bottom:2px solid var(--line2); border-radius:0; padding:4px 2px}
+  .charname input:focus{border-bottom-color:var(--accent); outline:none}
+  .header-grid{display:flex; align-items:stretch; gap:16px}
+  .header-main{flex:1; min-width:0; display:flex; flex-direction:column}
+  .portrait{position:relative; flex:none; width:150px; align-self:stretch; min-height:120px;
+    border:1px solid var(--line2); background:var(--field); cursor:pointer; overflow:hidden;
+    display:flex; align-items:center; justify-content:center}
+  .portrait img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+  .portrait-empty{font-size:9px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); text-align:center}
+  .portrait-ctrls{display:none; position:absolute; bottom:0; left:0; right:0; justify-content:flex-end;
+    gap:2px; padding:2px; background:rgba(255,255,255,.88)}
+  .portrait.has-img .portrait-ctrls{display:flex}
+  .portrait-ctrls button{border:1px solid var(--line2); background:#fff; color:var(--ink);
+    font-size:11px; line-height:1; padding:2px 5px; cursor:pointer}
+  .meta-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px 14px; margin-top:14px}
+  @media (max-width:560px){ .meta-grid{grid-template-columns:repeat(2,1fr)} }
+
+  /* PHB build pickers */
+  .build-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .build-note{font-size:11px; color:var(--muted); margin-top:10px; line-height:1.55; white-space:pre-line}
+  .build-note b{color:var(--ink)}
+
+  /* Ability-score method selector */
+  .modes{display:flex; gap:4px; background:var(--field); border:1px solid var(--line);
+    border-radius:9px; padding:3px; margin-bottom:8px}
+  .mode-btn{flex:1; font:inherit; font-size:11px; font-weight:700; letter-spacing:.02em;
+    border:none; background:transparent; color:var(--muted); padding:6px 4px; border-radius:7px; cursor:pointer}
+  .mode-btn:hover{color:var(--ink)}
+  .mode-btn.active{background:#fff; color:var(--accent); box-shadow:var(--shadow)}
+  .gen-status{font-size:11px; color:var(--muted); margin-bottom:10px; min-height:15px}
+  .gen-status .over{color:#b42318; font-weight:700}
+  .gen-status .chip-val{display:inline-block; padding:1px 7px; margin:0 2px; border-radius:5px;
+    background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:11px}
+  .gen-status .chip-val.used{opacity:.32; text-decoration:line-through}
+
+  /* Abilities */
+  .ability{display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid var(--line)}
+  .ability:last-child{border-bottom:none}
+  .ability .name{flex:1; min-width:0; font-size:11px; font-weight:700; letter-spacing:.01em;
+    text-transform:uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .ability .score{width:60px; flex:none}
+  .ability .score input{text-align:center; font-size:18px; font-weight:700; padding:6px}
+  .ability .mod{
+    width:44px; flex:none; text-align:center; font-size:20px; font-weight:700; color:var(--accent);
+    background:var(--accent-soft); border-radius:8px; padding:6px 0;
+  }
+  .gen-control{display:flex; align-items:center; gap:5px; flex:none}
+  .gen-control select{width:52px; padding:6px 2px; text-align:center; font-weight:700; font-size:14px}
+  .stepper{display:flex; align-items:center; gap:1px}
+  .stepper .step{width:21px; height:30px; flex:none; border:1px solid var(--line2); background:#fff;
+    border-radius:6px; font-size:16px; font-weight:700; color:var(--accent); cursor:pointer; line-height:1; padding:0}
+  .stepper .step:hover:not(:disabled){background:var(--accent-soft)}
+  .stepper .step:disabled{opacity:.3; cursor:default}
+  .stepper .basev{width:22px; text-align:center; font-size:17px; font-weight:700}
+  .racial{display:flex; flex-direction:column; align-items:center; flex:none}
+  .racial label{font-size:8px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); margin:0}
+  .racial input{width:36px; text-align:center; padding:4px 2px; font-weight:700}
+  .score-out{width:38px; flex:none; text-align:center; font-size:19px; font-weight:700}
+
+  /* small stat chips */
+  .chips{display:flex; gap:10px; flex-wrap:wrap}
+  .chip{flex:1; min-width:90px; text-align:center; background:var(--field);
+    border:1px solid var(--line); border-radius:10px; padding:8px 6px}
+  .chip .v{font-size:22px; font-weight:700; color:var(--accent)}
+  .chip .k{font-size:9px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
+  .chip.toggleable{cursor:pointer; user-select:none}
+  .chip.on{background:var(--accent); border-color:var(--accent)}
+  .chip.on .v,.chip.on .k{color:#fff}
+
+  /* rows of save/skill */
+  .row{display:flex; align-items:center; gap:9px; padding:5px 0; border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:none}
+  .row .total{width:42px; text-align:center; font-weight:700; font-size:15px;
+    background:var(--accent-soft); color:var(--accent); border-radius:7px; padding:3px 0}
+  .row .rname{flex:1; font-size:13px}
+  .row .rname .ab{color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em}
+  .marks{display:flex; gap:6px; align-items:center}
+  .marks label{display:flex; align-items:center; gap:3px; font-size:9px; color:var(--muted);
+    font-weight:700; text-transform:uppercase; letter-spacing:.04em; cursor:pointer}
+  input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex:none}
+
+  .passive{display:flex; align-items:center; justify-content:space-between;
+    background:var(--field); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:12px}
+  .passive .v{font-size:22px; font-weight:700; color:var(--accent)}
+  .passive .k{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
+
+  /* combat */
+  .combat-top{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
+  @media (max-width:560px){ .combat-top{grid-template-columns:repeat(2,1fr)} }
+  .topstats{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .stat{background:var(--field); border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center}
+  .stat .k{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+  .stat input{text-align:center; font-size:18px; font-weight:700; background:transparent; border:none; padding:2px}
+  .stat .calc{font-size:18px; font-weight:700; color:var(--accent)}
+  .stat.toggle-stat{cursor:pointer; user-select:none}
+  .stat.on{background:var(--accent); border-color:var(--accent)}
+  .stat.on .k,.stat.on .calc{color:#fff}
+  .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
+  .deathsaves{display:flex; gap:18px; margin-top:12px; flex-wrap:wrap}
+  .deathsaves .grp{display:flex; align-items:center; gap:8px}
+  .deathsaves .grp .k{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
+  .pips{display:flex; gap:5px}
+
+  /* attacks */
+  table{width:100%; border-collapse:collapse}
+  th{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); text-align:left; padding:4px 6px}
+  td{padding:3px 4px}
+  td input{background:var(--field)}
+  .attacks td:nth-child(2) input{text-align:center}
+
+  /* guided creation modal */
+  .modal{position:fixed; inset:0; z-index:50; display:none; background:rgba(26,29,35,.45);
+    align-items:flex-start; justify-content:center; padding:48px 16px; overflow:auto}
+  .modal.open{display:flex}
+  .modal-panel{background:#fff; border:1px solid var(--line2); width:100%; max-width:460px}
+  .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line)}
+  .modal-head h2{margin:0; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
+  .modal-body{padding:18px; min-height:120px}
+  .wiz-hint{font-size:11px; color:var(--muted); margin:10px 0 0; line-height:1.55; white-space:pre-line}
+  .wiz-methods{display:flex; gap:6px}
+  .wiz-methods .btn{flex:1}
+  .btn.wiz-method.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .modal-foot{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-top:1px solid var(--line)}
+  .wiz-dots{font-size:11px; color:var(--muted); letter-spacing:.04em}
+  .help{font-size:11px; color:var(--muted); margin:2px 0 0}
+  .mini{font-size:11px; padding:4px 8px}
+  .stack{display:flex; flex-direction:column; gap:12px}
+
+  /* ---- Flat / sharp theme: square corners, no shadows, no shading ---- */
+  *{border-radius:0 !important; box-shadow:none !important}
+  .toolbar{backdrop-filter:none !important; background:#fff !important}
+  input,select,textarea,.stat input,.charname input{background:#fff !important}
+  input:focus,select:focus,textarea:focus{outline:none !important; border-color:var(--accent) !important}
+  /* badges drawn with hairlines instead of tinted fills */
+  .ability .mod,.row .total,.passive,.chip,.stat,.gen-status .chip-val{
+    background:#fff !important; border:1px solid var(--line2) !important;
+  }
+  /* flat segmented method selector (no elevation on the active tab) */
+  .modes{background:#fff !important; border:1px solid var(--line2) !important; padding:0 !important; gap:0 !important}
+  .mode-btn{border-right:1px solid var(--line2) !important}
+  .mode-btn:last-child{border-right:none !important}
+  .mode-btn.active{background:var(--accent) !important; color:#fff !important}
+  /* toggled-on states stay flat solid accent (a colour, not a shadow) */
+  .chip.on{background:var(--accent) !important; border-color:var(--accent) !important}
+  .chip.on .v,.chip.on .k{color:#fff !important}
+  .stat.on{background:var(--accent) !important; border-color:var(--accent) !important}
+  .stat.on .k,.stat.on .calc{color:#fff !important}
+
+  /* ---- print: dense, standardized, one page ---- */
+  @media print{
+    :root{--bg:#fff; --shadow:none}
+    @page{size:letter; margin:8mm}
+    html,body{background:#fff; padding:0; font-size:9px;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact}
+    /* hide builder/interaction chrome — print character data only */
+    .toolbar,.noprint,#phb-build,.gen-status,.build-note{display:none !important}
+    .sheet{margin:0; max-width:none; padding:0}
+    /* flow all cards into 2 balanced newspaper columns (grid paginates poorly) */
+    .columns{display:block; column-count:2; column-gap:8px}
+    .stack{display:contents}
+    .card{padding:5px 7px; margin:0 0 7px; border-color:#999; break-inside:avoid}
+    .card>h2{margin:0 0 3px; font-size:8px; letter-spacing:.07em}
+    input,select,textarea{background:#fff !important; padding:1px 3px}
+    label.lbl{font-size:7px; margin-bottom:0}
+    .charname input{font-size:15px; padding:0 1px; border-bottom-width:1px}
+    .header-grid{gap:8px}
+    .portrait{width:96px; min-height:0}
+    .portrait-ctrls{display:none !important}
+    .meta-grid{gap:3px 8px; margin-top:5px}
+
+    .ability{padding:1.5px 0; gap:4px}
+    .ability .name{font-size:8px}
+    .ability .score{width:34px}
+    .ability .score input{font-size:11px; padding:1px}
+    .ability .mod{width:28px; font-size:12px; padding:1px 0}
+    .score-out{width:24px; font-size:12px}
+    .racial{}
+    .racial label{font-size:6px}
+    .racial input{width:26px; padding:1px}
+    .gen-control{gap:3px}
+    .gen-control select{width:40px; padding:1px}
+
+    .chips{gap:5px}
+    .chip{padding:3px 2px}
+    .chip .v{font-size:13px}
+    .chip .k{font-size:6px}
+
+    .row{padding:0.5px 0; gap:5px}
+    .row .total{width:26px; font-size:10px; padding:1px 0}
+    .row .rname{font-size:8px}
+    .row .rname .ab{font-size:6px}
+    .marks{gap:4px}
+    .marks label{font-size:6px; gap:2px}
+    input[type=checkbox]{width:10px; height:10px}
+    .passive{padding:3px 5px; margin-top:4px}
+    .passive .v{font-size:13px}
+    .passive .k{font-size:7px}
+
+    .combat-top{gap:4px}
+    .stat{padding:3px}
+    .stat .k{font-size:6px}
+    .stat input{font-size:11px; padding:0}
+    .stat .calc{font-size:11px}
+    .hp-grid{gap:4px; margin-top:5px}
+    .deathsaves{gap:12px; margin-top:5px}
+    .deathsaves .grp{gap:5px}
+    .deathsaves .grp .k{font-size:7px}
+
+    th{font-size:6px; padding:1px 3px}
+    td{padding:1px 2px}
+    td input{font-size:8px; padding:1px 3px}
+
+    textarea{display:none !important}
+    .ta-print{display:block; font-size:8px; line-height:1.32; white-space:pre-wrap; word-wrap:break-word;
+      border:1px solid #999; padding:3px 5px; min-height:16px}
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar noprint">
+    <div class="brand">⬢ Character Sheet <span>· 5e</span></div>
+    <span class="status" id="status"></span>
+    <button class="btn primary" id="btn-create">Create Character</button>
+    <button class="btn" id="btn-import" title="Import sourcebook data (phb-data.json from build-data.py)">Import Sourcebook</button>
+    <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file">Save</button>
+    <button class="btn" onclick="window.print()">Print / PDF</button>
+    <button class="btn ghost" id="btn-new" title="Open a new blank character in another tab">New</button>
+    <input type="file" id="file-input" accept="application/json,.json" style="display:none">
+  </div>
+
+  <div class="sheet">
+    <!-- HEADER -->
+    <div class="card">
+      <div class="header-grid">
+        <div class="portrait" id="portrait" title="Click to upload a portrait">
+          <img id="portrait-img" alt="portrait" hidden>
+          <span class="portrait-empty" id="portrait-empty">Portrait</span>
+          <div class="portrait-ctrls noprint">
+            <button type="button" id="portrait-dl" title="Download original image">↓</button>
+            <button type="button" id="portrait-rm" title="Remove portrait">✕</button>
+          </div>
+        </div>
+        <div class="header-main">
+          <div class="charname"><input data-save id="charname" placeholder="Character name"></div>
+          <div class="meta-grid">
+            <div><label class="lbl">Class & Level</label><input data-save id="classlevel" placeholder="e.g. Rogue 5"></div>
+            <div><label class="lbl">Background</label><input data-save id="background"></div>
+            <div><label class="lbl">Race</label><input data-save id="race"></div>
+            <div><label class="lbl">Alignment</label><input data-save id="alignment"></div>
+            <div><label class="lbl">Player</label><input data-save id="player"></div>
+            <div><label class="lbl">Experience</label><input data-save id="xp"></div>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="portrait-input" accept="image/*,.heic,.heif" hidden>
+    </div>
+
+    <div class="columns">
+      <!-- LEFT COLUMN -->
+      <div class="stack">
+        <div class="card">
+          <h2>Abilities</h2>
+          <div class="modes noprint" id="modes">
+            <button class="mode-btn" data-mode="manual" type="button">Manual</button>
+            <button class="mode-btn" data-mode="array" type="button">Standard Array</button>
+            <button class="mode-btn" data-mode="pointbuy" type="button">Point Buy</button>
+          </div>
+          <div class="gen-status" id="gen-status"></div>
+          <div id="abilities"></div>
+        </div>
+
+        <div class="card">
+          <h2>Saving Throws</h2>
+          <div id="saves"></div>
+        </div>
+
+        <div class="card">
+          <h2>Skills</h2>
+          <div id="skills"></div>
+          <div class="passive">
+            <span class="k">Passive Perception</span>
+            <span class="v" id="passive">10</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="stack">
+        <div class="card">
+          <div class="topstats">
+            <div class="stat"><div class="k">Proficiency Bonus</div><div class="calc" id="pb">+2</div></div>
+            <div class="stat toggle-stat" id="inspiration"><div class="k">Inspiration</div><div class="calc" id="insp-mark">○</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Combat</h2>
+          <div class="combat-top">
+            <div class="stat">
+              <div class="k">Armor Class</div>
+              <input data-save type="number" id="ac" placeholder="10">
+              <button class="btn mini noprint" id="btn-ac" type="button" title="Set to 10 + Dex modifier">10 + Dex</button>
+            </div>
+            <div class="stat">
+              <div class="k">Initiative</div>
+              <div class="calc" id="init">+0</div>
+              <input data-save type="number" id="init-misc" placeholder="misc" title="misc initiative bonus">
+            </div>
+            <div class="stat">
+              <div class="k">Speed</div>
+              <input data-save id="speed" placeholder="30 ft">
+            </div>
+            <div class="stat">
+              <div class="k">Hit Dice</div>
+              <input data-save id="hitdice" placeholder="5d8">
+            </div>
+          </div>
+          <div class="hp-grid">
+            <div class="stat"><div class="k">Max HP</div><input data-save type="number" id="hpmax"></div>
+            <div class="stat"><div class="k">Current HP</div><input data-save type="number" id="hpcur"></div>
+            <div class="stat"><div class="k">Temp HP</div><input data-save type="number" id="hptmp"></div>
+          </div>
+          <div class="deathsaves">
+            <div class="grp"><span class="k">Death Saves — Successes</span>
+              <span class="pips" id="ds-success"></span></div>
+            <div class="grp"><span class="k">Failures</span>
+              <span class="pips" id="ds-fail"></span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Attacks</h2>
+          <table class="attacks">
+            <thead><tr><th>Name</th><th style="width:64px">Bonus</th><th>Damage / Type</th></tr></thead>
+            <tbody id="attacks"></tbody>
+          </table>
+          <p class="help noprint">Bonus is free text (e.g. <code>+7</code>); attack/damage rules vary by build, so this stays manual.</p>
+        </div>
+
+        <div class="card">
+          <h2>Features & Traits</h2>
+          <textarea data-save id="features" placeholder="Class features, racial traits, feats…"></textarea>
+        </div>
+        <div class="card">
+          <h2>Other Proficiencies & Languages</h2>
+          <textarea data-save id="proficiencies" placeholder="Armor, weapons, tools, languages…"></textarea>
+        </div>
+        <div class="card">
+          <h2>Equipment & Notes</h2>
+          <textarea data-save id="equipment" placeholder="Gear, currency, notes…"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guided character creation (uses baked PHB data) -->
+  <div class="modal noprint" id="wizard">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2>Create a Character</h2>
+        <button class="btn ghost" id="wiz-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="wiz-step" data-step="0">
+          <label class="lbl">Race</label>
+          <select id="wiz-race"></select>
+          <p class="wiz-hint" id="wiz-race-hint"></p>
+        </div>
+        <div class="wiz-step" data-step="1" hidden>
+          <label class="lbl">Class</label>
+          <select id="wiz-class"></select>
+          <label class="lbl" style="margin-top:10px">Subclass</label>
+          <select id="wiz-subclass"></select>
+          <label class="lbl" style="margin-top:10px">Level</label>
+          <input type="number" id="wiz-level" min="1" max="20" value="1">
+        </div>
+        <div class="wiz-step" data-step="2" hidden>
+          <label class="lbl">Background</label>
+          <select id="wiz-bg"></select>
+        </div>
+        <div class="wiz-step" data-step="3" hidden>
+          <label class="lbl">Ability Score Method</label>
+          <div class="wiz-methods">
+            <button class="btn wiz-method" data-method="manual" type="button">Manual</button>
+            <button class="btn wiz-method" data-method="array" type="button">Standard Array</button>
+            <button class="btn wiz-method" data-method="pointbuy" type="button">Point Buy</button>
+          </div>
+          <p class="wiz-hint">You'll assign the actual scores on the sheet after creating.</p>
+        </div>
+        <div class="wiz-step" data-step="4" hidden>
+          <label class="lbl">Character Name</label>
+          <input id="wiz-name" placeholder="Name">
+          <p class="wiz-hint" id="wiz-note"></p>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="wiz-back" type="button">Back</button>
+        <span class="wiz-dots" id="wiz-dots"></span>
+        <button class="btn primary" id="wiz-next" type="button">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Embedded character data for "Save copy (HTML)". Leave as null in the master file. -->
+  <script id="embedded-data" type="application/json">null</script>
+  <!-- PHB content baked in by build-data.py (null in the shareable app; do not commit when filled). -->
+  <script id="phb-data" type="application/json">null</script>
+
+  <script>
+  "use strict";
+  const BASE_KEY = "dnd-sheet-2014-v1";
+  const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
+  const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
+  const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
+
+  const ABILITIES = [
+    ["str","Strength"],["dex","Dexterity"],["con","Constitution"],
+    ["int","Intelligence"],["wis","Wisdom"],["cha","Charisma"]
+  ];
+  const SKILLS = [
+    ["acrobatics","Acrobatics","dex"],["animal","Animal Handling","wis"],
+    ["arcana","Arcana","int"],["athletics","Athletics","str"],
+    ["deception","Deception","cha"],["history","History","int"],
+    ["insight","Insight","wis"],["intimidation","Intimidation","cha"],
+    ["investigation","Investigation","int"],["medicine","Medicine","wis"],
+    ["nature","Nature","int"],["perception","Perception","wis"],
+    ["performance","Performance","cha"],["persuasion","Persuasion","cha"],
+    ["religion","Religion","int"],["sleight","Sleight of Hand","dex"],
+    ["stealth","Stealth","dex"],["survival","Survival","wis"]
+  ];
+  const ABBR = {str:"Str",dex:"Dex",con:"Con",int:"Int",wis:"Wis",cha:"Cha"};
+  const NATTACKS = 5;
+
+  // 5e (2014) ability-score generation
+  const POINTBUY_COST = {8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9};
+  const POINTBUY_BUDGET = 27;
+  const STANDARD_ARRAY = [15,14,13,12,10,8];
+
+  const $ = id => document.getElementById(id);
+  const sgn = n => (n >= 0 ? "+" : "") + n;
+  const num = (v, d=0) => { const n = parseInt(v,10); return isNaN(n) ? d : n; };
+
+  // ---- Generator state (managed in JS, not via data-save attributes) ----
+  let genMode = "manual";                                   // manual | array | pointbuy
+  let manualScores = {str:"10",dex:"10",con:"10",int:"10",wis:"10",cha:"10"};
+  let baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null}; // array/pointbuy base
+  let racialVals = {str:0,dex:0,con:0,int:0,wis:0,cha:0};
+  let inspState = false;
+
+  // ---- Derived score helpers (work in every mode) ----
+  function baseScore(k){
+    if(genMode === "manual") return num(manualScores[k],10);
+    return baseVals[k];                                     // may be null (unassigned array)
+  }
+  function finalScore(k){
+    const b = baseScore(k);
+    if(b == null) return null;
+    return b + (racialVals[k]||0);   // racial applies in every mode (base + racial = final)
+  }
+  function modOf(k){ const s = finalScore(k); return s == null ? 0 : Math.floor((s - 10) / 2); }
+  function pbSpent(vals){
+    let s = 0;
+    ABILITIES.forEach(([k]) => { const b = (vals[k]==null?8:vals[k]); s += (POINTBUY_COST[b]||0); });
+    return s;
+  }
+
+  // ---- Build the static (mode-independent) sections ----
+  function buildStatic(){
+    $("saves").innerHTML = ABILITIES.map(([k,name]) => `
+      <div class="row">
+        <span class="total" id="savetot-${k}">+0</span>
+        <label class="marks"><input data-save type="checkbox" id="savep-${k}"> Prof</label>
+        <span class="rname">${name}</span>
+      </div>`).join("");
+
+    $("skills").innerHTML = SKILLS.map(([k,name,ab]) => `
+      <div class="row">
+        <span class="total" id="sktot-${k}">+0</span>
+        <span class="marks">
+          <label><input data-save type="checkbox" id="skp-${k}"> Prof</label>
+          <label><input data-save type="checkbox" id="ske-${k}"> Exp</label>
+        </span>
+        <span class="rname">${name} <span class="ab">${ABBR[ab]}</span></span>
+      </div>`).join("");
+
+    const pips = (pre,n) => Array.from({length:n}, (_,i) =>
+      `<input data-save type="checkbox" id="${pre}-${i}">`).join("");
+    $("ds-success").innerHTML = pips("dss",3);
+    $("ds-fail").innerHTML = pips("dsf",3);
+
+    let rows = "";
+    for (let i=0;i<NATTACKS;i++){
+      rows += `<tr>
+        <td><input data-save id="atkname-${i}"></td>
+        <td><input data-save id="atkbonus-${i}" placeholder="+0"></td>
+        <td><input data-save id="atkdmg-${i}" placeholder="1d8 slashing"></td>
+      </tr>`;
+    }
+    $("attacks").innerHTML = rows;
+  }
+
+  // ---- Build the abilities section for the current mode ----
+  function racialCell(k){
+    return `<span class="racial"><label>+race</label>
+      <input class="ab-racial" data-ab="${k}" type="number" min="0" id="racial-${k}" value="${racialVals[k]||0}"></span>`;
+  }
+  function renderAbilities(){
+    $("abilities").innerHTML = ABILITIES.map(([k,name]) => {
+      let control, out = "";
+      if(genMode === "manual"){
+        control = `<span class="score"><input class="ab-score" data-ab="${k}" type="number" id="score-${k}" value="${manualScores[k]}"></span>${racialCell(k)}`;
+        out = `<span class="score-out" id="score-${k}-out">—</span>`;
+      } else if(genMode === "array"){
+        control = `<span class="gen-control"><select class="ab-base" data-ab="${k}" id="basesel-${k}"></select>${racialCell(k)}</span>`;
+        out = `<span class="score-out" id="score-${k}-out">—</span>`;
+      } else { // pointbuy
+        control = `<span class="gen-control"><span class="stepper">
+            <button class="step" data-ab="${k}" data-dir="-1" type="button">−</button>
+            <span class="basev" id="basev-${k}">8</span>
+            <button class="step" data-ab="${k}" data-dir="1" type="button">+</button>
+          </span>${racialCell(k)}</span>`;
+        out = `<span class="score-out" id="score-${k}-out">—</span>`;
+      }
+      return `<div class="ability"><span class="name">${name}</span>${control}${out}<span class="mod" id="mod-${k}">+0</span></div>`;
+    }).join("");
+    if(genMode === "array") refreshArraySelects();
+  }
+  function refreshArraySelects(){
+    const used = {};
+    ABILITIES.forEach(([k]) => { if(baseVals[k] != null) used[baseVals[k]] = k; });
+    ABILITIES.forEach(([k]) => {
+      const sel = $("basesel-"+k); if(!sel) return;
+      let opts = `<option value="">—</option>`;
+      STANDARD_ARRAY.forEach(v => {
+        const takenBy = used[v];
+        const disabled = (takenBy && takenBy !== k) ? "disabled" : "";
+        const selected = (baseVals[k] === v) ? "selected" : "";
+        opts += `<option value="${v}" ${disabled} ${selected}>${v}</option>`;
+      });
+      sel.innerHTML = opts;
+    });
+  }
+
+  // ---- Status line + point-buy stepper states ----
+  function updateGenStatus(){
+    const el = $("gen-status");
+    if(genMode === "array"){
+      const used = new Set(ABILITIES.map(([k]) => baseVals[k]).filter(v => v != null));
+      el.innerHTML = "Standard Array — assign each once: " +
+        STANDARD_ARRAY.map(v => `<span class="chip-val ${used.has(v)?'used':''}">${v}</span>`).join("");
+    } else if(genMode === "pointbuy"){
+      const spent = pbSpent(baseVals);
+      el.innerHTML = `Point Buy — <span class="${spent>POINTBUY_BUDGET?'over':''}">${spent} / ${POINTBUY_BUDGET}</span> points used · scores 8–15`;
+    } else {
+      el.textContent = "";
+    }
+  }
+  function updateStepStates(){
+    if(genMode !== "pointbuy") return;
+    const spent = pbSpent(baseVals);
+    ABILITIES.forEach(([k]) => {
+      const b = (baseVals[k]==null?8:baseVals[k]);
+      const minus = document.querySelector(`.step[data-ab="${k}"][data-dir="-1"]`);
+      const plus  = document.querySelector(`.step[data-ab="${k}"][data-dir="1"]`);
+      if(minus) minus.disabled = b <= 8;
+      if(plus){ const costNext = (POINTBUY_COST[b+1] ?? 99) - (POINTBUY_COST[b] ?? 0);
+                plus.disabled = b >= 15 || (spent + costNext > POINTBUY_BUDGET); }
+      const bv = $("basev-"+k); if(bv) bv.textContent = b;
+    });
+  }
+  function stepPointBuy(k, dir){
+    let b = (baseVals[k]==null?8:baseVals[k]);
+    const nb = b + dir;
+    if(nb < 8 || nb > 15) return;
+    if(dir > 0 && pbSpent({...baseVals, [k]:nb}) > POINTBUY_BUDGET) return;
+    baseVals[k] = nb; save(); compute();
+  }
+
+  // ---- The automation ----
+  // Character level is read from the top "Class & Level" field (sum of any numbers, e.g. multiclass).
+  function charLevel(){
+    const m = ($("classlevel").value || "").match(/\d+/g);
+    const total = m ? m.reduce((a,b)=>a+parseInt(b,10),0) : 1;
+    return Math.min(20, Math.max(1, total));
+  }
+  function compute(){
+    const level = charLevel();
+    const pb = 2 + Math.floor((level - 1) / 4);
+    $("pb").textContent = sgn(pb);
+
+    const mods = {};
+    ABILITIES.forEach(([k]) => {
+      const s = finalScore(k);
+      const m = modOf(k);
+      mods[k] = (s == null ? 0 : m);
+      $("mod-"+k).textContent = (s == null ? "–" : sgn(m));
+      const o = $("score-"+k+"-out"); if(o) o.textContent = (s == null ? "—" : s);
+    });
+
+    ABILITIES.forEach(([k]) => {
+      const t = mods[k] + ($("savep-"+k).checked ? pb : 0);
+      $("savetot-"+k).textContent = sgn(t);
+    });
+
+    let perceptionTotal = 0;
+    SKILLS.forEach(([k,,ab]) => {
+      const exp = $("ske-"+k).checked, prof = $("skp-"+k).checked;
+      const bonus = exp ? pb*2 : (prof ? pb : 0);
+      const t = mods[ab] + bonus;
+      $("sktot-"+k).textContent = sgn(t);
+      if(k === "perception") perceptionTotal = t;
+    });
+    $("passive").textContent = 10 + perceptionTotal;
+
+    $("init").textContent = sgn(mods.dex + num($("init-misc").value,0));
+
+    updateGenStatus();
+    updateStepStates();
+  }
+
+  // ---- Persistence ----
+  function collect(){
+    const data = {};
+    document.querySelectorAll("[data-save]").forEach(el => {
+      data[el.id] = (el.type === "checkbox") ? el.checked : el.value;
+    });
+    data.inspiration = inspState;
+    data.genMode = genMode;
+    data.manualScores = manualScores;
+    data.baseVals = baseVals;
+    data.racialVals = racialVals;
+    data.portrait = portraitData;
+    return data;
+  }
+  function applyFields(data){                 // restores data-save fields + inspiration
+    if(!data) return;
+    document.querySelectorAll("[data-save]").forEach(el => {
+      if(!(el.id in data)) return;
+      if(el.type === "checkbox") el.checked = !!data[el.id];
+      else el.value = data[el.id];
+    });
+    inspState = !!data.inspiration;
+  }
+  function applyAll(data){                     // full restore (generator + fields), then render
+    genMode = (data && data.genMode) || "manual";
+    manualScores = {str:"10",dex:"10",con:"10",int:"10",wis:"10",cha:"10"};
+    baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
+    racialVals = {str:0,dex:0,con:0,int:0,wis:0,cha:0};
+    if(data){
+      if(data.manualScores) manualScores = {...manualScores, ...data.manualScores};
+      else ABILITIES.forEach(([k]) => { if(("score-"+k) in data) manualScores[k] = data["score-"+k]; }); // legacy
+      if(data.baseVals)  baseVals  = {...baseVals,  ...data.baseVals};
+      if(data.racialVals) racialVals = {...racialVals, ...data.racialVals};
+    }
+    renderAbilities();
+    applyFields(data);
+    portraitData = (data && data.portrait) || null;
+    renderPortrait();
+    document.querySelectorAll("textarea").forEach(autoGrow);
+    updateModeUI();
+    renderInsp();
+    compute();
+  }
+  let saveTimer = null;
+  function flashStatus(msg){
+    const s = $("status"); s.textContent = msg;
+    clearTimeout(saveTimer); saveTimer = setTimeout(()=> s.textContent = "", 1500);
+  }
+  function save(){
+    const d = collect();
+    const portrait = d.portrait; delete d.portrait;          // keep the heavy image out of the main key
+    try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){}
+    try{
+      if(portrait) localStorage.setItem(KEY+"_img", JSON.stringify(portrait));
+      else localStorage.removeItem(KEY+"_img");
+    }catch(e){ flashStatus("Portrait too large to autosave — use Save copy (HTML) to keep it"); return; }
+    flashStatus("Saved");
+  }
+
+  // ---- Inspiration toggle ----
+  function renderInsp(){
+    $("inspiration").classList.toggle("on", inspState);
+    $("insp-mark").textContent = inspState ? "★" : "○";
+  }
+
+  // ---- Mode switching ----
+  function updateModeUI(){
+    document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === genMode));
+  }
+  function setMode(m){
+    if(m === genMode) return;
+    genMode = m;
+    if(m === "pointbuy"){
+      ABILITIES.forEach(([k]) => { const b = baseVals[k]; if(b == null || b < 8 || b > 15) baseVals[k] = 8; });
+    }
+    renderAbilities(); updateModeUI(); save(); compute();
+  }
+
+  // ---- Wiring ----
+  function onChange(e){
+    const t = e.target;
+    if(t.id === "inspiration") return;
+    if(t.tagName === "TEXTAREA") autoGrow(t);
+    if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
+    else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
+    else if(t.classList.contains("ab-racial")) racialVals[t.dataset.ab] = Math.max(0, num(t.value,0));
+    save(); compute();
+  }
+  function autoGrow(ta){
+    if(!ta) return;
+    ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px";   // grow on screen
+    let m = ta.nextElementSibling;                                        // print-only text mirror
+    if(!(m && m.classList && m.classList.contains("ta-print"))){
+      m = document.createElement("div"); m.className = "ta-print"; ta.after(m);
+    }
+    m.textContent = ta.value;
+  }
+  function download(content, filename, mime){
+    const blob = new Blob([content], {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+  function charLabel(){
+    const n = ($("charname").value || "character").trim();
+    return n.replace(/[^\w\- ]+/g,"").replace(/\s+/g,"-") || "character";
+  }
+
+  // ---- Character portrait (original bytes stored with the character) ----
+  let portraitData = null;   // { data: dataURL, name, type } | null
+  function extFromType(t){
+    return ({"image/png":"png","image/jpeg":"jpg","image/webp":"webp","image/gif":"gif",
+             "image/heic":"heic","image/heif":"heif","image/avif":"avif","image/bmp":"bmp","image/tiff":"tif"})[t] || "img";
+  }
+  function renderPortrait(){
+    const img=$("portrait-img"), empty=$("portrait-empty"), box=$("portrait");
+    if(portraitData && portraitData.data){
+      img.onerror = ()=>{ img.hidden=true; empty.hidden=false;          // e.g. HEIC can't preview in most browsers
+        empty.textContent = (extFromType(portraitData.type)||"img").toUpperCase(); };
+      img.src = portraitData.data; img.hidden=false; empty.hidden=true; box.classList.add("has-img");
+    } else {
+      img.hidden=true; img.removeAttribute("src"); empty.textContent="Portrait"; empty.hidden=false; box.classList.remove("has-img");
+    }
+  }
+  function dataURLtoBlob(durl){
+    const [head, b64] = durl.split(",");
+    const mime = (head.match(/data:([^;]+)/) || [])[1] || "application/octet-stream";
+    const bin = atob(b64), arr = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], {type:mime});
+  }
+  function downloadPortrait(){
+    if(!portraitData) return;
+    const url = URL.createObjectURL(dataURLtoBlob(portraitData.data));   // original bytes, full resolution
+    const a = document.createElement("a");
+    a.href = url; a.download = portraitData.name || ("portrait." + extFromType(portraitData.type));
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  }
+
+  // ---- PHB content pickers (data baked in by build-data.py; null in the shareable app) ----
+  let PHB = null;
+  const ABKEYS = ["str","dex","con","int","wis","cha"];
+  const SKILL_KEY = {"acrobatics":"acrobatics","animal handling":"animal","arcana":"arcana",
+    "athletics":"athletics","deception":"deception","history":"history","insight":"insight",
+    "intimidation":"intimidation","investigation":"investigation","medicine":"medicine",
+    "nature":"nature","perception":"perception","performance":"performance","persuasion":"persuasion",
+    "religion":"religion","sleight of hand":"sleight","stealth":"stealth","survival":"survival"};
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+  const optTag = (v,label) => `<option value="${esc(v)}">${esc(label)}</option>`;
+  const findBy = (arr,n) => arr.find(x => x.name === n);
+
+  function populateWizard(){
+    const btn = $("btn-create");
+    if(!PHB){ if(btn){ btn.disabled=true; btn.title="Import sourcebook data to enable character creation"; } return; }
+    if(btn){ btn.disabled=false; btn.title=""; }
+    $("wiz-race").innerHTML  = `<option value="">—</option>` + PHB.races.map(r=>optTag(r.name,r.name)).join("");
+    $("wiz-class").innerHTML = `<option value="">—</option>` + PHB.classes.map(c=>optTag(c.name,c.name)).join("");
+    $("wiz-bg").innerHTML    = `<option value="">—</option>` + PHB.backgrounds.map(b=>optTag(b.name,b.name)).join("");
+    populateSubclass("");
+  }
+  function populateSubclass(clsName){
+    const sel=$("wiz-subclass"); if(!sel || !PHB) return;
+    const cls=findBy(PHB.classes,clsName), subs=cls?cls.subclasses:[];
+    sel.innerHTML = `<option value="">${subs.length?esc(cls.subclassTitle||"Subclass"):"—"}</option>` + subs.map(s=>optTag(s.name,s.name)).join("");
+    sel.disabled = !subs.length;
+  }
+  function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
+
+  function applyRace(name){
+    ABKEYS.forEach(k => racialVals[k]=0);            // race owns racial bonuses
+    const r = PHB && findBy(PHB.races,name);
+    if(r){
+      $("race").value = name;
+      let choose=null;
+      (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
+        if(ABKEYS.includes(k) && typeof v==="number") racialVals[k]+=v; else if(k==="choose") choose=v;
+      }));
+      if(r.speed) $("speed").value = r.speed+" ft";
+      if(r.traits && r.traits.length && !$("features").value.trim())
+        $("features").value = r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n");
+      autoGrow($("features"));
+      const fixed = ABKEYS.filter(k=>racialVals[k]).map(k=>ABBR[k]+" +"+racialVals[k]).join(", ");
+      setNote(`Applied ability bonuses: ${fixed||"none fixed"}.` +
+              (choose?`\nAlso choose +${choose.amount||1} to ${choose.count} ability score(s) — set via +race.`:""));
+    } else setNote("");
+  }
+  function applyClass(name){
+    populateSubclass(name);
+    const c = PHB && findBy(PHB.classes,name);
+    if(c){
+      const lvl = charLevel();
+      $("classlevel").value = name+" "+lvl;
+      ABKEYS.forEach(k=>{ const box=$("savep-"+k); if(box) box.checked = c.saves.includes(k); });
+      if(c.hd) $("hitdice").value = lvl+"d"+c.hd;
+      let n = `Saves: ${c.saves.map(s=>ABBR[s]).join(", ")} · Hit die d${c.hd}.`;
+      if(c.skillChoose) n += `\nClass skills: choose ${c.skillChoose.count} from ${c.skillChoose.from.join(", ")}.`;
+      if(c.casterAbility) n += `\nSpellcaster: ${ABBR[c.casterAbility]} (${c.casterProgression}).`;
+      setNote(n);
+    } else setNote("");
+  }
+  function applyBackground(name){
+    const b = PHB && findBy(PHB.backgrounds,name);
+    if(b){
+      $("background").value = name;
+      (b.skills||[]).forEach(s=>{ const key=SKILL_KEY[s], box=key&&$("skp-"+key); if(box) box.checked=true; });
+      if(b.feature && b.feature.name){
+        const line = `${b.feature.name} (${name}). ${b.feature.text}`;
+        const t=$("proficiencies"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t);
+      }
+      let n = `Skill proficiencies: ${(b.skills||[]).join(", ")||"(choices only)"}.`;
+      if(b.skillChoose) n += `\nAlso choose ${b.skillChoose.count} from ${b.skillChoose.from.join(", ")}.`;
+      setNote(n);
+    } else setNote("");
+  }
+
+  // ---- Guided character creation wizard ----
+  let wizStep = 0, wizMethod = "manual";
+  const WIZ_LAST = 4;
+  function renderWizStep(){
+    document.querySelectorAll(".wiz-step").forEach(s => s.hidden = (+s.dataset.step !== wizStep));
+    $("wiz-back").style.visibility = wizStep === 0 ? "hidden" : "visible";
+    $("wiz-next").textContent = wizStep === WIZ_LAST ? "Create" : "Next";
+    $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
+  }
+  function openWizard(){
+    if(!PHB){ alert("Character creation needs sourcebook data. Click “Import Sourcebook” and choose your phb-data.json (made by build-data.py)."); return; }
+    wizStep = 0; renderWizStep(); $("wizard").classList.add("open");
+  }
+  function closeWizard(){ $("wizard").classList.remove("open"); }
+  function raceHint(){
+    const r = PHB && findBy(PHB.races, $("wiz-race").value);
+    if(!r){ $("wiz-race-hint").textContent = ""; return; }
+    const parts = [];
+    (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
+      if(ABKEYS.includes(k)) parts.push(ABBR[k]+" +"+v);
+      else if(k==="choose") parts.push(`+${v.amount||1} to ${v.count} of choice`);
+    }));
+    $("wiz-race-hint").textContent = (parts.length ? `Ability: ${parts.join(", ")}. ` : "") + (r.speed ? `Speed ${r.speed} ft.` : "");
+  }
+  function createCharacter(){
+    const name=$("wiz-name").value.trim(), race=$("wiz-race").value, cls=$("wiz-class").value,
+          sub=$("wiz-subclass").value, lvl=Math.min(20,Math.max(1,num($("wiz-level").value,1))), bg=$("wiz-bg").value;
+    // proficiencies become authoritative for the new build
+    document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
+    if(name) $("charname").value = name;
+    if(race) applyRace(race);
+    if(cls){
+      applyClass(cls);
+      const c = findBy(PHB.classes, cls);
+      $("classlevel").value = cls + " " + lvl + (sub ? ` (${sub})` : "");
+      if(c && c.hd) $("hitdice").value = lvl + "d" + c.hd;
+    }
+    if(bg) applyBackground(bg);
+    genMode = wizMethod;
+    if(wizMethod === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });
+    renderAbilities(); updateModeUI();
+    document.querySelectorAll("textarea").forEach(autoGrow);
+    compute(); save(); closeWizard();
+  }
+
+  function init(){
+    buildStatic();
+    try{ PHB = JSON.parse($("phb-data").textContent); }catch(e){ PHB = null; }          // baked into the (PHB) build
+    if(!PHB){ try{ const s = localStorage.getItem(SOURCES_KEY); if(s) PHB = JSON.parse(s); }catch(e){} }  // or previously imported
+    let data = null;
+    try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
+    if(!data && !SLOT){ try{ data = JSON.parse($("embedded-data").textContent); }catch(e){} }  // fresh "New" slot starts blank
+    if(data && !data.portrait){ try{ const p=JSON.parse(localStorage.getItem(KEY+"_img")); if(p) data.portrait=p; }catch(e){} }
+    populateWizard();
+    applyAll(data);
+
+    document.addEventListener("input", onChange);
+    document.addEventListener("change", onChange);
+
+    $("modes").addEventListener("click", e => { const b = e.target.closest(".mode-btn"); if(b) setMode(b.dataset.mode); });
+    $("abilities").addEventListener("click", e => {
+      const btn = e.target.closest(".step"); if(btn) stepPointBuy(btn.dataset.ab, parseInt(btn.dataset.dir,10));
+    });
+
+    $("inspiration").addEventListener("click", ()=>{ inspState = !inspState; renderInsp(); save(); });
+    $("btn-ac").addEventListener("click", ()=>{ $("ac").value = 10 + modOf("dex"); save(); compute(); });
+
+    $("portrait").addEventListener("click", e=>{ if(!e.target.closest(".portrait-ctrls")) $("portrait-input").click(); });
+    $("portrait-dl").addEventListener("click", e=>{ e.stopPropagation(); downloadPortrait(); });
+    $("portrait-rm").addEventListener("click", e=>{ e.stopPropagation(); portraitData=null; renderPortrait(); save(); });
+    $("portrait-input").addEventListener("change", ev=>{
+      const f = ev.target.files[0]; if(!f) return;
+      const r = new FileReader();
+      r.onload = ()=>{ portraitData = { data:r.result, name:f.name, type:f.type||"" }; renderPortrait(); save(); };
+      r.readAsDataURL(f);
+      ev.target.value = "";
+    });
+
+    $("btn-import").addEventListener("click", ()=> $("file-input").click());
+    $("file-input").addEventListener("change", ev=>{
+      const f = ev.target.files[0]; if(!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        let d;
+        try{ d = JSON.parse(r.result); }
+        catch(e){ alert("That file isn't valid JSON."); $("file-input").value=""; return; }
+        if(!d || !Array.isArray(d.races) || !Array.isArray(d.classes) || !Array.isArray(d.spells)){
+          alert("That doesn't look like sourcebook data.\nExpected a phb-data.json file generated by build-data.py (with races / classes / spells).");
+          $("file-input").value=""; return;
+        }
+        PHB = d;
+        try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(d)); }
+        catch(e){ flashStatus("Sourcebook loaded (too large to persist locally)"); }
+        populateWizard();
+        flashStatus("Sourcebook loaded — Create is ready");
+        $("file-input").value = "";
+      };
+      r.readAsText(f);
+    });
+
+    $("btn-savecopy").addEventListener("click", ()=>{
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelector("#embedded-data").textContent = JSON.stringify(collect());
+      const st = clone.querySelector("#status"); if(st) st.textContent = "";
+      download("<!DOCTYPE html>\n" + clone.outerHTML, charLabel()+".html", "text/html");
+    });
+
+    $("btn-new").addEventListener("click", ()=>{
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+      window.open(location.href.split("#")[0] + "#slot=" + id, "_blank");   // fresh blank sheet, current one untouched
+    });
+
+    $("btn-create").addEventListener("click", openWizard);
+    $("wiz-close").addEventListener("click", closeWizard);
+    $("wizard").addEventListener("click", e=>{ if(e.target.id === "wizard") closeWizard(); });
+    $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
+    $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
+    $("wiz-race").addEventListener("change", raceHint);
+    $("wiz-class").addEventListener("change", e=> populateSubclass(e.target.value));
+    document.querySelectorAll(".wiz-method").forEach(b => b.addEventListener("click", ()=>{
+      wizMethod = b.dataset.method;
+      document.querySelectorAll(".wiz-method").forEach(x => x.classList.toggle("active", x === b));
+    }));
+    document.querySelector('.wiz-method[data-method="manual"]').classList.add("active");
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>
