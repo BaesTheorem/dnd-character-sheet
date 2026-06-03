@@ -188,6 +188,24 @@ def build_spells():
     spells.sort(key=lambda x: (x["level"], x["name"]))
     return spells
 
+# Items that grant a flat AC bonus (shield, rings/cloaks/bracers of protection, etc.) for the
+# Armor section's bonus-item pickers. PHB only has the Shield, so this pulls from the wider data.
+def build_ac_items():
+    out, seen = [{"n": "Shield", "b": 2}], {"Shield"}
+    try: items = load("items.json").get("item", [])
+    except Exception: return out
+    for it in items:
+        b = it.get("bonusAc")
+        if not b: continue
+        if (it.get("type") or "").split("|")[0] in ("LA", "MA", "HA"): continue   # body armor → Armor dropdown
+        name = it.get("name", "")
+        if name in seen: continue
+        try: bonus = int(str(b).replace("+", "").strip())
+        except Exception: continue
+        seen.add(name); out.append({"n": name, "b": bonus})
+    out.sort(key=lambda x: x["n"])
+    return out
+
 # Per-class PHB spell lists (levels 1-9) for classes that prepare from their whole list.
 def build_class_spells():
     levels = {}
@@ -232,6 +250,7 @@ def main():
         "feats": build_feats(load("feats.json")),
         "spells": build_spells(),
         "classSpells": build_class_spells(),
+        "acItems": build_ac_items(),
     }
     weapons, armor = build_items(load("items-base.json"))
     out["weapons"], out["armor"] = weapons, armor

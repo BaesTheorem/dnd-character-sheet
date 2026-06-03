@@ -69,8 +69,12 @@
     margin:0 0 12px; font-size:11px; font-weight:700;
     letter-spacing:.12em; text-transform:uppercase; color:var(--accent);
   }
-  .columns{display:grid; grid-template-columns:352px 1fr; gap:16px; align-items:start}
+  .columns{display:grid; grid-template-columns:352px 1fr; gap:16px; align-items:stretch}
   @media (max-width:860px){ .columns{grid-template-columns:1fr} }
+  /* let the Senses / Proficiencies cards soak up the leftover height in their column */
+  .card.grow{flex:1 1 auto; display:flex; flex-direction:column}
+  .card.grow textarea{flex:1 1 auto}
+  .card.grow .ta-print{flex:1 1 auto}
 
   label.lbl{display:block; font-size:10px; font-weight:700; letter-spacing:.09em;
     text-transform:uppercase; color:var(--muted); margin-bottom:3px}
@@ -127,6 +131,10 @@
   .gen-status .chip-val.used{opacity:.32; text-decoration:line-through}
 
   /* Abilities */
+  .ability-head{display:flex; align-items:center; gap:6px; padding-bottom:5px; border-bottom:1px solid var(--line2)}
+  .ability-head .name{flex:1; min-width:0}
+  .ability-head .col{width:40px; flex:none; text-align:center; font-size:8px; font-weight:700;
+    letter-spacing:.03em; text-transform:uppercase; color:var(--muted); line-height:1.1; white-space:nowrap}
   .ability{display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid var(--line)}
   .ability:last-child{border-bottom:none}
   .ability .name{flex:1; min-width:0; font-size:11px; font-weight:700; letter-spacing:.01em;
@@ -145,10 +153,22 @@
   .stepper .step:hover:not(:disabled){background:var(--accent-soft)}
   .stepper .step:disabled{opacity:.3; cursor:default}
   .stepper .basev{width:22px; text-align:center; font-size:17px; font-weight:700}
-  .racial{display:flex; flex-direction:column; align-items:center; flex:none}
-  .racial label{font-size:8px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); margin:0}
-  .racial input{width:40px; text-align:center; padding:0; font-weight:700; height:40px; box-sizing:border-box}
-  .score-out{width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:700}
+  .score-out{width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
+    font-size:19px; font-weight:700; border:1px solid var(--line2); background:#fff; box-sizing:border-box}
+
+  /* "Under the hood" — generation method + per-ability base & bonus inputs (modal) */
+  .hood-btn{float:right; font:inherit; font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted); background:var(--field); border:1px solid var(--line); padding:3px 9px; cursor:pointer}
+  .hood-btn:hover{color:var(--accent); border-color:var(--accent)}
+  .hood-grid-head, .hood-row{display:grid; grid-template-columns:72px 72px repeat(4,1fr); gap:6px; align-items:center}
+  .hood-grid-head{font-size:8px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--muted); text-align:center; margin-bottom:5px}
+  .hood-grid-head .hname{text-align:left}
+  .hood-row{padding:5px 0; border-bottom:1px solid var(--line)}
+  .hood-row:last-child{border-bottom:none}
+  .hood-row .hname{font-size:10px; font-weight:700; text-transform:uppercase}
+  .hood-row input, .hood-row select{width:100%; box-sizing:border-box; text-align:center; padding:3px 2px; font-weight:700}
+  .hood-row .stepper{justify-content:center}
 
   /* small stat chips */
   .chips{display:flex; gap:10px; flex-wrap:wrap}
@@ -172,19 +192,25 @@
     font-weight:700; text-transform:uppercase; letter-spacing:.04em; cursor:pointer}
   input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex:none}
 
-  .passive{display:flex; align-items:center; justify-content:space-between;
-    background:var(--field); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:12px}
-  .passive .v{font-size:22px; font-weight:700; color:var(--accent)}
-  .passive .k{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
+  .passive{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+  .passive .v{flex:none; width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    font-size:15px; font-weight:700; color:var(--accent); background:#fff; border:2px solid var(--accent)}
+  .passive .k{font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink); line-height:1.3}
 
   /* combat */
-  .combat-top{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
-  @media (max-width:560px){ .combat-top{grid-template-columns:repeat(2,1fr)} }
+  .combat-top{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  @media (max-width:560px){ .combat-top{grid-template-columns:repeat(3,1fr)} }
   .topstats{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   .stat{background:var(--field); border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center}
   .stat .k{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
   .stat input{text-align:center; font-size:18px; font-weight:700; background:transparent; border:none; padding:2px}
   .stat .calc{font-size:18px; font-weight:700; color:var(--accent)}
+  /* AC / Initiative / Speed: tighter, content-height boxes (values keep the standard .stat size) */
+  .combat-top .stat{padding:5px 6px}
+  .combat-top .stat .k{margin-bottom:1px}
+  .combat-top .stat input{padding:0}
+  .combat-top.hd-grid{grid-template-columns:repeat(4,1fr); gap:8px}   /* Hit Dice: all 4 boxes on one line */
   .stat.toggle-stat{cursor:pointer; user-select:none}
   .stat.on{background:var(--accent); border-color:var(--accent)}
   .stat.on .k,.stat.on .calc{color:#fff}
@@ -236,6 +262,8 @@
   .invtable td:nth-child(2) input,.invtable td:nth-child(3) input{text-align:center}
   .lftable input{background:var(--field)}
   .lftable td:nth-child(2) input,.lftable td:nth-child(3) input,.lftable td:nth-child(4) input{text-align:center}
+  .acitems input,.acitems select{background:var(--field)}
+  .acitems td:nth-child(2) input{text-align:center}
   .rowtotal{display:flex; justify-content:space-between; align-items:center; margin-top:12px;
     background:var(--field); border:1px solid var(--line); padding:10px 12px}
   .rowtotal .k{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
@@ -312,11 +340,15 @@
     #page-mini.excluded{display:none !important}     /* no portrait / opted out → don't print a blank mini page */
     #page-mini .mini-wrap{gap:12mm}
     /* keep the on-screen two-column grouping (left = abilities/saves/skills, right = combat/etc.) */
-    .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:start}
+    #page-core{display:flex !important; flex-direction:column; min-height:261mm}   /* fill the printed sheet */
+    #page-core .columns{flex:1 1 auto; grid-template-rows:1fr}                     /* row fills the page; stacks stretch into it */
+    .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:stretch}
     .stack{display:flex; flex-direction:column; gap:7px}
+    .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
     .card{padding:5px 7px; margin:0; border-color:#999; break-inside:avoid}
     .card>h2{margin:0 0 3px; font-size:8px; letter-spacing:.07em}
     input,select,textarea{background:#fff !important; padding:1px 3px}
+    select{-webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:none}  /* no dropdown arrows in print */
     label.lbl{font-size:7px; margin-bottom:0}
     .charname input{font-size:15px; padding:0 1px; border-bottom-width:1px}
     .header-grid{gap:8px}
@@ -327,15 +359,10 @@
 
     .ability{padding:1.5px 0; gap:4px}
     .ability .name{font-size:8px}
-    .ability .score{width:22px}
-    .ability .score input{font-size:11px; padding:0; height:22px}
     .ability .mod{width:22px; height:22px; font-size:11px}
-    .score-out{width:22px; height:22px; font-size:11px}
-    .racial{}
-    .racial label{font-size:6px}
-    .racial input{width:22px; padding:0; height:22px}
-    .gen-control{gap:3px}
-    .gen-control select{width:40px; padding:1px}
+    .score-out{width:22px; height:22px; font-size:11px; border:1px solid #999}
+    .ability-head{gap:4px; padding-bottom:2px}
+    .ability-head .col{width:22px; font-size:6px; line-height:1}
 
     .chips{gap:5px}
     .chip{padding:3px 2px}
@@ -349,9 +376,9 @@
     .marks{gap:4px}
     .marks label{font-size:6px; gap:2px}
     input[type=checkbox]{width:10px; height:10px}
-    .passive{padding:3px 5px; margin-top:4px}
-    .passive .v{font-size:13px}
-    .passive .k{font-size:7px}
+    .passive{gap:6px; margin-bottom:4px}
+    .passive .v{width:16px; height:16px; font-size:9px; border-width:1px}
+    .passive .k{font-size:8px}
 
     .combat-top{gap:4px}
     .stat{padding:3px}
@@ -370,6 +397,8 @@
     textarea{display:none !important}
     .ta-print{display:block; font-size:8px; line-height:1.32; white-space:pre-wrap; word-wrap:break-word;
       border:1px solid #999; padding:3px 5px; min-height:120px}   /* blank fields print large enough to write in */
+    #senses + .ta-print{min-height:32px}   /* Senses is a short list, not a big write-in box — keep Core on one page */
+    #proficiencies + .ta-print{min-height:62px}   /* keep Core on one page */
   }
 </style>
 </head>
@@ -432,13 +461,8 @@
       <!-- LEFT COLUMN -->
       <div class="stack">
         <div class="card">
-          <h2>Abilities</h2>
-          <div class="modes noprint" id="modes">
-            <button class="mode-btn" data-mode="manual" type="button">Manual</button>
-            <button class="mode-btn" data-mode="array" type="button">Standard Array</button>
-            <button class="mode-btn" data-mode="pointbuy" type="button">Point Buy</button>
-          </div>
-          <div class="gen-status" id="gen-status"></div>
+          <h2>Abilities <button class="hood-btn noprint" id="btn-hood" type="button" title="Set scores, bonuses, and generation method">⚙ Under the hood</button></h2>
+          <div class="ability-head"><span class="name"></span><span class="col">Score</span><span class="col">Mod</span></div>
           <div id="abilities"></div>
         </div>
 
@@ -450,10 +474,14 @@
         <div class="card">
           <h2>Skills</h2>
           <div id="skills"></div>
+        </div>
+        <div class="card grow">
+          <h2>Senses</h2>
           <div class="passive">
+            <span class="v" id="passive"></span>
             <span class="k">Passive Perception</span>
-            <span class="v" id="passive">10</span>
           </div>
+          <textarea data-save id="senses" placeholder="Darkvision 60 ft, Observant feat, Danger Sense…" style="min-height:72px"></textarea>
         </div>
       </div>
 
@@ -470,20 +498,15 @@
           <div class="combat-top">
             <div class="stat">
               <div class="k">Armor Class</div>
-              <input data-save type="number" id="ac">
+              <div class="calc" id="ac-calc"></div>
             </div>
             <div class="stat">
               <div class="k">Initiative</div>
-              <div class="calc" id="init">+0</div>
-              <input data-save type="number" id="init-misc" placeholder="misc" title="misc initiative bonus">
+              <div class="calc" id="init"></div>
             </div>
             <div class="stat">
               <div class="k">Speed</div>
               <input data-save id="speed" placeholder="30 ft">
-            </div>
-            <div class="stat">
-              <div class="k">Hit Dice</div>
-              <input data-save id="hitdice" placeholder="5d8">
             </div>
           </div>
           <div class="hp-grid">
@@ -497,6 +520,16 @@
             <div class="grp"><span class="k">Failures</span>
               <span class="pips" id="ds-fail"></span></div>
           </div>
+        </div>
+
+        <div class="card">
+          <h2>Armor</h2>
+          <div><label class="lbl">Armor (sets base AC)</label><select data-save id="armorsel"></select>
+            <input data-save id="armor-custom" placeholder="custom armor + AC" title="Type your armor and its AC; the number is used as the base AC (bonuses below still add)" style="display:none; margin-top:6px"></div>
+          <table class="acitems">
+            <thead><tr><th>Item (adds to AC)</th><th style="width:64px">Bonus</th></tr></thead>
+            <tbody id="acbonuses"></tbody>
+          </table>
         </div>
 
         <div class="card">
@@ -523,6 +556,29 @@
         </div>
 
         <div class="card">
+          <h2>Hit Dice</h2>
+          <div class="combat-top hd-grid">
+            <div class="stat">
+              <div class="k">Hit Dice</div>
+              <input data-save id="hitdice">
+            </div>
+            <div class="stat">
+              <div class="k">Total</div>
+              <input data-save type="number" id="hd-total" min="0">
+            </div>
+            <div class="stat">
+              <div class="k">Used</div>
+              <input data-save type="number" id="hd-used" min="0">
+            </div>
+            <div class="stat">
+              <div class="k">Available</div>
+              <div class="calc" id="hd-avail"></div>
+            </div>
+          </div>
+          <p class="help noprint">Spend a hit die on a short rest to heal: roll the die + your CON modifier, then mark it under Used. Regain spent dice on a long rest (up to half your total).</p>
+        </div>
+
+        <div class="card grow">
           <h2>Proficiencies and Languages</h2>
           <textarea data-save id="proficiencies" placeholder="Armor, weapons, tools, languages…"></textarea>
         </div>
@@ -609,14 +665,14 @@
           <div class="spellhead">
             <div><label class="lbl">Spellcasting Class</label>
               <select data-save id="spellclass">
-                <option value="">— (blank: flexible)</option>
+                <option value=""></option>
                 <option>Artificer</option><option>Bard</option><option>Cleric</option><option>Druid</option>
                 <option>Paladin</option><option>Ranger</option><option>Sorcerer</option><option>Warlock</option>
                 <option>Wizard</option><option value="Other">Other</option>
               </select></div>
             <div><label class="lbl">Ability</label>
               <select data-save id="spellability">
-                <option value="">—</option>
+                <option value=""></option>
                 <option value="int">Int</option><option value="wis">Wis</option><option value="cha">Cha</option>
                 <option value="str">Str</option><option value="dex">Dex</option><option value="con">Con</option>
               </select></div>
@@ -710,6 +766,33 @@
     </div>
   </div>
 
+  <div class="modal noprint" id="hood">
+    <div class="modal-panel" style="max-width:560px">
+      <div class="modal-head">
+        <h2>Ability Scores — Under the Hood</h2>
+        <button class="btn ghost" id="hood-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modes" id="modes">
+          <button class="mode-btn" data-mode="manual" type="button">Manual</button>
+          <button class="mode-btn" data-mode="array" type="button">Standard Array</button>
+          <button class="mode-btn" data-mode="pointbuy" type="button">Point Buy</button>
+        </div>
+        <div class="gen-status" id="gen-status"></div>
+        <div class="hood-grid-head">
+          <span class="hname"></span><span>Base</span><span>ASI</span><span>Racial</span><span>Magical</span><span>Misc</span>
+        </div>
+        <div id="hood-abilities"></div>
+        <label class="lbl" style="margin-top:14px; display:block">Notes</label>
+        <textarea data-save id="abilitynotes" placeholder="Where bonuses come from, ASI choices at levels 4/8/…, temporary effects…" style="min-height:60px"></textarea>
+      </div>
+      <div class="modal-foot">
+        <span class="wiz-hint" style="flex:1; margin:0">Final score = Base + ASI + Racial + Magical + Misc. The sheet shows only the total and modifier.</span>
+        <button class="btn primary" id="hood-done" type="button">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Embedded character data for "Save copy (HTML)". Leave as null in the master file. -->
   <script id="embedded-data" type="application/json">null</script>
   <!-- PHB content baked in by build-data.py (null in the shareable app; do not commit when filled). -->
@@ -756,7 +839,9 @@
   let genMode = "manual";                                   // manual | array | pointbuy
   let manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
   let baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null}; // array/pointbuy base
-  let racialVals = {str:0,dex:0,con:0,int:0,wis:0,cha:0};
+  const BONUS_CATS = [["asi","ASI"],["racial","Racial"],["magical","Magical"],["misc","Misc"]];
+  const zeroAb = () => ({str:0,dex:0,con:0,int:0,wis:0,cha:0});
+  let bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};  // per-category ability bonuses
   let inspState = false;
 
   // ---- Derived score helpers (work in every mode) ----
@@ -764,10 +849,11 @@
     if(genMode === "manual"){ const n = parseInt(manualScores[k],10); return isNaN(n) ? null : n; }   // blank → null
     return baseVals[k];                                     // may be null (unassigned array)
   }
+  function totalBonus(k){ let s = 0; for(const [c] of BONUS_CATS) s += (bonusVals[c][k] || 0); return s; }
   function finalScore(k){
     const b = baseScore(k);
     if(b == null) return null;
-    return b + (racialVals[k]||0);   // racial applies in every mode (base + racial = final)
+    return b + totalBonus(k);   // final = base + ASI + racial + magical + misc (all modes)
   }
   function modOf(k){ const s = finalScore(k); return s == null ? 0 : Math.floor((s - 10) / 2); }
   function pbSpent(vals){
@@ -818,6 +904,12 @@
       `<td><input data-save id="lfused-${i}"></td></tr>`;
     $("limited").innerHTML = lf;
 
+    let acb = "";
+    for(let i=0;i<3;i++) acb +=
+      `<tr><td><select class="acitem" data-save id="acitem-${i}"></select></td>`+
+      `<td><input data-save type="number" id="acbonus-${i}"></td></tr>`;
+    $("acbonuses").innerHTML = acb;
+
     let inv = "";
     for(let i=0;i<NINV;i++) inv +=
       `<tr><td><input data-save id="invname-${i}"></td>`+
@@ -832,29 +924,29 @@
     // spell rows are built by renderSpellTable() (class-dependent), called from renderSpellStyle()
   }
 
-  // ---- Build the abilities section for the current mode ----
-  function racialCell(k){
-    return `<span class="racial"><label>+race</label>
-      <input class="ab-racial" data-ab="${k}" type="number" min="0" id="racial-${k}" value="${racialVals[k] ? racialVals[k] : ''}"></span>`;
-  }
+  // ---- Main sheet: only the final score + modifier per ability ----
   function renderAbilities(){
-    $("abilities").innerHTML = ABILITIES.map(([k,name]) => {
-      let control, out = "";
-      if(genMode === "manual"){
-        control = `<span class="score"><input class="ab-score" data-ab="${k}" type="number" id="score-${k}" value="${manualScores[k]}"></span>${racialCell(k)}`;
-        out = `<span class="score-out" id="score-${k}-out">—</span>`;
-      } else if(genMode === "array"){
-        control = `<span class="gen-control"><select class="ab-base" data-ab="${k}" id="basesel-${k}"></select>${racialCell(k)}</span>`;
-        out = `<span class="score-out" id="score-${k}-out">—</span>`;
-      } else { // pointbuy
-        control = `<span class="gen-control"><span class="stepper">
-            <button class="step" data-ab="${k}" data-dir="-1" type="button">−</button>
-            <span class="basev" id="basev-${k}">8</span>
-            <button class="step" data-ab="${k}" data-dir="1" type="button">+</button>
-          </span>${racialCell(k)}</span>`;
-        out = `<span class="score-out" id="score-${k}-out">—</span>`;
-      }
-      return `<div class="ability"><span class="name">${name}</span>${control}${out}<span class="mod" id="mod-${k}">+0</span></div>`;
+    $("abilities").innerHTML = ABILITIES.map(([k,name]) =>
+      `<div class="ability"><span class="name">${name}</span>`+
+      `<span class="score-out" id="score-${k}-out"></span>`+
+      `<span class="mod" id="mod-${k}"></span></div>`).join("");
+  }
+  // ---- "Under the hood": generation method + base & bonus inputs ----
+  function renderHoodControls(){
+    $("hood-abilities").innerHTML = ABILITIES.map(([k,name]) => {
+      let base;
+      if(genMode === "manual")
+        base = `<input class="ab-score" data-ab="${k}" type="number" id="score-${k}" value="${manualScores[k]}">`;
+      else if(genMode === "array")
+        base = `<select class="ab-base" data-ab="${k}" id="basesel-${k}"></select>`;
+      else
+        base = `<span class="stepper">`+
+               `<button class="step" data-ab="${k}" data-dir="-1" type="button">−</button>`+
+               `<span class="basev" id="basev-${k}">8</span>`+
+               `<button class="step" data-ab="${k}" data-dir="1" type="button">+</button></span>`;
+      const bonuses = BONUS_CATS.map(([c]) =>
+        `<input class="ab-bonus" data-ab="${k}" data-cat="${c}" type="number" value="${bonusVals[c][k] || ''}">`).join("");
+      return `<div class="hood-row"><span class="hname">${name}</span>${base}${bonuses}</div>`;
     }).join("");
     if(genMode === "array") refreshArraySelects();
   }
@@ -1010,7 +1102,42 @@
     });
     $("passive").textContent = (perceptionTotal == null) ? "" : (10 + perceptionTotal);
 
-    $("init").textContent = (mods.dex == null) ? "" : sgn(mods.dex + num($("init-misc").value,0));
+    $("init").textContent = (mods.dex == null) ? "" : sgn(mods.dex);
+
+    // Armor Class: selected armor's base + Dex (per armor type) + AC-bonus items
+    {
+      const sel = $("armorsel") ? $("armorsel").value : "";
+      const customEl = $("armor-custom");
+      if(customEl) customEl.style.display = (sel === "Custom") ? "" : "none";   // free-form field only for Custom
+      let bonus = 0;
+      for(let i=0;i<3;i++){ const v = $("acbonus-"+i).value; if(v !== "") bonus += num(v,0); }
+      let acBase;
+      if(sel === ""){
+        acBase = null;                                                          // no armor chosen → AC blank
+      } else if(sel === "Custom"){
+        const m = ((customEl && customEl.value) || "").match(/-?\d+/);          // use the number you typed as the base AC
+        acBase = m ? parseInt(m[0], 10) : null;
+      } else {
+        const armor = (sel === "Mage Armor") ? {ac:13, type:"LA"}              // Mage Armor: 13 + Dex
+                    : ((PHB && PHB.armor) ? PHB.armor.find(a => a.name === sel) : null);
+        let base = 10, needDex = true, dexAdd = mods.dex;
+        if(armor){
+          base = armor.ac;
+          if(armor.type === "HA"){ needDex = false; dexAdd = 0; }              // heavy: no Dex
+          else if(armor.type === "MA"){ dexAdd = (mods.dex == null) ? null : Math.min(mods.dex, 2); }  // medium: Dex max 2
+          // light (LA) and unarmored: full Dex
+        }
+        acBase = (needDex && mods.dex == null) ? null : base + (needDex ? dexAdd : 0);
+      }
+      $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus);
+    }
+
+    // --- hit dice available = total - used ---
+    {
+      const totRaw = $("hd-total").value;
+      if(totRaw === ""){ $("hd-avail").textContent = ""; }
+      else { $("hd-avail").textContent = Math.max(0, num(totRaw,0) - num($("hd-used").value,0)); }
+    }
 
     // --- inventory weight + carrying capacity (Strength-based) ---
     const coins = num($("pp").value)+num($("gp").value)+num($("ep").value)+num($("sp").value)+num($("cp").value);
@@ -1061,7 +1188,7 @@
     data.genMode = genMode;
     data.manualScores = manualScores;
     data.baseVals = baseVals;
-    data.racialVals = racialVals;
+    data.bonusVals = bonusVals;
     data.portrait = portraitData;
     data.manualSpells = manualSpells;
     data.preparedSpells = preparedSpells;
@@ -1080,12 +1207,13 @@
     genMode = (data && data.genMode) || "manual";
     manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
     baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
-    racialVals = {str:0,dex:0,con:0,int:0,wis:0,cha:0};
+    bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};
     if(data){
       if(data.manualScores) manualScores = {...manualScores, ...data.manualScores};
       else ABILITIES.forEach(([k]) => { if(("score-"+k) in data) manualScores[k] = data["score-"+k]; }); // legacy
       if(data.baseVals)  baseVals  = {...baseVals,  ...data.baseVals};
-      if(data.racialVals) racialVals = {...racialVals, ...data.racialVals};
+      if(data.bonusVals) BONUS_CATS.forEach(([c]) => { if(data.bonusVals[c]) bonusVals[c] = {...bonusVals[c], ...data.bonusVals[c]}; });
+      else if(data.racialVals) bonusVals.racial = {...bonusVals.racial, ...data.racialVals};   // legacy: old single racial bonus
     }
     preparedSpells = (data && data.preparedSpells) || {};
     manualSpells = defaultManualSpells();
@@ -1095,6 +1223,7 @@
         manualSpells[i] = {lvl:data["splvl-"+i]||"", name:data["spname-"+i]||"", prep:!!data["spprep-"+i]}; }
     }
     renderAbilities();
+    renderHoodControls();
     applyFields(data);
     portraitData = (data && data.portrait) || null;
     renderPortrait();
@@ -1136,7 +1265,7 @@
     if(m === "pointbuy"){
       ABILITIES.forEach(([k]) => { const b = baseVals[k]; if(b == null || b < 8 || b > 15) baseVals[k] = 8; });
     }
-    renderAbilities(); updateModeUI(); save(); compute();
+    renderHoodControls(); updateModeUI(); save(); compute();
   }
 
   // ---- Wiring ----
@@ -1151,19 +1280,31 @@
             else manualSpells[i].prep = t.checked; }
     if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
       if(t.checked) preparedSpells[t.dataset.sp] = true; else delete preparedSpells[t.dataset.sp]; }
+    if(t.classList.contains("acitem")){                                // AC-bonus item picked → auto-fill its bonus
+      const i = t.id.split("-")[1];
+      const it = PHB && PHB.acItems && PHB.acItems.find(x => x.n === t.value);
+      if(it) $("acbonus-"+i).value = it.b;
+    }
     if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
     else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
-    else if(t.classList.contains("ab-racial")) racialVals[t.dataset.ab] = Math.max(0, num(t.value,0));
+    else if(t.classList.contains("ab-bonus")) bonusVals[t.dataset.cat][t.dataset.ab] = num(t.value,0);
     save(); compute();
   }
   function autoGrow(ta){
     if(!ta) return;
-    ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px";   // grow on screen
+    if(!ta.closest(".grow")){ ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }   // grow on screen (flex-filled boxes keep their height)
     let m = ta.nextElementSibling;                                        // print-only text mirror
     if(!(m && m.classList && m.classList.contains("ta-print"))){
       m = document.createElement("div"); m.className = "ta-print"; ta.after(m);
     }
     m.textContent = ta.value;
+  }
+  function addSense(line){                              // append a sense line (no dupes), preserve user text
+    const t = $("senses"); if(!t) return;
+    const has = t.value.split(/\n|,/).some(s => s.trim().toLowerCase() === line.toLowerCase());
+    if(has) return;
+    t.value = t.value.trim() ? t.value.trim()+"\n"+line : line;
+    autoGrow(t);
   }
   function download(content, filename, mime){
     const blob = new Blob([content], {type:mime});
@@ -1248,6 +1389,16 @@
     $("wiz-bg").innerHTML    = `<option value="">—</option>` + PHB.backgrounds.map(b=>optTag(b.name,b.name)).join("");
     populateSubclass("");
   }
+  function populateArmor(){
+    const armor = (PHB && PHB.armor) || [], acItems = (PHB && PHB.acItems) || [];
+    if($("armorsel")) $("armorsel").innerHTML = `<option value=""></option>` + `<option value="Unarmored">Unarmored (10 + Dex)</option>` +
+      armor.filter(a => ["LA","MA","HA"].includes(a.type)).map(a => optTag(a.name, a.name)).join("") +
+      `<option value="Mage Armor">Mage Armor (13 + Dex)</option>` +
+      `<option value="Custom">Custom…</option>`;
+    const itemOpts = `<option value=""></option>` +
+      acItems.map(it => optTag(it.n, `${it.n} (+${it.b})`)).join("") + `<option value="Custom">Custom</option>`;
+    for(let i=0;i<3;i++){ const s=$("acitem-"+i); if(s) s.innerHTML = itemOpts; }
+  }
   function populateSubclass(clsName){
     const sel=$("wiz-subclass"); if(!sel || !PHB) return;
     const cls=findBy(PHB.classes,clsName), subs=cls?cls.subclasses:[];
@@ -1257,21 +1408,28 @@
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
 
   function applyRace(name){
-    ABKEYS.forEach(k => racialVals[k]=0);            // race owns racial bonuses
+    bonusVals.racial = zeroAb();                     // race owns the Racial bonus column
     const r = PHB && findBy(PHB.races,name);
     if(r){
       $("race").value = name;
       let choose=null;
       (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
-        if(ABKEYS.includes(k) && typeof v==="number") racialVals[k]+=v; else if(k==="choose") choose=v;
+        if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; else if(k==="choose") choose=v;
       }));
       if(r.speed) $("speed").value = r.speed+" ft";
+      (r.traits||[]).forEach(tr=>{                     // pull sense traits into the Senses box
+        const nm = tr.name||"";
+        if(/darkvision|blindsight|tremorsense|truesight/i.test(nm)){
+          const m = (tr.text||"").match(/(\d+)\s*(?:feet|ft)/i);
+          addSense(m ? `${nm} ${m[1]} ft.` : nm);
+        }
+      });
       if(r.traits && r.traits.length && !$("features").value.trim())
         $("features").value = r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n");
       autoGrow($("features"));
-      const fixed = ABKEYS.filter(k=>racialVals[k]).map(k=>ABBR[k]+" +"+racialVals[k]).join(", ");
+      const fixed = ABKEYS.filter(k=>bonusVals.racial[k]).map(k=>ABBR[k]+" +"+bonusVals.racial[k]).join(", ");
       setNote(`Applied ability bonuses: ${fixed||"none fixed"}.` +
-              (choose?`\nAlso choose +${choose.amount||1} to ${choose.count} ability score(s) — set via +race.`:""));
+              (choose?`\nAlso choose +${choose.amount||1} to ${choose.count} ability score(s) — set under the hood (Racial column).`:""));
     } else setNote("");
   }
   function applyClass(name){
@@ -1281,7 +1439,7 @@
       const lvl = charLevel();
       $("classlevel").value = name+" "+lvl;
       ABKEYS.forEach(k=>{ const box=$("savep-"+k); if(box) box.checked = c.saves.includes(k); });
-      if(c.hd) $("hitdice").value = lvl+"d"+c.hd;
+      if(c.hd){ $("hitdice").value = lvl+"d"+c.hd; $("hd-total").value = lvl; }
       let n = `Saves: ${c.saves.map(s=>ABBR[s]).join(", ")} · Hit die d${c.hd}.`;
       if(c.skillChoose) n += `\nClass skills: choose ${c.skillChoose.count} from ${c.skillChoose.from.join(", ")}.`;
       if(c.casterAbility) n += `\nSpellcaster: ${ABBR[c.casterAbility]} (${c.casterProgression}).`;
@@ -1338,13 +1496,13 @@
       applyClass(cls);
       const c = findBy(PHB.classes, cls);
       $("classlevel").value = cls + " " + lvl + (sub ? ` (${sub})` : "");
-      if(c && c.hd) $("hitdice").value = lvl + "d" + c.hd;
+      if(c && c.hd){ $("hitdice").value = lvl + "d" + c.hd; $("hd-total").value = lvl; }
       if(CASTERS[cls]){ $("spellclass").value = cls; renderSpellStyle(true); }   // tailor the spell sheet
     }
     if(bg) applyBackground(bg);
     genMode = wizMethod;
     if(wizMethod === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });
-    renderAbilities(); updateModeUI();
+    renderHoodControls(); updateModeUI();
     document.querySelectorAll("textarea").forEach(autoGrow);
     compute(); save(); closeWizard();
   }
@@ -1358,6 +1516,7 @@
     if(!data && !SLOT){ try{ data = JSON.parse($("embedded-data").textContent); }catch(e){} }  // fresh "New" slot starts blank
     if(data && !data.portrait){ try{ const p=JSON.parse(localStorage.getItem(KEY+"_img")); if(p) data.portrait=p; }catch(e){} }
     populateWizard();
+    populateArmor();
     applyAll(data);
 
     document.addEventListener("input", onChange);
@@ -1366,9 +1525,13 @@
     $("pagetabs").addEventListener("click", e => { const b = e.target.closest(".ptab"); if(b) showPage(b.dataset.page); });
     $("spellclass").addEventListener("change", ()=>{ renderSpellStyle(true); save(); compute(); });
     $("modes").addEventListener("click", e => { const b = e.target.closest(".mode-btn"); if(b) setMode(b.dataset.mode); });
-    $("abilities").addEventListener("click", e => {
+    $("hood-abilities").addEventListener("click", e => {
       const btn = e.target.closest(".step"); if(btn) stepPointBuy(btn.dataset.ab, parseInt(btn.dataset.dir,10));
     });
+    $("btn-hood").addEventListener("click", ()=> $("hood").classList.add("open"));
+    $("hood-close").addEventListener("click", ()=> $("hood").classList.remove("open"));
+    $("hood-done").addEventListener("click", ()=> $("hood").classList.remove("open"));
+    $("hood").addEventListener("click", e => { if(e.target.id === "hood") $("hood").classList.remove("open"); });
 
     $("inspiration").addEventListener("click", ()=>{ inspState = !inspState; renderInsp(); save(); });
 
@@ -1406,6 +1569,8 @@
         try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(d)); }
         catch(e){ flashStatus("Sourcebook loaded (too large to persist locally)"); }
         populateWizard();
+        populateArmor();
+        compute();
         flashStatus("Sourcebook loaded — Create is ready");
         $("file-input").value = "";
       };

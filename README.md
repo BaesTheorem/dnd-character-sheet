@@ -16,11 +16,13 @@ with the same kind of live calculation, in a runtime everyone already has.
    - ability modifiers, proficiency bonus (from level), saving throws,
    - all 18 skills (with **proficiency** and **expertise** toggles), passive perception,
    - initiative, and a "10 + Dex" helper for AC.
-3. **Ability scores** — pick a method at the top of the Abilities card:
-   - **Manual** — type final scores directly.
-   - **Standard Array** — assign 15/14/13/12/10/8, each used once (a `+race` field adds racial bonuses).
-   - **Point Buy** — 27-point budget (scores 8–15) with steppers and a live points counter (plus `+race`).
-   In Standard Array / Point Buy the final score = base + racial bonus.
+3. **Ability scores** — the Abilities card shows only the final **score** and **modifier**. Click
+   **⚙ Under the hood** (hidden when printing) for everything that feeds them:
+   - **Generation method** — **Manual** (type base scores), **Standard Array** (assign 15/14/13/12/10/8,
+     each used once), or **Point Buy** (27-point budget, scores 8–15, with a live points counter).
+   - **Bonus columns** — separate **ASI**, **Racial**, **Magical**, and **Misc** bonuses per ability,
+     plus a **Notes** field. Final score = base + ASI + racial + magical + misc.
+   Creating a character auto-fills the Racial column from the chosen race.
 3. It **auto-saves to that browser** as you type — reopening the file restores your character.
 4. **Portrait** — click the empty box by the name to upload one (png/jpeg/webp/heic/etc.); it fits
    to the header height. Click an uploaded image for a pop-up menu: **Replace / Download original /
