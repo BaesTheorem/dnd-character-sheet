@@ -60,19 +60,37 @@ computed values, just blank boxes — and the free-write areas are sized for han
 print a blank copy and fill it in by hand. Fill any value digitally and the math fills itself in.
 
 ## Toolbar
-- **Create Character** → guided wizard (Race → Class/Subclass/Level → Background → ability method →
-  name) that fills the sheet. Needs sourcebook data loaded (baked into the `(PHB)` build, or imported).
-- **Import Sourcebook** → load `phb-data.json` (made by `build-data.py`) to enable creation. This is
-  how the content-free shareable app gets PHB data; the imported data is remembered in that browser.
+- **Create Character** → guided wizard (Race → Class/Subclass/Level → **class skill choices** →
+  **starting equipment or gold** → Background → ability method → name) that fills the sheet: race
+  bonuses/speed/senses, class saves/hit dice/spell list, chosen skill proficiencies, and either the
+  class's starting gear (into Equipment Notes) or average starting gold (into Currency). Needs
+  sourcebook data loaded (baked into the build, or loaded via Settings).
 - **Save** → downloads a self-contained copy of the sheet with your character (and portrait) baked
   in. Email / AirDrop / Drive it; opening that copy anywhere shows the character. This is the way to
   move a character between devices (auto-save is per-browser localStorage, not written to the file).
 - **Print / PDF** → "Save as PDF". A dense, standardized stylesheet fits a normal character onto
   **one page** (builder UI hidden; text sections render as full-content mirrors; two balanced columns).
+- **Settings** → page-layout toggles (hide/show any tab) and **Source books** (see below).
 - **New** → opens a fresh blank character in a new tab (current one untouched). Each tab gets its own
-  storage slot via a `#slot=…` URL hash; the imported sourcebook is shared across slots.
+  storage slot via a `#slot=…` URL hash; the loaded sourcebook is shared across slots.
 - **Reset** (red) → after confirmation, clears *this* sheet back to defaults (deletes the character
-  and portrait in place). The imported sourcebook is kept.
+  and portrait in place). The loaded sourcebook is kept.
+
+## Source books (Settings)
+Open **Settings → Source books** to load D&D content. Two ways:
+- **From a local 5etools server** — pick any book (PHB, XGE, TCE, …) and click **Load**. The sheet
+  fetches the raw 5etools JSON from your server (default `http://localhost:5050`, editable) and
+  processes it **in the browser** (a JS port of `build-data.py`). Loading more books **merges** them
+  (dedup by name), so you can stack sources. Works fully offline as long as that local server is
+  running — nothing is fetched from the internet.
+- **Import file…** — load a pre-built `source-data.json` (made by `build-data.py`) when you don't
+  want to run a server.
+- **Save data file** — a browser can't overwrite the file it's opened from, so this **downloads an
+  updated copy** of the sheet (`Character Sheet (Source Data).html`) with **every loaded book baked
+  into the file**. Keep it / replace your sheet with it to make the books permanent and portable.
+Loaded data is also remembered per browser (localStorage). It is **copyrighted WotC content for
+personal use** — it lives only in your browser / your own file and is never committed; the shipped
+app stays content-free.
 
 `New` clears the character from the current browser (export first if you want to keep it).
 
@@ -85,16 +103,18 @@ print a blank copy and fill it in by hand. Fill any value digitally and the math
 - **Not yet (v2 ideas):** spellcasting block (slots + prepared spells, auto save DC / attack),
   inventory with weight/currency math, a full background/bio page.
 
-## PHB data (personal use)
-`build-data.py` extracts a trimmed D&D 5e **PHB (2014)** subset (races, backgrounds, classes,
-feats, weapons/armor, all 361 spells) from a local 5eTools copy into `phb-data.json`, with the
-content auto-filling pickers in the sheet. Re-run with `python3 build-data.py`.
+## Sourcebook data (personal use)
+There are two ways to get content into the sheet (see **Source books** above): load any book live
+from a local 5etools server in-browser, or bake a starter file with `build-data.py`, which extracts a
+trimmed D&D 5e **PHB (2014)** subset (races, backgrounds, classes, feats, weapons/armor, all 361
+spells) from a local 5eTools copy into `source-data.json` and bakes it into
+`Character Sheet (Source Data).html`. Re-run with `python3 build-data.py`.
 
-This is **copyrighted WotC content** included for personal use under ownership of the book. Owning
-the PHB does not grant redistribution rights, so `phb-data.json` and any sheet with the data baked
-in are **gitignored and must not be shared/committed**. The clean app (`Character Sheet.html`)
-stays content-free and remains freely shareable; the SRD route stays available for a distributable
-build.
+This is **copyrighted WotC content** included for personal use under ownership of the books. Owning a
+book does not grant redistribution rights, so `source-data.json` and any sheet with data baked in
+(`Character Sheet (Source Data).html`, or anything you make with **Save data file**) are
+**gitignored and must not be shared/committed**. The clean app (`Character Sheet.html`) stays
+content-free and remains freely shareable.
 
 ## Design / longevity rules
 Vanilla HTML/CSS/JS only — no frameworks, no build step, no CDN, no web-fetched fonts (uses the

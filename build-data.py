@@ -3,8 +3,8 @@
 Build a trimmed PHB (2014) data subset for the character sheet from a local 5eTools copy.
 
 Personal-use tool: it reads content from your own legal copy of the PHB (via a local 5eTools data
-folder). The output (phb-data.json) is copyrighted WotC content trimmed for personal use — do NOT
-redistribute the data-bearing sheet or commit phb-data.json.
+folder). The output (source-data.json) is copyrighted WotC content trimmed for personal use — do NOT
+redistribute the data-bearing sheet or commit source-data.json.
 
 Set the source folder via the FIVETOOLS_DATA env var, or it defaults to ~/My Drive/5etools/data.
 Re-run this if the 5eTools data updates.  Usage:  python3 build-data.py
@@ -12,8 +12,10 @@ Re-run this if the 5eTools data updates.  Usage:  python3 build-data.py
 import json, os, re
 
 SRC = os.environ.get("FIVETOOLS_DATA", os.path.expanduser("~/My Drive/5etools/data"))
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "phb-data.json")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json")
 PHB = "PHB"  # 2014 Player's Handbook source tag (2024 book is "XPHB")
+DATA_VERSION = 9  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
           "V":"Evocation","I":"Illusion","N":"Necromancy","T":"Transmutation"}
@@ -33,8 +35,8 @@ def render_tags(s):
         def repl(m):
             tag, body = m.group(1), m.group(2)
             parts = body.split("|")
-            if tag in ("dice","damage","scaledamage","scaledice","d20","hit","dc"):
-                return parts[0]
+            if tag in ("dice","damage","scaledamage","scaledice","d20","hit","dc","filter"):
+                return parts[0]   # @filter is {display|page|filters...} — display is parts[0], not parts[2]
             if len(parts) >= 3 and parts[2].strip():   # explicit display text
                 return parts[2]
             return parts[0]
@@ -74,16 +76,26 @@ def _speed(r):
     sp = r.get("speed")
     return sp if isinstance(sp, int) else (sp or {}).get("walk", 30)
 
+def race_langs(r):
+    out = []
+    for blk in r.get("languageProficiencies") or []:
+        for k, v in blk.items():
+            if v is True: out.append(k[:1].upper() + k[1:])
+            elif isinstance(v, int) and v:
+                kind = {"anyStandard": " (standard)", "anyExotic": " (exotic)", "any": ""}.get(k, " (" + k + ")")
+                out.append(f"{v} language{'s' if v > 1 else ''} of your choice{kind}")
+    return out
+
 def build_races(raw):
     out, bases, base_idx = [], {}, {}
     for r in raw.get("race", []):
         if not is_phb(r): continue
         ab = list(r.get("ability") or [])
-        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", []))}
+        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", [])), "langs": race_langs(r)}
         base_idx[r["name"]] = len(out)
         out.append({"name": r["name"], "ability": ab,
                     "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
-                    "speed": _speed(r), "traits": _traits(r.get("entries", []))})
+                    "speed": _speed(r), "traits": _traits(r.get("entries", [])), "langs": race_langs(r)})
     for s in raw.get("subrace", []):
         if not is_phb(s): continue
         parent = s.get("raceName")
@@ -92,12 +104,15 @@ def build_races(raw):
             if i is not None:
                 out[i]["ability"] = (out[i]["ability"] or []) + (s.get("ability") or [])
                 out[i]["traits"]  = (out[i]["traits"] or []) + _traits(s.get("entries", []))
+                out[i]["langs"]   = (out[i].get("langs") or []) + race_langs(s)
             continue
         base = bases.get(parent, {})               # named subrace -> "Race (Subrace)", base + subrace
         out.append({"name": f"{parent} ({s['name']})",
                     "ability": (base.get("ability") or []) + (s.get("ability") or []),
-                    "size": "", "speed": base.get("speed", 30), "subraceOf": parent,
-                    "traits": (base.get("traits") or []) + _traits(s.get("entries", []))})
+                    "size": "", "speed": _speed(s) if s.get("speed") is not None else base.get("speed", 30),
+                    "subraceOf": parent,
+                    "traits": (base.get("traits") or []) + _traits(s.get("entries", [])),
+                    "langs": (base.get("langs") or []) + race_langs(s)})
     return out
 
 def skills_from(spo):
@@ -137,6 +152,21 @@ def build_classes():
                 short = s.get("shortName", s["name"])
                 if short in seen: continue
                 seen.add(short); subs.append({"name": s["name"], "short": short})
+            sub_lvl = None
+            for f in c.get("classFeatures", []):
+                if isinstance(f, dict) and f.get("gainSubclassFeature") and f.get("classFeature"):
+                    parts = str(f["classFeature"]).split("|")
+                    if len(parts) > 3 and str(parts[3]).isdigit(): sub_lvl = int(parts[3])
+                    break
+            se = c.get("startingEquipment", {}) or {}
+            equip = {"items": [render_tags(x) for x in (se.get("default") or []) if isinstance(x, str)],
+                     "gold": render_tags(se.get("goldAlternative", ""))}
+            feats_c = [{"name": f.get("name", ""), "level": f.get("level", 1),
+                        "text": entries_to_text(f.get("entries", []))}
+                       for f in data.get("classFeature", [])
+                       if f.get("source") == PHB and f.get("className") == c["name"]
+                       and f.get("classSource", PHB) == PHB and f.get("name")]
+            feats_c.sort(key=lambda x: (x["level"], x["name"]))
             out.append({"name": c["name"],
                         "hd": c.get("hd", {}).get("faces"),
                         "saves": c.get("proficiency", []),
@@ -144,7 +174,8 @@ def build_classes():
                         "armor": render_prof_list(sp.get("armor")), "weapons": render_prof_list(sp.get("weapons")),
                         "casterAbility": c.get("spellcastingAbility"),
                         "casterProgression": c.get("casterProgression"),
-                        "subclassTitle": c.get("subclassTitle",""), "subclasses": subs})
+                        "equip": equip, "features": feats_c,
+                        "subclassTitle": c.get("subclassTitle",""), "subclassLevel": sub_lvl, "subclasses": subs})
     return out
 
 def build_feats(raw):
@@ -160,6 +191,7 @@ def build_items(raw):
         if not is_phb(it): continue
         if it.get("weapon"):
             weapons.append({"name": it["name"], "cat": "martial" if it.get("weaponCategory")=="martial" else "simple",
+                            "melee": it.get("type") == "M",
                             "dmg": it.get("dmg1",""), "dmgType": DMG.get(it.get("dmgType",""), it.get("dmgType","")),
                             "versatile": it.get("dmg2",""),
                             "props": [WPROP.get(p, p) for p in (it.get("property") or [])],
@@ -215,7 +247,7 @@ def build_class_spells():
             if is_phb(s): levels[s["name"]] = s.get("level", 0)
     try: src = load("spells", "sources.json").get("PHB", {})
     except Exception: return {}
-    FULL = {"Cleric", "Druid", "Paladin", "Artificer"}
+    FULL = {"Cleric", "Druid", "Paladin"}   # Artificer's list is scattered across non-PHB books → not pre-populated
     out = {}
     for name, info in src.items():
         lv = levels.get(name)
@@ -225,6 +257,42 @@ def build_class_spells():
                 out.setdefault(c["name"], []).append({"n": name, "l": lv})
     for cn in out: out[cn].sort(key=lambda x: (x["l"], x["n"]))
     return out
+
+def build_item_weights(items_base, items):   # {lowercased name: weight in lb} for inventory auto-weight
+    w = {}
+    for coll, key in ((items_base, "baseitem"), (items, "item")):
+        for it in coll.get(key, []):
+            if is_phb(it) and it.get("weight") is not None and it.get("name"):
+                w[it["name"].lower()] = it["weight"]
+    return w
+
+def build_packs(items):   # equipment packs → {name: [{name, qty}]} so the sheet can disambiguate contents
+    out = {}
+    for it in items.get("item", []):
+        if not is_phb(it): continue
+        pc = it.get("packContents")
+        if not pc: continue
+        contents = []
+        for e in pc:
+            if isinstance(e, str): contents.append({"name": render_tags(e.split("|")[0]), "qty": 1})
+            elif isinstance(e, dict):
+                if e.get("special"): contents.append({"name": e["special"], "qty": e.get("quantity", 1)})
+                elif e.get("item"): contents.append({"name": render_tags(e["item"].split("|")[0]), "qty": e.get("quantity", 1)})
+        if contents: out[it["name"]] = contents
+    return out
+
+def build_languages():
+    try: raw = load("languages.json")
+    except Exception: return []
+    return sorted({l["name"] for l in raw.get("language", []) if is_phb(l) and l.get("name")})
+
+def build_tools(items_base, items):   # AT/INS live in items-base.json; GS/T (thieves' tools, kits, gaming sets) live in items.json
+    out = set()
+    for it in items_base.get("baseitem", []):
+        if is_phb(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
+    for it in items.get("item", []):
+        if is_phb(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
+    return sorted(out)
 
 def render_range(r):
     if not isinstance(r, dict): return str(r)
@@ -243,7 +311,8 @@ def render_duration(d):
 def main():
     races = load("races.json")
     out = {
-        "_meta": {"source": "D&D 5e PHB (2014) via local 5eTools — personal use, do not redistribute"},
+        "_meta": {"book": "Player's Handbook (2014)", "dataVersion": DATA_VERSION,
+                  "source": "D&D 5e PHB (2014) via local 5eTools — personal use, do not redistribute"},
         "races": build_races(races),
         "backgrounds": build_backgrounds(load("backgrounds.json")),
         "classes": build_classes(),
@@ -252,8 +321,15 @@ def main():
         "classSpells": build_class_spells(),
         "acItems": build_ac_items(),
     }
-    weapons, armor = build_items(load("items-base.json"))
+    items_base = load("items-base.json")
+    try: items = load("items.json")
+    except Exception: items = {}
+    weapons, armor = build_items(items_base)
     out["weapons"], out["armor"] = weapons, armor
+    out["tools"] = build_tools(items_base, items)
+    out["languages"] = build_languages()
+    out["packs"] = build_packs(items)
+    out["itemWeights"] = build_item_weights(items_base, items)
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
     sz = os.path.getsize(OUT)
     print(f"wrote {OUT}  ({sz/1024:.0f} KB)")
@@ -266,7 +342,7 @@ def build_sheet(data):
     """Bake the PHB data into a personal single-file copy of the sheet (gitignored)."""
     here = os.path.dirname(os.path.abspath(__file__))
     app = os.path.join(here, "Character Sheet.html")
-    out = os.path.join(here, "Character Sheet (PHB).html")
+    out = os.path.join(here, "Character Sheet (Source Data).html")
     if not os.path.exists(app):
         print("  (skip build_sheet: Character Sheet.html not found)"); return
     html = open(app).read()

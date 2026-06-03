@@ -73,8 +73,7 @@
   @media (max-width:860px){ .columns{grid-template-columns:1fr} }
   /* let the Senses / Proficiencies cards soak up the leftover height in their column */
   .card.grow{flex:1 1 auto; display:flex; flex-direction:column}
-  .card.grow textarea{flex:1 1 auto}
-  .card.grow .ta-print{flex:1 1 auto}
+  .card.grow .ta-print{flex:1 1 auto}   /* print: the visible mirror fills the page (textarea is hidden in print) */
 
   label.lbl{display:block; font-size:10px; font-weight:700; letter-spacing:.09em;
     text-transform:uppercase; color:var(--muted); margin-bottom:3px}
@@ -206,16 +205,18 @@
   .stat .k{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
   .stat input{text-align:center; font-size:18px; font-weight:700; background:transparent; border:none; padding:2px}
   .stat .calc{font-size:18px; font-weight:700; color:var(--accent)}
-  /* AC / Initiative / Speed: tighter, content-height boxes (values keep the standard .stat size) */
-  .combat-top .stat{padding:5px 6px}
-  .combat-top .stat .k{margin-bottom:1px}
-  .combat-top .stat input{padding:0}
+  /* AC / Initiative / Speed / HP: tighter, uniform-size boxes (values keep the standard .stat size) */
+  .combat-top .stat, .hp-grid .stat{padding:5px 6px; min-height:52px; display:flex; flex-direction:column; justify-content:center}
+  .combat-top .stat .k, .hp-grid .stat .k{margin-bottom:1px}
+  .combat-top .stat input, .hp-grid .stat input{padding:0}
   .combat-top.hd-grid{grid-template-columns:repeat(4,1fr); gap:8px}   /* Hit Dice: all 4 boxes on one line */
   .stat.toggle-stat{cursor:pointer; user-select:none}
   .stat.on{background:var(--accent); border-color:var(--accent)}
   .stat.on .k,.stat.on .calc{color:#fff}
   .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
-  .deathsaves{display:flex; gap:18px; margin-top:12px; flex-wrap:wrap}
+  .deathsaves{display:flex; align-items:center; gap:18px; margin-top:12px; flex-wrap:wrap}
+  .deathsaves .ds-title{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--ink); margin-right:16px}
   .deathsaves .grp{display:flex; align-items:center; gap:8px}
   .deathsaves .grp .k{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
   .pips{display:flex; gap:5px}
@@ -238,7 +239,14 @@
   .wiz-hint{font-size:11px; color:var(--muted); margin:10px 0 0; line-height:1.55; white-space:pre-line}
   .wiz-methods{display:flex; gap:6px}
   .wiz-methods .btn{flex:1}
-  .btn.wiz-method.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .btn.wiz-method.active, .btn.wiz-equip.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .wiz-skill{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:14px; font-weight:600; cursor:pointer}
+  .wiz-skill input:disabled + span{opacity:.4}
+  .wiz-skill.maxed input:not(:checked){opacity:.35; cursor:default}
+  .wiz-skill.taken{opacity:.45} .wiz-skill.taken span{text-decoration:line-through}
+  .equip-line{margin-top:6px}
+  .equip-line select{width:100%}
+  .equip-fixed{display:block; padding:3px 2px; font-size:13px; color:var(--muted)}
   .modal-foot{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-top:1px solid var(--line)}
   .wiz-dots{font-size:11px; color:var(--muted); letter-spacing:.04em}
   .help{font-size:11px; color:var(--muted); margin:2px 0 0}
@@ -258,8 +266,16 @@
   /* ---- inventory ---- */
   .coins{display:grid; grid-template-columns:repeat(6,1fr); gap:10px}
   .coins .coin input{text-align:center; font-size:18px; font-weight:700}
-  .invtable input{background:var(--field)}
-  .invtable td:nth-child(2) input,.invtable td:nth-child(3) input{text-align:center}
+  .inv-cols{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start}
+  .inv-cols .invtable{width:100%}
+  @media (max-width:560px){ .inv-cols{grid-template-columns:1fr} }
+  .invtable input{background:var(--field); padding:6px 5px}
+  .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px}
+  .invdrag:active{cursor:grabbing}
+  .invtable tr.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
+  .invtable td:nth-child(2) input{text-align:left}                                  /* Item name → left */
+  .invtable td:nth-child(3) input,.invtable td:nth-child(4) input{text-align:center} /* Qty / Wt → centered */
+  .invtable th{text-align:left}
   .lftable input{background:var(--field)}
   .lftable td:nth-child(2) input,.lftable td:nth-child(3) input,.lftable td:nth-child(4) input{text-align:center}
   .acitems input,.acitems select{background:var(--field)}
@@ -269,10 +285,18 @@
   .rowtotal .k{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
   .rowtotal .v{font-size:20px; font-weight:700; color:var(--accent)}
   .encgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
-  @media (max-width:560px){ .coins{grid-template-columns:repeat(3,1fr)} .encgrid{grid-template-columns:repeat(2,1fr)} }
+  .encgrid .stat .calc{min-height:30px; display:flex; align-items:center; justify-content:center}
+  .attune{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  @media (max-width:560px){ .coins{grid-template-columns:repeat(3,1fr)} .encgrid{grid-template-columns:repeat(2,1fr)} .attune{grid-template-columns:1fr} }
 
   /* ---- spell sheet ---- */
   .incl{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600}
+  .lay-row{display:flex; align-items:center; gap:9px; padding:6px 2px; font-size:14px; font-weight:600;
+    border-bottom:1px solid var(--line); cursor:pointer}
+  .lay-row:last-child{border-bottom:none}
+  .srcbook-load{display:flex; gap:8px}
+  .srcbook-load select{flex:1; min-width:0}
+  .srcbook-load .btn{flex:none}
   .spell-hidden-note{display:none}
   #page-spells.excluded #spellbody{display:none}
   #page-spells.excluded .spell-hidden-note{display:block}
@@ -291,18 +315,26 @@
   #page-mini.excluded .mini-wrap{display:none}
   #page-mini.excluded .mini-hidden-note{display:block}
   .mini-hidden-note{display:none; color:var(--muted)}
-  .spellhead{display:grid; grid-template-columns:1.4fr .8fr 1fr 1fr; gap:10px; align-items:end}
+  .spellhead{display:grid; grid-template-columns:1.4fr .8fr 1fr 1fr 1fr; gap:10px; align-items:end}
+  .spellhead .stat .calc{min-height:30px; display:flex; align-items:center; justify-content:center}   /* room to write on a blank sheet */
   @media (max-width:560px){ .spellhead{grid-template-columns:1fr 1fr} }
   .slots{display:grid; grid-template-columns:repeat(9,1fr); gap:8px}
   @media (max-width:560px){ .slots{grid-template-columns:repeat(5,1fr)} }
-  .slot{background:var(--field); border:1px solid var(--line); padding:6px; text-align:center}
-  .slot .k{font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
-  .slot input{text-align:center; font-size:16px; font-weight:700; background:transparent; border:none; padding:2px}
+  .slot{background:var(--field); border:1px solid var(--line); padding:6px 5px; text-align:center}
+  .slot .k{font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin-bottom:4px}
+  .slot-io{display:grid; grid-template-columns:1fr 1fr; gap:4px}
+  .slot-io .io span{display:block; font-size:7px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); margin-bottom:1px}
+  .slot-io .io input{width:100%; box-sizing:border-box; text-align:center; font-size:15px; font-weight:700; background:#fff; border:1px solid var(--line); padding:2px}
   .spelltable input{background:var(--field)}
   .spelltable .col-lvl{text-align:center; font-weight:700; color:var(--muted)}
   .spelltable .col-lvl input{text-align:center; font-weight:400; color:var(--ink)}
   .spelltable .col-prep{text-align:center}
   .spelltable.hide-prep .col-prep{display:none}
+  .spelltable .col-comp, .spelltable .col-time, .spelltable .col-range,
+  .spelltable .col-dur, .spelltable .col-school{font-size:11px; color:var(--muted); text-align:center}
+  .spelltable .col-name[title]{cursor:help}
+  .spelltable .sp-section td{background:var(--field); font-weight:800; font-size:10px; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--accent); padding:6px 8px; border-top:2px solid var(--line2)}
 
   /* ---- Flat / sharp theme: square corners, no shadows, no shading ---- */
   *{border-radius:0 !important; box-shadow:none !important}
@@ -336,8 +368,7 @@
     .pagetabs{display:none !important}
     .page{display:block !important}                 /* print every page... */
     .page:not(#page-core){break-before:page}  /* ...each on its own sheet */
-    #page-spells.excluded{display:none !important}  /* unless the player hid the spell sheet */
-    #page-mini.excluded{display:none !important}     /* no portrait / opted out → don't print a blank mini page */
+    .page.excluded{display:none !important}          /* any page hidden via Settings (or mini w/o portrait) won't print */
     #page-mini .mini-wrap{gap:12mm}
     /* keep the on-screen two-column grouping (left = abilities/saves/skills, right = combat/etc.) */
     #page-core{display:flex !important; flex-direction:column; min-height:261mm}   /* fill the printed sheet */
@@ -345,6 +376,12 @@
     .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:stretch}
     .stack{display:flex; flex-direction:column; gap:7px}
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
+    #page-inv{display:flex !important; flex-direction:column; min-height:261mm}     /* fill the printed sheet */
+    #page-inv .card.grow{flex:1 1 auto}                                            /* Equipment Notes takes the remaining height */
+    #page-inv .invtable td input{padding:3px 2px}                                  /* inventory rows tall enough to write in */
+    #page-feat{display:flex !important; flex-direction:column; min-height:261mm}    /* Features & Traits fills the sheet */
+    #page-story{display:flex !important; flex-direction:column; min-height:261mm}   /* Backstory fills the sheet */
+    #page-notes{display:flex !important; flex-direction:column; min-height:261mm}   /* Notes fills the sheet */
     .card{padding:5px 7px; margin:0; border-color:#999; break-inside:avoid}
     .card>h2{margin:0 0 3px; font-size:8px; letter-spacing:.07em}
     input,select,textarea{background:#fff !important; padding:1px 3px}
@@ -381,12 +418,20 @@
     .passive .k{font-size:8px}
 
     .combat-top{gap:4px}
+    .combat-top .stat, .hp-grid .stat{min-height:0; display:block}   /* compact natural size in print (screen uses 52px min) */
+    .encgrid{gap:5px}                                                /* compact Carrying Capacity + Total Weight to fit the inventory on one page */
+    .encgrid .stat{padding:3px}
+    .encgrid .stat .calc{min-height:0}
+    .rowtotal{margin-top:5px; padding:3px 7px}
+    .rowtotal .v{font-size:12px}
+    #equipment + .ta-print{min-height:46px}
     .stat{padding:3px}
     .stat .k{font-size:6px}
     .stat input{font-size:11px; padding:0}
     .stat .calc{font-size:11px}
     .hp-grid{gap:4px; margin-top:5px}
     .deathsaves{gap:12px; margin-top:5px}
+    .deathsaves .ds-title{font-size:9px; margin-right:10px}
     .deathsaves .grp{gap:5px}
     .deathsaves .grp .k{font-size:7px}
 
@@ -399,6 +444,16 @@
       border:1px solid #999; padding:3px 5px; min-height:120px}   /* blank fields print large enough to write in */
     #senses + .ta-print{min-height:32px}   /* Senses is a short list, not a big write-in box — keep Core on one page */
     #proficiencies + .ta-print{min-height:62px}   /* keep Core on one page */
+    .slot{padding:3px}
+    .slot .k{margin-bottom:2px}
+    .slot-io{gap:3px}
+    .slot-io .io span{font-size:5px}
+    .slot-io .io input{font-size:9px; padding:0}
+    .spellhead .stat .calc{min-height:17px}   /* keep DC / Attack / Can Prepare writable in print */
+    .spelltable .sp-section td{font-size:7px; padding:2px 4px; border-top-width:1px}
+    #page-spells .spell-list{break-inside:auto}     /* let the spell list flow onto extra sheets */
+    .spelltable tr{break-inside:avoid}              /* don't split a spell row across pages */
+    .spelltable .sp-section td{break-after:avoid}   /* keep a level header with its first rows */
   }
 </style>
 </head>
@@ -407,9 +462,9 @@
     <div class="brand">⬢ Character Sheet <span>· 5e</span></div>
     <span class="status" id="status"></span>
     <button class="btn primary" id="btn-create">Create Character</button>
-    <button class="btn" id="btn-import" title="Import sourcebook data (phb-data.json from build-data.py)">Import Sourcebook</button>
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file">Save</button>
     <button class="btn" onclick="window.print()">Print / PDF</button>
+    <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn ghost" id="btn-new" title="Open a new blank character in another tab">New</button>
     <button class="btn danger" id="btn-reset" title="Clear this sheet and reset to defaults">Reset</button>
     <input type="file" id="file-input" accept="application/json,.json" style="display:none">
@@ -423,6 +478,7 @@
       <button class="ptab" data-page="bg" type="button">Background</button>
       <button class="ptab" data-page="story" type="button">Backstory</button>
       <button class="ptab" data-page="spells" type="button">Spells</button>
+      <button class="ptab" data-page="notes" type="button">Notes</button>
       <button class="ptab" data-page="mini" type="button">Mini</button>
     </nav>
 
@@ -506,7 +562,7 @@
             </div>
             <div class="stat">
               <div class="k">Speed</div>
-              <input data-save id="speed" placeholder="30 ft">
+              <input id="speed" title="Effective speed (encumbrance / Unarmored Movement applied). Click to edit your base speed.">
             </div>
           </div>
           <div class="hp-grid">
@@ -515,7 +571,8 @@
             <div class="stat"><div class="k">Temp HP</div><input data-save type="number" id="hptmp"></div>
           </div>
           <div class="deathsaves">
-            <div class="grp"><span class="k">Death Saves — Successes</span>
+            <span class="ds-title">Death Saves:</span>
+            <div class="grp"><span class="k">Successes</span>
               <span class="pips" id="ds-success"></span></div>
             <div class="grp"><span class="k">Failures</span>
               <span class="pips" id="ds-fail"></span></div>
@@ -599,12 +656,29 @@
           <div class="coin"><label class="lbl">Coin wt</label><div class="calc" id="coinwt">0</div></div>
         </div>
       </div>
+      <div class="card"><h2>Attuned Items</h2>
+        <div class="attune">
+          <input data-save id="attune-0" placeholder="Attuned item 1">
+          <input data-save id="attune-1" placeholder="Attuned item 2">
+          <input data-save id="attune-2" placeholder="Attuned item 3">
+        </div>
+        <p class="help noprint">You can be attuned to a maximum of 3 magic items at once.</p>
+      </div>
       <div class="card"><h2>Inventory</h2>
-        <table class="invtable">
-          <thead><tr><th>Item</th><th style="width:52px">Qty</th><th style="width:78px">Wt ea (lb)</th></tr></thead>
-          <tbody id="inv"></tbody>
-        </table>
+        <div class="inv-cols">
+          <table class="invtable">
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th></tr></thead>
+            <tbody id="inv"></tbody>
+          </table>
+          <table class="invtable">
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th></tr></thead>
+            <tbody id="inv2"></tbody>
+          </table>
+        </div>
         <div class="rowtotal"><span class="k">Total weight (items + coins)</span><span class="v" id="totalwt">0 lb</span></div>
+      </div>
+      <div class="card grow"><h2>Equipment Notes</h2>
+        <textarea data-save id="equipment" placeholder="Containers, mounts, misc notes…"></textarea>
       </div>
       <div class="card"><h2>Carrying Capacity</h2>
         <div class="encgrid">
@@ -615,16 +689,13 @@
           <div class="stat"><div class="k">Max Carry ×15</div><div class="calc" id="carry">—</div></div>
           <div class="stat"><div class="k">Push / Drag / Lift ×30</div><div class="calc" id="pushdrag">—</div></div>
         </div>
-        <p class="help">Thresholds use your Strength score (lb). Encumbered / Heavily are the optional variant rule.</p>
-      </div>
-      <div class="card"><h2>Equipment & Notes</h2>
-        <textarea data-save id="equipment" placeholder="Containers, mounts, attuned items, misc notes…"></textarea>
+        <p class="help" id="encnote">Thresholds use your Strength score (lb). Encumbered / Heavily are the optional variant rule.</p>
       </div>
     </section>
 
     <!-- PAGE 3: FEATURES & TRAITS -->
     <section class="page" id="page-feat" data-page="feat">
-      <div class="card"><h2>Features & Traits</h2>
+      <div class="card grow"><h2>Features & Traits</h2>
         <textarea data-save id="features" placeholder="Class features, racial traits, feats…"></textarea>
       </div>
     </section>
@@ -645,21 +716,17 @@
       <div class="card"><h2>Ideals</h2><textarea data-save id="ideals"></textarea></div>
       <div class="card"><h2>Bonds</h2><textarea data-save id="bonds"></textarea></div>
       <div class="card"><h2>Flaws</h2><textarea data-save id="flaws"></textarea></div>
+      <div class="card"><h2>Allies</h2><textarea data-save id="bg-allies" placeholder="Friends, contacts, organizations who support you…"></textarea></div>
+      <div class="card"><h2>Enemies</h2><textarea data-save id="bg-enemies" placeholder="Rivals, foes, factions opposed to you…"></textarea></div>
     </section>
 
     <!-- PAGE 5: BACKSTORY -->
     <section class="page" id="page-story" data-page="story">
-      <div class="card"><h2>Character Backstory</h2><textarea data-save id="backstory" style="min-height:360px"></textarea></div>
-      <div class="card"><h2>Allies &amp; Organizations</h2><textarea data-save id="allies"></textarea></div>
-      <div class="card"><h2>Additional Notes</h2><textarea data-save id="notes"></textarea></div>
+      <div class="card grow"><h2>Character Backstory</h2><textarea data-save id="backstory"></textarea></div>
     </section>
 
     <!-- PAGE 6: SPELL SHEET -->
     <section class="page" id="page-spells" data-page="spells">
-      <div class="card noprint">
-        <label class="incl"><input data-save type="checkbox" id="spell-include" checked> Include spell sheet (uncheck for non-casters)</label>
-        <p class="help spell-hidden-note">Spell sheet hidden — it won't print. Re-check above to include it.</p>
-      </div>
       <div id="spellbody">
         <div class="card"><h2>Spellcasting</h2>
           <div class="spellhead">
@@ -678,19 +745,22 @@
               </select></div>
             <div class="stat"><div class="k">Spell Save DC</div><div class="calc" id="spelldc"></div></div>
             <div class="stat"><div class="k">Spell Attack</div><div class="calc" id="spellatk"></div></div>
+            <div class="stat" id="prep-stat" style="display:none"><div class="k">Can Prepare</div><div class="calc" id="prepcount"></div></div>
           </div>
           <p class="help" id="cast-note">Pick a class to tailor the spell list, or leave blank for a flexible layout.</p>
         </div>
-        <div class="card"><h2>Spell Slots (total per level)</h2><div class="slots" id="slots"></div></div>
-        <div class="card"><h2>Cantrips</h2>
-          <textarea data-save id="cantrips" placeholder="At-will cantrips…"></textarea>
-        </div>
-        <div class="card"><h2 id="spells-h2">Spells</h2>
+        <div class="card"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="slots"></div></div>
+        <div class="card spell-list"><h2 id="spells-h2">Spells</h2>
+          <p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Hover a spell name for the full description.</p>
           <table class="spelltable" id="spelltable">
             <thead><tr>
-              <th class="col-lvl" style="width:38px">Lvl</th>
-              <th class="col-prep" style="width:46px">Prep</th>
+              <th class="col-prep" style="width:34px">Prep</th>
               <th class="col-name">Name</th>
+              <th class="col-comp" style="width:44px">Comp</th>
+              <th class="col-time" style="width:62px">Cast Time</th>
+              <th class="col-range" style="width:62px">Range</th>
+              <th class="col-dur" style="width:84px">Duration</th>
+              <th class="col-school" style="width:66px">School</th>
             </tr></thead>
             <tbody id="spells"></tbody>
           </table>
@@ -698,10 +768,14 @@
       </div>
     </section>
 
+    <!-- PAGE: NOTES -->
+    <section class="page" id="page-notes" data-page="notes">
+      <div class="card grow"><h2>Notes</h2><textarea data-save id="notes"></textarea></div>
+    </section>
+
     <section class="page" id="page-mini" data-page="mini">
-      <div class="card noprint">
-        <label class="incl"><input data-save type="checkbox" id="mini-include" checked> Include paper mini (needs a portrait)</label>
-        <p class="help mini-hidden-note">No portrait yet — upload one by the name on the <strong>Core</strong> page and this mini builds itself. (Or uncheck above to skip it.)</p>
+      <div class="card noprint mini-hidden-note">
+        <p class="help" style="margin:0">No portrait yet — upload one by the name on the <strong>Core</strong> page and this mini builds itself.</p>
       </div>
       <div class="mini-wrap" id="mini-wrap">
         <div class="mini-col">
@@ -734,16 +808,46 @@
         <div class="wiz-step" data-step="1" hidden>
           <label class="lbl">Class</label>
           <select id="wiz-class"></select>
-          <label class="lbl" style="margin-top:10px">Subclass</label>
-          <select id="wiz-subclass"></select>
           <label class="lbl" style="margin-top:10px">Level</label>
           <input type="number" id="wiz-level" min="1" max="20" value="1">
+          <div id="wiz-subclass-wrap" hidden>
+            <label class="lbl" style="margin-top:10px">Subclass</label>
+            <select id="wiz-subclass"></select>
+          </div>
         </div>
         <div class="wiz-step" data-step="2" hidden>
-          <label class="lbl">Background</label>
-          <select id="wiz-bg"></select>
+          <label class="lbl">Class Skill Proficiencies</label>
+          <div id="wiz-skills"></div>
+          <p class="wiz-hint" id="wiz-skills-hint"></p>
         </div>
         <div class="wiz-step" data-step="3" hidden>
+          <label class="lbl">Starting Equipment</label>
+          <div class="wiz-methods">
+            <button class="btn wiz-equip" data-equip="equipment" type="button">Equipment</button>
+            <button class="btn wiz-equip" data-equip="gold" type="button">Starting Gold</button>
+          </div>
+          <p class="wiz-hint" id="wiz-equip-hint"></p>
+          <div id="wiz-equip-choices"></div>
+        </div>
+        <div class="wiz-step" data-step="4" hidden>
+          <label class="lbl">Background</label>
+          <select id="wiz-bg"></select>
+          <div id="wiz-custom-bg" hidden>
+            <p class="wiz-hint">Build your custom background (PHB customization rules):</p>
+            <label class="lbl" style="margin-top:8px">Skill proficiencies — choose 2 <span class="wiz-hint" id="wiz-cbg-skills-hint" style="margin:0"></span></label>
+            <div id="wiz-cbg-skills"></div>
+            <label class="lbl" style="margin-top:10px">Tools &amp; Languages — choose 2 (tools or languages, any combination)</label>
+            <select id="wiz-cbg-tl-0" class="cbg-tl"></select>
+            <select id="wiz-cbg-tl-1" class="cbg-tl" style="margin-top:6px"></select>
+            <label class="lbl" style="margin-top:10px">Background feature — pick an existing one, or write your own below</label>
+            <select id="wiz-cbg-featpick"></select>
+            <label class="lbl" style="margin-top:8px">Feature — name</label>
+            <input id="wiz-cbg-featname" placeholder="Feature name" spellcheck="false">
+            <label class="lbl" style="margin-top:6px">Feature — description</label>
+            <textarea id="wiz-cbg-feattext" placeholder="What the feature does" style="min-height:64px"></textarea>
+          </div>
+        </div>
+        <div class="wiz-step" data-step="5" hidden>
           <label class="lbl">Ability Score Method</label>
           <div class="wiz-methods">
             <button class="btn wiz-method" data-method="manual" type="button">Manual</button>
@@ -752,7 +856,7 @@
           </div>
           <p class="wiz-hint">You'll assign the actual scores on the sheet after creating.</p>
         </div>
-        <div class="wiz-step" data-step="4" hidden>
+        <div class="wiz-step" data-step="6" hidden>
           <label class="lbl">Character Name</label>
           <input id="wiz-name" placeholder="Name">
           <p class="wiz-hint" id="wiz-note"></p>
@@ -793,6 +897,36 @@
     </div>
   </div>
 
+  <div class="modal noprint" id="settings">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2>Settings</h2>
+        <button class="btn ghost" id="settings-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="lbl" style="display:block; margin-bottom:6px">Layout — visible pages</label>
+        <div id="layout-toggles"></div>
+        <p class="wiz-hint">Unchecked pages are removed from the tab bar and won't print. (The Mini page also needs a portrait.)</p>
+        <label class="lbl" style="display:block; margin:16px 0 6px">Source books</label>
+        <p class="wiz-hint" id="sourcebook-status" style="margin:0 0 8px"></p>
+        <div class="srcbook-load">
+          <select id="book-select"><option value="">Open Settings to load…</option></select>
+          <button class="btn" id="btn-loadbook" type="button">Load</button>
+        </div>
+        <label class="lbl" style="display:block; margin:10px 0 4px">5etools server</label>
+        <input id="server-url" value="http://localhost:5050" spellcheck="false">
+        <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser.</p>
+        <button class="btn primary" id="btn-savedata" title="Download a copy of this sheet with all loaded books baked into the file">Save data file</button>
+        <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
+        <p class="wiz-hint">A browser can't overwrite the open file, so <strong>Save data file</strong> downloads an updated copy (with every loaded book baked in) — keep it / replace your sheet with it to make the books permanent.</p>
+      </div>
+      <div class="modal-foot">
+        <span class="wiz-hint" style="flex:1; margin:0"></span>
+        <button class="btn primary" id="settings-done" type="button">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Embedded character data for "Save copy (HTML)". Leave as null in the master file. -->
   <script id="embedded-data" type="application/json">null</script>
   <!-- PHB content baked in by build-data.py (null in the shareable app; do not commit when filled). -->
@@ -804,6 +938,7 @@
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
+  const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
 
   const ABILITIES = [
     ["str","Strength"],["dex","Dexterity"],["con","Constitution"],
@@ -822,7 +957,7 @@
   ];
   const ABBR = {str:"Str",dex:"Dex",con:"Con",int:"Int",wis:"Wis",cha:"Cha"};
   const NATTACKS = 5;
-  const NINV = 20;          // inventory rows
+  const NINV = 34;          // inventory rows (17 per column × 2)
   const NSPELLROWS = 24;    // spell list rows
   const NLIMITED = 8;       // limited-feature rows
 
@@ -843,6 +978,8 @@
   const zeroAb = () => ({str:0,dex:0,con:0,int:0,wis:0,cha:0});
   let bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};  // per-category ability bonuses
   let inspState = false;
+  let hitDieFaces = null;                      // class hit-die size (e.g. 8) → Hit Dice box shows "1d8+CON"
+  let speedBase = null;                        // base walking speed; Speed box shows the modified value, base shown only while focused
 
   // ---- Derived score helpers (work in every mode) ----
   function baseScore(k){
@@ -910,16 +1047,24 @@
       `<td><input data-save type="number" id="acbonus-${i}"></td></tr>`;
     $("acbonuses").innerHTML = acb;
 
-    let inv = "";
-    for(let i=0;i<NINV;i++) inv +=
-      `<tr><td><input data-save id="invname-${i}"></td>`+
+    const invRow = i =>
+      `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
+      `<td><input data-save id="invname-${i}"></td>`+
       `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
       `<td><input data-save type="number" id="invwt-${i}" min="0" step="0.1"></td></tr>`;
-    $("inv").innerHTML = inv;
+    const half = Math.ceil(NINV/2);
+    let invL = "", invR = "";
+    for(let i=0;i<half;i++) invL += invRow(i);
+    for(let i=half;i<NINV;i++) invR += invRow(i);
+    $("inv").innerHTML = invL; $("inv2").innerHTML = invR;
 
     let sl = "";
     for(let l=1;l<=9;l++) sl +=
-      `<div class="slot"><div class="k">Lv ${l}</div><input data-save type="number" id="slot${l}" min="0"></div>`;
+      `<div class="slot" id="slotcell${l}"><div class="k">Lv ${l}</div>`+
+      `<div class="slot-io">`+
+        `<label class="io"><span>Total</span><input data-save type="number" id="slot${l}" min="0"></label>`+
+        `<label class="io"><span>Used</span><input data-save type="number" id="slot${l}u" min="0"></label>`+
+      `</div></div>`;
     $("slots").innerHTML = sl;
     // spell rows are built by renderSpellTable() (class-dependent), called from renderSpellStyle()
   }
@@ -1007,11 +1152,308 @@
     document.querySelectorAll(".ptab").forEach(t => t.classList.toggle("active", t.dataset.page === name));
     document.querySelectorAll("#page-"+name+" textarea").forEach(autoGrow);   // re-fit now that it's visible
   }
-  function applySpellInclude(){
-    const on = $("spell-include").checked;
-    $("page-spells").classList.toggle("excluded", !on);
-    const tab = document.querySelector('.ptab[data-page="spells"]');
-    if(tab) tab.classList.toggle("muted", !on);
+  // ---- Layout: which pages/tabs are shown (Settings) ----
+  const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["bg","Background"],
+                 ["story","Backstory"],["spells","Spells"],["notes","Notes"],["mini","Mini"]];
+  let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
+  function renderLayoutToggles(){
+    $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
+      `<label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="${key}" ${hiddenPages[key] ? "" : "checked"}> ${label}</label>`
+    ).join("");
+  }
+  function loadedBooks(){
+    if(!PHB || !PHB._meta) return [];
+    return PHB._meta.books || (PHB._meta.book ? [PHB._meta.book] : []);
+  }
+  function updateSourcebookStatus(){
+    const el = $("sourcebook-status"); if(!el) return;
+    if(PHB && Array.isArray(PHB.spells)){
+      const books = loadedBooks();
+      el.innerHTML = `<strong>${books.length ? books.map(esc).join(", ") : "Sourcebook"}</strong> — ${PHB.spells.length} spells, ${(PHB.classes||[]).length} classes, ${(PHB.races||[]).length} races.`;
+    } else el.textContent = "No sourcebook loaded. Load one from your 5etools server below, or import a phb-data.json file.";
+  }
+
+  // ===== In-browser 5etools data processing (port of build-data.py) =====
+  const ET_SCHOOL = {A:"Abjuration",C:"Conjuration",D:"Divination",E:"Enchantment",V:"Evocation",I:"Illusion",N:"Necromancy",T:"Transmutation"};
+  const ET_DMG = {S:"slashing",P:"piercing",B:"bludgeoning",R:"radiant",F:"fire",C:"cold",L:"lightning",A:"acid",O:"force",Y:"psychic",T:"thunder",N:"necrotic"};
+  const ET_SIZE = {T:"Tiny",S:"Small",M:"Medium",L:"Large",H:"Huge",G:"Gargantuan"};
+  const ET_WPROP = {A:"ammunition",F:"finesse",H:"heavy",L:"light",LD:"loading",R:"reach",S:"special",T:"thrown","2H":"two-handed",V:"versatile"};
+  const ET_FULL = ["Cleric","Druid","Paladin"];   // classes whose entire spell list is pre-populated (Artificer's list is scattered/non-PHB → write-your-own)
+  function etTags(s){
+    if(typeof s !== "string") return s;
+    let prev = null;
+    while(prev !== s){ prev = s;
+      s = s.replace(/\{@(\w+) ([^{}]*)\}/g, (m,tag,body) => {
+        const p = body.split("|");
+        if(["dice","damage","scaledamage","scaledice","d20","hit","dc","filter"].includes(tag)) return p[0];   // @filter display = p[0]
+        if(p.length >= 3 && p[2].trim()) return p[2];
+        return p[0];
+      });
+    }
+    return s;
+  }
+  function etText(e){
+    if(typeof e === "string") return etTags(e);
+    if(Array.isArray(e)) return e.map(etText).filter(Boolean).join("\n");
+    if(e && typeof e === "object"){
+      if(e.type === "list") return (e.items||[]).map(i => "• "+etText(i)).join("\n");
+      if(e.type === "table") return "";
+      const inner = etText(e.entries||[]), name = e.name;
+      return (name && inner) ? (name+". "+inner) : (name || inner || "");
+    }
+    return "";
+  }
+  function etProfList(lst){ return (lst||[]).map(x => typeof x==="string" ? etTags(x) : etTags((x&&x.proficiency)||"")).filter(Boolean); }
+  function etSkills(spo){
+    let fixed = [], choose = null;
+    (spo||[]).forEach(blk => { for(const k in blk){ const v = blk[k];
+      if(k === "choose" && v && typeof v === "object") choose = {from:v.from||[], count:v.count||1};
+      else if(v === true) fixed.push(k); } });
+    return {fixed, choose};
+  }
+  function etTraits(entries){ return (entries||[]).filter(t => t && typeof t==="object" && t.name).map(t => ({name:t.name||"", text:etText(t.entries||[])})); }
+  function etSpeed(r){ const sp = r.speed; return (typeof sp === "number") ? sp : ((sp||{}).walk || 30); }
+  function etRaceLangs(r){
+    const out = [];
+    (r.languageProficiencies||[]).forEach(blk => { for(const k in blk){ const v = blk[k];
+      if(v === true) out.push(k[0].toUpperCase() + k.slice(1));
+      else if(typeof v === "number" && v){ const kind = {anyStandard:" (standard)", anyExotic:" (exotic)", any:""}[k] || (" ("+k+")"); out.push(`${v} language${v>1?"s":""} of your choice${kind}`); }
+    } });
+    return out;
+  }
+  function etRaces(raw, SRC){
+    const out = [], bases = {}, baseIdx = {};
+    (raw.race||[]).forEach(r => {
+      if(r.source !== SRC) return;
+      const ab = (r.ability||[]).slice();
+      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), langs:etRaceLangs(r)};
+      baseIdx[r.name] = out.length;
+      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), traits:etTraits(r.entries||[]), langs:etRaceLangs(r)});
+    });
+    (raw.subrace||[]).forEach(s => {
+      if(s.source !== SRC) return;
+      const parent = s.raceName;
+      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].langs = (out[i].langs||[]).concat(etRaceLangs(s)); } return; }
+      const base = bases[parent] || {};
+      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), langs:(base.langs||[]).concat(etRaceLangs(s))});
+    });
+    return out;
+  }
+  function etBackgrounds(raw, SRC){
+    return (raw.background||[]).filter(b => b.source === SRC).map(b => {
+      const {fixed, choose} = etSkills(b.skillProficiencies);
+      const feat = (b.entries||[]).find(e => e && typeof e==="object" && String(e.name||"").startsWith("Feature:"));
+      return {name:b.name, skills:fixed, skillChoose:choose, feature:{name:feat?feat.name.replace("Feature: ",""):"", text:feat?etText(feat.entries||[]):""}};
+    });
+  }
+  function etClasses(data, SRC){
+    return (data.class||[]).filter(c => c.source === SRC).map(c => {
+      const sp = c.startingProficiencies || {};
+      const {fixed:skFixed, choose:skChoose} = etSkills(sp.skills);
+      const seen = {}, subs = [];
+      (data.subclass||[]).forEach(s => { if(s.source !== SRC || s.className !== c.name) return; const short = s.shortName||s.name; if(seen[short]) return; seen[short]=1; subs.push({name:s.name, short}); });
+      const se = c.startingEquipment || {};
+      const equip = {items:(se.default||[]).filter(x => typeof x === "string").map(etTags), gold:etTags(se.goldAlternative||"")};
+      const features = (data.classFeature||[])
+        .filter(f => f.source === SRC && f.className === c.name && (f.classSource||SRC) === SRC && f.name)
+        .map(f => ({name:f.name||"", level:f.level||1, text:etText(f.entries||[])}))
+        .sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
+      let subLvl = null;
+      for(const f of (c.classFeatures||[])){
+        if(f && typeof f === "object" && f.gainSubclassFeature && f.classFeature){
+          const n = parseInt(String(f.classFeature).split("|")[3], 10); subLvl = isNaN(n) ? null : n; break;
+        }
+      }
+      return {name:c.name, hd:(c.hd||{}).faces, saves:c.proficiency||[], skillChoose:skChoose, skillsFixed:skFixed,
+        armor:etProfList(sp.armor), weapons:etProfList(sp.weapons), casterAbility:c.spellcastingAbility, casterProgression:c.casterProgression,
+        equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:subs};
+    });
+  }
+  function etFeats(raw, SRC){ return (raw.feat||[]).filter(f => f.source === SRC).map(f => ({name:f.name, text:etText(f.entries||[])})); }
+  function etRange(r){ if(!r || typeof r !== "object") return String(r==null?"":r); const d = r.distance||{}; if(r.type === "point" && d) return ((d.amount||"")+" "+(d.type||"")).trim(); return r.type||""; }
+  function etDuration(d){ if(!d || !d.length) return ""; const x = d[0]; if(x.type === "timed"){ const du = x.duration||{}; return (x.concentration?"Concentration, up to ":"")+(du.amount||"")+" "+(du.type||""); } return x.type||""; }
+  function etSpells(spellsData, SRC){
+    const out = [];
+    (spellsData.spell||[]).forEach(s => {
+      if(s.source !== SRC) return;
+      const comp = s.components || {};
+      out.push({name:s.name, level:s.level||0, school:ET_SCHOOL[s.school]||s.school||"",
+        time: typeof s.time === "string" ? etText(s.time) : (s.time||[]).map(t => (t.number||"")+" "+(t.unit||"")).join("; "),
+        range:etRange(s.range||{}), components:["v","s","m"].filter(k => comp[k]).map(k => k.toUpperCase()).join(""),
+        duration:etDuration(s.duration||[]), text:etText(s.entries||[]), higher:etText(s.entriesHigherLevel||[])});
+    });
+    out.sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
+    return out;
+  }
+  function etClassSpells(spellsData, sourcesForSrc, SRC){
+    const levels = {};
+    (spellsData.spell||[]).forEach(s => { if(s.source === SRC) levels[s.name] = s.level||0; });
+    const out = {};
+    for(const name in (sourcesForSrc||{})){
+      const lv = levels[name]; if(lv == null || lv === 0) continue;
+      (sourcesForSrc[name].class||[]).forEach(c => { if(c.source === SRC && ET_FULL.includes(c.name)){ (out[c.name] = out[c.name]||[]).push({n:name, l:lv}); } });
+    }
+    for(const cn in out) out[cn].sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
+    return out;
+  }
+  function etItems(raw, SRC){
+    const weapons = [], armor = [];
+    (raw.baseitem||[]).forEach(it => {
+      if(it.source !== SRC) return;
+      if(it.weapon) weapons.push({name:it.name, cat:it.weaponCategory==="martial"?"martial":"simple", melee:it.type==="M", dmg:it.dmg1||"", dmgType:ET_DMG[it.dmgType]||it.dmgType||"", versatile:it.dmg2||"", props:(it.property||[]).map(p=>ET_WPROP[p]||p), range:it.range||""});
+      else if(it.armor || ["LA","MA","HA","S"].includes(it.type||"")) armor.push({name:it.name, ac:it.ac, type:it.type||"", stealth:!!it.stealth, strength:it.strength});
+    });
+    return {weapons, armor};
+  }
+  function etAcItems(itemsData){
+    const out = [{n:"Shield", b:2}], seen = {Shield:1};
+    (itemsData.item||[]).forEach(it => {
+      const b = it.bonusAc; if(!b) return;
+      if(["LA","MA","HA"].includes((it.type||"").split("|")[0])) return;
+      const name = it.name||""; if(seen[name]) return;
+      const bonus = parseInt(String(b).replace("+","").trim(), 10); if(isNaN(bonus)) return;
+      seen[name] = 1; out.push({n:name, b:bonus});
+    });
+    out.sort((a,b) => a.n.localeCompare(b.n));
+    return out;
+  }
+  const ET_TOOL_TYPES = ["AT","GS","INS","T"];
+  function etLanguages(raw, SRC){ return [...new Set((raw.language||[]).filter(l => l.source === SRC && l.name).map(l => l.name))].sort(); }
+  function etItemWeights(itemsBase, itemsData, SRC){
+    const w = {};
+    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => {
+      (coll[key]||[]).forEach(it => { if(it.source === SRC && it.weight != null && it.name) w[it.name.toLowerCase()] = it.weight; });
+    });
+    return w;
+  }
+  function etPacks(itemsData, SRC){
+    const out = {};
+    (itemsData.item||[]).forEach(it => {
+      if(it.source !== SRC || !it.packContents) return;
+      const contents = [];
+      it.packContents.forEach(e => {
+        if(typeof e === "string") contents.push({name:etTags(e.split("|")[0]), qty:1});
+        else if(e && e.special) contents.push({name:e.special, qty:e.quantity||1});
+        else if(e && e.item) contents.push({name:etTags(e.item.split("|")[0]), qty:e.quantity||1});
+      });
+      if(contents.length) out[it.name] = contents;
+    });
+    return out;
+  }
+  function etTools(itemsBase, itemsData, SRC){   // AT/INS in items-base; GS/T (thieves' tools, kits, gaming sets) in items.json
+    const set = new Set();
+    (itemsBase.baseitem||[]).forEach(it => { if(it.source === SRC && ET_TOOL_TYPES.includes((it.type||"").split("|")[0])) set.add(it.name); });
+    (itemsData.item||[]).forEach(it => { if(it.source === SRC && ET_TOOL_TYPES.includes((it.type||"").split("|")[0])) set.add(it.name); });
+    return [...set].sort();
+  }
+  // fetch + process one 5etools book from the local server
+  async function fetch5etoolsBook(base, srcCode){
+    const root = base.replace(/\/+$/,"") + "/data/";
+    const J = p => fetch(root + p).then(r => { if(!r.ok) throw new Error(r.status+" "+p); return r.json(); });
+    const [races, bg, feats, itemsBase, itemsData, langs, spellIdx, classIdx] = await Promise.all([
+      J("races.json").catch(()=>({})), J("backgrounds.json").catch(()=>({})), J("feats.json").catch(()=>({})),
+      J("items-base.json").catch(()=>({})), J("items.json").catch(()=>({})), J("languages.json").catch(()=>({})),
+      J("spells/index.json").catch(()=>({})), J("class/index.json").catch(()=>({})),
+    ]);
+    const spellsData = spellIdx[srcCode] ? await J("spells/"+spellIdx[srcCode]).catch(()=>({})) : {};
+    let sourcesForSrc = {}; try{ sourcesForSrc = (await J("spells/sources.json"))[srcCode] || {}; }catch(e){}
+    const classArr = await Promise.all(Object.values(classIdx).map(f => J("class/"+f).catch(()=>({}))));
+    const classAll = {class:[], subclass:[]};
+    classArr.forEach(d => { (d.class||[]).forEach(c => classAll.class.push(c)); (d.subclass||[]).forEach(s => classAll.subclass.push(s)); });
+    const items = etItems(itemsBase, srcCode);
+    return {races:etRaces(races,srcCode), backgrounds:etBackgrounds(bg,srcCode), classes:etClasses(classAll,srcCode),
+      feats:etFeats(feats,srcCode), spells:etSpells(spellsData,srcCode), classSpells:etClassSpells(spellsData,sourcesForSrc,srcCode),
+      acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
+      languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
+      itemWeights:etItemWeights(itemsBase,itemsData,srcCode)};
+  }
+  function mergeBook(into, add, bookName){
+    into._meta = into._meta || {};
+    into._meta.books = into._meta.books || (into._meta.book ? [into._meta.book] : []);
+    ["races","backgrounds","classes","feats","spells","weapons","armor"].forEach(cat => {
+      into[cat] = into[cat] || [];
+      const idx = new Map(into[cat].map((x,i) => [x.name, i]));
+      (add[cat]||[]).forEach(x => {                                  // overwrite existing (refreshes corrected data), else append
+        if(idx.has(x.name)) into[cat][idx.get(x.name)] = x;
+        else { idx.set(x.name, into[cat].length); into[cat].push(x); }
+      });
+    });
+    { into.acItems = into.acItems || [];
+      const idx = new Map(into.acItems.map((x,i) => [x.n, i]));
+      (add.acItems||[]).forEach(x => { if(idx.has(x.n)) into.acItems[idx.get(x.n)] = x; else { idx.set(x.n, into.acItems.length); into.acItems.push(x); } });
+      into.acItems.sort((a,b) => a.n.localeCompare(b.n)); }
+    into.classSpells = into.classSpells || {};
+    for(const cn in (add.classSpells||{})){
+      const ex = into.classSpells[cn] = into.classSpells[cn] || [];
+      const idx = new Map(ex.map((x,i) => [x.n, i]));
+      add.classSpells[cn].forEach(x => { if(idx.has(x.n)) ex[idx.get(x.n)] = x; else { idx.set(x.n, ex.length); ex.push(x); } });
+      ex.sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
+    }
+    ["languages","tools"].forEach(cat => {   // plain string arrays
+      into[cat] = into[cat] || [];
+      const seen = new Set(into[cat]);
+      (add[cat]||[]).forEach(x => { if(!seen.has(x)){ into[cat].push(x); seen.add(x); } });
+      into[cat].sort();
+    });
+    into.packs = into.packs || {};            // pack contents (object keyed by pack name)
+    for(const k in (add.packs||{})) into.packs[k] = add.packs[k];
+    into.itemWeights = into.itemWeights || {};
+    for(const k in (add.itemWeights||{})) into.itemWeights[k] = add.itemWeights[k];
+    if(bookName && !into._meta.books.includes(bookName)) into._meta.books.push(bookName);
+  }
+  async function populateBookSelect(){
+    const sel = $("book-select"); if(!sel) return;
+    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    sel.innerHTML = '<option value="">Loading book list…</option>'; sel.disabled = true;
+    try{
+      const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
+      const books = (bj.book||[]).slice().sort((a,b) => (a.name||"").localeCompare(b.name||""));
+      sel.innerHTML = '<option value="">Pick a book…</option>' + books.map(b => `<option value="${esc(b.id||b.source)}">${esc(b.name||b.id)}</option>`).join("");
+      sel.disabled = false;
+    }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; }
+  }
+  async function loadBookFromServer(){
+    const sel = $("book-select"), srcCode = sel && sel.value;
+    if(!srcCode){ flashStatus("Pick a book first"); return; }
+    const bookName = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : srcCode;
+    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    const btn = $("btn-loadbook"); if(btn){ btn.disabled = true; btn.textContent = "Loading…"; }
+    try{
+      const data = await fetch5etoolsBook(base, srcCode);
+      if(!PHB) PHB = {_meta:{books:[]}};
+      mergeBook(PHB, data, bookName);
+      _spellIndex = null;
+      bakeSourceData();   // keep the in-document data block in sync so saves carry the books
+      try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(PHB)); }
+      catch(e){ flashStatus(bookName+" loaded (too large to save — stays this session)"); }
+      populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); compute();
+      flashStatus(bookName+" loaded — use “Save data file” to bake it into your sheet");
+    }catch(e){ flashStatus("Load failed — is your 5etools server running at "+base+"?"); }
+    finally{ if(btn){ btn.disabled = false; btn.textContent = "Load"; } }
+  }
+  function bakeSourceData(){ const pd = $("phb-data"); if(pd) pd.textContent = JSON.stringify(PHB || null); }
+  function saveDataFile(){               // download a copy of the sheet with all loaded books baked into the file
+    bakeSourceData();
+    const clone = document.documentElement.cloneNode(true);
+    const ed = clone.querySelector("#embedded-data"); if(ed) ed.textContent = "null";   // a clean data template, no specific character
+    const st = clone.querySelector("#status"); if(st) st.textContent = "";
+    download("<!DOCTYPE html>\n" + clone.outerHTML, "Character Sheet (Source Data).html", "text/html");
+  }
+  function applyLayout(){
+    const hasPortrait = !!(portraitData && portraitData.data);
+    PAGES.forEach(([key]) => {
+      const userHidden = !!hiddenPages[key];
+      const excluded = userHidden || (key === "mini" && !hasPortrait);   // mini also needs a portrait
+      const tab = document.querySelector('.ptab[data-page="'+key+'"]');
+      if(tab){ tab.style.display = userHidden ? "none" : ""; tab.classList.toggle("muted", excluded && !userHidden); }
+      const page = $("page-"+key);
+      if(page) page.classList.toggle("excluded", excluded);
+    });
+    const active = document.querySelector(".page.active");          // active page hidden → jump to first visible
+    if(active && active.classList.contains("excluded")){
+      const firstKey = PAGES.map(p=>p[0]).find(k => { const pg=$("page-"+k); return pg && !pg.classList.contains("excluded"); });
+      if(firstKey) showPage(firstKey);
+    }
   }
   const round1 = n => (Math.round(n*10)/10).toString();
 
@@ -1022,40 +1464,80 @@
     Cleric:    {fullList:true,  prepares:true,  ability:"wis", note:"Cleric: your whole class list is pre-filled — check which spells you have prepared today."},
     Druid:     {fullList:true,  prepares:true,  ability:"wis", note:"Druid: your whole class list is pre-filled — check which spells you have prepared today."},
     Paladin:   {fullList:true,  prepares:true,  ability:"cha", note:"Paladin: your whole class list is pre-filled — check which spells you have prepared."},
-    Artificer: {fullList:true,  prepares:true,  ability:"int", note:"Artificer: prepare from your class list (the PHB has no Artificer spells, so write your own)."},
+    Artificer: {fullList:false, prepares:true,  ability:"int", note:"Artificer: write the spells you've prepared (its spell list is scattered across non-PHB books, so it isn't auto-filled)."},
     Bard:      {fullList:false, prepares:false, ability:"cha", note:"Bard: write your spells known — they're always ready (no preparation)."},
     Sorcerer:  {fullList:false, prepares:false, ability:"cha", note:"Sorcerer: write your spells known — always ready (no preparation)."},
     Ranger:    {fullList:false, prepares:false, ability:"wis", note:"Ranger: write your spells known — always ready (no preparation)."},
     Warlock:   {fullList:false, prepares:false, ability:"cha", note:"Warlock (Pact Magic): write your spells known — always ready; slots recharge on a short rest."},
   };
   let preparedSpells = {};                     // {spellName: true} for pre-filled full-list classes
-  let manualSpells = [];                       // [{lvl,name,prep}] for write-your-own classes
-  function defaultManualSpells(){ return Array.from({length:NSPELLROWS}, ()=>({lvl:"",name:"",prep:false})); }
+  let spellEntries = {};                       // {lvl: [{name,prep}]} — write-your-own rows; lvl 0 = cantrips
+  let spellMaxLevel = 9;                        // highest spell-level section shown (sections shrink/grow on creation)
+  const CANTRIP_COUNT = 5, PER_LEVEL = 10;      // default blank entries per section
+  function mkSpellRows(n){ return Array.from({length:n}, ()=>({name:"",prep:false})); }
+  function defaultSpellEntries(){ const o = {0:mkSpellRows(CANTRIP_COUNT)}; for(let l=1;l<=9;l++) o[l]=mkSpellRows(PER_LEVEL); return o; }
   function classSpellList(cls){
     const info = CASTERS[cls];
     return (info && info.fullList && PHB && PHB.classSpells && (PHB.classSpells[cls]||[]).length)
       ? PHB.classSpells[cls] : null;
   }
+  // the highest spell level a class can EVER reach (caps the sheet by class alone, even with no level)
+  function classMaxSpellLevel(cls){
+    if(["Paladin","Ranger","Artificer","Warlock"].includes(cls)) return 5;   // half casters + Warlock top out at 5
+    return 9;                                                                // full casters / Other / blank
+  }
+  // highest spell-slot level the character can use right now = min(class cap, level-based) — shrinks the sheet to the build
+  function maxSpellLevel(cls, lvl){
+    const cap = classMaxSpellLevel(cls);
+    if(lvl == null) return cap;
+    let byLvl;
+    if(cls === "Warlock") byLvl = lvl>=9?5:lvl>=7?4:lvl>=5?3:lvl>=3?2:1;
+    else if(["Bard","Cleric","Druid","Sorcerer","Wizard"].includes(cls)) byLvl = Math.ceil(lvl/2);          // full casters
+    else if(["Paladin","Ranger","Artificer"].includes(cls)) byLvl = lvl<2 ? 0 : Math.floor(lvl/4)+1;        // half casters
+    else byLvl = 9;
+    return Math.min(cap, byLvl, 9);
+  }
+  function applySlotFilter(){                    // show only slot levels the build can use (matches the spell list)
+    for(let l=1;l<=9;l++){ const c = $("slotcell"+l); if(c) c.style.display = (l <= spellMaxLevel) ? "" : "none"; }
+  }
+  // spell-data lookup by name (components / time / range / duration / school / full text)
+  let _spellIndex = null;
+  function spellIndex(){
+    if(!_spellIndex){ _spellIndex = {}; if(PHB && PHB.spells) PHB.spells.forEach(s => { _spellIndex[s.name.toLowerCase()] = s; }); }
+    return _spellIndex;
+  }
+  function spellData(name){ return (name && spellIndex()[String(name).toLowerCase()]) || null; }
+  function propCells(d){                         // Comp / Cast Time / Range / Duration / School
+    return `<td class="col-comp sp-comp">${d?esc(d.components||""):""}</td>`+
+           `<td class="col-time sp-time">${d?esc(d.time||""):""}</td>`+
+           `<td class="col-range sp-range">${d?esc(d.range||""):""}</td>`+
+           `<td class="col-dur sp-dur">${d?esc(d.duration||""):""}</td>`+
+           `<td class="col-school sp-school">${d?esc(d.school||""):""}</td>`;
+  }
   function renderSpellTable(){
     const cls = $("spellclass").value, info = CASTERS[cls];
     $("spelltable").classList.toggle("hide-prep", !(info ? info.prepares : true));   // blank/Other shows Prep
-    const list = classSpellList(cls);
+    const full = classSpellList(cls);
+    let fullByLvl = null;
+    if(full){ fullByLvl = {}; full.forEach(sp => { (fullByLvl[sp.l] = fullByLvl[sp.l] || []).push(sp); }); }
     let body = "";
-    if(list){                                  // pre-populated entire class list (Prep checkbox per spell)
-      list.forEach(sp => {
-        body += `<tr><td class="col-lvl">${sp.l}</td>`+
-          `<td class="col-prep"><input type="checkbox" class="prep-spell" data-sp="${esc(sp.n)}" ${preparedSpells[sp.n] ? "checked" : ""}></td>`+
-          `<td class="col-name">${esc(sp.n)}</td></tr>`;
-      });
-      $("spells").dataset.mode = "full";
-    } else {                                   // write-your-own rows (backed by manualSpells state)
-      for(let i=0;i<NSPELLROWS;i++){
-        const m = manualSpells[i] || {};
-        body += `<tr><td class="col-lvl"><input id="splvl-${i}" value="${esc(m.lvl||'')}"></td>`+
-          `<td class="col-prep"><input type="checkbox" id="spprep-${i}" ${m.prep ? "checked" : ""}></td>`+
-          `<td class="col-name"><input id="spname-${i}" value="${esc(m.name||'')}"></td></tr>`;
+    for(let l=0; l<=spellMaxLevel; l++){
+      body += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
+      if(l>0 && fullByLvl){                      // full-list class → pre-fill this level's real spells (Prep checkbox each)
+        (fullByLvl[l]||[]).forEach(sp => {
+          const d = spellData(sp.n), titleAttr = (d && d.text) ? ` title="${esc(d.text)}"` : "";
+          body += `<tr>`+
+            `<td class="col-prep"><input type="checkbox" class="prep-spell" data-sp="${esc(sp.n)}" ${preparedSpells[sp.n] ? "checked" : ""}></td>`+
+            `<td class="col-name"${titleAttr}>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
+        });
+      } else {                                   // write-your-own rows (cantrips never show Prep)
+        (spellEntries[l]||[]).forEach((m,i) => {
+          const d = spellData(m.name), titleAttr = (d && d.text) ? ` title="${esc(d.text)}"` : "";
+          const prepCell = l===0 ? `<td class="col-prep"></td>`
+                                  : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
+          body += `<tr>${prepCell}<td class="col-name"${titleAttr}><input class="sp-name" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}"></td>`+ propCells(d) +`</tr>`;
+        });
       }
-      $("spells").dataset.mode = "manual";
     }
     $("spells").innerHTML = body;
   }
@@ -1063,7 +1545,9 @@
     const cls = $("spellclass").value, info = CASTERS[cls];
     $("cast-note").textContent = info ? info.note : "Flexible layout — fill in as needed. Pick a class to tailor it.";
     if(info && setAbility && info.ability) $("spellability").value = info.ability;
+    spellMaxLevel = (cls && CASTERS[cls]) ? maxSpellLevel(cls, charLevel()) : 9;   // shrink/grow sections to the build
     renderSpellTable();
+    applySlotFilter();
   }
 
   // ---- The automation ----
@@ -1126,6 +1610,10 @@
           if(armor.type === "HA"){ needDex = false; dexAdd = 0; }              // heavy: no Dex
           else if(armor.type === "MA"){ dexAdd = (mods.dex == null) ? null : Math.min(mods.dex, 2); }  // medium: Dex max 2
           // light (LA) and unarmored: full Dex
+        } else if(sel === "Unarmored"){                                        // Unarmored Defense by class
+          const cls = ($("classlevel").value || "").toLowerCase();
+          if(/barbarian/.test(cls)) base = 10 + (mods.con || 0);               // Barbarian: 10 + Dex + Con
+          else if(/monk/.test(cls)) base = 10 + (mods.wis || 0);               // Monk: 10 + Dex + Wis
         }
         acBase = (needDex && mods.dex == null) ? null : base + (needDex ? dexAdd : 0);
       }
@@ -1137,6 +1625,10 @@
       const totRaw = $("hd-total").value;
       if(totRaw === ""){ $("hd-avail").textContent = ""; }
       else { $("hd-avail").textContent = Math.max(0, num(totRaw,0) - num($("hd-used").value,0)); }
+      if(hitDieFaces != null){                 // Hit Dice box = one die + Con mod (the short-rest heal roll)
+        const cm = mods.con;
+        $("hitdice").value = "1d" + hitDieFaces + (cm ? (cm > 0 ? "+"+cm : ""+cm) : "");
+      }
     }
 
     // --- inventory weight + carrying capacity (Strength-based) ---
@@ -1155,15 +1647,36 @@
     $("totalwt").textContent = carriedTxt;
     $("carried").textContent = carriedTxt;
     const strScore = finalScore("str");
+    const baseSpeed = speedBase;                            // base walking speed (stored; Speed box shows the modified value)
+    const NOTE_DEFAULT = "Thresholds use your Strength score (lb). Encumbered / Heavily are the optional variant rule.";
+    let speedPenalty = 0;
     if(strScore == null){
       ["enc5","enc10","carry","pushdrag","encstatus"].forEach(id => $(id).textContent = "");
+      $("encnote").textContent = NOTE_DEFAULT;
     } else {
       const enc5=strScore*5, enc10=strScore*10, carry=strScore*15;
       $("enc5").textContent = enc5+" lb"; $("enc10").textContent = enc10+" lb";
       $("carry").textContent = carry+" lb"; $("pushdrag").textContent = (strScore*30)+" lb";
-      $("encstatus").textContent = carried>carry ? "Over capacity" : carried>enc10 ? "Heavily encumbered"
-        : carried>enc5 ? "Encumbered" : "Unencumbered";
+      let status, note = NOTE_DEFAULT;
+      if(carried > carry){ status = "Over capacity"; speedPenalty = baseSpeed||0; note = "Over capacity — you can't carry this much (more than Strength ×15)."; }
+      else if(carried > enc10){ status = "Heavily encumbered"; speedPenalty = 20; note = "Heavily encumbered: speed −20 ft, and disadvantage on STR/DEX/CON ability checks, attack rolls, and saving throws."; }
+      else if(carried > enc5){ status = "Encumbered"; speedPenalty = 10; note = "Encumbered: speed −10 ft."; }
+      else status = "Unencumbered";
+      $("encstatus").textContent = status;
+      $("encnote").textContent = note;
     }
+    // Monk Unarmored Movement: +10 ft at L2, scaling to +30, while unarmored and not using a shield
+    let speedBonus = 0;
+    const clsLow = ($("classlevel").value || "").toLowerCase();
+    const armorSel = $("armorsel") ? $("armorsel").value : "";
+    const hasShield = [0,1,2].some(i => { const s = $("acitem-"+i); return s && s.value === "Shield"; });
+    if(/monk/.test(clsLow) && (armorSel === "" || armorSel === "Unarmored") && !hasShield){
+      const mm = clsLow.match(/monk[^\d]*(\d+)/), mlvl = mm ? parseInt(mm[1],10) : (charLevel() || 0);
+      if(mlvl >= 2) speedBonus = Math.min(30, Math.floor((mlvl - 2) / 4) * 5 + 10);
+    }
+    // Combat Speed (page 1): box shows base − encumbrance penalty + Unarmored Movement (not while editing)
+    if(document.activeElement !== $("speed"))
+      $("speed").value = (baseSpeed == null) ? "" : Math.max(0, baseSpeed - speedPenalty + speedBonus) + " ft";
 
     // --- spellcasting (DC/attack need a level, an ability, and that ability's score) ---
     const sa = $("spellability").value;
@@ -1171,8 +1684,16 @@
       $("spelldc").textContent = 8 + pb + mods[sa];
       $("spellatk").textContent = sgn(pb + mods[sa]);
     } else { $("spelldc").textContent = ""; $("spellatk").textContent = ""; }
-    applySpellInclude();
-    applyMiniInclude();
+    // --- prepared casters: how many spells they can prepare (ability mod + level; half level for Paladin/Artificer) ---
+    const spInfo = CASTERS[$("spellclass").value];
+    if(spInfo && spInfo.prepares){
+      $("prep-stat").style.display = "";
+      const slvl = charLevel();
+      if(sa && slvl != null && mods[sa] != null){
+        const half = ["Paladin","Artificer"].includes($("spellclass").value);
+        $("prepcount").textContent = Math.max(1, mods[sa] + (half ? Math.floor(slvl/2) : slvl));
+      } else $("prepcount").textContent = "";
+    } else $("prep-stat").style.display = "none";
 
     updateGenStatus();
     updateStepStates();
@@ -1190,8 +1711,12 @@
     data.baseVals = baseVals;
     data.bonusVals = bonusVals;
     data.portrait = portraitData;
-    data.manualSpells = manualSpells;
+    data.spellEntries = spellEntries;
+    data.spellMaxLevel = spellMaxLevel;
     data.preparedSpells = preparedSpells;
+    data.hiddenPages = hiddenPages;
+    data.hitDieFaces = hitDieFaces;
+    data.speedBase = speedBase;
     return data;
   }
   function applyFields(data){                 // restores data-save fields + inspiration
@@ -1216,11 +1741,24 @@
       else if(data.racialVals) bonusVals.racial = {...bonusVals.racial, ...data.racialVals};   // legacy: old single racial bonus
     }
     preparedSpells = (data && data.preparedSpells) || {};
-    manualSpells = defaultManualSpells();
-    if(data){
-      if(Array.isArray(data.manualSpells)) data.manualSpells.forEach((v,i)=>{ if(i<NSPELLROWS && v) manualSpells[i] = {lvl:v.lvl||"", name:v.name||"", prep:!!v.prep}; });
-      else for(let i=0;i<NSPELLROWS;i++){ if(("spname-"+i) in data || ("splvl-"+i) in data || ("spprep-"+i) in data)   // legacy
-        manualSpells[i] = {lvl:data["splvl-"+i]||"", name:data["spname-"+i]||"", prep:!!data["spprep-"+i]}; }
+    spellEntries = defaultSpellEntries();
+    spellMaxLevel = (data && typeof data.spellMaxLevel === "number") ? data.spellMaxLevel : 9;
+    if(data && data.spellEntries){
+      for(let l=0;l<=9;l++) if(Array.isArray(data.spellEntries[l]))
+        spellEntries[l] = data.spellEntries[l].map(m => ({name:(m&&m.name)||"", prep:!!(m&&m.prep)}));
+    } else if(data && Array.isArray(data.manualSpells)){            // legacy flat list → bucket into per-level sections
+      const tmp = {}; for(let l=0;l<=9;l++) tmp[l] = [];
+      data.manualSpells.forEach(m => { if(!m || !m.name) return; let l = parseInt(m.lvl,10); if(isNaN(l)||l<0||l>9) l = 1; tmp[l].push({name:m.name, prep:!!m.prep}); });
+      for(let l=0;l<=9;l++){ const min = l===0 ? CANTRIP_COUNT : PER_LEVEL; while(tmp[l].length < min) tmp[l].push({name:"",prep:false}); spellEntries[l] = tmp[l]; }
+    }
+    hitDieFaces = (data && typeof data.hitDieFaces === "number") ? data.hitDieFaces : null;
+    if(hitDieFaces == null && data){ const m = String(data.hitdice||"").match(/d(\d+)/); if(m) hitDieFaces = +m[1]; }   // legacy "5d8" → 8
+    speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
+    if(speedBase == null && data){ const m = String(data.speed||"").match(/\d+/); if(m) speedBase = +m[0]; }   // legacy "30 ft" → 30
+    hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
+    if(data){                                                       // migrate old per-page include checkboxes
+      if(data["spell-include"] === false) hiddenPages.spells = true;
+      if(data["mini-include"] === false) hiddenPages.mini = true;
     }
     renderAbilities();
     renderHoodControls();
@@ -1231,6 +1769,8 @@
     updateModeUI();
     renderInsp();
     renderSpellStyle(false);
+    renderLayoutToggles();
+    applyLayout();
     compute();
   }
   let saveTimer = null;
@@ -1273,17 +1813,34 @@
     const t = e.target;
     if(t.id === "inspiration") return;
     if(t.tagName === "TEXTAREA") autoGrow(t);
-    const sm = t.id && t.id.match(/^(splvl|spname|spprep)-(\d+)$/);   // write-your-own spell rows
-    if(sm){ const i=+sm[2]; manualSpells[i] = manualSpells[i] || {lvl:"",name:"",prep:false};
-            if(sm[1]==="splvl") manualSpells[i].lvl = t.value;
-            else if(sm[1]==="spname") manualSpells[i].name = t.value;
-            else manualSpells[i].prep = t.checked; }
+    if(t.id === "classlevel") renderSpellStyle(false);   // level changes the castable spell range → re-filter list + slots
+    if(t.classList.contains("sp-name") || t.classList.contains("sp-prep")){   // write-your-own spell rows
+      const l = +t.dataset.l, i = +t.dataset.i;
+      spellEntries[l] = spellEntries[l] || [];
+      spellEntries[l][i] = spellEntries[l][i] || {name:"", prep:false};
+      if(t.classList.contains("sp-name")){
+        spellEntries[l][i].name = t.value;
+        const d = spellData(t.value), tr = t.closest("tr"), nameCell = t.closest(".col-name");   // auto-fill props from PHB
+        if(tr){
+          const set = (sel,v)=>{ const c = tr.querySelector(sel); if(c) c.textContent = v; };
+          set(".sp-comp", d?d.components||"":""); set(".sp-time", d?d.time||"":""); set(".sp-range", d?d.range||"":"");
+          set(".sp-dur", d?d.duration||"":""); set(".sp-school", d?d.school||"":"");
+        }
+        if(nameCell){ if(d && d.text) nameCell.title = d.text; else nameCell.removeAttribute("title"); }
+      } else spellEntries[l][i].prep = t.checked;
+    }
     if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
       if(t.checked) preparedSpells[t.dataset.sp] = true; else delete preparedSpells[t.dataset.sp]; }
     if(t.classList.contains("acitem")){                                // AC-bonus item picked → auto-fill its bonus
       const i = t.id.split("-")[1];
       const it = PHB && PHB.acItems && PHB.acItems.find(x => x.n === t.value);
       if(it) $("acbonus-"+i).value = it.b;
+    }
+    if(t.id === "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base
+    const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
+    if(im){ const i = im[1];
+      if(!t.value.trim()){ const q = $("invqty-"+i), w = $("invwt-"+i); if(q) q.value = ""; if(w) w.value = ""; }   // cleared → also clear qty + weight
+      else { const wEl = $("invwt-"+i); if(wEl && !wEl.value){ const w = itemWeight(t.value); if(w != null) wEl.value = w; } }   // else auto-fill weight
     }
     if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
     else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
@@ -1292,7 +1849,8 @@
   }
   function autoGrow(ta){
     if(!ta) return;
-    if(!ta.closest(".grow")){ ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; }   // grow on screen (flex-filled boxes keep their height)
+    ta.style.height = "auto";                                             // grow to fit content on screen
+    ta.style.height = (ta.scrollHeight + (ta.offsetHeight - ta.clientHeight)) + "px";   // + border (box-sizing) so nothing clips
     let m = ta.nextElementSibling;                                        // print-only text mirror
     if(!(m && m.classList && m.classList.contains("ta-print"))){
       m = document.createElement("div"); m.className = "ta-print"; ta.after(m);
@@ -1343,15 +1901,7 @@
   function renderMini(){
     const url = (portraitData && portraitData.data) ? `url("${portraitData.data}")` : "";
     document.querySelectorAll("#mini-embed .mp").forEach(p => p.style.backgroundImage = url);
-    applyMiniInclude();
-  }
-  function applyMiniInclude(){
-    const inc = $("mini-include");
-    const has = !!(portraitData && portraitData.data);
-    const on = (inc ? inc.checked : true) && has;   // no portrait ⇒ nothing to print
-    $("page-mini").classList.toggle("excluded", !on);
-    const tab = document.querySelector('.ptab[data-page="mini"]');
-    if(tab) tab.classList.toggle("muted", !on);
+    applyLayout();   // mini visibility depends on whether a portrait exists
   }
   function dataURLtoBlob(durl){
     const [head, b64] = durl.split(",");
@@ -1391,7 +1941,7 @@
   }
   function populateArmor(){
     const armor = (PHB && PHB.armor) || [], acItems = (PHB && PHB.acItems) || [];
-    if($("armorsel")) $("armorsel").innerHTML = `<option value=""></option>` + `<option value="Unarmored">Unarmored (10 + Dex)</option>` +
+    if($("armorsel")) $("armorsel").innerHTML = `<option value=""></option>` + `<option value="Unarmored">Unarmored</option>` +
       armor.filter(a => ["LA","MA","HA"].includes(a.type)).map(a => optTag(a.name, a.name)).join("") +
       `<option value="Mage Armor">Mage Armor (13 + Dex)</option>` +
       `<option value="Custom">Custom…</option>`;
@@ -1400,10 +1950,18 @@
     for(let i=0;i<3;i++){ const s=$("acitem-"+i); if(s) s.innerHTML = itemOpts; }
   }
   function populateSubclass(clsName){
-    const sel=$("wiz-subclass"); if(!sel || !PHB) return;
+    const sel=$("wiz-subclass"), wrap=$("wiz-subclass-wrap"); if(!sel || !PHB) return;
     const cls=findBy(PHB.classes,clsName), subs=cls?cls.subclasses:[];
-    sel.innerHTML = `<option value="">${subs.length?esc(cls.subclassTitle||"Subclass"):"—"}</option>` + subs.map(s=>optTag(s.name,s.name)).join("");
-    sel.disabled = !subs.length;
+    const subLvl = (cls && cls.subclassLevel) || 1;                       // level the class gains its subclass
+    const lvl = Math.min(20, Math.max(1, num($("wiz-level").value, 1)));
+    if(!subs.length || lvl < subLvl){                                     // no subclasses, or level too low → hide entirely
+      if(wrap) wrap.hidden = true;
+      sel.innerHTML = `<option value=""></option>`; sel.value = ""; sel.disabled = true;
+      return;
+    }
+    if(wrap) wrap.hidden = false;
+    sel.innerHTML = `<option value="">${esc(cls.subclassTitle||"Subclass")}</option>` + subs.map(s=>optTag(s.name,s.name)).join("");
+    sel.disabled = false;
   }
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
 
@@ -1416,7 +1974,7 @@
       (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
         if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; else if(k==="choose") choose=v;
       }));
-      if(r.speed) $("speed").value = r.speed+" ft";
+      if(r.speed) speedBase = r.speed;               // base speed; Speed box (compute) shows the modified value
       (r.traits||[]).forEach(tr=>{                     // pull sense traits into the Senses box
         const nm = tr.name||"";
         if(/darkvision|blindsight|tremorsense|truesight/i.test(nm)){
@@ -1424,6 +1982,10 @@
           addSense(m ? `${nm} ${m[1]} ft.` : nm);
         }
       });
+      if(r.langs && r.langs.length){                   // race languages → Proficiencies & Languages box
+        const line = "Languages: " + r.langs.join(", ");
+        const p = $("proficiencies"); p.value = p.value.trim() ? p.value+"\n"+line : line; autoGrow(p);
+      }
       if(r.traits && r.traits.length && !$("features").value.trim())
         $("features").value = r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n");
       autoGrow($("features"));
@@ -1439,7 +2001,7 @@
       const lvl = charLevel();
       $("classlevel").value = name+" "+lvl;
       ABKEYS.forEach(k=>{ const box=$("savep-"+k); if(box) box.checked = c.saves.includes(k); });
-      if(c.hd){ $("hitdice").value = lvl+"d"+c.hd; $("hd-total").value = lvl; }
+      if(c.hd){ hitDieFaces = c.hd; $("hd-total").value = lvl; }   // Hit Dice box ("1dX+CON") is built in compute()
       let n = `Saves: ${c.saves.map(s=>ABBR[s]).join(", ")} · Hit die d${c.hd}.`;
       if(c.skillChoose) n += `\nClass skills: choose ${c.skillChoose.count} from ${c.skillChoose.from.join(", ")}.`;
       if(c.casterAbility) n += `\nSpellcaster: ${ABBR[c.casterAbility]} (${c.casterProgression}).`;
@@ -1462,17 +2024,169 @@
   }
 
   // ---- Guided character creation wizard ----
-  let wizStep = 0, wizMethod = "manual";
-  const WIZ_LAST = 4;
+  let wizStep = 0, wizMethod = "manual", wizEquip = "equipment";
+  const WIZ_LAST = 6;
   function renderWizStep(){
     document.querySelectorAll(".wiz-step").forEach(s => s.hidden = (+s.dataset.step !== wizStep));
     $("wiz-back").style.visibility = wizStep === 0 ? "hidden" : "visible";
     $("wiz-next").textContent = wizStep === WIZ_LAST ? "Create" : "Next";
     $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
+    if(wizStep === 2) renderWizSkills();
+    if(wizStep === 3) renderWizEquip();
+    if(wizStep === 4) updateCustomBgVisibility();
+  }
+  function wizClass(){ return PHB && findBy(PHB.classes, $("wiz-class").value); }
+  function renderWizSkills(){
+    const c = wizClass(), box = $("wiz-skills"), hint = $("wiz-skills-hint"), ch = c && c.skillChoose;
+    if(!ch || !ch.from || !ch.from.length){ box.innerHTML = ""; hint.textContent = c ? "This class grants no skill choices." : "Pick a class first."; return; }
+    box.innerHTML = ch.from.map(s => {
+      const key = SKILL_KEY[s] || s, label = s.replace(/\b\w/g, m => m.toUpperCase());
+      return `<label class="wiz-skill"><input type="checkbox" class="wiz-skill-cb" value="${esc(key)}"> <span>${esc(label)}</span></label>`;
+    }).join("");
+    hint.textContent = `Choose ${ch.count}.`;
+    updateWizSkillLimit();
+  }
+  function updateWizSkillLimit(){
+    const c = wizClass(), n = (c && c.skillChoose) ? c.skillChoose.count : 0;
+    const cbs = [...document.querySelectorAll(".wiz-skill-cb")], checked = cbs.filter(x => x.checked).length;
+    cbs.forEach(x => { const atMax = checked >= n && !x.checked; x.closest(".wiz-skill").classList.toggle("maxed", atMax); x.disabled = atMax; });
+  }
+  function goldAverage(f){
+    if(!f) return null;
+    const m = String(f).match(/(\d+)\s*d\s*(\d+)/i); if(!m) return null;
+    let avg = (+m[1]) * ((+m[2]) + 1) / 2;
+    const mul = String(f).match(/[×x*]\s*(\d+)/); if(mul) avg *= +mul[1];
+    return Math.round(avg);
+  }
+  function itemWeight(name){ const w = PHB && PHB.itemWeights; if(!w || !name) return null; const v = w[String(name).trim().toLowerCase()]; return (v == null) ? null : v; }
+  function getInvData(){ const a = []; for(let i=0;i<NINV;i++) a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, wt:$("invwt-"+i).value}); return a; }
+  function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; $("invwt-"+i).value = a[i].wt||""; } }
+  function moveInvRow(from, to){ if(from === to || from == null || to == null) return; const a = getInvData(); const [row] = a.splice(from,1); a.splice(to,0,row); setInvData(a); save(); compute(); }
+  function addInvItem(name, qty){            // place in next empty inventory row + auto-fill qty/weight
+    for(let i=0;i<NINV;i++){ const el = $("invname-"+i); if(el && !el.value){
+      el.value = name;
+      if(qty && qty > 1){ const q = $("invqty-"+i); if(q) q.value = qty; }
+      const w = itemWeight(name), wEl = $("invwt-"+i); if(w != null && wEl && !wEl.value) wEl.value = w;
+      return;
+    } }
+  }
+  function parseEquipLine(line){
+    const parts = String(line).split(/\([a-z]\)\s*/i);
+    if(parts.length <= 1) return {fixed:true, text:String(line).trim()};         // no "(a)" marker → fixed grant
+    const options = parts.slice(1).map(o => o.replace(/[,;]?\s*\bor\b\s*$/i,"").replace(/[,;]\s*$/,"").trim()).filter(Boolean);
+    return {fixed:false, options};
+  }
+  const WEAPON_CAT_RE = /\b(two|a|an|any)?\s*(simple|martial)\s*(melee|ranged)?\s*weapons?\b/gi;
+  function detectWeaponSlots(optText){          // category weapon mentions → one slot each ("two ..." = 2)
+    const slots = []; let m; WEAPON_CAT_RE.lastIndex = 0;
+    while((m = WEAPON_CAT_RE.exec(optText))){ const n = /two/i.test(m[1]||"") ? 2 : 1; for(let k=0;k<n;k++) slots.push({cat:m[2].toLowerCase(), melee:(m[3]||"").toLowerCase()}); }
+    return slots;
+  }
+  function weaponsFor(slot){
+    return ((PHB && PHB.weapons) || []).filter(w => w.cat === slot.cat && (!slot.melee || (slot.melee === "melee" ? w.melee : !w.melee)));
+  }
+  function renderEquipSub(lineEl, optText){     // weapon-category dropdowns under a chosen option
+    const sub = lineEl.querySelector(".equip-sub"); if(!sub) return;
+    const slots = detectWeaponSlots(optText);
+    sub.innerHTML = slots.map((s,si) => {
+      const list = weaponsFor(s);
+      return `<select class="equip-wpick" data-slot="${si}">` + list.map(w => optTag(w.name, w.name)).join("") + `</select>`;
+    }).join("");
+  }
+  function matchPack(text){
+    const packs = (PHB && PHB.packs) || {}, t = String(text).toLowerCase().replace(/^\s*(a|an)\s+/,"").trim();
+    for(const name in packs){ if(name.toLowerCase() === t) return packs[name]; }
+    return null;
+  }
+  function resolveEquipOption(optText, lineEl){  // chosen option text → list of concrete inventory entries
+    let slot = 0;
+    const rest = String(optText).replace(WEAPON_CAT_RE, (m, num) => {     // pull out weapon-category slots
+      const n = /two/i.test(num||"") ? 2 : 1, picked = [];
+      for(let k=0;k<n;k++){ const sel = lineEl && lineEl.querySelector(`.equip-wpick[data-slot="${slot}"]`); picked.push(sel ? sel.value : ""); slot++; }
+      return picked.join(" and ");                       // substitute picked weapon(s) in place
+    });
+    const entries = [];
+    rest.split(/\s+and\s+|,/).map(s => s.replace(/^\s*(an?)\s+/i,"").trim()).filter(s => s && !/^or$/i.test(s)).forEach(s => {
+      const pack = matchPack(s);                                        // packs → expand contents into rows
+      if(pack) pack.forEach(c => entries.push({name:c.name, qty:c.qty}));
+      else entries.push({name:s, qty:1});
+    });
+    return entries;
+  }
+  function renderWizEquip(){
+    const c = wizClass(), hint = $("wiz-equip-hint"), choices = $("wiz-equip-choices"), eq = (c && c.equip) || {};
+    document.querySelectorAll(".wiz-equip").forEach(b => b.classList.toggle("active", b.dataset.equip === wizEquip));
+    if(wizEquip === "gold"){
+      choices.innerHTML = "";
+      const g = goldAverage(eq.gold);
+      hint.innerHTML = (g != null) ? `<strong>${g} gp</strong> (average of ${esc(eq.gold||"")}) will go in your Currency.` : "No starting-gold option listed for this class.";
+    } else {
+      const items = (eq.items || []);
+      if(!items.length){ hint.textContent = "No starting equipment listed for this class."; choices.innerHTML = ""; return; }
+      hint.textContent = "Choose an option for each line; weapon categories and packs expand into your Inventory.";
+      choices.innerHTML = items.map((line,i) => {
+        const p = parseEquipLine(line);
+        const head = p.fixed ? `<span class="equip-fixed">${esc(p.text)}</span>`
+                             : `<select class="equip-pick" data-i="${i}">` + p.options.map(o => optTag(o,o)).join("") + `</select>`;
+        return `<div class="equip-line" data-i="${i}">${head}<div class="equip-sub"></div></div>`;
+      }).join("");
+      items.forEach((line,i) => {                                       // render weapon sub-pickers for each line's current option
+        const lineEl = choices.querySelector(`.equip-line[data-i="${i}"]`), p = parseEquipLine(line);
+        renderEquipSub(lineEl, p.fixed ? p.text : (lineEl.querySelector(".equip-pick").value));
+      });
+    }
+  }
+  function isCustomBg(){ return $("wiz-bg").value === "Custom Background"; }
+  function classChosenSkills(){   // skills the class already grants → can't re-pick for the background
+    const s = new Set();
+    document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => s.add(cb.value));
+    const c = wizClass(); if(c && c.skillsFixed) c.skillsFixed.forEach(k => s.add(SKILL_KEY[k] || k));
+    return s;
+  }
+  function populateCustomBgTL(){
+    const langs = (PHB && PHB.languages) || [], tools = (PHB && PHB.tools) || [];
+    const opts = `<option value=""></option>`
+      + (langs.length ? `<optgroup label="Languages">` + langs.map(l => optTag(l, l)).join("") + `</optgroup>` : "")
+      + (tools.length ? `<optgroup label="Tools">` + tools.map(t => optTag(t, t)).join("") + `</optgroup>` : "");
+    document.querySelectorAll(".cbg-tl").forEach(s => { if(!s.children.length) s.innerHTML = opts; });
+  }
+  function populateCustomBgFeatures(){
+    const sel = $("wiz-cbg-featpick"); if(!sel || sel.children.length) return;
+    const bgs = ((PHB && PHB.backgrounds) || []).filter(b => b.feature && b.feature.name);
+    sel.innerHTML = `<option value="">— write your own —</option>` + bgs.map(b => optTag(b.name, `${b.feature.name} (${b.name})`)).join("");
+  }
+  function updateCustomBgVisibility(){
+    const custom = isCustomBg();
+    $("wiz-custom-bg").hidden = !custom;
+    if(!custom) return;
+    if(!$("wiz-cbg-skills").children.length)
+      $("wiz-cbg-skills").innerHTML = SKILLS.map(([key,name]) =>
+        `<label class="wiz-skill"><input type="checkbox" class="cbg-skill-cb" value="${esc(key)}"> <span>${esc(name)}</span></label>`).join("");
+    populateCustomBgTL();
+    populateCustomBgFeatures();
+    updateCustomBgLimit();
+  }
+  function updateCustomBgLimit(){
+    const taken = classChosenSkills();
+    const cbs = [...document.querySelectorAll(".cbg-skill-cb")];
+    cbs.forEach(x => { if(taken.has(x.value)) x.checked = false; });   // can't keep a class-granted skill checked here
+    const checked = cbs.filter(x => x.checked).length;
+    cbs.forEach(x => {
+      const isTaken = taken.has(x.value), atMax = checked >= 2 && !x.checked, off = isTaken || atMax;
+      const row = x.closest(".wiz-skill");
+      x.disabled = off; row.classList.toggle("maxed", off); row.classList.toggle("taken", isTaken);
+      row.title = isTaken ? "Already gained from your class" : "";
+    });
+    const h = $("wiz-cbg-skills-hint"); if(h) h.textContent = `(${checked}/2 chosen)`;
   }
   function openWizard(){
-    if(!PHB){ alert("Character creation needs sourcebook data. Click “Import Sourcebook” and choose your phb-data.json (made by build-data.py)."); return; }
-    wizStep = 0; renderWizStep(); $("wizard").classList.add("open");
+    if(!PHB){ alert("Character creation needs sourcebook data. Open Settings → Source books and load a book from your 5etools server (or import a source-data.json)."); return; }
+    wizStep = 0; wizEquip = "equipment";
+    $("wiz-cbg-skills").innerHTML = ""; $("wiz-custom-bg").hidden = true;      // fresh custom-bg fields
+    document.querySelectorAll(".cbg-tl").forEach(s => s.innerHTML = "");
+    $("wiz-cbg-featpick").innerHTML = "";
+    ["wiz-cbg-featname","wiz-cbg-feattext"].forEach(id => { const el=$(id); if(el) el.value=""; });
+    renderWizStep(); $("wizard").classList.add("open");
   }
   function closeWizard(){ $("wizard").classList.remove("open"); }
   function raceHint(){
@@ -1496,10 +2210,30 @@
       applyClass(cls);
       const c = findBy(PHB.classes, cls);
       $("classlevel").value = cls + " " + lvl + (sub ? ` (${sub})` : "");
-      if(c && c.hd){ $("hitdice").value = lvl + "d" + c.hd; $("hd-total").value = lvl; }
+      if(c && c.hd){ hitDieFaces = c.hd; $("hd-total").value = lvl; }
       if(CASTERS[cls]){ $("spellclass").value = cls; renderSpellStyle(true); }   // tailor the spell sheet
+      document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // chosen class skills
+      if(c && c.features && c.features.length){                                    // class features up to this level → Features page
+        const lines = c.features.filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${cls} ${f.level}). ${f.text}`);
+        if(lines.length){ const t = $("features"); const block = lines.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
+      }
+      const eq = (c && c.equip) || {};                                            // starting gold OR equipment
+      if(wizEquip === "gold"){ const g = goldAverage(eq.gold); if(g != null) $("gp").value = g; }
+      else (eq.items||[]).forEach((line,i) => {                                    // resolve each choice (weapons/packs) → Inventory rows
+        const p = parseEquipLine(line), lineEl = document.querySelector(`.equip-line[data-i="${i}"]`);
+        const pick = lineEl && lineEl.querySelector(".equip-pick");
+        const opt = p.fixed ? p.text : (pick ? pick.value : (p.options[0]||""));
+        resolveEquipOption(opt, lineEl).forEach(e => addInvItem(e.name, e.qty));
+      });
     }
-    if(bg) applyBackground(bg);
+    if(bg === "Custom Background"){                                             // built in the wizard's custom-bg panel
+      $("background").value = "Custom Background";
+      document.querySelectorAll(".cbg-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });
+      const tl = [...new Set([...document.querySelectorAll(".cbg-tl")].map(s => s.value).filter(Boolean))];
+      if(tl.length){ const p = $("proficiencies"); const line = tl.join(", "); p.value = p.value.trim() ? p.value+"\n"+line : line; autoGrow(p); }
+      const fn = $("wiz-cbg-featname").value.trim(), ft = $("wiz-cbg-feattext").value.trim();
+      if(fn || ft){ const line = (fn ? fn+" (Background). " : "") + ft; const t = $("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t); }
+    } else if(bg) applyBackground(bg);
     genMode = wizMethod;
     if(wizMethod === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });
     renderHoodControls(); updateModeUI();
@@ -1509,8 +2243,14 @@
 
   function init(){
     buildStatic();
-    try{ PHB = JSON.parse($("phb-data").textContent); }catch(e){ PHB = null; }          // baked into the (PHB) build
-    if(!PHB){ try{ const s = localStorage.getItem(SOURCES_KEY); if(s) PHB = JSON.parse(s); }catch(e){} }  // or previously imported
+    let _stored = null, _baked = null;
+    try{ const s = localStorage.getItem(SOURCES_KEY); if(s) _stored = JSON.parse(s); }catch(e){}            // books loaded from the server / imported
+    try{ _baked = JSON.parse($("phb-data").textContent); }catch(e){}                                        // baked default (PHB build)
+    const srcComplete = d => d && ["races","classes","spells","armor","acItems"].every(k => Array.isArray(d[k]));
+    const verOf = d => (d && d._meta && d._meta.dataVersion) || 0;
+    const sameVer = verOf(_stored) === verOf(_baked);   // discard stored data built by an OLDER app/data shape
+    PHB = (srcComplete(_stored) && (sameVer || !_baked)) ? _stored : (_baked || _stored || null);
+    try{ const sv = localStorage.getItem(SERVER_KEY); if(sv) $("server-url").value = sv; }catch(e){}
     let data = null;
     try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
     if(!data && !SLOT){ try{ data = JSON.parse($("embedded-data").textContent); }catch(e){} }  // fresh "New" slot starts blank
@@ -1518,10 +2258,32 @@
     populateWizard();
     populateArmor();
     applyAll(data);
+    updateSourcebookStatus();
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
 
+    // --- inventory drag-to-reorder (across both columns) ---
+    let invDrag = null;
+    const invCols = document.querySelector(".inv-cols");
+    const clearDrop = () => invCols.querySelectorAll("tr.drop-target").forEach(r => r.classList.remove("drop-target"));
+    invCols.addEventListener("dragstart", e => {
+      const h = e.target.closest(".invdrag"); if(!h){ e.preventDefault(); return; }
+      invDrag = +h.closest("tr").dataset.r; e.dataTransfer.effectAllowed = "move"; try{ e.dataTransfer.setData("text/plain", String(invDrag)); }catch(_){}
+    });
+    invCols.addEventListener("dragover", e => {
+      if(invDrag == null) return; e.preventDefault(); e.dataTransfer.dropEffect = "move";
+      const tr = e.target.closest("tr"); clearDrop(); if(tr) tr.classList.add("drop-target");
+    });
+    invCols.addEventListener("drop", e => {
+      if(invDrag == null) return; e.preventDefault();
+      const tr = e.target.closest("tr"); if(tr) moveInvRow(invDrag, +tr.dataset.r);
+      clearDrop(); invDrag = null;
+    });
+    invCols.addEventListener("dragend", () => { clearDrop(); invDrag = null; });
+
+    $("speed").addEventListener("focus", ()=>{ $("speed").value = (speedBase != null ? speedBase : ""); });   // show base for editing
+    $("speed").addEventListener("blur", compute);                                                            // restore modified value
     $("pagetabs").addEventListener("click", e => { const b = e.target.closest(".ptab"); if(b) showPage(b.dataset.page); });
     $("spellclass").addEventListener("change", ()=>{ renderSpellStyle(true); save(); compute(); });
     $("modes").addEventListener("click", e => { const b = e.target.closest(".mode-btn"); if(b) setMode(b.dataset.mode); });
@@ -1532,6 +2294,18 @@
     $("hood-close").addEventListener("click", ()=> $("hood").classList.remove("open"));
     $("hood-done").addEventListener("click", ()=> $("hood").classList.remove("open"));
     $("hood").addEventListener("click", e => { if(e.target.id === "hood") $("hood").classList.remove("open"); });
+
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("settings").classList.add("open"); });
+    $("btn-loadbook").addEventListener("click", loadBookFromServer);
+    $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
+    $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
+    $("settings-done").addEventListener("click", ()=> $("settings").classList.remove("open"));
+    $("settings").addEventListener("click", e => { if(e.target.id === "settings") $("settings").classList.remove("open"); });
+    $("layout-toggles").addEventListener("change", e => {
+      const t = e.target.closest(".lay-toggle"); if(!t) return;
+      if(t.checked) delete hiddenPages[t.dataset.page]; else hiddenPages[t.dataset.page] = true;
+      applyLayout(); save();
+    });
 
     $("inspiration").addEventListener("click", ()=>{ inspState = !inspState; renderInsp(); save(); });
 
@@ -1553,6 +2327,7 @@
       ev.target.value = "";
     });
 
+    $("btn-savedata").addEventListener("click", saveDataFile);
     $("btn-import").addEventListener("click", ()=> $("file-input").click());
     $("file-input").addEventListener("change", ev=>{
       const f = ev.target.files[0]; if(!f) return;
@@ -1565,11 +2340,14 @@
           alert("That doesn't look like sourcebook data.\nExpected a phb-data.json file generated by build-data.py (with races / classes / spells).");
           $("file-input").value=""; return;
         }
-        PHB = d;
+        PHB = d; _spellIndex = null;
+        bakeSourceData();
         try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(d)); }
         catch(e){ flashStatus("Sourcebook loaded (too large to persist locally)"); }
         populateWizard();
         populateArmor();
+        renderSpellStyle(false);
+        updateSourcebookStatus();
         compute();
         flashStatus("Sourcebook loaded — Create is ready");
         $("file-input").value = "";
@@ -1604,11 +2382,23 @@
     $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
     $("wiz-race").addEventListener("change", raceHint);
     $("wiz-class").addEventListener("change", e=> populateSubclass(e.target.value));
+    $("wiz-level").addEventListener("input", ()=> populateSubclass($("wiz-class").value));   // level gates the subclass
+    $("wiz-bg").addEventListener("change", updateCustomBgVisibility);
+    $("wiz-cbg-skills").addEventListener("change", updateCustomBgLimit);
+    $("wiz-cbg-featpick").addEventListener("change", e => {   // fill name/desc from a chosen existing feature
+      const b = findBy(PHB.backgrounds, e.target.value);
+      if(b && b.feature){ $("wiz-cbg-featname").value = b.feature.name || ""; $("wiz-cbg-feattext").value = b.feature.text || ""; autoGrow($("wiz-cbg-feattext")); }
+    });
     document.querySelectorAll(".wiz-method").forEach(b => b.addEventListener("click", ()=>{
       wizMethod = b.dataset.method;
       document.querySelectorAll(".wiz-method").forEach(x => x.classList.toggle("active", x === b));
     }));
     document.querySelector('.wiz-method[data-method="manual"]').classList.add("active");
+    $("wiz-skills").addEventListener("change", updateWizSkillLimit);
+    document.querySelectorAll(".wiz-equip").forEach(b => b.addEventListener("click", ()=>{ wizEquip = b.dataset.equip; renderWizEquip(); }));
+    $("wiz-equip-choices").addEventListener("change", e => {   // changing an option re-renders its weapon sub-pickers
+      if(e.target.classList.contains("equip-pick")){ const lineEl = e.target.closest(".equip-line"); renderEquipSub(lineEl, e.target.value); }
+    });
   }
 
   document.addEventListener("DOMContentLoaded", init);
