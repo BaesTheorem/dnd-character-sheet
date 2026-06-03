@@ -45,6 +45,12 @@ Tabs at the top switch pages on screen; **printing outputs every page on its own
      casters (Bard/Sorcerer/Warlock/Ranger) just list their spells (always ready).
    Auto Spell Save DC (8 + prof + mod) and attack bonus, slot totals (1–9), and cantrips. The
    "include spell sheet" checkbox (for non-casters) never prints.
+5. **Mini** — auto-builds a print-and-fold paper mini (fold-over standee) from the character
+   **portrait**: a front panel, an auto-flipped back panel (so it reads upright once folded over the
+   top crease), and a 3-step cut/fold/glue instruction guide. Needs a portrait; the page hides itself
+   (and won't print) when there's none, or uncheck "Include paper mini" to skip it. Self-contained —
+   the fold-guide and instruction art are inlined SVGs, no internet needed. Adapted from the
+   open-source [dyslexic-charactersheets](https://github.com/dyslexic-charactersheets) "Map Minis".
 
 ## Pen & paper
 A fresh sheet (before "Create Character" is used) is completely empty — no scores, no `0`/`+0`
