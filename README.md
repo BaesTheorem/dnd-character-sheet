@@ -22,10 +22,11 @@ with the same kind of live calculation, in a runtime everyone already has.
    - **Point Buy** — 27-point budget (scores 8–15) with steppers and a live points counter (plus `+race`).
    In Standard Array / Point Buy the final score = base + racial bonus.
 3. It **auto-saves to that browser** as you type — reopening the file restores your character.
-4. **Portrait** — click the box by the name to upload one (png/jpeg/webp/heic/etc.). The original
-   file is stored so you can re-download it at full resolution (↓). HEIC is kept and re-downloadable
-   but only previews in Safari. The image is saved under its own key so a large photo can't break
-   the rest of autosave (very large images may not persist locally — use Save copy (HTML) to keep them).
+4. **Portrait** — click the empty box by the name to upload one (png/jpeg/webp/heic/etc.); it fits
+   to the header height. Click an uploaded image for a pop-up menu: **Replace / Download original /
+   Remove**. The original file is stored so the download is full resolution. HEIC is kept and
+   re-downloadable but only previews in Safari. The image is saved under its own key so a large photo
+   can't break the rest of autosave (very large images may not persist locally — use Save to keep them).
 
 ## Toolbar
 - **Create Character** → guided wizard (Race → Class/Subclass/Level → Background → ability method →
