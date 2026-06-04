@@ -307,6 +307,15 @@
   .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px}
   .invdrag:active{cursor:grabbing}
   .invtable tr.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
+  .invtable tr.drop-into td{box-shadow:inset 0 0 0 2px var(--accent); background:var(--accent-soft)}   /* dropping onto a container */
+  .item-search-wrap{position:relative; margin-bottom:10px}
+  .item-search-wrap input{width:100%; padding:8px 10px; background:var(--field); border:1px solid var(--line); border-radius:8px; font-size:13px}
+  .item-results{position:absolute; left:0; right:0; top:100%; z-index:30; background:#fff; border:1px solid var(--line); border-radius:0 0 8px 8px; max-height:260px; overflow:auto; box-shadow:var(--shadow)}
+  .item-results .opt{padding:7px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--line)}
+  .item-results .opt:last-child{border-bottom:none}
+  .item-results .opt.sel{background:var(--accent-soft)}
+  .item-results .opt .w{color:var(--muted); font-size:11px; float:right}
+  .item-results .opt.none{color:var(--muted); cursor:default}
   .invtable td:nth-child(2) input{text-align:left}                                  /* Item name → left */
   .invtable td:nth-child(3) input,.invtable td:nth-child(4) input{text-align:center} /* Qty / Wt → centered */
   .invtable th{text-align:left}
@@ -751,6 +760,10 @@
         </div>
       </div>
       <div class="card"><h2>Inventory</h2>
+        <div class="item-search-wrap noprint">
+          <input id="item-search" placeholder="Search items from your loaded sourcebooks to add…" autocomplete="off" spellcheck="false">
+          <div id="item-results" class="item-results" hidden></div>
+        </div>
         <div class="inv-cols">
           <table class="invtable">
             <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:104px" title="Store in a weightless container (Bag of Holding / Handy Haversack)">In</th><th class="noprint" style="width:30px" title="Active weapon → Attacks table">Atk</th></tr></thead>
@@ -763,7 +776,7 @@
         </div>
         <div class="rowtotal"><span class="k">Total weight (items + coins)</span><span class="v" id="totalwt">0 lb</span></div>
         <datalist id="item-options"></datalist>
-        <p class="help noprint">Start typing an item name to pick from your loaded sourcebooks (weight auto-fills). Carry a <strong>Bag of Holding</strong> or <strong>Handy Haversack</strong> and an <strong>In</strong> dropdown appears on each row — assign an item to one and its weight stops counting.</p>
+        <p class="help noprint">Search the box above (or type in any row) to add items from your loaded sourcebooks — weight auto-fills. Carry a <strong>Bag of Holding</strong> or <strong>Handy Haversack</strong> and an <strong>In</strong> dropdown appears on each row; assign an item to one (or <strong>drag its row onto the container</strong>) and its weight stops counting.</p>
       </div>
       <div class="card grow"><h2>Equipment Notes</h2>
         <textarea data-save id="equipment" placeholder="Containers, mounts, misc notes…"></textarea>
@@ -2916,6 +2929,34 @@
   }
   function refreshAllWeights(){ for(let i=0;i<NINV;i++) refreshRowWeight(i); }
   function populateItemList(){ const dl = $("item-options"); if(!dl) return; const names = (DATA && DATA.itemNames) || []; dl.innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join(""); }
+  function setupItemSearch(){   // substring-searchable picker that adds an item to the next empty row
+    const inp = $("item-search"), res = $("item-results"); if(!inp || !res) return;
+    let matches = [], sel = -1;
+    function paint(){ [...res.querySelectorAll(".opt")].forEach((o,i) => o.classList.toggle("sel", i === sel)); const s = res.querySelector(".opt.sel"); if(s) s.scrollIntoView({block:"nearest"}); }
+    function render(){
+      const q = inp.value.trim().toLowerCase();
+      if(!q){ res.hidden = true; res.innerHTML = ""; matches = []; sel = -1; return; }
+      const names = (DATA && DATA.itemNames) || [];
+      matches = names.filter(n => n.toLowerCase().includes(q)).slice(0, 50);
+      sel = matches.length ? 0 : -1;
+      res.innerHTML = matches.length
+        ? matches.map((n,i) => { const w = itemWeight(n); return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(n)}${w!=null?`<span class="w">${w} lb</span>`:''}</div>`; }).join("")
+        : '<div class="opt none">No matching items (load the right sourcebook?)</div>';
+      res.hidden = false;
+    }
+    function add(name){ if(!name) return; addInvItem(name, 1); inp.value = ""; res.hidden = true; res.innerHTML = ""; matches = []; sel = -1; save(); compute(); inp.focus(); }
+    inp.addEventListener("input", render);
+    inp.addEventListener("focus", () => { if(inp.value.trim()) render(); });
+    inp.addEventListener("keydown", e => {
+      if(res.hidden || !matches.length) return;
+      if(e.key === "ArrowDown"){ e.preventDefault(); sel = Math.min(sel+1, matches.length-1); paint(); }
+      else if(e.key === "ArrowUp"){ e.preventDefault(); sel = Math.max(sel-1, 0); paint(); }
+      else if(e.key === "Enter"){ e.preventDefault(); add(matches[sel]); }
+      else if(e.key === "Escape"){ res.hidden = true; }
+    });
+    res.addEventListener("mousedown", e => { const o = e.target.closest(".opt"); if(o && o.dataset.i != null){ e.preventDefault(); add(matches[+o.dataset.i]); } });   // mousedown beats input blur
+    document.addEventListener("click", e => { if(!e.target.closest(".item-search-wrap")) res.hidden = true; });
+  }
   function containerSet(){ const s = new Set(); ((DATA && DATA.containers)||[]).forEach(n => s.add(String(n).toLowerCase())); return s; }
   function presentContainers(){   // distinct weightless-container item names currently sitting in the inventory
     const cs = containerSet(), seen = new Set(), out = [];
@@ -3273,22 +3314,32 @@
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
+    setupItemSearch();
 
     // --- inventory drag-to-reorder (across both columns) ---
     let invDrag = null;
     const invCols = document.querySelector(".inv-cols");
-    const clearDrop = () => invCols.querySelectorAll("tr.drop-target").forEach(r => r.classList.remove("drop-target"));
+    const clearDrop = () => invCols.querySelectorAll("tr.drop-target, tr.drop-into").forEach(r => r.classList.remove("drop-target","drop-into"));
+    const isContainerRow = i => { const nm = ($("invname-"+i).value||"").trim(); return !!nm && containerSet().has(nm.toLowerCase()); };
     invCols.addEventListener("dragstart", e => {
       const h = e.target.closest(".invdrag"); if(!h){ e.preventDefault(); return; }
       invDrag = +h.closest("tr").dataset.r; e.dataTransfer.effectAllowed = "move"; try{ e.dataTransfer.setData("text/plain", String(invDrag)); }catch(_){}
     });
     invCols.addEventListener("dragover", e => {
       if(invDrag == null) return; e.preventDefault(); e.dataTransfer.dropEffect = "move";
-      const tr = e.target.closest("tr"); clearDrop(); if(tr) tr.classList.add("drop-target");
+      const tr = e.target.closest("tr"); clearDrop();
+      if(tr){ const to = +tr.dataset.r;
+        tr.classList.add((to !== invDrag && isContainerRow(to)) ? "drop-into" : "drop-target"); }   // onto a container = store inside it
     });
     invCols.addEventListener("drop", e => {
       if(invDrag == null) return; e.preventDefault();
-      const tr = e.target.closest("tr"); if(tr) moveInvRow(invDrag, +tr.dataset.r);
+      const tr = e.target.closest("tr");
+      if(tr){ const to = +tr.dataset.r;
+        if(to !== invDrag && isContainerRow(to)){                                // drop onto a container → assign the dragged item to it
+          const sel = $("invcont-"+invDrag); if(sel) sel.dataset.cont = ($("invname-"+to).value||"").trim();
+          save(); compute();
+        } else moveInvRow(invDrag, to);                                          // otherwise reorder
+      }
       clearDrop(); invDrag = null;
     });
     invCols.addEventListener("dragend", () => { clearDrop(); invDrag = null; });
