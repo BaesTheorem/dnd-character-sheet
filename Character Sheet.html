@@ -337,6 +337,30 @@
   #page-mini.excluded .mini-wrap{display:none}
   #page-mini.excluded .mini-hidden-note{display:block}
   .mini-hidden-note{display:none; color:var(--muted)}
+  /* Companions & Forms */
+  .comp-head{display:flex; gap:12px; align-items:flex-start; margin-bottom:10px}
+  .comp-portrait{width:70px; height:70px; flex:none; border:1px solid var(--line2); background:var(--field);
+    cursor:pointer; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:8px; color:var(--muted); text-align:center}
+  .comp-portrait img{width:100%; height:100%; object-fit:cover}
+  .comp-pickrow{display:flex; gap:8px; margin-top:6px; align-items:center}
+  .comp-pickrow input{flex:1}
+  .comp-pickrow select{width:auto; min-width:150px}
+  .comp-rm{flex:none; border:1px solid var(--line2); background:#fff; color:var(--muted); border-radius:8px; cursor:pointer; padding:6px 9px; font-size:12px}
+  .comp-rm:hover{color:#b42318; border-color:#b42318}
+  .comp-stats{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-bottom:8px}
+  .comp-abilities{display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-bottom:8px}
+  .comp-ab{background:var(--field); border:1px solid var(--line); border-radius:10px; padding:6px 4px; text-align:center}
+  .comp-ab .k{font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+  .comp-ab input{text-align:center; font-weight:700; padding:2px; border:none; background:transparent}
+  .comp-ab .m{font-size:11px; font-weight:700; color:var(--accent)}
+  .comp-stat .k{font-size:8px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+  .comp-stat input{text-align:center; font-weight:700; padding:3px}
+  .comp-lines{display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; margin-bottom:8px}
+  .comp-line{display:flex; gap:6px; align-items:baseline}
+  .comp-line .k{font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); white-space:nowrap}
+  .comp-line input{flex:1; padding:3px 5px}
+  .comp-block textarea{min-height:60px; line-height:1.5}
+  .comp-tmpl-note{font-size:11px; color:var(--accent); margin:0 0 8px}
   .atk-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px}
   .atk-top h2{margin:0}
   .atk-per-box{min-width:96px; flex:none}
@@ -505,6 +529,7 @@
       <button class="ptab" data-page="inv" type="button">Inventory</button>
       <button class="ptab" data-page="feat" type="button">Features</button>
       <button class="ptab" data-page="spells" type="button">Spells</button>
+      <button class="ptab" data-page="companion" type="button">Companions</button>
       <button class="ptab" data-page="bg" type="button">Background</button>
       <button class="ptab" data-page="story" type="button">Backstory</button>
       <button class="ptab" data-page="notes" type="button">Notes</button>
@@ -777,6 +802,16 @@
           </table>
         </div>
       </div>
+    </section>
+
+    <!-- COMPANIONS & FORMS -->
+    <section class="page" id="page-companion" data-page="companion">
+      <div class="card">
+        <h2>Companions &amp; Forms <button class="btn noprint" id="add-companion" type="button" style="float:right; font-size:11px; padding:4px 10px">+ Add creature</button></h2>
+        <p class="help noprint">Animal companions, familiars, summons, and Wild Shape forms. Pick a stat block (load the Monster Manual via Settings → Source books for the full list) and a template; fields auto-fill and stay editable. Each portrait also makes a paper mini.</p>
+      </div>
+      <div id="companion-list"></div>
+      <datalist id="monster-options"></datalist>
     </section>
 
     <!-- BACKGROUND & PERSONALITY -->
@@ -1371,7 +1406,7 @@
   }
   // ---- Layout: which pages/tabs are shown (Settings) ----
   const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["spells","Spells"],
-                 ["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
+                 ["companion","Companions"],["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
@@ -1839,7 +1874,7 @@
       bakeSourceData();   // keep the in-document data block in sync so saves carry the books
       try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }
       catch(e){ flashStatus(bookName+" loaded (too large to save — stays this session)"); }
-      populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); compute();
+      populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); populateMonsterList(); compute();
       populateBookSelect();   // drop the just-loaded book from the picker
       flashStatus(bookName+" loaded — use “Save data file” to bake it into your sheet");
     }catch(e){ flashStatus("Load failed — is your 5etools server running at "+base+"?"); }
@@ -1860,7 +1895,7 @@
     DATA = baked || null;
     _spellIndex = null;
     bakeSourceData();   // keep the in-document block consistent with the reverted data
-    populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); populateBookSelect(); compute();
+    populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
     flashStatus(DATA ? "Reverted to the data baked into this file — reload books as needed." : "Loaded books cleared.");
   }
   function applyLayout(){
@@ -2231,6 +2266,7 @@
     data.asiFeatsAdded = asiFeatsAdded;
     data.invUnits = []; for(let i=0;i<NINV;i++) data.invUnits.push($("invwt-"+i).dataset.unit || "");   // per-item inventory weights
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
+    data.companions = companions;
     return data;
   }
   function applyFields(data){                 // restores data-save fields + inspiration
@@ -2293,6 +2329,8 @@
       const lk = (data && Array.isArray(data.atkLinks)) ? data.atkLinks[i] : "";
       if(lk) el.dataset.weapon = lk; else delete el.dataset.weapon;
     }
+    companions = (data && Array.isArray(data.companions)) ? data.companions.map(c => Object.assign(blankCompanion(), c)) : [];
+    renderCompanions();
     portraitData = (data && data.portrait) || null;
     renderPortrait();
     document.querySelectorAll("textarea").forEach(autoGrow);
@@ -2575,8 +2613,85 @@
     } else setNote("");
   }
 
-  // ---- Guided character creation wizard ----
-  let wizStep = 0, wizMethod = "manual", wizEquip = "equipment";
+  // ---- Companions & Forms (multiple creature stat blocks) ----
+  let companions = [];
+  const COMP_AB = [["str","Str"],["dex","Dex"],["con","Con"],["int","Int"],["wis","Wis"],["cha","Cha"]];
+  const COMP_STATS = [["ac","AC"],["hp","Max HP"],["curhp","Cur HP"],["speed","Speed"],["cr","CR"],["pb","Prof"]];
+  const COMP_LINES = [["save","Saving Throws"],["skill","Skills"],["senses","Senses"],["languages","Languages"],
+    ["resist","Resistances"],["immune","Immunities"],["vuln","Vulnerabilities"],["condimmune","Condition Imm."]];
+  const COMP_TEMPLATES = [["","— no template —"],["familiar","Familiar (Find Familiar)"],["chain","Pact of the Chain familiar"],
+    ["companion","Animal Companion (Beast Master)"],["wildshape","Wild Shape"],["summon","Summon / Polymorph"]];
+  function blankCompanion(){ return {name:"",monster:"",template:"",ac:"",hp:"",curhp:"",speed:"",str:"",dex:"",con:"",int:"",wis:"",cha:"",
+    save:"",skill:"",senses:"",languages:"",resist:"",immune:"",vuln:"",condimmune:"",cr:"",pb:"",traits:"",actions:"",notes:"",portrait:null}; }
+  function compMod(v){ const n = parseInt(v,10); return isNaN(n) ? "" : sgn(Math.floor((n-10)/2)); }
+  function monsterByName(name){ const n = String(name||"").trim().toLowerCase(); return ((DATA&&DATA.monsters)||[]).find(m => (m.name||"").toLowerCase() === n) || null; }
+  function populateMonsterList(){
+    const dl = $("monster-options"); if(!dl) return;
+    dl.innerHTML = ((DATA&&DATA.monsters)||[]).map(m => `<option value="${esc(m.name)}">${esc((m.cr?"CR "+m.cr:"")+(m.type?" "+m.type:""))}</option>`).join("");
+  }
+  function applyMonsterToCompanion(c, name){
+    const m = monsterByName(name); if(!m) return;
+    c.monster = m.name; if(!c.name) c.name = m.name;
+    c.ac = (m.ac!=null ? String(m.ac) + (m.acNote ? ` (${m.acNote})` : "") : "");
+    c.hp = (m.hp!=null ? String(m.hp) : ""); c.curhp = c.hp; c.speed = m.speed||"";
+    ["str","dex","con","int","wis","cha"].forEach(a => c[a] = (m[a]!=null ? String(m[a]) : ""));
+    c.save=m.save||""; c.skill=m.skill||""; c.senses=m.senses||""; c.languages=m.languages||"";
+    c.resist=m.resist||""; c.immune=m.immune||""; c.vuln=m.vuln||""; c.condimmune=m.condImmune||"";
+    c.cr=m.cr||""; c.pb=(m.pb!=null?sgn(m.pb):"");
+    c.traits = (m.traits||[]).map(t => `${t.name}. ${t.text}`).join("\n\n");
+    let act = (m.actions||[]).map(a => `${a.name}. ${a.text}`).join("\n\n");
+    if((m.reactions||[]).length) act += "\n\nReactions\n" + m.reactions.map(a => `${a.name}. ${a.text}`).join("\n\n");
+    if((m.legendary||[]).length) act += "\n\nLegendary Actions\n" + m.legendary.map(a => `${a.name}. ${a.text}`).join("\n\n");
+    if(m.spellcasting) act += "\n\nSpellcasting\n" + m.spellcasting;
+    c.actions = act.trim();
+    applyCompanionTemplate(c);   // Phase C overlays template rules
+  }
+  function applyCompanionTemplate(c){ /* templates wired in Phase C */ }
+  function compBlock(c, i){
+    const stats = COMP_STATS.map(([f,lbl]) =>
+      `<div class="stat comp-stat"><div class="k">${lbl}</div><input data-ci="${i}" data-f="${f}" value="${esc(c[f]||"")}"></div>`).join("");
+    const abil = COMP_AB.map(([f,lbl]) =>
+      `<div class="comp-ab"><div class="k">${lbl}</div><input data-ci="${i}" data-f="${f}" value="${esc(c[f]||"")}"><div class="m" id="cmod-${i}-${f}">${compMod(c[f])}</div></div>`).join("");
+    const lines = COMP_LINES.map(([f,lbl]) =>
+      `<div class="comp-line"><span class="k">${lbl}</span><input data-ci="${i}" data-f="${f}" value="${esc(c[f]||"")}"></div>`).join("");
+    const tmpl = COMP_TEMPLATES.map(([v,l]) => `<option value="${v}"${c.template===v?" selected":""}>${esc(l)}</option>`).join("");
+    const note = COMP_TEMPLATE_NOTES[c.template] ? `<p class="comp-tmpl-note">${esc(COMP_TEMPLATE_NOTES[c.template])}</p>` : "";
+    const port = c.portrait ? `<img src="${c.portrait}" alt="">` : "Portrait<br>(click)";
+    return `<div class="card comp-block" data-ci="${i}">
+      <div class="comp-head">
+        <div class="comp-portrait noprint" data-ci="${i}" title="Click to upload a portrait">${port}</div>
+        <div style="flex:1">
+          <input class="charname-sm" data-ci="${i}" data-f="name" value="${esc(c.name||"")}" placeholder="Creature name" style="font-size:16px; font-weight:700; width:100%">
+          <div class="comp-pickrow noprint">
+            <input list="monster-options" data-ci="${i}" data-f="monster" value="${esc(c.monster||"")}" placeholder="Pick a stat block…">
+            <select data-ci="${i}" data-f="template" class="comp-tmpl">${tmpl}</select>
+            <button class="comp-rm" data-ci="${i}" type="button" title="Remove">✕</button>
+          </div>
+        </div>
+      </div>
+      ${note}
+      <div class="comp-stats">${stats}</div>
+      <div class="comp-abilities">${abil}</div>
+      <div class="comp-lines">${lines}</div>
+      <label class="lbl" style="display:block;margin-top:4px">Traits</label><textarea data-ci="${i}" data-f="traits">${esc(c.traits||"")}</textarea>
+      <label class="lbl" style="display:block;margin-top:6px">Actions</label><textarea data-ci="${i}" data-f="actions">${esc(c.actions||"")}</textarea>
+      <label class="lbl" style="display:block;margin-top:6px">Notes</label><textarea data-ci="${i}" data-f="notes">${esc(c.notes||"")}</textarea>
+    </div>`;
+  }
+  function renderCompanions(){
+    const list = $("companion-list"); if(!list) return;
+    list.innerHTML = companions.length ? companions.map(compBlock).join("")
+      : `<div class="card"><p class="wiz-hint" style="margin:0">No creatures yet. Click <strong>+ Add creature</strong> to add an animal companion, familiar, or Wild Shape form.</p></div>`;
+    list.querySelectorAll("textarea").forEach(autoGrow);
+  }
+  const COMP_TEMPLATE_NOTES = {};   // filled in Phase C
+  function compPortraitUpload(ci){
+    if(!companions[ci]) return;
+    const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
+    inp.onchange = () => { const f = inp.files && inp.files[0]; if(!f) return;
+      const r = new FileReader(); r.onload = () => { companions[ci].portrait = r.result; renderCompanions(); save(); }; r.readAsDataURL(f); };
+    inp.click();
+  }
   const WIZ_LAST = 6;
   function renderWizStep(){
     document.querySelectorAll(".wiz-step").forEach(s => s.hidden = (+s.dataset.step !== wizStep));
@@ -2917,6 +3032,7 @@
     if(data && !data.portrait){ try{ const p=JSON.parse(localStorage.getItem(KEY+"_img")); if(p) data.portrait=p; }catch(e){} }
     populateWizard();
     populateArmor();
+    populateMonsterList();
     applyAll(data);
     updateSourcebookStatus();
 
@@ -3001,6 +3117,28 @@
       r.onload = ()=>{ portraitData = { data:r.result, name:f.name, type:f.type||"" }; renderPortrait(); save(); };
       r.readAsDataURL(f);
       ev.target.value = "";
+    });
+
+    // Companions & Forms
+    $("add-companion").addEventListener("click", ()=>{ companions.push(blankCompanion()); renderCompanions(); save(); });
+    const compList = $("companion-list");
+    compList.addEventListener("input", e => {
+      const t = e.target, ci = +t.dataset.ci, f = t.dataset.f;
+      if(isNaN(ci) || !companions[ci] || !f) return;
+      companions[ci][f] = t.value;
+      if(t.tagName === "TEXTAREA") autoGrow(t);
+      if(["str","dex","con","int","wis","cha"].includes(f)){ const m = $("cmod-"+ci+"-"+f); if(m) m.textContent = compMod(t.value); }
+      save();
+    });
+    compList.addEventListener("change", e => {
+      const t = e.target, ci = +t.dataset.ci, f = t.dataset.f;
+      if(isNaN(ci) || !companions[ci] || !f) return;
+      if(f === "monster"){ applyMonsterToCompanion(companions[ci], t.value); renderCompanions(); save(); }
+      else if(f === "template"){ companions[ci].template = t.value; applyCompanionTemplate(companions[ci]); renderCompanions(); save(); }
+    });
+    compList.addEventListener("click", e => {
+      const rm = e.target.closest(".comp-rm"); if(rm){ companions.splice(+rm.dataset.ci, 1); renderCompanions(); save(); return; }
+      const port = e.target.closest(".comp-portrait"); if(port){ compPortraitUpload(+port.dataset.ci); }
     });
 
     $("btn-savedata").addEventListener("click", saveDataFile);
