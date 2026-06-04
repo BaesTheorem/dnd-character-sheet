@@ -584,6 +584,13 @@ def build_containers(items_base, items):   # weightless containers (Bag of Holdi
             if is_src(it) and it.get("name") and cc and cc.get("weightless"): out.add(it["name"])
     return sorted(out)
 
+def build_attune_items(items_base, items):   # items that require attunement, for the Attuned Items picker
+    out = set()
+    for coll, key in ((items_base, "baseitem"), (items, "item")):
+        for it in coll.get(key, []):
+            if is_src(it) and it.get("name") and it.get("reqAttune"): out.add(it["name"])
+    return sorted(out)
+
 def build_packs(items):   # equipment packs → {name: [{name, qty}]} so the sheet can disambiguate contents
     out = {}
     for it in items.get("item", []):
@@ -651,6 +658,7 @@ def main():
     out["itemWeights"] = build_item_weights(items_base, items)
     out["itemNames"] = build_item_names(items_base, items)
     out["containers"] = build_containers(items_base, items)
+    out["attuneItems"] = build_attune_items(items_base, items)
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
     sz = os.path.getsize(OUT)
     print(f"wrote {OUT}  ({sz/1024:.0f} KB)")

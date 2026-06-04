@@ -755,9 +755,10 @@
         </div>
         <div class="card"><h2>Attuned Items</h2>
           <div class="attune">
-            <input data-save id="attune-0" placeholder="Attuned item 1">
-            <input data-save id="attune-1" placeholder="Attuned item 2">
-            <input data-save id="attune-2" placeholder="Attuned item 3">
+            <input data-save id="attune-0" placeholder="Attuned item 1" list="attune-options" autocomplete="off">
+            <input data-save id="attune-1" placeholder="Attuned item 2" list="attune-options" autocomplete="off">
+            <input data-save id="attune-2" placeholder="Attuned item 3" list="attune-options" autocomplete="off">
+            <datalist id="attune-options"></datalist>
           </div>
           <p class="help noprint">You can be attuned to a maximum of 3 magic items at once.</p>
         </div>
@@ -1820,6 +1821,11 @@
     [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { const cc = it.containerCapacity; if(it.source === SRC && it.name && cc && cc.weightless) s.add(it.name); }));
     return [...s].sort();
   }
+  function etAttuneItems(itemsBase, itemsData, SRC){   // items that require attunement, for the Attuned Items picker
+    const s = new Set();
+    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { if(it.source === SRC && it.name && it.reqAttune) s.add(it.name); }));
+    return [...s].sort();
+  }
   function etPacks(itemsData, SRC){
     const out = {};
     (itemsData.item||[]).forEach(it => {
@@ -1864,7 +1870,8 @@
       acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
       languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
       itemWeights:etItemWeights(itemsBase,itemsData,srcCode),
-      itemNames:etItemNames(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode)};
+      itemNames:etItemNames(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode),
+      attuneItems:etAttuneItems(itemsBase,itemsData,srcCode)};
   }
   function mergeBook(into, add, bookName){
     into._meta = into._meta || {};
@@ -1904,7 +1911,7 @@
       add.classSpells[cn].forEach(x => { if(idx.has(x.n)) ex[idx.get(x.n)] = x; else { idx.set(x.n, ex.length); ex.push(x); } });
       ex.sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
     }
-    ["languages","tools","itemNames","containers"].forEach(cat => {   // plain string arrays
+    ["languages","tools","itemNames","containers","attuneItems"].forEach(cat => {   // plain string arrays
       into[cat] = into[cat] || [];
       const seen = new Set(into[cat]);
       (add[cat]||[]).forEach(x => { if(!seen.has(x)){ into[cat].push(x); seen.add(x); } });
@@ -2577,6 +2584,10 @@
     if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
     else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
     else if(t.classList.contains("ab-bonus")) bonusVals[t.dataset.cat][t.dataset.ab] = num(t.value,0);
+    if(e && e.type === "change"){   // picking armor / an attuned item also records it in inventory
+      if(t.id === "armorsel" && !["","Unarmored","Mage Armor","Custom"].includes(t.value)) addInvItemOnce(t.value);
+      else if(/^attune-\d$/.test(t.id) && t.value.trim()) addInvItemOnce(t.value.trim());
+    }
     save(); compute();
   }
   function autoGrow(ta){
@@ -2931,7 +2942,12 @@
     el.value = (u == null) ? "" : String(round1(u * rowQty(i)));
   }
   function refreshAllWeights(){ for(let i=0;i<NINV;i++) refreshRowWeight(i); }
-  function populateItemList(){ const dl = $("item-options"); if(!dl) return; const names = (DATA && DATA.itemNames) || []; dl.innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join(""); }
+  function populateItemList(){
+    const dl = $("item-options"); if(dl){ const names = (DATA && DATA.itemNames) || []; dl.innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join(""); }
+    const al = $("attune-options"); if(al){ const an = (DATA && DATA.attuneItems) || []; al.innerHTML = an.map(n => `<option value="${esc(n)}"></option>`).join(""); }   // Attuned Items picker
+  }
+  function inventoryHas(name){ const q = String(name||"").trim().toLowerCase(); if(!q) return false; for(let i=0;i<NINV;i++){ if((($("invname-"+i)||{}).value||"").trim().toLowerCase() === q) return true; } return false; }
+  function addInvItemOnce(name){ if(name && !inventoryHas(name)) addInvItem(name, 1); }   // record a chosen armor / attuned item in inventory (skip if already there)
   function setupItemSearch(){   // substring-searchable picker that adds an item to the next empty row
     const inp = $("item-search"), res = $("item-results"); if(!inp || !res) return;
     let matches = [], sel = -1;
