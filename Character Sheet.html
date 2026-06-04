@@ -231,6 +231,7 @@
   .combat-top .stat, .hp-grid .stat{padding:5px 6px; min-height:52px; display:flex; flex-direction:column; justify-content:center}
   .combat-top .stat .k, .hp-grid .stat .k{margin-bottom:1px}
   .combat-top .stat input, .hp-grid .stat input{padding:0}
+  .combat-top:not(.hd-grid) .stat{justify-content:flex-start}   /* labels (Armor Class/Initiative/Speed) pinned to the top of their boxes */
   .combat-top.hd-grid{grid-template-columns:repeat(4,1fr); gap:8px}   /* Hit Dice: all 4 boxes on one line */
   .stat.toggle-stat{cursor:pointer; user-select:none}
   .stat.on{background:var(--accent); border-color:var(--accent)}
