@@ -1396,13 +1396,19 @@
   const ET_SIZE = {T:"Tiny",S:"Small",M:"Medium",L:"Large",H:"Huge",G:"Gargantuan"};
   const ET_WPROP = {A:"ammunition",F:"finesse",H:"heavy",L:"light",LD:"loading",R:"reach",S:"special",T:"thrown","2H":"two-handed",V:"versatile"};
   const ET_FULL = ["Cleric","Druid","Paladin"];   // classes whose entire spell list is pre-populated (Artificer's list is scattered/non-DATA → write-your-own)
+  const ET_ATK = {mw:"Melee Weapon Attack",rw:"Ranged Weapon Attack","mw,rw":"Melee or Ranged Weapon Attack",ms:"Melee Spell Attack",rs:"Ranged Spell Attack","ms,rs":"Melee or Ranged Spell Attack"};
   function etTags(s){
     if(typeof s !== "string") return s;
     let prev = null;
     while(prev !== s){ prev = s;
-      s = s.replace(/\{@(\w+) ([^{}]*)\}/g, (m,tag,body) => {
-        const p = body.split("|");
-        if(["dice","damage","scaledamage","scaledice","d20","hit","dc","filter"].includes(tag)) return p[0];   // @filter display = p[0]
+      s = s.replace(/\{@(\w+)(?: ([^{}]*))?\}/g, (m,tag,body) => {
+        body = body || ""; const p = body.split("|");
+        if(tag === "h") return "Hit: ";                                  // monster damage-line marker
+        if(tag === "atk") return (ET_ATK[body.trim()] || body) + ":";
+        if(tag === "hit") return (/^[+-]/.test(p[0]) ? p[0] : "+"+p[0]); // to-hit bonus
+        if(tag === "dc") return "DC " + p[0];
+        if(tag === "recharge") return p[0] ? `(Recharge ${p[0]}-6)` : "(Recharge 6)";
+        if(["dice","damage","scaledamage","scaledice","d20","filter"].includes(tag)) return p[0];   // @filter display = p[0]
         if(p.length >= 3 && p[2].trim()) return p[2];
         return p[0];
       });
@@ -1634,6 +1640,41 @@
     for(const cn in out) out[cn].sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
     return out;
   }
+  // ---- Bestiary (mirror of build-data.py build_monsters) ----
+  const ET_ALIGN = {L:"lawful",N:"neutral",C:"chaotic",G:"good",E:"evil",U:"unaligned",A:"any alignment"};
+  function _monSize(s){ const a = Array.isArray(s) ? s : [s]; return a.map(x => ET_SIZE[x]||x).join("/") || "Medium"; }
+  function _monType(t){ if(typeof t === "string") return t; if(t && typeof t === "object"){ const tg = (t.tags||[]).map(x => typeof x === "string" ? x : (x.tag||"")).filter(Boolean).join(", "); return (t.type||"") + (tg ? ` (${tg})` : ""); } return ""; }
+  function _isBeast(t){ return t === "beast" || (t && typeof t === "object" && t.type === "beast"); }
+  function _monAlign(a){ if(!a) return ""; const out = []; (function add(x){ if(typeof x === "string") out.push(ET_ALIGN[x]||x); else if(Array.isArray(x)) x.forEach(add); else if(x && typeof x === "object"){ if(x.special) out.push(x.special); else if(x.alignment) add(x.alignment); } })(a); return out.filter(Boolean).join(" "); }
+  function _monAc(ac){ if(!ac || !ac.length) return [null,""]; const a = ac[0]; if(a && typeof a === "object") return [a.ac, (a.from||[]).join(", ")]; return [a,""]; }
+  function _spd1(v){ return (v && typeof v === "object") ? `${v.number||""} ft.` + (v.condition ? ` ${v.condition}` : "") : `${v} ft.`; }
+  function _monSpeed(sp){ if(typeof sp === "number") return `${sp} ft.`; if(!sp || typeof sp !== "object") return ""; const p = []; if("walk" in sp) p.push(_spd1(sp.walk)); ["burrow","climb","fly","swim"].forEach(k => { if(k in sp) p.push(k+" "+_spd1(sp[k])); }); return p.join(", "); }
+  function _monKv(d){ if(!d || typeof d !== "object") return ""; return Object.keys(d).map(k => k[0].toUpperCase()+k.slice(1)+" "+d[k]).join(", "); }
+  function _monDmg(arr){ const out = []; (arr||[]).forEach(x => { if(typeof x === "string") out.push(x); else if(x && typeof x === "object"){ const key = ["resist","immune","vulnerable"].find(k => k in x); const names = key ? (x[key]||[]).filter(i => typeof i === "string").join(", ") : ""; out.push((names + (x.note ? " "+x.note : "")).trim()); } }); return out.filter(Boolean).join("; "); }
+  function _monSenses(senses, passive){ const p = (senses||[]).slice(); if(passive != null) p.push("passive Perception "+passive); return p.join(", "); }
+  function crNum(cr){ if(cr && typeof cr === "object") cr = cr.cr||"0"; if(typeof cr === "number") return cr; const s = String(cr); if(s.indexOf("/")>=0){ const [a,b] = s.split("/"); return (+a)/(+b)||0; } return parseFloat(s)||0; }
+  function crPb(n){ return n < 5 ? 2 : 2 + Math.floor((n-1)/4); }
+  function _monBlock(arr){ return (arr||[]).filter(e => e && typeof e === "object").map(e => ({name:e.name||"", text:etText(e.entries||[])})); }
+  function _monSpellcasting(sc){ if(!sc || !sc.length) return ""; const chunks = []; sc.forEach(blk => { chunks.push(etText(blk.headerEntries||[])); ["will","daily","spells"].forEach(grp => { const g = blk[grp]; if(Array.isArray(g)) chunks.push("At will: " + g.map(etTags).join(", ")); else if(g && typeof g === "object"){ for(const lvl in g){ const info = g[lvl]; const sp = (info && info.spells) ? info.spells : info; chunks.push(`${lvl}: ` + (sp||[]).map(etTags).join(", ")); } } }); chunks.push(etText(blk.footerEntries||[])); }); return chunks.filter(Boolean).join("\\n"); }
+  function etMonsters(raw, SRC){
+    const out = [];
+    (raw.monster||[]).forEach(m => {
+      if(m.source !== SRC || m._copy) return;
+      const [ac, acNote] = _monAc(m.ac), hp = m.hp || {}, crn = crNum(m.cr);
+      out.push({name:m.name, size:_monSize(m.size||"M"), type:_monType(m.type||""), beast:_isBeast(m.type||""), align:_monAlign(m.alignment),
+        ac, acNote, hp:hp.average, hpFormula:hp.formula||"", speed:_monSpeed(m.speed||{}),
+        str:m.str, dex:m.dex, con:m.con, int:m.int, wis:m.wis, cha:m.cha,
+        save:_monKv(m.save), skill:_monKv(m.skill), senses:_monSenses(m.senses, m.passive),
+        resist:_monDmg(m.resist), immune:_monDmg(m.immune), vuln:_monDmg(m.vulnerable),
+        condImmune:(m.conditionImmune||[]).filter(x => typeof x === "string").join(", "),
+        languages:(m.languages||[]).join(", "),
+        cr:(m.cr && typeof m.cr === "object") ? String(m.cr.cr||"") : String(m.cr==null?"":m.cr), crNum:crn, pb:crPb(crn),
+        traits:_monBlock(m.trait), actions:_monBlock(m.action), reactions:_monBlock(m.reaction), legendary:_monBlock(m.legendary),
+        spellcasting:_monSpellcasting(m.spellcasting)});
+    });
+    out.sort((a,b) => a.name.localeCompare(b.name));
+    return out;
+  }
   function etItems(raw, SRC){
     const weapons = [], armor = [];
     (raw.baseitem||[]).forEach(it => {
@@ -1700,8 +1741,10 @@
     classArr.forEach(d => { (d.class||[]).forEach(c => classAll.class.push(c)); (d.subclass||[]).forEach(s => classAll.subclass.push(s)); });
     const items = etItems(itemsBase, srcCode);
     const cls = etClasses(classAll, srcCode);
+    const bestiary = await J("bestiary/bestiary-"+srcCode.toLowerCase()+".json").catch(()=>({}));   // monsters (Monster Manual etc.)
     return {races:etRaces(races,srcCode), backgrounds:etBackgrounds(bg,srcCode), classes:cls.classes, subclasses:cls.subclasses,
       feats:etFeats(feats,srcCode), spells:etSpells(spellsData,srcCode), classSpells:etClassSpells(spellsData,sourcesForSrc,srcCode),
+      monsters:etMonsters(bestiary,srcCode),
       acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
       languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
       itemWeights:etItemWeights(itemsBase,itemsData,srcCode)};
@@ -1709,7 +1752,7 @@
   function mergeBook(into, add, bookName){
     into._meta = into._meta || {};
     into._meta.books = into._meta.books || (into._meta.book ? [into._meta.book] : []);
-    ["races","backgrounds","feats","spells","weapons","armor"].forEach(cat => {
+    ["races","backgrounds","feats","spells","weapons","armor","monsters"].forEach(cat => {
       into[cat] = into[cat] || [];
       const idx = new Map(into[cat].map((x,i) => [x.name, i]));
       (add[cat]||[]).forEach(x => {                                  // overwrite existing (refreshes corrected data), else append

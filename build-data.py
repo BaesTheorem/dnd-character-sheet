@@ -23,7 +23,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 10  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+DATA_VERSION = 11  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -35,16 +35,23 @@ WPROP = {"A":"ammunition","F":"finesse","H":"heavy","L":"light","LD":"loading","
          "S":"special","T":"thrown","2H":"two-handed","V":"versatile"}
 
 # ---- 5eTools {@tag ...} markup -> plain text ----
-_tag = re.compile(r"\{@(\w+) ([^{}]*)\}")
+_tag = re.compile(r"\{@(\w+)(?: ([^{}]*))?\}")
+_ATK = {"mw":"Melee Weapon Attack","rw":"Ranged Weapon Attack","mw,rw":"Melee or Ranged Weapon Attack",
+        "ms":"Melee Spell Attack","rs":"Ranged Spell Attack","ms,rs":"Melee or Ranged Spell Attack"}
 def render_tags(s):
     if not isinstance(s, str): return s
     prev = None
     while prev != s:
         prev = s
         def repl(m):
-            tag, body = m.group(1), m.group(2)
+            tag, body = m.group(1), m.group(2) or ""
             parts = body.split("|")
-            if tag in ("dice","damage","scaledamage","scaledice","d20","hit","dc","filter"):
+            if tag == "h": return "Hit: "                                  # monster damage-line marker
+            if tag == "atk": return (_ATK.get(body.strip(), body)) + ":"
+            if tag == "hit": return parts[0] if parts[0][:1] in "+-" else "+" + parts[0]
+            if tag == "dc": return "DC " + parts[0]
+            if tag == "recharge": return f"(Recharge {parts[0]}-6)" if parts[0] else "(Recharge 6)"
+            if tag in ("dice","damage","scaledamage","scaledice","d20","filter"):
                 return parts[0]   # @filter is {display|page|filters...} — display is parts[0], not parts[2]
             if len(parts) >= 3 and parts[2].strip():   # explicit display text
                 return parts[2]
@@ -371,6 +378,125 @@ def build_spells():
     spells.sort(key=lambda x: (x["level"], x["name"]))
     return spells
 
+# ---- Bestiary (monster stat blocks for the Companions & Forms page) ----
+ALIGN = {"L":"lawful","N":"neutral","C":"chaotic","G":"good","E":"evil","U":"unaligned","A":"any alignment"}
+def _mon_size(s):
+    sizes = s if isinstance(s, list) else [s]
+    return "/".join(SIZE.get(x, x) for x in sizes) or "Medium"
+def _mon_type(t):
+    if isinstance(t, str): return t
+    if isinstance(t, dict):
+        base = t.get("type", "")
+        tags = t.get("tags", [])
+        tg = ", ".join(x if isinstance(x, str) else x.get("tag","") for x in tags)
+        return base + (f" ({tg})" if tg else "")
+    return ""
+def _is_beast(t):
+    return (t == "beast") or (isinstance(t, dict) and t.get("type") == "beast")
+def _mon_align(a):
+    if not a: return ""
+    out = []
+    def add(x):
+        if isinstance(x, str): out.append(ALIGN.get(x, x))
+        elif isinstance(x, list): [add(y) for y in x]
+        elif isinstance(x, dict):
+            if x.get("special"): out.append(x["special"])
+            elif x.get("alignment"): add(x["alignment"])
+    add(a)
+    return " ".join(p for p in out if p)
+def _mon_ac(ac):
+    if not ac: return None, ""
+    a = ac[0]
+    if isinstance(a, dict): return a.get("ac"), ", ".join(a.get("from", []) or [])
+    return a, ""
+def _spd1(v):
+    if isinstance(v, dict): return f"{v.get('number','')} ft." + (f" {v['condition']}" if v.get("condition") else "")
+    return f"{v} ft."
+def _mon_speed(sp):
+    if isinstance(sp, (int, float)): return f"{sp} ft."
+    if not isinstance(sp, dict): return ""
+    parts = []
+    if "walk" in sp: parts.append(_spd1(sp["walk"]))
+    for k in ("burrow","climb","fly","swim"):
+        if k in sp: parts.append(f"{k} " + _spd1(sp[k]))
+    return ", ".join(parts)
+def _mon_kv(d):                                # {"dex":"+6","con":"+13"} -> "Dex +6, Con +13"
+    if not isinstance(d, dict): return ""
+    return ", ".join(f"{k[:1].upper()+k[1:]} {v}" for k, v in d.items())
+def _mon_dmg(arr):                             # resist / immune / vulnerable lists (strings or {resist:[],note})
+    out = []
+    for x in arr or []:
+        if isinstance(x, str): out.append(x)
+        elif isinstance(x, dict):
+            key = next((k for k in ("resist","immune","vulnerable") if k in x), None)
+            names = ", ".join(i for i in (x.get(key) or []) if isinstance(i, str)) if key else ""
+            note = x.get("note", "")
+            out.append((names + (" " + note if note else "")).strip())
+    return "; ".join(p for p in out if p)
+def _mon_senses(senses, passive):
+    parts = list(senses or [])
+    if passive is not None: parts.append(f"passive Perception {passive}")
+    return ", ".join(parts)
+def cr_num(cr):
+    if isinstance(cr, dict): cr = cr.get("cr", "0")
+    if isinstance(cr, (int, float)): return float(cr)
+    s = str(cr)
+    if "/" in s:
+        try: a, b = s.split("/"); return float(a) / float(b)
+        except Exception: return 0.0
+    try: return float(s)
+    except Exception: return 0.0
+def cr_pb(n):
+    import math
+    return 2 if n < 5 else 2 + math.floor((n - 1) / 4)
+def _mon_block(arr):                           # trait/action/reaction/legendary -> [{name,text}]
+    out = []
+    for e in arr or []:
+        if not isinstance(e, dict): continue
+        out.append({"name": e.get("name", ""), "text": entries_to_text(e.get("entries", []))})
+    return out
+def _mon_spellcasting(sc):
+    if not sc: return ""
+    chunks = []
+    for blk in sc:
+        chunks.append(entries_to_text(blk.get("headerEntries", [])))
+        for grp in ("will","daily","spells"):
+            g = blk.get(grp)
+            if isinstance(g, list): chunks.append("At will: " + ", ".join(render_tags(x) for x in g))
+            elif isinstance(g, dict):
+                for lvl, info in g.items():
+                    sp = info.get("spells", info) if isinstance(info, dict) else info
+                    names = ", ".join(render_tags(x) for x in (sp or []))
+                    chunks.append(f"{lvl}: {names}")
+        chunks.append(entries_to_text(blk.get("footerEntries", [])))
+    return "\n".join(c for c in chunks if c)
+def build_monsters():
+    fn = os.path.join(SRC, "bestiary", f"bestiary-{SRC_TAG.lower()}.json")
+    if not os.path.exists(fn): return []
+    out = []
+    for m in json.load(open(fn)).get("monster", []):
+        if not is_src(m) or m.get("_copy"): continue
+        ac, acnote = _mon_ac(m.get("ac"))
+        hp = m.get("hp", {}) or {}
+        crn = cr_num(m.get("cr", 0))
+        out.append({"name": m["name"], "size": _mon_size(m.get("size","M")), "type": _mon_type(m.get("type","")),
+            "beast": _is_beast(m.get("type","")), "align": _mon_align(m.get("alignment")),
+            "ac": ac, "acNote": acnote, "hp": hp.get("average"), "hpFormula": hp.get("formula",""),
+            "speed": _mon_speed(m.get("speed", {})),
+            "str": m.get("str"), "dex": m.get("dex"), "con": m.get("con"),
+            "int": m.get("int"), "wis": m.get("wis"), "cha": m.get("cha"),
+            "save": _mon_kv(m.get("save")), "skill": _mon_kv(m.get("skill")),
+            "senses": _mon_senses(m.get("senses"), m.get("passive")),
+            "resist": _mon_dmg(m.get("resist")), "immune": _mon_dmg(m.get("immune")),
+            "vuln": _mon_dmg(m.get("vulnerable")), "condImmune": ", ".join(x for x in (m.get("conditionImmune") or []) if isinstance(x,str)),
+            "languages": ", ".join(m.get("languages", []) or []),
+            "cr": str(m.get("cr","")) if not isinstance(m.get("cr"), dict) else str(m["cr"].get("cr","")), "crNum": crn, "pb": cr_pb(crn),
+            "traits": _mon_block(m.get("trait")), "actions": _mon_block(m.get("action")),
+            "reactions": _mon_block(m.get("reaction")), "legendary": _mon_block(m.get("legendary")),
+            "spellcasting": _mon_spellcasting(m.get("spellcasting"))})
+    out.sort(key=lambda x: x["name"])
+    return out
+
 # Items that grant a flat AC bonus (shield, rings/cloaks/bracers of protection, etc.) for the
 # Armor section's bonus-item pickers. The PHB only has the Shield, so this pulls from the wider data.
 def build_ac_items():
@@ -470,6 +596,7 @@ def main():
         "feats": build_feats(load("feats.json")),
         "spells": build_spells(),
         "classSpells": build_class_spells(),
+        "monsters": build_monsters(),
         "acItems": build_ac_items(),
     }
     items_base = load("items-base.json")
