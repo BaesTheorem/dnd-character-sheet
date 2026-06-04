@@ -1761,7 +1761,10 @@
     (((itemsData||{}).item)||[]).forEach(it => {
       if(it.source !== SRC) return;
       const ty = (it.type||"").split("|")[0];
-      if(["LA","MA","HA"].includes(ty) && it.ac != null) armor.push({name:it.name, ac:it.ac, type:ty, stealth:!!it.stealth, strength:it.strength});
+      if(["LA","MA","HA"].includes(ty) && it.ac != null){
+        const bonus = parseInt(String(it.bonusAc||"").replace("+",""), 10) || 0;   // e.g. Elven Chain ac 13 + bonusAc +1 → base 14
+        armor.push({name:it.name, ac:it.ac + bonus, type:ty, stealth:!!it.stealth, strength:it.strength});
+      }
     });
     return {weapons, armor};
   }

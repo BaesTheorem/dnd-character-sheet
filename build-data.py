@@ -370,7 +370,9 @@ def build_items(raw, items=None):
         if not is_src(it): continue
         ty = (it.get("type") or "").split("|")[0]
         if ty in ("LA","MA","HA") and it.get("ac") is not None:
-            armor.append({"name": it["name"], "ac": it.get("ac"), "type": ty,
+            ba = it.get("bonusAc")
+            bonus = int(str(ba).replace("+","")) if ba else 0   # e.g. Elven Chain ac 13 + bonusAc +1 -> base 14
+            armor.append({"name": it["name"], "ac": it.get("ac") + bonus, "type": ty,
                           "stealth": bool(it.get("stealth")), "strength": it.get("strength")})
     return weapons, armor
 
