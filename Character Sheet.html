@@ -2579,10 +2579,25 @@
     const n = String(name||"").trim().toLowerCase();
     return ((DATA && DATA.weapons) || []).find(w => (w.name||"").toLowerCase() === n) || null;
   }
-  function weaponAtkAbility(w){               // attack/damage ability: melee→Str, ranged→Dex, finesse→better of the two
+  function isMonkWeapon(w){                   // shortsword, or any simple melee weapon without two-handed/heavy
+    if(!w) return false;
+    if(/shortsword/i.test(w.name||"")) return true;
+    const heavy2h = (w.props||[]).some(p => /two-handed|heavy/i.test(p));
+    return w.cat === "simple" && w.melee && !heavy2h;
+  }
+  // Attack/damage ability: base finesse/melee/ranged, plus class-feature substitutions, then use the best modifier.
+  // Handled (2014): Monk Martial Arts (Dex on monk weapons), Hexblade Hex Warrior (Cha on melee/pact weapons),
+  // Battle Smith Artificer (Int on magic weapons). Spell-based Shillelagh (Wis on club/quarterstaff) stays manual.
+  function weaponAtkAbility(w){
+    const cls = ($("classlevel").value || "").toLowerCase();
     const finesse = (w.props||[]).some(p => /finesse/i.test(p));
-    if(finesse) return (modOf("dex") >= modOf("str")) ? "dex" : "str";
-    return w.melee ? "str" : "dex";
+    const allowed = new Set();
+    allowed.add(w.melee ? "str" : "dex");                              // base
+    if(finesse){ allowed.add("str"); allowed.add("dex"); }            // finesse → either
+    if(/\bmonk\b/.test(cls) && isMonkWeapon(w)) allowed.add("dex");   // Martial Arts
+    if(/hexblade/.test(cls) && w.melee) allowed.add("cha");           // Hex Warrior (pact/bonded weapon)
+    if(/battle\s*smith/.test(cls)) allowed.add("int");               // Battle Smith (magic weapons)
+    return [...allowed].sort((a,b) => modOf(b) - modOf(a))[0] || "str";   // best available modifier
   }
   function weaponAtkRow(w){                   // {bonus, dmg} from current scores, assuming proficiency
     const m = modOf(weaponAtkAbility(w)), lvl = charLevel(), pb = (lvl == null) ? 0 : 2 + Math.floor((lvl-1)/4);
