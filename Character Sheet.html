@@ -308,10 +308,11 @@
   .invtable td.invitem{display:flex; align-items:center; gap:1px}
   .invtable td.invitem input{flex:1; min-width:0}
   .cont-caret{flex:none; width:0; overflow:hidden; text-align:center; color:var(--muted); font-size:12px; user-select:none}
-  .cont-caret.show{width:15px}
-  .cont-caret.toggle{cursor:pointer}
+  .cont-caret.show{width:15px}                                           /* the ↳ marker, only on nested rows */
+  .invtable tr.in-container td.invitem{padding-left:14px}                /* nested rows indent; top-level containers stay flush */
   .invtable tr.in-container input{color:var(--muted)}   /* an item stored in a weightless container: weight not counted */
   .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px}
+  .invdrag.cont-toggle{color:var(--accent); cursor:pointer}             /* container rows: drag handle doubles as collapse toggle */
   .ac-items-auto{display:flex; flex-direction:column; gap:4px; margin-top:4px}
   .ac-items-auto .aci{display:flex; justify-content:space-between; align-items:center; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:13px}
   .ac-items-auto .aci .b{font-weight:700; color:var(--accent)}
@@ -3080,18 +3081,33 @@
     for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value||"").trim(); if(nm && cs.has(nm.toLowerCase()) && !seen.has(nm)){ seen.add(nm); out.push(nm); } }
     return out;
   }
-  function renderContainers(){   // carets, nesting indent, and collapse-hide for container groups
+  function renderContainers(){   // collapse toggle on the drag handle; ↳ indent only on nested rows
     const conts = presentContainers(), have = new Set(conts);
     const counts = {};   // container name → number of nested items
     for(let i=0;i<NINV;i++){ let c = rowCont(i); if(c && !have.has(c)){ setRowCont(i, ""); c = ""; } if(c) counts[c] = (counts[c]||0)+1; }
     for(let i=0;i<NINV;i++){
       const nm = $("invname-"+i), caret = $("contcaret-"+i), tr = nm && nm.closest("tr"); if(!nm || !caret || !tr) continue;
-      const name = (nm.value||"").trim(), cont = rowCont(i);
-      const isCont = name && have.has(name);
-      caret.className = "cont-caret"; caret.textContent = ""; caret.style.cursor = ""; tr.style.display = ""; tr.classList.toggle("in-container", !!cont);
-      if(isCont && counts[name]){ const open = !collapsedContainers.has(name); caret.className = "cont-caret show toggle"; caret.textContent = open ? "▾" : "▸"; caret.dataset.cont = name; }
-      else if(cont){ caret.className = "cont-caret show"; caret.textContent = "↳"; if(collapsedContainers.has(cont)) tr.style.display = "none"; }
+      const drag = tr.querySelector(".invdrag");
+      const name = (nm.value||"").trim(), cont = rowCont(i), isCont = name && have.has(name);
+      caret.className = "cont-caret"; caret.textContent = ""; tr.style.display = ""; tr.classList.toggle("in-container", !!cont);
+      if(drag){ drag.textContent = "⠿"; delete drag.dataset.cont; drag.classList.remove("cont-toggle"); drag.title = "Drag to reorder"; }
+      if(isCont && counts[name] && drag){                          // a container holding items → drag handle becomes a collapse toggle
+        const open = !collapsedContainers.has(name);
+        drag.textContent = open ? "▾" : "▸"; drag.dataset.cont = name; drag.classList.add("cont-toggle");
+        drag.title = (open ? "Collapse" : "Expand") + " contents • drag to move";
+      }
+      if(cont){ caret.className = "cont-caret show"; caret.textContent = "↳"; if(collapsedContainers.has(cont)) tr.style.display = "none"; }   // nested → indent (+ hide if its container is collapsed)
     }
+  }
+  function moveInvBlock(contIdx, to){   // move a container together with its contents
+    const a = getInvData(); const name = (a[contIdx].name||"").trim();
+    if(!name){ moveInvRow(contIdx, to); return; }
+    const lc = name.toLowerCase(), inBlock = i => i === contIdx || (a[i].cont && a[i].cont.toLowerCase() === lc);
+    if(inBlock(to)) return;                                        // dropped onto its own block → no move
+    const target = a[to], block = a.filter((_,i) => inBlock(i)), rest = a.filter((_,i) => !inBlock(i));
+    let at = rest.indexOf(target); if(at < 0) at = rest.length; else if(contIdx < to) at += 1;   // dragging down → land after the target
+    rest.splice(at, 0, ...block);
+    setInvData(rest); save(); compute();
   }
   function getInvData(){ const a = []; for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i); a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||""), cont:rowCont(i), equip:!!(cb&&cb.checked)}); } return a; }
   function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); setRowCont(i, a[i].cont||""); const cb=$("invequip-"+i); if(cb) cb.checked = !!a[i].equip; refreshRowWeight(i); } renderContainers(); }
@@ -3474,8 +3490,8 @@
     let invDrag = null;
     const invCols = document.querySelector(".inv-cols");
     const clearDrop = () => invCols.querySelectorAll("tr.drop-target, tr.drop-into").forEach(r => r.classList.remove("drop-target","drop-into"));
-    invCols.addEventListener("click", e => {   // caret on a container row → collapse / expand its contents
-      const c = e.target.closest(".cont-caret.toggle"); if(!c) return;
+    invCols.addEventListener("click", e => {   // clicking a container's drag handle toggles its contents (dragging it still reorders)
+      const c = e.target.closest(".invdrag.cont-toggle"); if(!c) return;
       const nm = c.dataset.cont; if(!nm) return;
       if(collapsedContainers.has(nm)) collapsedContainers.delete(nm); else collapsedContainers.add(nm);
       save(); renderContainers();
@@ -3494,11 +3510,14 @@
       if(invDrag == null) return; e.preventDefault();
       const tr = e.target.closest("tr");
       if(tr){ const to = +tr.dataset.r;
-        if(to !== invDrag && isContainerRow(to)){                                // drop onto a container → store inside it + nest right under it
+        if(isContainerRow(invDrag)){                                             // dragging a container → it carries its contents with it
+          setRowCont(invDrag, (to !== invDrag && isContainerRow(to)) ? ($("invname-"+to).value||"").trim() : "");
+          moveInvBlock(invDrag, to);
+        } else if(to !== invDrag && isContainerRow(to)){                         // item onto a container → store inside + nest under it
           setRowCont(invDrag, ($("invname-"+to).value||"").trim());
-          moveInvRow(invDrag, invDrag < to ? to : to+1);                         // place the item directly below the container row
-        } else { setRowCont(invDrag, ""); moveInvRow(invDrag, to); }             // otherwise reorder (and pull it out of any container)
-        save(); compute();                                                       // refresh even when the row was already adjacent (moveInvRow no-ops)
+          moveInvRow(invDrag, invDrag < to ? to : to+1);
+        } else { setRowCont(invDrag, ""); moveInvRow(invDrag, to); }             // plain reorder (and pull it out of any container)
+        save(); compute();                                                       // refresh even when moveInvRow/Block no-ops
       }
       clearDrop(); invDrag = null;
     });
