@@ -460,12 +460,13 @@
     .page.excluded{display:none !important}          /* any page hidden via Settings (or mini w/o portrait) won't print */
     #page-mini .mini-wrap{gap:12mm}
     /* keep the on-screen two-column grouping (left = abilities/saves/skills, right = combat/etc.) */
-    #page-core{display:flex !important; flex-direction:column; min-height:261mm}   /* fill the printed sheet */
+    #page-core{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}   /* fill the printed sheet; even gaps between cards */
     #page-core .columns{flex:1 1 auto; grid-template-rows:1fr}                     /* row fills the page; stacks stretch into it */
     .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:stretch}
-    .stack{display:flex; flex-direction:column; gap:7px}
+    .stack{display:flex; flex-direction:column; gap:8px}
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
-    #page-inv{display:flex !important; flex-direction:column; min-height:261mm}     /* fill the printed sheet */
+    #page-inv{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards */
+    #page-spells, #page-bg, #page-companion{display:flex !important; flex-direction:column; gap:8px}   /* even card separation on the other multi-card pages too */
     #page-inv .card.grow{flex:1 1 auto}                                            /* Equipment Notes takes the remaining height */
     #page-inv .invtable td input{padding:3px 2px}                                  /* inventory rows tall enough to write in */
     /* full-text pages: fill at least one sheet, then flow onto extra sheets if the content is long */
