@@ -3462,11 +3462,19 @@
   Object.values(LIMITED_RESOURCES).forEach(list => list.forEach(r => { LIMITED_FEAT_NAMES.add(r.feat.toLowerCase()); LIMITED_FEAT_NAMES.add(r.name.toLowerCase()); }));
   // Features the heuristic gets wrong — never track these as limited-use:
   const LIMITED_EXCLUDE = new Set(["spellcasting", "pact magic"]);
-  // Known limited features with exact values (override the heuristic's guess):
+  // Known limited features with exact values (override the heuristic's guess).
+  // Each maps a feature-block name → one or more rows {label, max, rec}. A "label" lets a single
+  // feature produce a renamed/disambiguated row (or split into multiple rows). max="PB" means
+  // "proficiency bonus" (auto-calculated from level).
   const LIMITED_OVERRIDES = {
-    "awakened spellbook":{max:"1", rec:"LR"}, "manifest mind":{max:"1", rec:"LR"},
-    "master scrivener":{max:"1", rec:"LR"}, "one with the word":{max:"1", rec:"LR"}
+    "awakened spellbook":[{label:"Awakened Spellbook (fast ritual cast)", max:"1", rec:"LR"}],
+    "manifest mind":[{label:"Manifest Mind (cast spell)", max:"PB", rec:"LR"},   // PB casts/LR
+                     {label:"Manifest Mind (re-summon)", max:"1", rec:"LR"}],     // 1 re-summon/LR
+    "master scrivener":[{label:"Master Scrivener", max:"1", rec:"LR"}],
+    "one with the word":[{label:"One With the Word", max:"1", rec:"LR"}]
   };
+  function pbValue(){ const lv = charLevel(); return (lv == null) ? null : 2 + Math.floor((lv - 1) / 4); }
+  function resolveLimMax(max){ if(max === "PB"){ const pb = pbValue(); return pb == null ? "" : String(pb); } return (max != null && max !== "") ? String(max) : ""; }
   // Detect a limited daily/rest use from a feature/feat/item description → {name, max, rec} or null.
   function limitedFromText(name, text){
     if(!name) return null;
@@ -3510,14 +3518,18 @@
     }).filter(x => x.name);
   }
   function lfIndexByName(name){ const q = String(name).toLowerCase(); for(let i=0;i<NLIMITED;i++){ if(($("lfname-"+i).value||"").trim().toLowerCase() === q) return i; } return -1; }
+  function clearLfRow(i){ $("lfname-"+i).value=""; $("lfmax-"+i).value=""; $("lfrec-"+i).value=""; $("lfused-"+i).value=""; $("lfname-"+i).removeAttribute("title"); }
   function refreshLimitedFeatures(){   // auto-add limited-use class/subclass features, feats, and equipped items
     featureBlocks().forEach(b => {
       const lc = b.name.toLowerCase();
       if(LIMITED_FEAT_NAMES.has(lc)) return;                                  // class resources handled with computed counts
-      if(LIMITED_EXCLUDE.has(lc)){ const i = lfIndexByName(b.name); if(i>=0){ $("lfname-"+i).value=""; $("lfmax-"+i).value=""; $("lfrec-"+i).value=""; $("lfused-"+i).value=""; $("lfname-"+i).removeAttribute("title"); } return; }   // never limited → clear any stray row
-      if(LIMITED_OVERRIDES[lc]){ const o = LIMITED_OVERRIDES[lc], i = lfIndexByName(b.name);   // known exact values
-        if(i>=0){ $("lfmax-"+i).value = o.max; $("lfrec-"+i).value = o.rec; }                  // correct an existing row (keep its Used count)
-        else addLimitedRow(b.name, o.max, o.rec, b.text.slice(0,300));
+      if(LIMITED_EXCLUDE.has(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); return; }   // never limited → clear any stray row
+      if(LIMITED_OVERRIDES[lc]){ const rows = LIMITED_OVERRIDES[lc];          // known exact values (possibly renamed / split into several rows)
+        const labels = rows.map(r => r.label.toLowerCase());
+        if(!labels.includes(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); }   // drop a stray row that used the bare feature name (e.g. a pre-relabel "Manifest Mind")
+        rows.forEach(o => { const mx = resolveLimMax(o.max), i = lfIndexByName(o.label);
+          if(i>=0){ $("lfmax-"+i).value = mx; $("lfrec-"+i).value = o.rec; }                   // correct an existing row (keep its Used count)
+          else addLimitedRow(o.label, mx, o.rec, b.text.slice(0,300)); });
         return; }
       const r = limitedFromText(b.name, b.text); if(r) addLimitedRow(r.name, r.max, r.rec, b.text.slice(0,300));
     });
