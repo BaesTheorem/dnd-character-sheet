@@ -23,7 +23,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 9  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+DATA_VERSION = 10  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -112,17 +112,26 @@ def feat_grants(r):                                 # number of feats a race/sub
         elif fg: n += 1
     return n
 
+def _merge_prof(a, b):   # union two prof blocks (base race + subrace), preserving order, dedup
+    out = {}
+    for k in ("skills", "tools", "languages", "weapons", "armor", "other"):
+        merged = list((a or {}).get(k, [])) + list((b or {}).get(k, []))
+        if merged: out[k] = list(dict.fromkeys(merged))
+    ch = (a or {}).get("skillChoose") or (b or {}).get("skillChoose")
+    if ch: out["skillChoose"] = ch
+    return out
+
 def build_races(raw):
     out, bases, base_idx = [], {}, {}
     for r in raw.get("race", []):
         if not is_src(r): continue
         ab = list(r.get("ability") or [])
-        fg = feat_grants(r)
-        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", [])), "langs": race_langs(r), "featGrants": fg}
+        fg = feat_grants(r); pf = prof_block(r); rs = damage_resist(r)
+        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs}
         base_idx[r["name"]] = len(out)
         out.append({"name": r["name"], "ability": ab,
                     "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
-                    "speed": _speed(r), "traits": _traits(r.get("entries", [])), "langs": race_langs(r), "featGrants": fg})
+                    "speed": _speed(r), "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs})
     for s in raw.get("subrace", []):
         if not is_src(s): continue
         parent = s.get("raceName")
@@ -131,8 +140,9 @@ def build_races(raw):
             if i is not None:
                 out[i]["ability"] = (out[i]["ability"] or []) + (s.get("ability") or [])
                 out[i]["traits"]  = (out[i]["traits"] or []) + _traits(s.get("entries", []))
-                out[i]["langs"]   = (out[i].get("langs") or []) + race_langs(s)
                 out[i]["featGrants"] = (out[i].get("featGrants") or 0) + feat_grants(s)
+                out[i]["prof"]    = _merge_prof(out[i].get("prof"), prof_block(s))
+                out[i]["resist"]  = (out[i].get("resist") or []) + damage_resist(s)
             continue
         base = bases.get(parent, {})               # named subrace -> "Race (Subrace)", base + subrace
         out.append({"name": f"{parent} ({s['name']})",
@@ -140,8 +150,9 @@ def build_races(raw):
                     "size": "", "speed": _speed(s) if s.get("speed") is not None else base.get("speed", 30),
                     "subraceOf": parent,
                     "traits": (base.get("traits") or []) + _traits(s.get("entries", [])),
-                    "langs": (base.get("langs") or []) + race_langs(s),
-                    "featGrants": (base.get("featGrants") or 0) + feat_grants(s)})
+                    "featGrants": (base.get("featGrants") or 0) + feat_grants(s),
+                    "prof": _merge_prof(base.get("prof"), prof_block(s)),
+                    "resist": (base.get("resist") or []) + damage_resist(s)})
     return out
 
 def skills_from(spo):
@@ -152,7 +163,81 @@ def skills_from(spo):
                 choose = {"from": v.get("from", []), "count": v.get("count", 1)}
             elif v is True:
                 fixed.append(k)
+            elif k == "any" and isinstance(v, int):
+                choose = {"from": [], "count": v}
     return fixed, choose
+
+# ---- Shared proficiency normalization (races / backgrounds / feats / classes) ----
+def _clean(s):           # strip 5eTools {@item ...|...} markup and the |source suffix
+    return render_tags(str(s)).split("|")[0].strip()
+def _titlecase(s):
+    return " ".join((w[:1].upper() + w[1:]) if w else w for w in str(s).split(" "))
+_ANY_LABELS = {"any": "of your choice", "anyStandard": "standard language of your choice",
+    "anyExotic": "exotic language of your choice", "anyArtisansTool": "artisan's tools of your choice",
+    "anyTool": "tools of your choice", "anyMusicalInstrument": "musical instrument of your choice",
+    "anyGamingSet": "gaming set of your choice", "anyInstrument": "instrument of your choice",
+    "anySkill": "skill of your choice"}
+def _pretty(tok):        # render a 5eTools proficiency token readably ("anyGamingSet" -> "any gaming set")
+    t = str(tok)
+    if t in _ANY_LABELS: return _ANY_LABELS[t]
+    if t.startswith("any"): return "any " + " ".join(w.lower() for w in re.findall(r"[A-Z][a-z]*|[a-z]+", t[3:]))
+    return _titlecase(_clean(t))
+def _norm_prof(arr):     # -> list of display strings: fixed proficiencies + "choose N (...)" phrases
+    out = []
+    for blk in arr or []:
+        if isinstance(blk, str): out.append(_titlecase(_clean(blk))); continue
+        if not isinstance(blk, dict): continue
+        for k, v in blk.items():
+            if k == "choose":
+                for ch in (v if isinstance(v, list) else [v]):
+                    if not isinstance(ch, dict): continue
+                    cnt = ch.get("count", ch.get("amount", 1))
+                    frm = [_pretty(x) for x in ch.get("from", [])]
+                    out.append(f"choose {cnt} ({', '.join(frm)})" if frm else f"choose {cnt}")
+            elif v is True: out.append(_titlecase(_clean(k)))
+            elif isinstance(v, int) and v: out.append(f"{v} {_ANY_LABELS.get(k, _pretty(k))}")
+    return out
+def prof_block(obj):     # structured skills (for checkboxes) + display lists for the Proficiencies box
+    sk_fixed, sk_choose = skills_from(obj.get("skillProficiencies"))
+    out = {}
+    if sk_fixed: out["skills"] = sk_fixed
+    if sk_choose: out["skillChoose"] = sk_choose
+    for key, dest in (("toolProficiencies", "tools"), ("languageProficiencies", "languages"),
+                      ("weaponProficiencies", "weapons"), ("armorProficiencies", "armor")):
+        v = _norm_prof(obj.get(key))
+        if v: out[dest] = v
+    stl = _norm_prof(obj.get("skillToolLanguageProficiencies"))
+    if stl: out["other"] = stl
+    return out
+def feat_ability(arr):   # {fixed:{abbr:n}, choose:{from,amount}} | None
+    fixed, choose = {}, None
+    for blk in arr or []:
+        if not isinstance(blk, dict): continue
+        if isinstance(blk.get("choose"), dict):
+            choose = {"from": blk["choose"].get("from", []), "amount": blk["choose"].get("amount", 1)}
+        else:
+            for k, v in blk.items():
+                if isinstance(v, int): fixed[k] = fixed.get(k, 0) + v
+    return {"fixed": fixed, "choose": choose} if (fixed or choose) else None
+def feat_saves(arr):     # {fixed:[abbr], choose:{from}} | None  (e.g. Resilient)
+    fixed, choose = [], None
+    for blk in arr or []:
+        if not isinstance(blk, dict): continue
+        if isinstance(blk.get("choose"), dict): choose = {"from": blk["choose"].get("from", [])}
+        else:
+            for k, v in blk.items():
+                if v is True: fixed.append(k)
+    return {"fixed": fixed, "choose": choose} if (fixed or choose) else None
+def damage_resist(obj):  # damage resistances as display strings (e.g. Dwarf poison, Tiefling fire)
+    out = []
+    for r in obj.get("resist") or []:
+        if isinstance(r, str): out.append(_titlecase(r))
+        elif isinstance(r, dict):
+            if isinstance(r.get("choose"), dict):
+                frm = [_titlecase(x) for x in r["choose"].get("from", [])]
+                out.append(f"choose {r['choose'].get('count',1)} ({', '.join(frm)})")
+            elif r.get("resist"): out.append(_titlecase(", ".join(r["resist"]) if isinstance(r["resist"], list) else str(r["resist"])))
+    return out
 
 def bg_equipment(b):                                # starting items + gold a background provides
     items, gold = [], 0.0
@@ -176,7 +261,7 @@ def build_backgrounds(raw):
         fixed, choose = skills_from(b.get("skillProficiencies"))
         feat = next((e for e in b.get("entries", []) if isinstance(e, dict)
                      and str(e.get("name","")).startswith("Feature:")), None)
-        out.append({"name": b["name"], "skills": fixed, "skillChoose": choose,
+        out.append({"name": b["name"], "skills": fixed, "skillChoose": choose, "prof": prof_block(b),
                     "feature": {"name": feat["name"].replace("Feature: ","") if feat else "",
                                 "text": entries_to_text(feat.get("entries",[])) if feat else ""},
                     "equip": bg_equipment(b)})
@@ -191,6 +276,7 @@ def build_classes():
             if not is_src(c): continue
             sp = c.get("startingProficiencies", {})
             sk_fixed, sk_choose = skills_from(sp.get("skills"))
+            cls_prof = prof_block({"toolProficiencies": sp.get("tools"), "armorProficiencies": sp.get("armor"), "weaponProficiencies": sp.get("weapons")})
             seen, subs = set(), []
             for s in data.get("subclass", []):
                 if not is_src(s) or s.get("className") != c["name"]: continue
@@ -215,7 +301,7 @@ def build_classes():
             out.append({"name": c["name"],
                         "hd": c.get("hd", {}).get("faces"),
                         "saves": c.get("proficiency", []),
-                        "skillChoose": sk_choose, "skillsFixed": sk_fixed,
+                        "skillChoose": sk_choose, "skillsFixed": sk_fixed, "prof": cls_prof,
                         "armor": render_prof_list(sp.get("armor")), "weapons": render_prof_list(sp.get("weapons")),
                         "casterAbility": c.get("spellcastingAbility"),
                         "casterProgression": c.get("casterProgression"),
@@ -228,7 +314,9 @@ def build_feats(raw):
     out = []
     for f in raw.get("feat", []):
         if not is_src(f): continue
-        out.append({"name": f["name"], "text": entries_to_text(f.get("entries", []))})
+        out.append({"name": f["name"], "text": entries_to_text(f.get("entries", [])),
+                    "ability": feat_ability(f.get("ability")), "saves": feat_saves(f.get("savingThrowProficiencies")),
+                    "prof": prof_block(f)})
     return out
 
 def build_items(raw):

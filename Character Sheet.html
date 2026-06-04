@@ -1142,7 +1142,12 @@
   function asiSlotComplete(s){
     if(!s || !s.type) return false;
     if(s.type === "asi")  return !!(s.ab1 || s.ab2);
-    if(s.type === "feat") return !!s.feat;
+    if(s.type === "feat"){
+      if(!s.feat) return false;
+      const f = DATA && DATA.feats && DATA.feats.find(x => x.name === s.feat);
+      if(f && f.ability && f.ability.choose && !s.featAbil) return false;   // half-feat: must pick which ability
+      return true;
+    }
     return false;
   }
   // Feats granted by the chosen race (Variant Human, Custom Lineage, …) — looked up by the Race field.
@@ -1163,22 +1168,37 @@
     if(raceSlots.length > nRace) raceSlots.length = nRace;
     asiChoices = classSlots.concat(raceSlots);
   }
-  // ASI ability picks feed the "ASI" bonus column; recompute it from the chosen slots.
+  // ASI ability picks + half-feat ability increases feed the "ASI" bonus column; recompute from the chosen slots.
   function applyAsiBonuses(){
     bonusVals.asi = zeroAb();
+    const featOf = name => (DATA && DATA.feats) ? DATA.feats.find(x => x.name === name) : null;
     asiChoices.forEach(s => {
-      if(s.type !== "asi") return;
-      if(s.ab1 && bonusVals.asi[s.ab1] != null) bonusVals.asi[s.ab1] += 1;
-      if(s.ab2 && bonusVals.asi[s.ab2] != null) bonusVals.asi[s.ab2] += 1;
+      if(s.type === "asi"){
+        if(s.ab1 && bonusVals.asi[s.ab1] != null) bonusVals.asi[s.ab1] += 1;
+        if(s.ab2 && bonusVals.asi[s.ab2] != null) bonusVals.asi[s.ab2] += 1;
+      } else if(s.type === "feat" && s.feat){            // half-feat ability increase
+        const f = featOf(s.feat);
+        if(f && f.ability){
+          for(const k in (f.ability.fixed||{})) if(bonusVals.asi[k] != null) bonusVals.asi[k] += f.ability.fixed[k];
+          if(f.ability.choose && s.featAbil && bonusVals.asi[s.featAbil] != null) bonusVals.asi[s.featAbil] += (f.ability.choose.amount || 1);
+        }
+      }
     });
-    // chosen feats → append to the Features page once (never auto-removed)
+    // chosen feats → apply proficiencies/saves + append to Features page once (never auto-removed)
     asiChoices.forEach(s => {
       if(s.type === "feat" && s.feat && !asiFeatsAdded[s.feat]){
-        const f = (DATA && DATA.feats) ? DATA.feats.find(x => x.name === s.feat) : null;
+        const f = featOf(s.feat);
         const line = "Feat: " + s.feat + (f && f.text ? ". " + f.text : "");
         const t = $("features");
         if(t && !(t.value||"").includes("Feat: " + s.feat)){ t.value = t.value.trim() ? t.value + "\n\n" + line : line; autoGrow(t); }
         if(FEAT_SENSES[s.feat]) addSense(FEAT_SENSES[s.feat]);   // sense-affecting feats also land in the Senses box
+        if(f){
+          applyProficiencies(f.prof, s.feat);              // feat skill/tool/language/weapon/armor proficiencies
+          if(f.saves){                                     // Resilient etc. → save-proficiency checkbox
+            (f.saves.fixed||[]).forEach(k => { const box = $("savep-"+k); if(box) box.checked = true; });
+            if(f.saves.choose && s.featAbil){ const box = $("savep-"+s.featAbil); if(box) box.checked = true; }
+          }
+        }
         asiFeatsAdded[s.feat] = true;
       }
     });
@@ -1225,7 +1245,8 @@
       const done = asiSlotComplete(s);
       const featBody =
         `<div class="asi-body"><label>Feat</label><select class="asi-featsel" data-i="${i}">${featOptions(s.feat)}</select>`+
-        (((DATA&&DATA.feats)||[]).length ? "" : `<span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span>`)+`</div>`;
+        (((DATA&&DATA.feats)||[]).length ? "" : `<span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span>`)+`</div>`+
+        featAbilPicker(s, i);
       if(s.source === "race"){                       // racial feat — feat only, no ASI option
         raceIdx++;
         return `<div class="asi-slot${done?" done":""}">`+
@@ -1250,6 +1271,14 @@
     $("asi-summary").textContent = asiChoices.length
       ? (pending ? pending + " of " + asiChoices.length + " still to choose" : "All " + asiChoices.length + " assigned ✓")
       : "";
+  }
+  // Half-feats (Resilient, Observant, …) let you pick which ability they raise — show that picker.
+  function featAbilPicker(s, i){
+    const f = DATA && DATA.feats && DATA.feats.find(x => x.name === s.feat);
+    if(!f || !f.ability || !f.ability.choose) return "";
+    const opts = `<option value=""></option>` + (f.ability.choose.from||[]).map(k => `<option value="${k}"${s.featAbil===k?" selected":""}>${ABBR[k]||k}</option>`).join("");
+    const lbl = (f.saves && f.saves.choose) ? "+1 &amp; save in" : "+1 to";
+    return `<div class="asi-body"><label>${lbl}</label><select class="asi-featabil" data-i="${i}">${opts}</select></div>`;
   }
   function openAsiModal(){ renderAsiList(); $("asimodal").classList.add("open"); }
 
@@ -1385,8 +1414,83 @@
     let fixed = [], choose = null;
     (spo||[]).forEach(blk => { for(const k in blk){ const v = blk[k];
       if(k === "choose" && v && typeof v === "object") choose = {from:v.from||[], count:v.count||1};
-      else if(v === true) fixed.push(k); } });
+      else if(v === true) fixed.push(k);
+      else if(k === "any" && typeof v === "number") choose = {from:[], count:v}; } });
     return {fixed, choose};
+  }
+  // ---- Shared proficiency normalization (mirror of build-data.py: prof_block / feat_ability / feat_saves / damage_resist) ----
+  const ET_ANY_LABELS = {any:"of your choice", anyStandard:"standard language of your choice", anyExotic:"exotic language of your choice",
+    anyArtisansTool:"artisan's tools of your choice", anyTool:"tools of your choice", anyMusicalInstrument:"musical instrument of your choice",
+    anyGamingSet:"gaming set of your choice", anyInstrument:"instrument of your choice", anySkill:"skill of your choice"};
+  const _clean = s => etTags(String(s)).split("|")[0].trim();
+  const _titlecase = s => String(s).split(" ").map(w => w ? w[0].toUpperCase()+w.slice(1) : w).join(" ");
+  function _pretty(tok){
+    const t = String(tok);
+    if(ET_ANY_LABELS[t]) return ET_ANY_LABELS[t];
+    if(t.indexOf("any") === 0) return "any " + (t.slice(3).match(/[A-Z][a-z]*|[a-z]+/g)||[]).map(w => w.toLowerCase()).join(" ");
+    return _titlecase(_clean(t));
+  }
+  function etNormProf(arr){
+    const out = [];
+    (arr||[]).forEach(blk => {
+      if(typeof blk === "string"){ out.push(_titlecase(_clean(blk))); return; }
+      if(!blk || typeof blk !== "object") return;
+      for(const k in blk){ const v = blk[k];
+        if(k === "choose"){ (Array.isArray(v) ? v : [v]).forEach(ch => {
+            if(!ch || typeof ch !== "object") return;
+            const cnt = ch.count != null ? ch.count : (ch.amount != null ? ch.amount : 1);
+            const frm = (ch.from||[]).map(_pretty);
+            out.push(frm.length ? `choose ${cnt} (${frm.join(", ")})` : `choose ${cnt}`); });
+        } else if(v === true) out.push(_titlecase(_clean(k)));
+        else if(typeof v === "number" && v) out.push(`${v} ${ET_ANY_LABELS[k] || _pretty(k)}`);
+      }
+    });
+    return out;
+  }
+  function etProfBlock(obj){
+    const {fixed, choose} = etSkills(obj.skillProficiencies);
+    const out = {};
+    if(fixed.length) out.skills = fixed;
+    if(choose) out.skillChoose = choose;
+    [["toolProficiencies","tools"],["languageProficiencies","languages"],["weaponProficiencies","weapons"],["armorProficiencies","armor"]].forEach(([key,dest]) => {
+      const v = etNormProf(obj[key]); if(v.length) out[dest] = v;
+    });
+    const stl = etNormProf(obj.skillToolLanguageProficiencies); if(stl.length) out.other = stl;
+    return out;
+  }
+  function etMergeProf(a, b){
+    const out = {};
+    ["skills","tools","languages","weapons","armor","other"].forEach(k => {
+      const merged = ((a&&a[k])||[]).concat((b&&b[k])||[]);
+      if(merged.length) out[k] = merged.filter((x,i) => merged.indexOf(x) === i);
+    });
+    const ch = (a&&a.skillChoose) || (b&&b.skillChoose); if(ch) out.skillChoose = ch;
+    return out;
+  }
+  function etFeatAbility(arr){
+    let fixed = {}, choose = null;
+    (arr||[]).forEach(blk => { if(!blk || typeof blk !== "object") return;
+      if(blk.choose && typeof blk.choose === "object") choose = {from:blk.choose.from||[], amount:blk.choose.amount||1};
+      else for(const k in blk){ if(typeof blk[k] === "number") fixed[k] = (fixed[k]||0) + blk[k]; } });
+    return (Object.keys(fixed).length || choose) ? {fixed, choose} : null;
+  }
+  function etFeatSaves(arr){
+    let fixed = [], choose = null;
+    (arr||[]).forEach(blk => { if(!blk || typeof blk !== "object") return;
+      if(blk.choose && typeof blk.choose === "object") choose = {from:blk.choose.from||[]};
+      else for(const k in blk){ if(blk[k] === true) fixed.push(k); } });
+    return (fixed.length || choose) ? {fixed, choose} : null;
+  }
+  function etDamageResist(obj){
+    const out = [];
+    (obj.resist||[]).forEach(r => {
+      if(typeof r === "string") out.push(_titlecase(r));
+      else if(r && typeof r === "object"){
+        if(r.choose && typeof r.choose === "object"){ const frm = (r.choose.from||[]).map(_titlecase); out.push(`choose ${r.choose.count||1} (${frm.join(", ")})`); }
+        else if(r.resist) out.push(_titlecase(Array.isArray(r.resist) ? r.resist.join(", ") : String(r.resist)));
+      }
+    });
+    return out;
   }
   function etTraits(entries){ return (entries||[]).filter(t => t && typeof t==="object" && t.name).map(t => ({name:t.name||"", text:etText(t.entries||[])})); }
   function etSpeed(r){ const sp = r.speed; return (typeof sp === "number") ? sp : ((sp||{}).walk || 30); }
@@ -1413,17 +1517,17 @@
     const out = [], bases = {}, baseIdx = {};
     (raw.race||[]).forEach(r => {
       if(r.source !== SRC) return;
-      const ab = (r.ability||[]).slice(), fg = etFeatGrants(r);
-      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), langs:etRaceLangs(r), featGrants:fg};
+      const ab = (r.ability||[]).slice(), fg = etFeatGrants(r), pf = etProfBlock(r), rs = etDamageResist(r);
+      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs};
       baseIdx[r.name] = out.length;
-      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), traits:etTraits(r.entries||[]), langs:etRaceLangs(r), featGrants:fg});
+      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs});
     });
     (raw.subrace||[]).forEach(s => {
       if(s.source !== SRC) return;
       const parent = s.raceName;
-      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].langs = (out[i].langs||[]).concat(etRaceLangs(s)); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); } return; }
+      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); out[i].prof = etMergeProf(out[i].prof, etProfBlock(s)); out[i].resist = (out[i].resist||[]).concat(etDamageResist(s)); } return; }
       const base = bases[parent] || {};
-      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), langs:(base.langs||[]).concat(etRaceLangs(s)), featGrants:(base.featGrants||0) + etFeatGrants(s)});
+      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), featGrants:(base.featGrants||0) + etFeatGrants(s), prof:etMergeProf(base.prof, etProfBlock(s)), resist:(base.resist||[]).concat(etDamageResist(s))});
     });
     return out;
   }
@@ -1447,7 +1551,7 @@
     return (raw.background||[]).filter(b => b.source === SRC).map(b => {
       const {fixed, choose} = etSkills(b.skillProficiencies);
       const feat = (b.entries||[]).find(e => e && typeof e==="object" && String(e.name||"").startsWith("Feature:"));
-      return {name:b.name, skills:fixed, skillChoose:choose, feature:{name:feat?feat.name.replace("Feature: ",""):"", text:feat?etText(feat.entries||[]):""}, equip:etBgEquipment(b)};
+      return {name:b.name, skills:fixed, skillChoose:choose, prof:etProfBlock(b), feature:{name:feat?feat.name.replace("Feature: ",""):"", text:feat?etText(feat.entries||[]):""}, equip:etBgEquipment(b)};
     });
   }
   function etClasses(data, SRC){
@@ -1463,6 +1567,7 @@
     const classes = (data.class||[]).filter(c => c.source === SRC).map(c => {
       const sp = c.startingProficiencies || {};
       const {fixed:skFixed, choose:skChoose} = etSkills(sp.skills);
+      const clsProf = etProfBlock({toolProficiencies:sp.tools, armorProficiencies:sp.armor, weaponProficiencies:sp.weapons});
       const se = c.startingEquipment || {};
       const equip = {items:(se.default||[]).filter(x => typeof x === "string").map(etTags), gold:etTags(se.goldAlternative||"")};
       const features = (data.classFeature||[])
@@ -1475,13 +1580,13 @@
           const n = parseInt(String(f.classFeature).split("|")[3], 10); subLvl = isNaN(n) ? null : n; break;
         }
       }
-      return {name:c.name, hd:(c.hd||{}).faces, saves:c.proficiency||[], skillChoose:skChoose, skillsFixed:skFixed,
+      return {name:c.name, hd:(c.hd||{}).faces, saves:c.proficiency||[], skillChoose:skChoose, skillsFixed:skFixed, prof:clsProf,
         armor:etProfList(sp.armor), weapons:etProfList(sp.weapons), casterAbility:c.spellcastingAbility, casterProgression:c.casterProgression,
         cantrips:c.cantripProgression||null, equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:(subMap[c.name]||[])};
     });
     return {classes, subclasses: subMap};
   }
-  function etFeats(raw, SRC){ return (raw.feat||[]).filter(f => f.source === SRC).map(f => ({name:f.name, text:etText(f.entries||[])})); }
+  function etFeats(raw, SRC){ return (raw.feat||[]).filter(f => f.source === SRC).map(f => ({name:f.name, text:etText(f.entries||[]), ability:etFeatAbility(f.ability), saves:etFeatSaves(f.savingThrowProficiencies), prof:etProfBlock(f)})); }
   function etRange(r){ if(!r || typeof r !== "object") return String(r==null?"":r); const d = r.distance||{}; if(r.type === "point" && d) return ((d.amount||"")+" "+(d.type||"")).trim(); return r.type||""; }
   function etDuration(d){ if(!d || !d.length) return ""; const x = d[0]; if(x.type === "timed"){ const du = x.duration||{}; return (x.concentration?"Concentration, up to ":"")+(du.amount||"")+" "+(du.type||""); } return x.type||""; }
   function etSpells(spellsData, SRC){
@@ -2058,7 +2163,7 @@
       else if(data.racialVals) bonusVals.racial = {...bonusVals.racial, ...data.racialVals};   // legacy: old single racial bonus
     }
     asiChoices = (data && Array.isArray(data.asiChoices))
-      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||"", source:(s&&s.source)||"class"}))
+      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||"", featAbil:(s&&s.featAbil)||"", source:(s&&s.source)||"class"}))
       : [];
     asiFeatsAdded = (data && data.asiFeatsAdded) ? {...data.asiFeatsAdded} : {};
     if(data && data.asiChoices) applyAsiBonuses();   // ASI column derives from the picks (legacy sheets keep their manual column)
@@ -2300,6 +2405,20 @@
   }
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
 
+  // Route a normalized prof block to its homes: fixed skills → checkboxes; everything else → Proficiencies & Languages box.
+  function applyProficiencies(prof, label){
+    if(!prof) return;
+    const tag = label ? ` (${label})` : "";
+    (prof.skills||[]).forEach(s => { const box = $("skp-"+(SKILL_KEY[s]||s)); if(box) box.checked = true; });
+    const lines = [];
+    if(prof.skillChoose){ const f = (prof.skillChoose.from||[]).map(_titlecase); lines.push("Skills: choose " + prof.skillChoose.count + (f.length ? " (" + f.join(", ") + ")" : "")); }
+    if(prof.weapons)   lines.push("Weapons: " + prof.weapons.join(", "));
+    if(prof.armor)     lines.push("Armor: " + prof.armor.join(", "));
+    if(prof.tools)     lines.push("Tools: " + prof.tools.join(", "));
+    if(prof.languages) lines.push("Languages: " + prof.languages.join(", "));
+    if(prof.other)     lines.push("Proficiencies: " + prof.other.join(", "));
+    if(lines.length){ const p = $("proficiencies"); const block = lines.map(l => l + tag).join("\n"); p.value = p.value.trim() ? p.value + "\n" + block : block; autoGrow(p); }
+  }
   function applyRace(name){
     bonusVals.racial = zeroAb();                     // race owns the Racial bonus column
     const r = DATA && findBy(DATA.races,name);
@@ -2317,10 +2436,8 @@
           addSense(m ? `${nm} ${m[1]} ft.` : nm);
         }
       });
-      if(r.langs && r.langs.length){                   // race languages → Proficiencies & Languages box
-        const line = "Languages: " + r.langs.join(", ");
-        const p = $("proficiencies"); p.value = p.value.trim() ? p.value+"\n"+line : line; autoGrow(p);
-      }
+      applyProficiencies(r.prof, name);                // race skills/weapons/armor/tools/languages → their homes
+      if(r.resist && r.resist.length) addSense("Resist: " + r.resist.join(", "));   // quick-reference in Senses
       if(r.traits && r.traits.length && !$("features").value.trim())
         $("features").value = r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n");
       autoGrow($("features"));
@@ -2337,6 +2454,7 @@
       $("classlevel").value = name+" "+lvl;
       ABKEYS.forEach(k=>{ const box=$("savep-"+k); if(box) box.checked = c.saves.includes(k); });
       if(c.hd){ hitDieFaces = c.hd; $("hd-total").value = lvl; }   // Hit Dice box ("1dX+CON") is built in compute()
+      applyProficiencies(c.prof, name);                // class tools (Rogue thieves' tools), armor & weapon proficiencies
       let n = `Saves: ${c.saves.map(s=>ABBR[s]).join(", ")} · Hit die d${c.hd}.`;
       if(c.skillChoose) n += `\nClass skills: choose ${c.skillChoose.count} from ${c.skillChoose.from.join(", ")}.`;
       if(c.casterAbility) n += `\nSpellcaster: ${ABBR[c.casterAbility]} (${c.casterProgression}).`;
@@ -2347,7 +2465,7 @@
     const b = DATA && findBy(DATA.backgrounds,name);
     if(b){
       $("background").value = name;
-      (b.skills||[]).forEach(s=>{ const key=SKILL_KEY[s], box=key&&$("skp-"+key); if(box) box.checked=true; });
+      applyProficiencies(b.prof, name);                // skills (checkboxes) + tools & languages → Proficiencies box
       if(b.feature && b.feature.name){
         const line = `${b.feature.name} (${name}). ${b.feature.text}`;
         const t=$("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t);
@@ -2662,7 +2780,8 @@
       if(isNaN(i) || !asiChoices[i]) return;
       if(t.classList.contains("asi-type-r")){ asiChoices[i].type = t.value; }
       else if(t.classList.contains("asi-ab")){ asiChoices[i][t.dataset.which] = t.value; }
-      else if(t.classList.contains("asi-featsel")){ asiChoices[i].feat = t.value; }
+      else if(t.classList.contains("asi-featsel")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; }   // new feat → reset its ability pick
+      else if(t.classList.contains("asi-featabil")){ asiChoices[i].featAbil = t.value; }
       applyAsiBonuses();
       renderAsiList(); renderHoodControls(); save(); compute();
     });
