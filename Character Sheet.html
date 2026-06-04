@@ -337,7 +337,10 @@
   #page-mini.excluded .mini-wrap{display:none}
   #page-mini.excluded .mini-hidden-note{display:block}
   .mini-hidden-note{display:none; color:var(--muted)}
-  .attacks-per{float:right; font-size:10px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--accent)}
+  .atk-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px}
+  .atk-top h2{margin:0}
+  .atk-per-box{min-width:96px; flex:none}
+  .atk-per-box .calc{min-height:24px; display:flex; align-items:center; justify-content:center}   /* writable on a blank sheet */
   .sp-tag{display:inline-block; font-size:8px; font-weight:700; line-height:1; padding:1px 3px; border-radius:3px;
     background:var(--accent-soft); color:var(--accent); vertical-align:middle; margin-left:2px}
   .spellhead{display:grid; grid-template-columns:1.4fr .8fr 1fr 1fr 1fr; gap:10px; align-items:end}
@@ -619,7 +622,10 @@
         </div>
 
         <div class="card">
-          <h2>Attacks <span class="attacks-per" id="attacks-per"></span></h2>
+          <div class="atk-top">
+            <h2>Attacks</h2>
+            <div class="stat atk-per-box"><div class="k">Attacks / Action</div><div class="calc" id="attacks-per"></div></div>
+          </div>
           <table class="attacks">
             <thead><tr><th>Name</th><th style="width:64px">Bonus</th><th>Damage / Type</th></tr></thead>
             <tbody id="attacks"></tbody>
@@ -2157,7 +2163,7 @@
     updateAsiFlag();
     refreshAtkRows();        // recompute active-weapon attack rows (live with ability/level)
     refreshAtkToggles();     // show the Atk checkbox only on weapon inventory rows
-    { const n = attacksPerAction(); const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : n + (n===1 ? " attack/action" : " attacks/action"); }
+    { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
   }
 
   // ---- Persistence ----
