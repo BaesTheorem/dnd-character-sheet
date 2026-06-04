@@ -466,7 +466,7 @@
     .stack{display:flex; flex-direction:column; gap:8px}
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
     #page-inv{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards */
-    #page-spells, #page-bg, #page-companion{display:flex !important; flex-direction:column; gap:8px}   /* even card separation on the other multi-card pages too */
+    #page-spells:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), #page-overflow:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
     #page-inv .card.grow{flex:1 1 auto}                                            /* Equipment Notes takes the remaining height */
     #page-inv .invtable td input{padding:3px 2px}                                  /* inventory rows tall enough to write in */
     /* full-text pages: fill at least one sheet, then flow onto extra sheets if the content is long */
@@ -573,6 +573,7 @@
       <button class="ptab" data-page="bg" type="button">Background</button>
       <button class="ptab" data-page="story" type="button">Backstory</button>
       <button class="ptab" data-page="notes" type="button">Notes</button>
+      <button class="ptab" data-page="overflow" type="button">Overflow</button>
       <button class="ptab" data-page="mini" type="button">Mini</button>
     </nav>
 
@@ -900,6 +901,30 @@
       <div class="card grow"><h2>Notes</h2><textarea data-save id="notes"></textarea></div>
     </section>
 
+    <!-- PAGE: OVERFLOW — spillover space for the Inventory and Limited Features lists -->
+    <section class="page" id="page-overflow" data-page="overflow">
+      <div class="card"><h2>Inventory (overflow)</h2>
+        <div class="inv-cols">
+          <table class="invtable">
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
+            <tbody id="inv3"></tbody>
+          </table>
+          <table class="invtable">
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
+            <tbody id="inv4"></tbody>
+          </table>
+        </div>
+        <p class="help noprint">Extra inventory rows — they share your main inventory (weight, equip, containers, and the search box all carry over here).</p>
+      </div>
+      <div class="card"><h2>Limited Features (overflow)</h2>
+        <table class="lftable">
+          <thead><tr><th>Feature</th><th style="width:48px">Max</th><th style="width:112px">Recover</th><th style="width:48px">Used</th></tr></thead>
+          <tbody id="limited2"></tbody>
+        </table>
+        <p class="help noprint">Auto-filled features spill here when the Core card's eight rows are full.</p>
+      </div>
+    </section>
+
     <section class="page" id="page-mini" data-page="mini">
       <div class="card noprint mini-hidden-note">
         <p class="help" style="margin:0">No portrait yet — upload one by the name on the <strong>Core</strong> page and this mini builds itself.</p>
@@ -1104,9 +1129,20 @@
   ];
   const ABBR = {str:"Str",dex:"Dex",con:"Con",int:"Int",wis:"Wis",cha:"Cha"};
   const NATTACKS = 5;
-  const NINV = 34;          // inventory rows (17 per column × 2)
+  const INV_MAIN = 34, INV_OVER = 34, NINV = INV_MAIN + INV_OVER;   // 34 rows on the Inventory page + 34 on the Overflow page
   const NSPELLROWS = 24;    // spell list rows
-  const NLIMITED = 8;       // limited-feature rows
+  const LIM_MAIN = 8, LIM_OVER = 8, NLIMITED = LIM_MAIN + LIM_OVER; // 8 limited-feature rows on Core + 8 on the Overflow page
+  const invRowHTML = i =>
+    `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
+    `<td class="invitem"><span class="cont-caret" id="contcaret-${i}" data-r="${i}"></span><input data-save id="invname-${i}" list="item-options" autocomplete="off"></td>`+
+    `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
+    `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
+    `<td class="noprint" style="text-align:center"><input type="checkbox" class="invequip" id="invequip-${i}" data-r="${i}" title="Equipped — weapons are added to Attacks; equipped armor & attunement items become selectable in their pickers" style="display:none"></td></tr>`;
+  const limitedRowHTML = i =>
+    `<tr><td><input data-save id="lfname-${i}"></td>`+
+    `<td><input data-save id="lfmax-${i}"></td>`+
+    `<td><input data-save id="lfrec-${i}" placeholder="LR / SR / Dawn"></td>`+
+    `<td><input data-save id="lfused-${i}"></td></tr>`;
 
   // 5e (2014) ability-score generation
   const POINTBUY_COST = {8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9};
@@ -1182,25 +1218,16 @@
     }
     $("attacks").innerHTML = rows;
 
-    let lf = "";
-    for(let i=0;i<NLIMITED;i++) lf +=
-      `<tr><td><input data-save id="lfname-${i}"></td>`+
-      `<td><input data-save id="lfmax-${i}"></td>`+
-      `<td><input data-save id="lfrec-${i}" placeholder="LR / SR / Dawn"></td>`+
-      `<td><input data-save id="lfused-${i}"></td></tr>`;
-    $("limited").innerHTML = lf;
+    const lfRange = (a,b) => { let s=""; for(let i=a;i<b;i++) s += limitedRowHTML(i); return s; };
+    $("limited").innerHTML = lfRange(0, LIM_MAIN);                    // Core page
+    if($("limited2")) $("limited2").innerHTML = lfRange(LIM_MAIN, NLIMITED);   // Overflow page
 
-    const invRow = i =>
-      `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
-      `<td class="invitem"><span class="cont-caret" id="contcaret-${i}" data-r="${i}"></span><input data-save id="invname-${i}" list="item-options" autocomplete="off"></td>`+
-      `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
-      `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
-      `<td class="noprint" style="text-align:center"><input type="checkbox" class="invequip" id="invequip-${i}" data-r="${i}" title="Equipped — weapons are added to Attacks; equipped armor & attunement items become selectable in their pickers" style="display:none"></td></tr>`;
-    const half = Math.ceil(NINV/2);
-    let invL = "", invR = "";
-    for(let i=0;i<half;i++) invL += invRow(i);
-    for(let i=half;i<NINV;i++) invR += invRow(i);
-    $("inv").innerHTML = invL; $("inv2").innerHTML = invR;
+    const invRange = (a,b) => { let s=""; for(let i=a;i<b;i++) s += invRowHTML(i); return s; };
+    const h1 = Math.ceil(INV_MAIN/2);                                // Inventory page: rows 0..INV_MAIN-1, two columns
+    $("inv").innerHTML = invRange(0, h1); $("inv2").innerHTML = invRange(h1, INV_MAIN);
+    const h2 = INV_MAIN + Math.ceil(INV_OVER/2);                     // Overflow page: rows INV_MAIN..NINV-1, two columns
+    if($("inv3")) $("inv3").innerHTML = invRange(INV_MAIN, h2);
+    if($("inv4")) $("inv4").innerHTML = invRange(h2, NINV);
 
     let sl = "";
     for(let l=1;l<=9;l++) sl +=
@@ -1464,7 +1491,7 @@
   }
   // ---- Layout: which pages/tabs are shown (Settings) ----
   const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["spells","Spells"],
-                 ["companion","Companions"],["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
+                 ["companion","Companions"],["bg","Background"],["story","Backstory"],["notes","Notes"],["overflow","Overflow"],["mini","Mini"]];
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
@@ -2045,11 +2072,17 @@
     populateWizard(); populateArmor(); populateItemList(); renderSpellStyle(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
     flashStatus(DATA ? "Reverted to the data baked into this file — reload books as needed." : "Loaded books cleared.");
   }
+  function overflowUsed(){   // any overflow inventory row or limited-feature row filled in?
+    for(let i=INV_MAIN;i<NINV;i++){ const e=$("invname-"+i); if(e && (e.value||"").trim()) return true; }
+    for(let i=LIM_MAIN;i<NLIMITED;i++){ const e=$("lfname-"+i); if(e && (e.value||"").trim()) return true; }
+    return false;
+  }
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
+    const overflow = overflowUsed();
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
-      const excluded = userHidden || (key === "mini" && !hasPortrait);   // mini needs at least one portrait (character or companion)
+      const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "overflow" && !overflow);   // overflow page prints only when it holds something
       const tab = document.querySelector('.ptab[data-page="'+key+'"]');
       if(tab){ tab.style.display = userHidden ? "none" : ""; tab.classList.toggle("muted", excluded && !userHidden); }
       const page = $("page-"+key);
@@ -3560,12 +3593,13 @@
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
+    window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
     setupItemSearch();
 
     // --- inventory drag-to-reorder (across both columns) ---
     let invDrag = null;
-    const invCols = document.querySelector(".inv-cols");
-    const clearDrop = () => invCols.querySelectorAll("tr.drop-target, tr.drop-into").forEach(r => r.classList.remove("drop-target","drop-into"));
+    const clearDrop = () => document.querySelectorAll(".inv-cols tr.drop-target, .inv-cols tr.drop-into").forEach(r => r.classList.remove("drop-target","drop-into"));
+    document.querySelectorAll(".inv-cols").forEach(invCols => {   // main Inventory page + Overflow page share one drag system (invDrag is global)
     invCols.addEventListener("click", e => {   // clicking a container's drag handle toggles its contents (dragging it still reorders)
       const c = e.target.closest(".invdrag.cont-toggle"); if(!c) return;
       const nm = c.dataset.cont; if(!nm) return;
@@ -3598,6 +3632,7 @@
       clearDrop(); invDrag = null;
     });
     invCols.addEventListener("dragend", () => { clearDrop(); invDrag = null; });
+    });
 
     $("speed").addEventListener("focus", ()=>{ $("speed").value = (speedBase != null ? speedBase : ""); });   // show base for editing
     $("speed").addEventListener("blur", compute);                                                            // restore modified value
