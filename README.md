@@ -94,14 +94,20 @@ app stays content-free.
 
 `New` clears the character from the current browser (export first if you want to keep it).
 
-## Scope (v1)
-- **Rules:** D&D 5e (2014).
-- **Core single page:** identity, abilities, saves, skills, combat stats, attacks, and free-text
-  features / proficiencies / equipment.
-- **Class-agnostic:** it automates the *rules math*, not a content database. Spells, class features,
-  and items are entered as text — so it works for any character.
-- **Not yet (v2 ideas):** spellcasting block (slots + prepared spells, auto save DC / attack),
-  inventory with weight/currency math, a full background/bio page.
+## Scope
+- **Rules:** D&D 5e **2014** ruleset only. 2024 ("One D&D") books are filtered out of the in-browser
+  book picker on purpose — this sheet is built for the 2014 rules.
+- **Pages:** identity, abilities, saves, skills, combat, attacks, limited-features tracker,
+  proficiencies, inventory (weight/currency math + carrying capacity), features, background, backstory,
+  notes, spellcasting (slots + prepared/known + auto save DC / attack), and a print-and-fold mini.
+- **Guided creation** with sourcebook data, plus live rules-math automation for any character.
+
+## Roadmap
+- **A separate 2024-compliant sheet.** The 2024 ruleset changes enough (backgrounds grant ASIs and a
+  feat, weapon mastery, new spell prep, species vs. race, etc.) that it warrants its own sheet rather
+  than bolting onto this one. The book picker already classifies 2014 vs 2024, so the 2024 set is ready
+  to feed a future sheet.
+- TTS / audio readout of a character; richer multiclass spell-slot math.
 
 ## Sourcebook data (personal use)
 There are two ways to get content into the sheet (see **Source books** above): load any book live

@@ -1604,15 +1604,30 @@
     for(const k in (add.itemWeights||{})) into.itemWeights[k] = add.itemWeights[k];
     if(bookName && !into._meta.books.includes(bookName)) into._meta.books.push(bookName);
   }
+  const RULESET_2024 = new Set(["XPHB","XDMG","XMM"]);   // 2024 ("One D&D") core books
+  function isBook2024(b){                                 // which ruleset a 5etools book belongs to
+    const ed = (b.edition || "").toLowerCase();
+    if(ed) return ed === "one" || ed.includes("2024");   // explicit edition tag wins, when present
+    const code = (b.id || b.source || "").toUpperCase();
+    if(RULESET_2024.has(code)) return true;
+    // The 2024 PHB launched 2024-09-17; every WotC 5e book released since is 2024-ruleset.
+    return (b.published || "") >= "2024-09-01";
+  }
   async function populateBookSelect(){
     const sel = $("book-select"); if(!sel) return;
     const base = ($("server-url").value || "").trim() || "http://localhost:5050";
     sel.innerHTML = '<option value="">Loading book list…</option>'; sel.disabled = true;
     try{
       const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
-      const books = (bj.book||[]).slice().sort((a,b) => (a.name||"").localeCompare(b.name||""));
-      sel.innerHTML = '<option value="">Pick a book…</option>' + books.map(b => `<option value="${esc(b.id||b.source)}">${esc(b.name||b.id)}</option>`).join("");
-      sel.disabled = false;
+      // This is a 2014-ruleset sheet — 2024 books are filtered out (a 2024-compliant sheet is on the roadmap).
+      // Already-loaded books are filtered out too (nothing to re-load).
+      const loaded = new Set(loadedBooks().map(n => String(n).toLowerCase()));
+      const books = (bj.book||[])
+        .filter(b => !isBook2024(b) && !loaded.has(String(b.name||b.id||"").toLowerCase()))
+        .sort((a,b) => (a.name||"").localeCompare(b.name||""));
+      sel.innerHTML = (books.length ? '<option value="">Pick a book…</option>' : '<option value="">All available books already loaded</option>')
+        + books.map(b => `<option value="${esc(b.id||b.source)}">${esc(b.name||b.id)}</option>`).join("");
+      sel.disabled = !books.length;
     }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; }
   }
   async function loadBookFromServer(){
@@ -1630,6 +1645,7 @@
       try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }
       catch(e){ flashStatus(bookName+" loaded (too large to save — stays this session)"); }
       populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); compute();
+      populateBookSelect();   // drop the just-loaded book from the picker
       flashStatus(bookName+" loaded — use “Save data file” to bake it into your sheet");
     }catch(e){ flashStatus("Load failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = "Load"; } }
@@ -2209,25 +2225,27 @@
     "religion":"religion","sleight of hand":"sleight","stealth":"stealth","survival":"survival"};
   const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
   const optTag = (v,label) => `<option value="${esc(v)}">${esc(label)}</option>`;
+  const byName = arr => (arr||[]).slice().sort((a,b) => (a.name||"").localeCompare(b.name||""));   // alphabetize object lists
+  const alpha  = arr => (arr||[]).slice().sort((a,b) => String(a).localeCompare(String(b)));        // alphabetize string lists
   const findBy = (arr,n) => arr.find(x => x.name === n);
 
   function populateWizard(){
     const btn = $("btn-create");
     if(!DATA){ if(btn){ btn.disabled=true; btn.title="Import sourcebook data to enable character creation"; } return; }
     if(btn){ btn.disabled=false; btn.title=""; }
-    $("wiz-race").innerHTML  = `<option value="">—</option>` + DATA.races.map(r=>optTag(r.name,r.name)).join("");
-    $("wiz-class").innerHTML = `<option value="">—</option>` + DATA.classes.map(c=>optTag(c.name,c.name)).join("");
-    $("wiz-bg").innerHTML    = `<option value="">—</option>` + DATA.backgrounds.map(b=>optTag(b.name,b.name)).join("");
+    $("wiz-race").innerHTML  = `<option value="">—</option>` + byName(DATA.races).map(r=>optTag(r.name,r.name)).join("");
+    $("wiz-class").innerHTML = `<option value="">—</option>` + byName(DATA.classes).map(c=>optTag(c.name,c.name)).join("");
+    $("wiz-bg").innerHTML    = `<option value="">—</option>` + byName(DATA.backgrounds).map(b=>optTag(b.name,b.name)).join("");
     populateSubclass("");
   }
   function populateArmor(){
     const armor = (DATA && DATA.armor) || [], acItems = (DATA && DATA.acItems) || [];
     if($("armorsel")) $("armorsel").innerHTML = `<option value=""></option>` + `<option value="Unarmored">Unarmored</option>` +
-      armor.filter(a => ["LA","MA","HA"].includes(a.type)).map(a => optTag(a.name, a.name)).join("") +
+      byName(armor.filter(a => ["LA","MA","HA"].includes(a.type))).map(a => optTag(a.name, a.name)).join("") +
       `<option value="Mage Armor">Mage Armor (13 + Dex)</option>` +
       `<option value="Custom">Custom…</option>`;
     const itemOpts = `<option value=""></option>` +
-      acItems.map(it => optTag(it.n, `${it.n} (+${it.b})`)).join("") + `<option value="Custom">Custom</option>`;
+      acItems.slice().sort((a,b) => (a.n||"").localeCompare(b.n||"")).map(it => optTag(it.n, `${it.n} (+${it.b})`)).join("") + `<option value="Custom">Custom</option>`;
     for(let i=0;i<3;i++){ const s=$("acitem-"+i); if(s) s.innerHTML = itemOpts; }
   }
   function populateSubclass(clsName){
@@ -2241,7 +2259,7 @@
       return;
     }
     if(wrap) wrap.hidden = false;
-    sel.innerHTML = `<option value="">${esc(cls.subclassTitle||"Subclass")}</option>` + subs.map(s=>optTag(s.name,s.name)).join("");
+    sel.innerHTML = `<option value="">${esc(cls.subclassTitle||"Subclass")}</option>` + byName(subs).map(s=>optTag(s.name,s.name)).join("");
     sel.disabled = false;
   }
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
@@ -2382,7 +2400,7 @@
     const sub = lineEl.querySelector(".equip-sub"); if(!sub) return;
     const slots = detectWeaponSlots(optText);
     sub.innerHTML = slots.map((s,si) => {
-      const list = weaponsFor(s);
+      const list = byName(weaponsFor(s));
       return `<select class="equip-wpick" data-slot="${si}">` + list.map(w => optTag(w.name, w.name)).join("") + `</select>`;
     }).join("");
   }
@@ -2439,13 +2457,13 @@
   function populateCustomBgTL(){
     const langs = (DATA && DATA.languages) || [], tools = (DATA && DATA.tools) || [];
     const opts = `<option value=""></option>`
-      + (langs.length ? `<optgroup label="Languages">` + langs.map(l => optTag(l, l)).join("") + `</optgroup>` : "")
-      + (tools.length ? `<optgroup label="Tools">` + tools.map(t => optTag(t, t)).join("") + `</optgroup>` : "");
+      + (langs.length ? `<optgroup label="Languages">` + alpha(langs).map(l => optTag(l, l)).join("") + `</optgroup>` : "")
+      + (tools.length ? `<optgroup label="Tools">` + alpha(tools).map(t => optTag(t, t)).join("") + `</optgroup>` : "");
     document.querySelectorAll(".cbg-tl").forEach(s => { if(!s.children.length) s.innerHTML = opts; });
   }
   function populateCustomBgFeatures(){
     const sel = $("wiz-cbg-featpick"); if(!sel || sel.children.length) return;
-    const bgs = ((DATA && DATA.backgrounds) || []).filter(b => b.feature && b.feature.name);
+    const bgs = byName(((DATA && DATA.backgrounds) || []).filter(b => b.feature && b.feature.name));
     sel.innerHTML = `<option value="">— write your own —</option>` + bgs.map(b => optTag(b.name, `${b.feature.name} (${b.name})`)).join("");
   }
   function updateCustomBgVisibility(){
