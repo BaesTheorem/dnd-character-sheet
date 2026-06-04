@@ -272,6 +272,9 @@
   .wiz-methods{display:flex; gap:6px}
   .wiz-methods .btn{flex:1}
   .btn.wiz-method.active, .btn.wiz-equip.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .wiz-racechoice{margin-top:10px; padding-top:10px; border-top:1px solid var(--line)}
+  .wiz-racechoice .wiz-radio{display:block; font-size:14px; font-weight:600; margin:4px 0; cursor:pointer}
+  .wiz-racechoice select{margin:2px 0}
   .wiz-skill{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:14px; font-weight:600; cursor:pointer}
   .wiz-skill input:disabled + span{opacity:.4}
   .wiz-skill.maxed input:not(:checked){opacity:.35; cursor:default}
@@ -921,6 +924,7 @@
           <label class="lbl">Race</label>
           <select id="wiz-race"></select>
           <p class="wiz-hint" id="wiz-race-hint"></p>
+          <div id="wiz-race-choices"></div>
         </div>
         <div class="wiz-step" data-step="1" hidden>
           <label class="lbl">Class</label>
@@ -1616,22 +1620,32 @@
     });
     return n;
   }
+  function etLangChoose(arr){   // number of free language choices a race grants (any / anyStandard / anyExotic / choose)
+    let n = 0;
+    (arr||[]).forEach(blk => { if(!blk || typeof blk !== "object") return;
+      for(const k in blk){ const v = blk[k];
+        if((k === "any" || k === "anyStandard" || k === "anyExotic") && typeof v === "number") n += v;
+        else if(k === "choose" && v && typeof v === "object") n += (v.count || 1); } });
+    return n;
+  }
   function etRaces(raw, SRC){
     const out = [], bases = {}, baseIdx = {};
     (raw.race||[]).forEach(r => {
       if(r.source !== SRC) return;
       const ab = (r.ability||[]).slice(), fg = etFeatGrants(r), pf = etProfBlock(r), rs = etDamageResist(r);
-      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs};
+      const dv = r.darkvision||0, lc = etLangChoose(r.languageProficiencies);
+      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc};
       baseIdx[r.name] = out.length;
-      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs});
+      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc});
     });
     (raw.subrace||[]).forEach(s => {
       if(s.source !== SRC) return;
-      const parent = s.raceName;
-      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); out[i].prof = etMergeProf(out[i].prof, etProfBlock(s)); out[i].resist = (out[i].resist||[]).concat(etDamageResist(s)); } return; }
+      const parent = s.raceName, sdv = s.darkvision||0, slc = etLangChoose(s.languageProficiencies);
+      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); out[i].prof = etMergeProf(out[i].prof, etProfBlock(s)); out[i].resist = (out[i].resist||[]).concat(etDamageResist(s)); out[i].darkvision = Math.max(out[i].darkvision||0, sdv); out[i].langChoose = (out[i].langChoose||0) + slc; } return; }
       const base = bases[parent] || {};
-      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), featGrants:(base.featGrants||0) + etFeatGrants(s), prof:etMergeProf(base.prof, etProfBlock(s)), resist:(base.resist||[]).concat(etDamageResist(s))});
+      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), featGrants:(base.featGrants||0) + etFeatGrants(s), prof:etMergeProf(base.prof, etProfBlock(s)), resist:(base.resist||[]).concat(etDamageResist(s)), darkvision:Math.max(base.darkvision||0, sdv), langChoose:(base.langChoose||0)+slc});
     });
+    out.forEach(o => { if(/custom lineage/i.test(o.name)) o.variableSkillDarkvision = true; });   // TCE Custom Lineage: skill proficiency OR darkvision (5etools lists both; the rule is a choice)
     return out;
   }
   function etBgEquipment(b){                          // starting items + gold a background provides
@@ -2741,7 +2755,8 @@
     if(prof.other)     lines.push("Proficiencies: " + prof.other.join(", "));
     if(lines.length){ const p = $("proficiencies"); const block = lines.map(l => l + tag).join("\n"); p.value = p.value.trim() ? p.value + "\n" + block : block; autoGrow(p); }
   }
-  function applyRace(name){
+  function applyRace(name, opts){
+    opts = opts || null;
     bonusVals.racial = zeroAb();                     // race owns the Racial bonus column
     const r = DATA && findBy(DATA.races,name);
     if(r){
@@ -2758,7 +2773,18 @@
           addSense(m ? `${nm} ${m[1]} ft.` : nm);
         }
       });
-      applyProficiencies(r.prof, name);                // race skills/weapons/armor/tools/languages → their homes
+      let prof = r.prof ? Object.assign({}, r.prof) : {};   // race skills/weapons/armor/tools/languages → their homes
+      if(opts){
+        if(r.variableSkillDarkvision) delete prof.skillChoose;          // resolved by the skill-or-darkvision pick
+        if(Array.isArray(prof.languages)){                              // swap "choose a language" placeholders for the picked ones
+          prof.languages = prof.languages.filter(s => !/choose|of your choice/i.test(s)).concat(opts.languages||[]);
+        }
+      }
+      applyProficiencies(prof, name);
+      if(opts){
+        if(opts.darkvision) addSense("Darkvision " + opts.darkvision + " ft.");   // Custom Lineage: chose darkvision
+        if(opts.skill){ const b = $("skp-"+opts.skill); if(b) b.checked = true; }  // Custom Lineage: chose a skill proficiency
+      }
       if(r.resist && r.resist.length){                // race damage resistances → Resistances/Immunities/Defenses box
         const n = $("defnotes"); if(n){ const line = "Resistance: " + r.resist.join(", "); n.value = n.value.trim() ? n.value+"\n"+line : line; autoGrow(n); }
       }
@@ -2907,6 +2933,7 @@
     $("wiz-back").style.visibility = wizStep === 0 ? "hidden" : "visible";
     $("wiz-next").textContent = wizStep === WIZ_LAST ? "Create" : "Next";
     $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
+    if(wizStep === 0) renderRaceChoices();
     if(wizStep === 2) renderWizSkills();
     if(wizStep === 3) renderWizEquip();
     if(wizStep === 4) updateCustomBgVisibility();
@@ -3252,6 +3279,31 @@
       else if(k==="choose") parts.push(`+${v.amount||1} to ${v.count} of choice`);
     }));
     $("wiz-race-hint").textContent = (parts.length ? `Ability: ${parts.join(", ")}. ` : "") + (r.speed ? `Speed ${r.speed} ft.` : "");
+    renderRaceChoices();
+  }
+  function renderRaceChoices(){   // skill-or-darkvision (Custom Lineage) + language-of-your-choice pickers on the Race step
+    const box = $("wiz-race-choices"); if(!box) return;
+    const r = DATA && findBy(DATA.races, $("wiz-race").value);
+    if(!r){ box.innerHTML = ""; return; }
+    let html = "";
+    if(r.variableSkillDarkvision){
+      const dv = r.darkvision || 60;
+      const skillOpts = SKILLS.map(s => `<option value="${s[0]}">${esc(s[1])}</option>`).join("");
+      html += `<div class="wiz-racechoice"><label class="lbl">Choose one</label>`
+        + `<label class="wiz-radio"><input type="radio" name="rc-skilldv" value="skill" checked> Skill proficiency</label>`
+        + `<select id="rc-skill">${skillOpts}</select>`
+        + `<label class="wiz-radio"><input type="radio" name="rc-skilldv" value="darkvision"> Darkvision ${dv} ft.</label></div>`;
+    }
+    const nLang = r.langChoose || 0;
+    if(nLang){
+      const opts = `<option value=""></option>` + (DATA.languages||[]).map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
+      let lh = `<label class="lbl">Language${nLang>1?"s":""} of your choice</label>`;
+      for(let i=0;i<nLang;i++) lh += `<select class="rc-lang" data-i="${i}">${opts}</select> `;
+      html += `<div class="wiz-racechoice">${lh}</div>`;
+    }
+    box.innerHTML = html;
+    const sk = $("rc-skill");
+    if(sk) box.querySelectorAll('input[name="rc-skilldv"]').forEach(radio => radio.addEventListener("change", () => { sk.disabled = box.querySelector('input[name="rc-skilldv"][value="darkvision"]').checked; }));
   }
   // Limited-use class resources → the Limited Features card. count(level, abilityMods)→number; rec = recovery; min = first level.
   const LIMITED_RESOURCES = {
@@ -3291,7 +3343,14 @@
     document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
     asiChoices = []; asiFeatsAdded = {}; bonusVals.asi = zeroAb();   // new build → unassigned ASIs, flagged for the player
     if(name) $("charname").value = name;
-    if(race) applyRace(race);
+    if(race){
+      const rObj = findBy(DATA.races, race), opts = {languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean)};
+      if(rObj && rObj.variableSkillDarkvision){
+        const useDv = (document.querySelector('input[name="rc-skilldv"]:checked')||{}).value === "darkvision";
+        if(useDv) opts.darkvision = rObj.darkvision || 60; else opts.skill = ($("rc-skill")||{}).value || "";
+      }
+      applyRace(race, opts);
+    }
     if(cls){
       applyClass(cls);
       const c = findBy(DATA.classes, cls);

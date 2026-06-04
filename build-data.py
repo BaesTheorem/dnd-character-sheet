@@ -109,6 +109,15 @@ def race_langs(r):
                 out.append(f"{v} language{'s' if v > 1 else ''} of your choice{kind}")
     return out
 
+def lang_choose(r):                                 # number of free language choices a race grants
+    n = 0
+    for blk in r.get("languageProficiencies") or []:
+        if not isinstance(blk, dict): continue
+        for k, v in blk.items():
+            if k in ("any", "anyStandard", "anyExotic") and isinstance(v, int): n += v
+            elif k == "choose" and isinstance(v, dict): n += v.get("count", 1)
+    return n
+
 def feat_grants(r):                                 # number of feats a race/subrace grants (Variant Human = 1)
     n = 0
     for fg in (r.get("feats") or []):
@@ -134,14 +143,17 @@ def build_races(raw):
         if not is_src(r): continue
         ab = list(r.get("ability") or [])
         fg = feat_grants(r); pf = prof_block(r); rs = damage_resist(r)
-        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs}
+        dv, lc = r.get("darkvision") or 0, lang_choose(r)
+        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc}
         base_idx[r["name"]] = len(out)
         out.append({"name": r["name"], "ability": ab,
                     "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
-                    "speed": _speed(r), "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs})
+                    "speed": _speed(r), "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs,
+                    "darkvision": dv, "langChoose": lc})
     for s in raw.get("subrace", []):
         if not is_src(s): continue
         parent = s.get("raceName")
+        sdv, slc = s.get("darkvision") or 0, lang_choose(s)
         if not s.get("name"):                       # unnamed "standard" subrace -> fold into base option
             i = base_idx.get(parent)
             if i is not None:
@@ -150,6 +162,8 @@ def build_races(raw):
                 out[i]["featGrants"] = (out[i].get("featGrants") or 0) + feat_grants(s)
                 out[i]["prof"]    = _merge_prof(out[i].get("prof"), prof_block(s))
                 out[i]["resist"]  = (out[i].get("resist") or []) + damage_resist(s)
+                out[i]["darkvision"] = max(out[i].get("darkvision") or 0, sdv)
+                out[i]["langChoose"] = (out[i].get("langChoose") or 0) + slc
             continue
         base = bases.get(parent, {})               # named subrace -> "Race (Subrace)", base + subrace
         out.append({"name": f"{parent} ({s['name']})",
@@ -159,7 +173,10 @@ def build_races(raw):
                     "traits": (base.get("traits") or []) + _traits(s.get("entries", [])),
                     "featGrants": (base.get("featGrants") or 0) + feat_grants(s),
                     "prof": _merge_prof(base.get("prof"), prof_block(s)),
-                    "resist": (base.get("resist") or []) + damage_resist(s)})
+                    "resist": (base.get("resist") or []) + damage_resist(s),
+                    "darkvision": max(base.get("darkvision") or 0, sdv), "langChoose": (base.get("langChoose") or 0) + slc})
+    for o in out:
+        if "custom lineage" in o["name"].lower(): o["variableSkillDarkvision"] = True   # TCE: skill OR darkvision
     return out
 
 def skills_from(spo):
