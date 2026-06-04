@@ -1058,13 +1058,10 @@
           <select id="book-select"><option value="">Open Settings to load…</option></select>
           <button class="btn" id="btn-loadbook" type="button">Load</button>
         </div>
-        <div class="srcbook-load" id="reload-row" style="display:none; margin-top:8px">
-          <select id="reload-select" title="Re-fetch an already-loaded book to refresh its data"></select>
-          <button class="btn" id="btn-reloadbook" type="button">Reload</button>
-        </div>
+        <button class="btn" id="btn-reload-all" type="button" style="display:none; margin-top:8px" title="Re-fetch every loaded book from your 5etools server to refresh its data">Reload all loaded sources</button>
         <label class="lbl" style="display:block; margin:10px 0 4px">5etools server</label>
         <input id="server-url" value="http://localhost:5050" spellcheck="false">
-        <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. To refresh an already-loaded book's data, use the <strong>Reload</strong> picker (it appears once a book is loaded).</p>
+        <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
         <button class="btn primary" id="btn-savedata" title="Download a copy of this sheet with all loaded books baked into the file">Save data file</button>
         <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
         <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
@@ -1972,23 +1969,19 @@
   }
   async function populateBookSelect(){
     const sel = $("book-select"); if(!sel) return;
-    const rsel = $("reload-select"), rrow = $("reload-row");
+    const rbtn = $("btn-reload-all");
+    if(rbtn) rbtn.style.display = loadedBooks().length ? "" : "none";   // one-click reload-all, shown only when something is loaded
     const base = ($("server-url").value || "").trim() || "http://localhost:5050";
     sel.innerHTML = '<option value="">Loading book list…</option>'; sel.disabled = true;
     const opt = b => `<option value="${esc(b.id||b.source)}" data-name="${esc(b.name||b.id)}">${esc(b.name||b.id)}</option>`;
     try{
       const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
-      // 2014-ruleset sheet — 2024 books are filtered out. Not-yet-loaded books go in the main picker;
-      // already-loaded books go in a separate "reload" picker so you can refresh one's data.
+      // 2014-ruleset sheet — 2024 books are filtered out, as are already-loaded ones (use "Reload all" to refresh those).
       const loaded = new Set(loadedBooks().map(n => String(n).toLowerCase()));
-      const books = (bj.book||[]).filter(b => !isBook2024(b)).sort((a,b) => (a.name||"").localeCompare(b.name||""));
-      const isLd = b => loaded.has(String(b.name||b.id||"").toLowerCase());
-      const fresh = books.filter(b => !isLd(b)), reload = books.filter(isLd);
+      const fresh = (bj.book||[]).filter(b => !isBook2024(b) && !loaded.has(String(b.name||b.id||"").toLowerCase())).sort((a,b) => (a.name||"").localeCompare(b.name||""));
       sel.innerHTML = (fresh.length ? '<option value="">Pick a book…</option>' : '<option value="">All available books already loaded</option>') + fresh.map(opt).join("");
       sel.disabled = !fresh.length;
-      if(rsel){ rsel.innerHTML = '<option value="">Pick a loaded book…</option>' + reload.map(opt).join(""); rsel.disabled = !reload.length; }
-      if(rrow) rrow.style.display = reload.length ? "" : "none";
-    }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; if(rrow) rrow.style.display = "none"; }
+    }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; }
   }
   async function doLoadBook(srcCode, bookName, reloading, btn){   // shared by the load + reload pickers
     const base = ($("server-url").value || "").trim() || "http://localhost:5050";
@@ -2014,10 +2007,25 @@
     if(!b || !b.code){ flashStatus("Pick a book first"); return; }
     doLoadBook(b.code, b.name, false, $("btn-loadbook"));
   }
-  function reloadBookFromServer(){
-    const b = bookFromSelect($("reload-select"));
-    if(!b || !b.code){ flashStatus("Pick a loaded book to reload"); return; }
-    doLoadBook(b.code, b.name, true, $("btn-reloadbook"));
+  async function reloadAllBooks(){   // one click: re-fetch every loaded book to refresh its data
+    const names = loadedBooks(); if(!names.length){ flashStatus("No loaded books to reload"); return; }
+    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    const btn = $("btn-reload-all"), orig = btn ? btn.textContent : "";
+    if(btn){ btn.disabled = true; btn.textContent = "Reloading…"; }
+    try{
+      const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
+      const codeOf = {}; (bj.book||[]).forEach(b => { codeOf[String(b.name||b.id||"").toLowerCase()] = b.id||b.source; });
+      let n = 0, missed = 0;
+      for(const nm of names){ const code = codeOf[String(nm).toLowerCase()];
+        if(!code){ missed++; continue; }
+        mergeBook(DATA, await fetch5etoolsBook(base, code), nm); n++;
+      }
+      _spellIndex = null; bakeSourceData();
+      try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }catch(e){}
+      populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
+      flashStatus("Reloaded " + n + " source" + (n===1?"":"s") + (missed?" ("+missed+" not on server)":"") + " — data refreshed");
+    }catch(e){ flashStatus("Reload failed — is your 5etools server running at "+base+"?"); }
+    finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Reload all loaded sources"; } }
   }
   function bakeSourceData(){ const pd = $("source-data"); if(pd) pd.textContent = JSON.stringify(DATA || null); }
   function saveDataFile(){               // download a copy of the sheet with all loaded books baked into the file
@@ -3622,7 +3630,7 @@
 
     $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("settings").classList.add("open"); });
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
-    $("btn-reloadbook").addEventListener("click", reloadBookFromServer);
+    $("btn-reload-all").addEventListener("click", reloadAllBooks);
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
     $("settings-done").addEventListener("click", ()=> $("settings").classList.remove("open"));
