@@ -695,11 +695,11 @@
       <div class="card"><h2>Inventory</h2>
         <div class="inv-cols">
           <table class="invtable">
-            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th></tr></thead>
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:30px" title="Active weapon → Attacks table">Atk</th></tr></thead>
             <tbody id="inv"></tbody>
           </table>
           <table class="invtable">
-            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th></tr></thead>
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:30px" title="Active weapon → Attacks table">Atk</th></tr></thead>
             <tbody id="inv2"></tbody>
           </table>
         </div>
@@ -1100,7 +1100,8 @@
       `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
       `<td><input data-save id="invname-${i}"></td>`+
       `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
-      `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td></tr>`;
+      `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
+      `<td class="noprint"><input type="checkbox" class="invatk" id="invatk-${i}" data-r="${i}" title="Active: add this weapon to the Attacks table" style="display:none"></td></tr>`;
     const half = Math.ceil(NINV/2);
     let invL = "", invR = "";
     for(let i=0;i<half;i++) invL += invRow(i);
@@ -2153,6 +2154,8 @@
     updateGenStatus();
     updateStepStates();
     updateAsiFlag();
+    refreshAtkRows();        // recompute active-weapon attack rows (live with ability/level)
+    refreshAtkToggles();     // show the Atk checkbox only on weapon inventory rows
   }
 
   // ---- Persistence ----
@@ -2176,6 +2179,7 @@
     data.asiChoices = asiChoices;
     data.asiFeatsAdded = asiFeatsAdded;
     data.invUnits = []; for(let i=0;i<NINV;i++) data.invUnits.push($("invwt-"+i).dataset.unit || "");   // per-item inventory weights
+    data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     return data;
   }
   function applyFields(data){                 // restores data-save fields + inspiration
@@ -2234,6 +2238,10 @@
       setRowUnit(i, (u==null||isNaN(u)) ? null : u);
     }
     refreshAllWeights();
+    for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(!el) continue;   // restore active-weapon links on the Attacks rows
+      const lk = (data && Array.isArray(data.atkLinks)) ? data.atkLinks[i] : "";
+      if(lk) el.dataset.weapon = lk; else delete el.dataset.weapon;
+    }
     portraitData = (data && data.portrait) || null;
     renderPortrait();
     document.querySelectorAll("textarea").forEach(autoGrow);
@@ -2319,6 +2327,7 @@
     if(qm) refreshRowWeight(qm[1]);
     const wm = t.id && t.id.match(/^invwt-(\d+)$/);                     // editing the box sets the line total → derive per-item weight
     if(wm){ const i = wm[1], tot = parseFloat(t.value); setRowUnit(i, isNaN(tot) ? null : tot / rowQty(i)); }
+    if(t.classList.contains("invatk")){ const nm = $("invname-"+t.dataset.r).value; if(weaponByName(nm)) setWeaponActive(nm, t.checked); }   // Active weapon → Attacks
     if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
     else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
     else if(t.classList.contains("ab-bonus")) bonusVals[t.dataset.cat][t.dataset.ab] = num(t.value,0);
@@ -2565,19 +2574,53 @@
   function getInvData(){ const a = []; for(let i=0;i<NINV;i++) a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||"")}); return a; }
   function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); refreshRowWeight(i); } }
   function moveInvRow(from, to){ if(from === to || from == null || to == null) return; const a = getInvData(); const [row] = a.splice(from,1); a.splice(to,0,row); setInvData(a); save(); compute(); }
+  // ---- "Active" weapons → Attacks table (toggled per inventory row; bonus & damage auto-computed) ----
   function weaponByName(name){
     const n = String(name||"").trim().toLowerCase();
     return ((DATA && DATA.weapons) || []).find(w => (w.name||"").toLowerCase() === n) || null;
   }
-  function weaponDmgStr(w){                   // "1d8 slashing (1d10 versatile), range 20/60"
-    let s = (w.dmg||"") + (w.dmgType ? " " + w.dmgType : "");
-    if(w.versatile) s += ` (${w.versatile} versatile)`;
-    if(w.range)     s += `, range ${w.range}`;
-    return s.trim();
+  function weaponAtkAbility(w){               // attack/damage ability: melee→Str, ranged→Dex, finesse→better of the two
+    const finesse = (w.props||[]).some(p => /finesse/i.test(p));
+    if(finesse) return (modOf("dex") >= modOf("str")) ? "dex" : "str";
+    return w.melee ? "str" : "dex";
   }
-  function addAttack(w){                      // fill the next empty Attacks row from a weapon's data
-    for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i);
-      if(el && !el.value){ el.value = w.name; const d = $("atkdmg-"+i); if(d && !d.value) d.value = weaponDmgStr(w); return; } }
+  function weaponAtkRow(w){                   // {bonus, dmg} from current scores, assuming proficiency
+    const m = modOf(weaponAtkAbility(w)), lvl = charLevel(), pb = (lvl == null) ? 0 : 2 + Math.floor((lvl-1)/4);
+    const md = s => s > 0 ? "+"+s : (s < 0 ? ""+s : "");
+    let dmg = (w.dmg||"") + (m ? md(m) : "") + (w.dmgType ? " " + w.dmgType : "");
+    if(w.versatile) dmg += ` (${w.versatile}${m ? md(m) : ""} versatile)`;
+    if(w.range)     dmg += `, range ${w.range}`;
+    return {bonus: sgn(m + pb), dmg: dmg.trim()};
+  }
+  function setWeaponActive(name, on){        // add/remove this weapon's derived Attacks row (linked via dataset.weapon)
+    const lc = String(name||"").trim().toLowerCase();
+    let idx = -1;
+    for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(el && el.dataset.weapon && el.dataset.weapon.toLowerCase() === lc){ idx = i; break; } }
+    if(on){
+      if(idx < 0) for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(el && !el.value){ idx = i; break; } }
+      if(idx < 0){ flashStatus("Attacks table is full — clear a row first"); return; }
+      const w = weaponByName(name); if(!w) return;
+      $("atkname-"+idx).value = w.name; $("atkname-"+idx).dataset.weapon = w.name;
+    } else if(idx >= 0){
+      $("atkname-"+idx).value = ""; delete $("atkname-"+idx).dataset.weapon;
+      $("atkbonus-"+idx).value = ""; $("atkdmg-"+idx).value = "";
+    }
+  }
+  function refreshAtkRows(){                  // recompute every derived (weapon-linked) Attacks row; lock its inputs
+    for(let i=0;i<NATTACKS;i++){ const nm = $("atkname-"+i); if(!nm) continue;
+      const linked = !!nm.dataset.weapon, w = linked ? weaponByName(nm.dataset.weapon) : null;
+      [nm, $("atkbonus-"+i), $("atkdmg-"+i)].forEach(el => { if(el) el.readOnly = linked; });
+      if(w){ const r = weaponAtkRow(w); $("atkbonus-"+i).value = r.bonus; $("atkdmg-"+i).value = r.dmg; }
+    }
+  }
+  function refreshAtkToggles(){               // show the "Atk" checkbox only on weapon rows; reflect active state
+    const active = new Set();
+    for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(el && el.dataset.weapon) active.add(el.dataset.weapon.toLowerCase()); }
+    for(let i=0;i<NINV;i++){ const cb = $("invatk-"+i), nm = $("invname-"+i); if(!cb || !nm) continue;
+      const isW = !!weaponByName(nm.value);
+      cb.style.display = isW ? "" : "none";
+      cb.checked = isW && active.has((nm.value||"").trim().toLowerCase());
+    }
   }
   function addInvItem(name, qty){            // place in next empty inventory row + auto-fill qty/weight
     for(let i=0;i<NINV;i++){ const el = $("invname-"+i); if(el && !el.value){
@@ -2585,7 +2628,6 @@
       if(qty && qty > 1){ const q = $("invqty-"+i); if(q) q.value = qty; }
       const w = itemWeight(name); if(w != null && rowUnit(i) == null) setRowUnit(i, w);
       refreshRowWeight(i);
-      const wp = weaponByName(name); if(wp) addAttack(wp);   // weapons also auto-fill the Attacks table
       return;
     } }
   }
