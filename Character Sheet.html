@@ -609,7 +609,8 @@
         <div class="card">
           <h2>Armor</h2>
           <div><label class="lbl">Armor (sets base AC)</label><select data-save id="armorsel"></select>
-            <input data-save id="armor-custom" placeholder="custom armor + AC" title="Type your armor and its AC; the number is used as the base AC (bonuses below still add)" style="display:none; margin-top:6px"></div>
+            <input data-save id="armor-custom" placeholder="custom armor + AC" title="Type your armor and its AC; the number is used as the base AC (bonuses below still add)" style="display:none; margin-top:6px">
+            <p class="help" id="armor-note" style="margin:4px 0 0; display:none"></p></div>
           <table class="acitems">
             <thead><tr><th>Item (adds to AC)</th><th style="width:64px">Bonus</th></tr></thead>
             <tbody id="acbonuses"></tbody>
@@ -2030,6 +2031,7 @@
       const sel = $("armorsel") ? $("armorsel").value : "";
       const customEl = $("armor-custom");
       if(customEl) customEl.style.display = (sel === "Custom") ? "" : "none";   // free-form field only for Custom
+      const armNote = $("armor-note"); if(armNote){ armNote.style.display = "none"; armNote.textContent = ""; }
       let bonus = 0;
       for(let i=0;i<3;i++){ const v = $("acbonus-"+i).value; if(v !== "") bonus += num(v,0); }
       let acBase;
@@ -2047,6 +2049,7 @@
           if(armor.type === "HA"){ needDex = false; dexAdd = 0; }              // heavy: no Dex
           else if(armor.type === "MA"){ dexAdd = (mods.dex == null) ? null : Math.min(mods.dex, 2); }  // medium: Dex max 2
           // light (LA) and unarmored: full Dex
+          if(armNote && armor.stealth){ armNote.textContent = "Disadvantage on Dexterity (Stealth) checks while worn."; armNote.style.display = ""; }
         } else if(sel === "Unarmored"){                                        // Unarmored Defense by class
           const cls = ($("classlevel").value || "").toLowerCase();
           if(/barbarian/.test(cls)) base = 10 + (mods.con || 0);               // Barbarian: 10 + Dex + Con
@@ -2100,6 +2103,15 @@
       else status = "Unencumbered";
       $("encstatus").textContent = status;
       $("encnote").textContent = note;
+    }
+    // Heavy armor whose Strength requirement you don't meet → −10 ft (PHB armor rule)
+    {
+      const selArmor = (DATA && DATA.armor) ? DATA.armor.find(a => a.name === ($("armorsel").value || "")) : null;
+      const req = selArmor && selArmor.strength ? parseInt(selArmor.strength, 10) : 0;
+      if(req && strScore != null && strScore < req){
+        speedPenalty += 10;
+        $("encnote").textContent = ($("encnote").textContent ? $("encnote").textContent + " " : "") + `Speed −10 ft: ${selArmor.name} requires Strength ${req}.`;
+      }
     }
     // Monk Unarmored Movement: +10 ft at L2, scaling to +30, while unarmored and not using a shield
     let speedBonus = 0;
@@ -2553,12 +2565,27 @@
   function getInvData(){ const a = []; for(let i=0;i<NINV;i++) a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||"")}); return a; }
   function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); refreshRowWeight(i); } }
   function moveInvRow(from, to){ if(from === to || from == null || to == null) return; const a = getInvData(); const [row] = a.splice(from,1); a.splice(to,0,row); setInvData(a); save(); compute(); }
+  function weaponByName(name){
+    const n = String(name||"").trim().toLowerCase();
+    return ((DATA && DATA.weapons) || []).find(w => (w.name||"").toLowerCase() === n) || null;
+  }
+  function weaponDmgStr(w){                   // "1d8 slashing (1d10 versatile), range 20/60"
+    let s = (w.dmg||"") + (w.dmgType ? " " + w.dmgType : "");
+    if(w.versatile) s += ` (${w.versatile} versatile)`;
+    if(w.range)     s += `, range ${w.range}`;
+    return s.trim();
+  }
+  function addAttack(w){                      // fill the next empty Attacks row from a weapon's data
+    for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i);
+      if(el && !el.value){ el.value = w.name; const d = $("atkdmg-"+i); if(d && !d.value) d.value = weaponDmgStr(w); return; } }
+  }
   function addInvItem(name, qty){            // place in next empty inventory row + auto-fill qty/weight
     for(let i=0;i<NINV;i++){ const el = $("invname-"+i); if(el && !el.value){
       el.value = name;
       if(qty && qty > 1){ const q = $("invqty-"+i); if(q) q.value = qty; }
       const w = itemWeight(name); if(w != null && rowUnit(i) == null) setRowUnit(i, w);
       refreshRowWeight(i);
+      const wp = weaponByName(name); if(wp) addAttack(wp);   // weapons also auto-fill the Attacks table
       return;
     } }
   }
