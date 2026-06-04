@@ -1283,27 +1283,33 @@
         }
       }
     });
-    // chosen feats → apply proficiencies/saves + append to Features page once (never auto-removed)
+    // Save proficiencies are idempotent (a checkbox), so re-apply every time — the chosen ability (Resilient, etc.)
+    // is often picked AFTER the feat, so this can't be gated by the one-time "added" set below.
+    asiChoices.forEach(s => {
+      if(s.type !== "feat" || !s.feat) return;
+      const f = featOf(s.feat); if(!f || !f.saves) return;
+      (f.saves.fixed||[]).forEach(k => { const box = $("savep-"+k); if(box) box.checked = true; });
+      if(f.saves.choose && s.featAbil){ const box = $("savep-"+s.featAbil); if(box) box.checked = true; }
+    });
+    // One-time per feat (NOT idempotent): Features text, the Proficiencies box, and Senses lines.
     asiChoices.forEach(s => {
       if(s.type === "feat" && s.feat && !asiFeatsAdded[s.feat]){
         const f = featOf(s.feat);
         const line = "Feat: " + s.feat + (f && f.text ? ". " + f.text : "");
         const t = $("features");
         if(t && !(t.value||"").includes("Feat: " + s.feat)){ t.value = t.value.trim() ? t.value + "\n\n" + line : line; autoGrow(t); }
-        if(FEAT_SENSES[s.feat]) addSense(FEAT_SENSES[s.feat]);   // sense-affecting feats also land in the Senses box
-        if(f){
-          applyProficiencies(f.prof, s.feat);              // feat skill/tool/language/weapon/armor proficiencies
-          if(f.saves){                                     // Resilient etc. → save-proficiency checkbox
-            (f.saves.fixed||[]).forEach(k => { const box = $("savep-"+k); if(box) box.checked = true; });
-            if(f.saves.choose && s.featAbil){ const box = $("savep-"+s.featAbil); if(box) box.checked = true; }
-          }
-        }
+        if(FEAT_SENSES[s.feat]) addSense(FEAT_SENSES[s.feat]);   // sense-affecting feats (Observant, Alert) also land in the Senses box
+        if(f) applyProficiencies(f.prof, s.feat);              // feat skill/tool/language/weapon/armor proficiencies
         asiFeatsAdded[s.feat] = true;
       }
     });
   }
   // Feats that contribute a line to the Senses box.
-  const FEAT_SENSES = { "Observant": "Observant (+5 passive Perception & Investigation)" };
+  const FEAT_SENSES = { "Observant": "Observant (+5 passive Perception & Investigation)",
+    "Alert": "Alert (+5 initiative; can't be surprised while conscious; hidden attackers gain no advantage)" };
+  // Feats that add a flat bonus to Initiative (5etools has no structured field for these — hardcode the known ones).
+  const FEAT_INIT = { "Alert": 5 };
+  function featInitBonus(){ let b = 0; (asiChoices||[]).forEach(s => { if(s.type === "feat" && s.feat && FEAT_INIT[s.feat]) b += FEAT_INIT[s.feat]; }); return b; }
   // The attention flag: shown until every owed ASI / racial feat has a complete choice.
   function updateAsiFlag(){
     syncAsiSlots();
@@ -2270,7 +2276,7 @@
     });
     $("passive").textContent = (perceptionTotal == null) ? "" : (10 + perceptionTotal);
 
-    $("init").textContent = (mods.dex == null) ? "" : sgn(mods.dex);
+    $("init").textContent = (mods.dex == null) ? "" : sgn(mods.dex + featInitBonus());   // + Alert etc.
 
     // Armor Class: selected armor's base + Dex (per armor type) + AC-bonus items
     {
