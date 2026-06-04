@@ -593,6 +593,17 @@ def build_item_names(items_base, items):   # every item name (base + magic) for 
             if is_src(it) and it.get("name"): names.add(it["name"])
     return sorted(names)
 
+LIMITED_SIGNAL = re.compile(r"\brest\b|\bdawn\b|\bcharges\b|\bper day\b|\bexpend", re.I)
+def build_item_text(items_base, items):   # descriptions of magic items that look like they have limited daily uses (Bag of Tricks, etc.)
+    out = {}
+    for coll, key in ((items_base, "baseitem"), (items, "item")):
+        for it in coll.get(key, []):
+            if not is_src(it) or not it.get("name"): continue
+            if not (it.get("rarity") in MAGIC_RARITY or it.get("wondrous") or it.get("reqAttune")): continue
+            txt = entries_to_text(it.get("entries", []))
+            if txt and LIMITED_SIGNAL.search(txt): out[it["name"]] = txt[:800]
+    return out
+
 def build_containers(items_base, items):   # weightless containers (Bag of Holding, Heward's Handy Haversack, ...)
     out = set()
     for coll, key in ((items_base, "baseitem"), (items, "item")):
@@ -686,6 +697,7 @@ def main():
     out["containers"] = build_containers(items_base, items)
     out["attuneItems"] = build_attune_items(items_base, items)
     out["magicItems"] = build_magic_items(items_base, items)
+    out["itemText"] = build_item_text(items_base, items)
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
     sz = os.path.getsize(OUT)
     print(f"wrote {OUT}  ({sz/1024:.0f} KB)")
