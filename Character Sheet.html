@@ -2646,7 +2646,20 @@
     c.actions = act.trim();
     applyCompanionTemplate(c);   // Phase C overlays template rules
   }
-  function applyCompanionTemplate(c){ /* templates wired in Phase C */ }
+  // Auto-apply the deterministic parts of a template to a creature (called on fresh monster base).
+  function applyCompanionTemplate(c){
+    const t = c.template, lvl = charLevel(), pb = (lvl == null) ? 0 : 2 + Math.floor((lvl-1)/4);
+    if(t === "companion" && c.monster){                 // Beast Master: + prof to AC, HP = max(normal, 4×level)
+      const acm = String(c.ac||"").match(/-?\d+/);
+      if(acm) c.ac = String(parseInt(acm[0],10) + pb) + String(c.ac).slice(acm.index + acm[0].length);
+      const hpn = parseInt(c.hp,10);
+      if(!isNaN(hpn)){ const nh = Math.max(hpn, 4*(lvl||0)); c.hp = String(nh); c.curhp = String(nh); }
+      if(lvl != null) c.pb = sgn(pb);
+    } else if(t === "wildshape"){                        // keep your mental stats + proficiency bonus
+      ["int","wis","cha"].forEach(a => { const v = finalScore(a); if(v != null) c[a] = String(v); });
+      if(lvl != null) c.pb = sgn(pb);
+    }
+  }
   function compBlock(c, i){
     const stats = COMP_STATS.map(([f,lbl]) =>
       `<div class="stat comp-stat"><div class="k">${lbl}</div><input data-ci="${i}" data-f="${f}" value="${esc(c[f]||"")}"></div>`).join("");
@@ -2684,7 +2697,13 @@
       : `<div class="card"><p class="wiz-hint" style="margin:0">No creatures yet. Click <strong>+ Add creature</strong> to add an animal companion, familiar, or Wild Shape form.</p></div>`;
     list.querySelectorAll("textarea").forEach(autoGrow);
   }
-  const COMP_TEMPLATE_NOTES = {};   // filled in Phase C
+  const COMP_TEMPLATE_NOTES = {
+    familiar:"Familiar: acts on its own initiative, obeys you, and can't attack. Telepathic link and shared senses within 100 ft. Forms: bat, cat, crab, frog, hawk, lizard, octopus, owl, poisonous snake, fish (quipper), rat, raven, sea horse, spider, or weasel.",
+    chain:"Pact of the Chain: the familiar may also be an imp, pseudodragon, quasit, or sprite, and it can make one attack of its own when you forgo one of your attacks.",
+    companion:"Beast Master companion: AC and HP have been adjusted for your level — also add your proficiency bonus to its attack rolls, damage, saving throws, and proficient skills. It acts on your initiative.",
+    wildshape:"Wild Shape: you keep your Int/Wis/Cha, personality, alignment, and proficiency bonus; use the beast's physical stats, AC, HP, and speed. Limited/no spellcasting; you revert at 0 HP.",
+    summon:"Summoned/conjured creature or polymorph form — track its duration and your control per the spell."
+  };
   function compPortraitUpload(ci){
     if(!companions[ci]) return;
     const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
@@ -3134,7 +3153,12 @@
       const t = e.target, ci = +t.dataset.ci, f = t.dataset.f;
       if(isNaN(ci) || !companions[ci] || !f) return;
       if(f === "monster"){ applyMonsterToCompanion(companions[ci], t.value); renderCompanions(); save(); }
-      else if(f === "template"){ companions[ci].template = t.value; applyCompanionTemplate(companions[ci]); renderCompanions(); save(); }
+      else if(f === "template"){
+        companions[ci].template = t.value;
+        if(companions[ci].monster) applyMonsterToCompanion(companions[ci], companions[ci].monster);   // reset to base, then apply
+        else applyCompanionTemplate(companions[ci]);
+        renderCompanions(); save();
+      }
     });
     compList.addEventListener("click", e => {
       const rm = e.target.closest(".comp-rm"); if(rm){ companions.splice(+rm.dataset.ci, 1); renderCompanions(); save(); return; }
