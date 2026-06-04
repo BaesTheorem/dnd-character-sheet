@@ -1,7 +1,7 @@
 # Universal D&D 5e Character Sheet
 
 A single, self-contained, **automated** D&D 5e (2014 rules) character sheet that runs in any
-web browser with **no install, no server, no internet, and no Adobe**. The whole app — layout,
+web browser with **no install, no server, no internet, and no Adobe, while also functioning as a beautiful pen-and-paper sheet**. The whole app — layout,
 styling, and automation — lives in one file: `Character Sheet.html`.
 
 ## Why a single HTML file?
