@@ -2739,6 +2739,19 @@
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
 
   // Route a normalized prof block to its homes: fixed skills → checkboxes; everything else → Proficiencies & Languages box.
+  // All languages (race, background, feat) accumulate on a SINGLE "Languages:" line in the box (deduped).
+  function addLanguages(langs){
+    langs = (Array.isArray(langs) ? langs : [langs]).map(s => String(s).trim()).filter(Boolean);
+    if(!langs.length) return;
+    const p = $("proficiencies"); if(!p) return;
+    const lines = p.value ? p.value.split("\n") : [];
+    const idx = lines.findIndex(l => /^\s*Languages:/i.test(l));
+    const cur = idx >= 0 ? lines[idx].replace(/^\s*Languages:\s*/i, "").split(",").map(s => s.trim()).filter(Boolean) : [];
+    langs.forEach(l => { if(!cur.some(e => e.toLowerCase() === l.toLowerCase())) cur.push(l); });
+    const line = "Languages: " + cur.join(", ");
+    if(idx >= 0) lines[idx] = line; else lines.push(line);
+    p.value = lines.join("\n"); autoGrow(p);
+  }
   function applyProficiencies(prof, label){
     if(!prof) return;
     const tag = label ? ` (${label})` : "";
@@ -2748,9 +2761,9 @@
     if(prof.weapons)   lines.push("Weapons: " + prof.weapons.join(", "));
     if(prof.armor)     lines.push("Armor: " + prof.armor.join(", "));
     if(prof.tools)     lines.push("Tools: " + prof.tools.join(", "));
-    if(prof.languages) lines.push("Languages: " + prof.languages.join(", "));
     if(prof.other)     lines.push("Proficiencies: " + prof.other.join(", "));
     if(lines.length){ const p = $("proficiencies"); const block = lines.map(l => l + tag).join("\n"); p.value = p.value.trim() ? p.value + "\n" + block : block; autoGrow(p); }
+    if(prof.languages) addLanguages(prof.languages);   // merge onto the shared Languages line
   }
   function applyRace(name, opts){
     opts = opts || null;
@@ -3405,7 +3418,10 @@
       $("background").value = "Custom Background";
       document.querySelectorAll(".cbg-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });
       const tl = [...new Set([...document.querySelectorAll(".cbg-tl")].map(s => s.value).filter(Boolean))];
-      if(tl.length){ const p = $("proficiencies"); const line = tl.join(", "); p.value = p.value.trim() ? p.value+"\n"+line : line; autoGrow(p); }
+      const langSet = new Set(((DATA && DATA.languages)||[]).map(l => l.toLowerCase()));
+      const bgLangs = tl.filter(v => langSet.has(v.toLowerCase())), bgTools = tl.filter(v => !langSet.has(v.toLowerCase()));
+      addLanguages(bgLangs);                                                     // background languages join the race's Languages line
+      if(bgTools.length){ const p = $("proficiencies"); const line = "Tools: " + bgTools.join(", ") + " (Background)"; p.value = p.value.trim() ? p.value+"\n"+line : line; autoGrow(p); }
       const fn = $("wiz-cbg-featname").value.trim(), ft = $("wiz-cbg-feattext").value.trim();
       if(fn || ft){ const line = (fn ? fn+" (Background). " : "") + ft; const t = $("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t); }
     } else if(bg){
