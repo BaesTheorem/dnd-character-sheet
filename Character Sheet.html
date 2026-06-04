@@ -1450,8 +1450,8 @@
   function updateSourcebookStatus(){
     const el = $("sourcebook-status"); if(!el) return;
     if(DATA && Array.isArray(DATA.spells)){
-      const books = loadedBooks();
-      el.innerHTML = `<strong>${books.length ? books.map(esc).join(", ") : "Sourcebook"}</strong> — ${DATA.spells.length} spells, ${(DATA.classes||[]).length} classes, ${(DATA.races||[]).length} races.`;
+      const n = loadedBooks().length;   // book names live in the Reload picker now; here just summarize the totals
+      el.innerHTML = `<strong>${n} book${n===1?"":"s"} loaded</strong> — ${DATA.spells.length} spells, ${(DATA.classes||[]).length} classes, ${(DATA.races||[]).length} races.`;
     } else el.textContent = "No sourcebook loaded. Load one from your 5etools server below, or import a source-data.json file.";
   }
 
