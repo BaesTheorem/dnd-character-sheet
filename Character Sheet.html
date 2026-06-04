@@ -414,8 +414,9 @@
   .sp-tag{display:inline-block; font-size:8px; font-weight:700; line-height:1; padding:1px 3px; border-radius:3px;
     background:var(--accent-soft); color:var(--accent); vertical-align:middle; margin-left:2px}
   .spellhead{display:grid; grid-template-columns:1.4fr .8fr 1fr 1fr 1fr; gap:10px; align-items:end}
+  .spellhead.spellhead-lvl{grid-template-columns:1.3fr .7fr .8fr 1fr 1fr 1fr}   /* extra sheets add a Class Level dropdown */
   .spellhead .stat .calc{min-height:30px; display:flex; align-items:center; justify-content:center}   /* room to write on a blank sheet */
-  @media (max-width:560px){ .spellhead{grid-template-columns:1fr 1fr} }
+  @media (max-width:560px){ .spellhead, .spellhead.spellhead-lvl{grid-template-columns:1fr 1fr} }
   .slots{display:grid; grid-template-columns:repeat(9,1fr); gap:8px}
   @media (max-width:560px){ .slots{grid-template-columns:repeat(5,1fr)} }
   .slot{background:var(--field); border:1px solid var(--line); padding:6px 5px; text-align:center}
@@ -2161,6 +2162,11 @@
   const sEl = (inst, base) => $(sx(inst, base));
   function spellEntriesOf(inst){ return spellEntriesByInst[inst] || (spellEntriesByInst[inst] = defaultSpellEntries()); }
   function preparedOf(inst){ return preparedByInst[inst] || (preparedByInst[inst] = {}); }
+  // Level a sheet's spell math runs off: extra sheets may override it (their "Class Level" dropdown); else the character's level.
+  function sheetLevel(inst){
+    if(inst){ const el = sEl(inst,"spelllevel"), v = el && el.value; if(v) return Math.min(20, Math.max(1, parseInt(v,10))); }
+    return charLevel();
+  }
   const CANTRIP_COUNT = 5, PER_LEVEL = 10;      // default blank entries per section
   function mkSpellRows(n){ return Array.from({length:n}, ()=>({name:"",prep:false})); }
   function defaultSpellEntries(){ const o = {0:mkSpellRows(CANTRIP_COUNT)}; for(let l=1;l<=9;l++) o[l]=mkSpellRows(PER_LEVEL); return o; }
@@ -2225,8 +2231,9 @@
   }
   function refreshSpellSlots(inst=0){            // auto-fill (and lock) the Total boxes for a known single-class caster
     const cls = sEl(inst,"spellclass").value;
-    const multi = (((($("classlevel").value||"").match(/[A-Za-z'’][A-Za-z'’\- ]*?\s+\d+/g))||[]).length) > 1;
-    const map = multi ? null : autoSlots(cls, charLevel());   // multiclass slots are manual (don't stack cleanly)
+    // sheet 0 follows the character (multiclass → manual slots); an extra sheet is its own single-class progression at its chosen level
+    const multi = inst ? false : (((($("classlevel").value||"").match(/[A-Za-z'’][A-Za-z'’\- ]*?\s+\d+/g))||[]).length) > 1;
+    const map = multi ? null : autoSlots(cls, sheetLevel(inst));   // multiclass slots are manual (don't stack cleanly)
     for(let l=1;l<=9;l++){
       const tot = sEl(inst,"slot"+l); if(!tot) continue;
       if(map){ const c = map[l]; tot.value = (c != null) ? String(c) : ""; tot.readOnly = true; }
@@ -2312,9 +2319,9 @@
     }
     sEl(inst,"spells").innerHTML = body;
   }
-  // How many cantrips the class knows at the current level (drives the number of cantrip rows). Default count if no level set.
-  function cantripCount(cls){
-    const lvl = charLevel();
+  // How many cantrips the class knows at the given level (drives the number of cantrip rows). Default count if no level set.
+  function cantripCount(cls, lvl){
+    if(lvl === undefined) lvl = charLevel();
     if(lvl == null) return CANTRIP_COUNT;                                   // no level denoted → leave the default count
     if(SUB_CANTRIPS[cls]) return SUB_CANTRIPS[cls][Math.min(Math.max(lvl,1),20)-1] || 0;   // subclass casters (EK/AT)
     const c = DATA && DATA.classes && findBy(DATA.classes, cls);
@@ -2332,8 +2339,9 @@
     const cls = sEl(inst,"spellclass").value, info = CASTERS[cls];
     sEl(inst,"cast-note").textContent = info ? info.note : "Flexible layout — fill in as needed. Pick a class to tailor it.";
     if(info && setAbility && info.ability) sEl(inst,"spellability").value = info.ability;
-    spellMaxByInst[inst] = (cls && CASTERS[cls]) ? maxSpellLevel(cls, charLevel()) : 9;   // shrink/grow sections to the build
-    if(!(info && info.fixed)) resizeCantrips(cantripCount(cls), inst);              // cantrip rows = cantrips known at this level
+    const L = sheetLevel(inst);                                            // extra sheets may override the level used for spell math
+    spellMaxByInst[inst] = (cls && CASTERS[cls]) ? maxSpellLevel(cls, L) : 9;   // shrink/grow sections to the build
+    if(!(info && info.fixed)) resizeCantrips(cantripCount(cls, L), inst);      // cantrip rows = cantrips known at this level
     renderSpellTable(inst);
     applySlotFilter(inst);
   }
@@ -2359,12 +2367,15 @@
       `<option>Sorcerer</option><option>Warlock</option><option>Wizard</option><option value="Other">Other</option>`;
     const abilOpts = `<option value=""></option><option value="int">Int</option><option value="wis">Wis</option>`+
       `<option value="cha">Cha</option><option value="str">Str</option><option value="dex">Dex</option><option value="con">Con</option>`;
+    let lvlOpts = `<option value="">Character level</option>`;
+    for(let l=1;l<=20;l++) lvlOpts += `<option value="${l}">${l}</option>`;
     return `<section class="page spell-extra" id="page-${S('spells')}" data-page="${S('spells')}">`+
       `<div id="${S('spellbody')}">`+
         `<div class="card"><h2>Spellcasting — Sheet ${inst+1}</h2>`+
-          `<div class="spellhead">`+
+          `<div class="spellhead spellhead-lvl">`+
             `<div><label class="lbl">Spellcasting Class</label><select data-save id="${S('spellclass')}">${classOpts}</select></div>`+
             `<div><label class="lbl">Ability</label><select data-save id="${S('spellability')}">${abilOpts}</select></div>`+
+            `<div><label class="lbl">Class Level</label><select data-save id="${S('spelllevel')}" title="Level this sheet's slots, spell levels, and known/prepared counts are based on. 'Character level' follows your main level.">${lvlOpts}</select></div>`+
             `<div class="stat"><div class="k">Spell Save DC</div><div class="calc" id="${S('spelldc')}"></div></div>`+
             `<div class="stat"><div class="k">Spell Attack</div><div class="calc" id="${S('spellatk')}"></div></div>`+
             `<div class="stat" id="${S('prep-stat')}" style="display:none"><div class="k" id="${S('prep-stat-label')}">Can Prepare</div><div class="calc" id="${S('prepcount')}"></div></div>`+
@@ -2569,12 +2580,12 @@
         const cls = DATA && findBy(DATA.classes, spName), prog = cls && cls.spellsKnown;
         if(prog && prog.length){
           sEl(inst,"prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Spells Known";
-          const slvl = charLevel();
+          const slvl = sheetLevel(inst);
           sEl(inst,"prepcount").textContent = (slvl != null) ? (prog[Math.min(Math.max(slvl,1),20)-1] || "") : "";
         } else sEl(inst,"prep-stat").style.display = "none";
       } else {                                        // prepared caster OR no class selected → "Can Prepare" (writable)
         sEl(inst,"prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Can Prepare";
-        const slvl = charLevel();
+        const slvl = sheetLevel(inst);
         if(spInfo && spInfo.prepares && sa && slvl != null && mods[sa] != null){
           const half = ["Paladin","Artificer"].includes(spName);
           sEl(inst,"prepcount").textContent = Math.max(1, mods[sa] + (half ? Math.floor(slvl/2) : slvl));
@@ -2769,6 +2780,8 @@
     if(t.id === "classlevel") renderAllSpellSheets(false);   // level changes the castable spell range → re-filter every sheet's list + slots
     if(t.id === "spellclass" || /^spellclass__\d+$/.test(t.id||"")){   // class picker on any sheet → re-tailor that sheet
       const inst = t.id.includes("__") ? +t.id.split("__")[1] : 0; renderSpellStyle(true, inst); }
+    if(/^spelllevel__\d+$/.test(t.id||"")){                            // an extra sheet's Class Level override changed → recompute that sheet
+      renderSpellStyle(false, +t.id.split("__")[1]); }
     if(t.classList.contains("sp-name") || t.classList.contains("sp-prep")){   // write-your-own spell rows
       const inst = +(t.dataset.inst||0), l = +t.dataset.l, i = +t.dataset.i, SE = spellEntriesOf(inst);
       SE[l] = SE[l] || [];
