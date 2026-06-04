@@ -724,6 +724,15 @@
           <h2>Armor</h2>
           <div><label class="lbl">Armor (sets base AC)</label><select data-save id="armorsel"></select>
             <input data-save id="armor-custom" placeholder="custom armor + AC" title="Type your armor and its AC; the number is used as the base AC (bonuses below still add)" style="display:none; margin-top:6px">
+            <div id="armormod-wrap" style="display:none; margin-top:6px"><label class="lbl">Material / Enchantment</label>
+              <select data-save id="armormod">
+                <option value="">None</option>
+                <option value="mithral">Mithral (no Stealth/Str penalty)</option>
+                <option value="adamantine">Adamantine (crits become normal hits)</option>
+                <option value="+1">+1 (magic armor)</option>
+                <option value="+2">+2 (magic armor)</option>
+                <option value="+3">+3 (magic armor)</option>
+              </select></div>
             <p class="help" id="armor-note" style="margin:4px 0 0; display:none"></p></div>
           <table class="acitems">
             <thead><tr><th>Item (adds to AC)</th><th style="width:64px">Bonus</th></tr></thead>
@@ -2188,9 +2197,10 @@
       const customEl = $("armor-custom");
       if(customEl) customEl.style.display = (sel === "Custom") ? "" : "none";   // free-form field only for Custom
       const armNote = $("armor-note"); if(armNote){ armNote.style.display = "none"; armNote.textContent = ""; }
+      const modVal = $("armormod") ? $("armormod").value : "";                  // Mithral / Adamantine / +1..+3
       let bonus = 0;
       for(let i=0;i<3;i++){ const v = $("acbonus-"+i).value; if(v !== "") bonus += num(v,0); }
-      let acBase;
+      let acBase, realArmor = null;
       if(sel === ""){
         acBase = null;                                                          // no armor chosen → AC blank
       } else if(sel === "Custom"){
@@ -2199,19 +2209,27 @@
       } else {
         const armor = (sel === "Mage Armor") ? {ac:13, type:"LA"}              // Mage Armor: 13 + Dex
                     : ((DATA && DATA.armor) ? DATA.armor.find(a => a.name === sel) : null);
+        if(armor && sel !== "Mage Armor") realArmor = armor;                    // a real base armor → material/enchant applies
         let base = 10, needDex = true, dexAdd = mods.dex;
         if(armor){
           base = armor.ac;
           if(armor.type === "HA"){ needDex = false; dexAdd = 0; }              // heavy: no Dex
           else if(armor.type === "MA"){ dexAdd = (mods.dex == null) ? null : Math.min(mods.dex, 2); }  // medium: Dex max 2
           // light (LA) and unarmored: full Dex
-          if(armNote && armor.stealth){ armNote.textContent = "Disadvantage on Dexterity (Stealth) checks while worn."; armNote.style.display = ""; }
+          if(armNote && armor.stealth && modVal !== "mithral"){ armNote.textContent = "Disadvantage on Dexterity (Stealth) checks while worn."; armNote.style.display = ""; }  // mithral removes it
         } else if(sel === "Unarmored"){                                        // Unarmored Defense by class
           const cls = ($("classlevel").value || "").toLowerCase();
           if(/barbarian/.test(cls)) base = 10 + (mods.con || 0);               // Barbarian: 10 + Dex + Con
           else if(/monk/.test(cls)) base = 10 + (mods.wis || 0);               // Monk: 10 + Dex + Wis
         }
         acBase = (needDex && mods.dex == null) ? null : base + (needDex ? dexAdd : 0);
+      }
+      if($("armormod-wrap")) $("armormod-wrap").style.display = realArmor ? "" : "none";   // material/enchant only for a real base armor
+      const magicBonus = /^\+([123])$/.test(modVal) ? parseInt(modVal.slice(1), 10) : 0;
+      if(realArmor && magicBonus && acBase != null) acBase += magicBonus;       // +1/+2/+3 magic armor → AC bonus
+      if(armNote && realArmor){                                                 // descriptive note for material effects
+        if(modVal === "adamantine"){ armNote.textContent = (armNote.textContent ? armNote.textContent + " " : "") + "Any critical hit against you becomes a normal hit (while worn)."; armNote.style.display = ""; }
+        else if(modVal === "mithral" && !armNote.textContent){ armNote.textContent = "Mithral: no Stealth disadvantage or Strength requirement."; armNote.style.display = ""; }
       }
       $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus);
     }
@@ -2263,7 +2281,8 @@
     // Heavy armor whose Strength requirement you don't meet → −10 ft (PHB armor rule)
     {
       const selArmor = (DATA && DATA.armor) ? DATA.armor.find(a => a.name === ($("armorsel").value || "")) : null;
-      const req = selArmor && selArmor.strength ? parseInt(selArmor.strength, 10) : 0;
+      const mithralMod = $("armormod") && $("armormod").value === "mithral";    // mithral removes the Strength requirement
+      const req = (selArmor && selArmor.strength && !mithralMod) ? parseInt(selArmor.strength, 10) : 0;
       if(req && strScore != null && strScore < req){
         speedPenalty += 10;
         $("encnote").textContent = ($("encnote").textContent ? $("encnote").textContent + " " : "") + `Speed −10 ft: ${selArmor.name} requires Strength ${req}.`;
