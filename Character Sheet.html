@@ -2957,15 +2957,22 @@
       seen.add(name); out.push(name); }
     return out;
   }
+  function hasSpellNamed(name){   // is this spell on the character's recorded spell list (written rows or prepared list)?
+    const q = String(name).trim().toLowerCase();
+    for(const l in spellEntries){ if((spellEntries[l]||[]).some(r => (r.name||"").trim().toLowerCase() === q)) return true; }
+    for(const k in (preparedSpells||{})){ if(preparedSpells[k] && String(k).toLowerCase() === q) return true; }
+    return false;
+  }
   function refreshEquippedPickers(){   // Armor + Attunement dropdowns list only equipped qualifying items from inventory
     const aset = attuneSet();
     const as = $("armorsel");
     if(as){ const cur = as.value;
       const eq = byName(equippedNames(n => !!armorByName(n)).map(n => ({name:n})));
-      as.innerHTML = `<option value=""></option><option value="Unarmored">Unarmored</option>`
+      const mage = (hasSpellNamed("Mage Armor") || cur === "Mage Armor") ? `<option value="Mage Armor">Mage Armor (13 + Dex)</option>` : "";   // only when known
+      as.innerHTML = `<option value=""></option><option value="Unarmored">Unarmored</option>`   // Unarmored is always available
         + eq.map(a => optTag(a.name, a.name)).join("")
-        + `<option value="Mage Armor">Mage Armor (13 + Dex)</option><option value="Custom">Custom…</option>`;
-      as.value = cur;   // keep selection when still a valid (equipped) option
+        + mage + `<option value="Custom">Custom…</option>`;
+      as.value = cur;   // keep selection when still a valid option
     }
     const eqAtt = byName(equippedNames(n => aset.has(n.toLowerCase())).map(n => ({name:n})));
     ["0","1","2"].forEach(k => { const s = $("attune-"+k); if(!s) return; const cur = s.value;
