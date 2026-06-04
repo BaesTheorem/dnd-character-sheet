@@ -282,7 +282,19 @@ def build_classes():
                 if not is_src(s) or s.get("className") != c["name"]: continue
                 short = s.get("shortName", s["name"])
                 if short in seen: continue
-                seen.add(short); subs.append({"name": s["name"], "short": short})
+                seen.add(short)
+                sfeats = [{"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))}
+                          for f in data.get("subclassFeature", [])
+                          if is_src(f) and f.get("className")==c["name"] and f.get("subclassShortName")==short
+                          and f.get("classSource", SRC_TAG)==SRC_TAG and f.get("name")]
+                sfeats.sort(key=lambda x: (x["level"], x["name"]))
+                sspells = []
+                for blk in s.get("additionalSpells") or []:
+                    prep = blk.get("prepared") or blk.get("known") or blk.get("innate") or {}
+                    for lv, names in prep.items():
+                        for nm in (names or []):
+                            if isinstance(nm, str): sspells.append({"n": _titlecase(_clean(nm)), "l": int(lv) if str(lv).isdigit() else 0})
+                subs.append({"name": s["name"], "short": short, "features": sfeats, "spells": sspells})
             sub_lvl = None
             for f in c.get("classFeatures", []):
                 if isinstance(f, dict) and f.get("gainSubclassFeature") and f.get("classFeature"):
@@ -306,6 +318,7 @@ def build_classes():
                         "casterAbility": c.get("spellcastingAbility"),
                         "casterProgression": c.get("casterProgression"),
                         "cantrips": c.get("cantripProgression"),   # cantrips known per level (None if class has no cantrips)
+                        "spellsKnown": c.get("spellsKnownProgression"),   # spells-known per level for known casters
                         "equip": equip, "features": feats_c,
                         "subclassTitle": c.get("subclassTitle",""), "subclassLevel": sub_lvl, "subclasses": subs})
     return out
@@ -342,6 +355,8 @@ def build_spells():
         for s in load("spells", fn).get("spell", []):
             if not is_src(s): continue
             comp = s.get("components", {})
+            mat = comp["m"].get("text", "") if isinstance(comp.get("m"), dict) else ""
+            dur0 = (s.get("duration") or [{}])[0]
             spells.append({"name": s["name"], "level": s.get("level", 0),
                            "school": SCHOOL.get(s.get("school",""), s.get("school","")),
                            "time": entries_to_text(s.get("time", [])) if isinstance(s.get("time"), str) else
@@ -350,7 +365,9 @@ def build_spells():
                            "components": "".join(k.upper() for k in ("v","s","m") if comp.get(k)),
                            "duration": render_duration(s.get("duration", [])),
                            "text": entries_to_text(s.get("entries", [])),
-                           "higher": entries_to_text(s.get("entriesHigherLevel", []))})
+                           "higher": entries_to_text(s.get("entriesHigherLevel", [])),
+                           "ritual": bool(s.get("meta", {}).get("ritual")),
+                           "conc": bool(dur0.get("concentration")), "material": mat})
     spells.sort(key=lambda x: (x["level"], x["name"]))
     return spells
 

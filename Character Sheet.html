@@ -337,6 +337,8 @@
   #page-mini.excluded .mini-wrap{display:none}
   #page-mini.excluded .mini-hidden-note{display:block}
   .mini-hidden-note{display:none; color:var(--muted)}
+  .sp-tag{display:inline-block; font-size:8px; font-weight:700; line-height:1; padding:1px 3px; border-radius:3px;
+    background:var(--accent-soft); color:var(--accent); vertical-align:middle; margin-left:2px}
   .spellhead{display:grid; grid-template-columns:1.4fr .8fr 1fr 1fr 1fr; gap:10px; align-items:end}
   .spellhead .stat .calc{min-height:30px; display:flex; align-items:center; justify-content:center}   /* room to write on a blank sheet */
   @media (max-width:560px){ .spellhead{grid-template-columns:1fr 1fr} }
@@ -771,7 +773,7 @@
               </select></div>
             <div class="stat"><div class="k">Spell Save DC</div><div class="calc" id="spelldc"></div></div>
             <div class="stat"><div class="k">Spell Attack</div><div class="calc" id="spellatk"></div></div>
-            <div class="stat" id="prep-stat" style="display:none"><div class="k">Can Prepare</div><div class="calc" id="prepcount"></div></div>
+            <div class="stat" id="prep-stat" style="display:none"><div class="k" id="prep-stat-label">Can Prepare</div><div class="calc" id="prepcount"></div></div>
           </div>
           <p class="help" id="cast-note">Pick a class to tailor the spell list, or leave blank for a flexible layout.</p>
         </div>
@@ -1562,7 +1564,15 @@
       if(s.source !== SRC || !s.className) return;
       const short = s.shortName||s.name;
       const arr = subMap[s.className] = subMap[s.className] || [];
-      if(!arr.some(x => x.short === short)) arr.push({name:s.name, short});
+      if(arr.some(x => x.short === short)) return;
+      const features = (data.subclassFeature||[])
+        .filter(f => f.source === SRC && f.className === s.className && f.subclassShortName === short && (f.classSource||SRC) === SRC && f.name)
+        .map(f => ({name:f.name||"", level:f.level||1, text:etText(f.entries||[])}))
+        .sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
+      const spells = [];                              // always-prepared domain/oath/etc. spells
+      (s.additionalSpells||[]).forEach(blk => { const prep = blk.prepared || blk.known || blk.innate || {};
+        for(const lv in prep){ (prep[lv]||[]).forEach(nm => { if(typeof nm === "string") spells.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0}); }); } });
+      arr.push({name:s.name, short, features, spells});
     });
     const classes = (data.class||[]).filter(c => c.source === SRC).map(c => {
       const sp = c.startingProficiencies || {};
@@ -1582,7 +1592,7 @@
       }
       return {name:c.name, hd:(c.hd||{}).faces, saves:c.proficiency||[], skillChoose:skChoose, skillsFixed:skFixed, prof:clsProf,
         armor:etProfList(sp.armor), weapons:etProfList(sp.weapons), casterAbility:c.spellcastingAbility, casterProgression:c.casterProgression,
-        cantrips:c.cantripProgression||null, equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:(subMap[c.name]||[])};
+        cantrips:c.cantripProgression||null, spellsKnown:c.spellsKnownProgression||null, equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:(subMap[c.name]||[])};
     });
     return {classes, subclasses: subMap};
   }
@@ -1594,10 +1604,12 @@
     (spellsData.spell||[]).forEach(s => {
       if(s.source !== SRC) return;
       const comp = s.components || {};
+      const mat = (comp.m && typeof comp.m === "object") ? (comp.m.text || "") : "";
       out.push({name:s.name, level:s.level||0, school:ET_SCHOOL[s.school]||s.school||"",
         time: typeof s.time === "string" ? etText(s.time) : (s.time||[]).map(t => (t.number||"")+" "+(t.unit||"")).join("; "),
         range:etRange(s.range||{}), components:["v","s","m"].filter(k => comp[k]).map(k => k.toUpperCase()).join(""),
-        duration:etDuration(s.duration||[]), text:etText(s.entries||[]), higher:etText(s.entriesHigherLevel||[])});
+        duration:etDuration(s.duration||[]), text:etText(s.entries||[]), higher:etText(s.entriesHigherLevel||[]),
+        ritual:!!((s.meta||{}).ritual), conc:!!(((s.duration||[])[0]||{}).concentration), material:mat});
     });
     out.sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
     return out;
@@ -1889,8 +1901,16 @@
     return _spellIndex;
   }
   function spellData(name){ return (name && spellIndex()[String(name).toLowerCase()]) || null; }
+  function spellTitle(d){                         // hover tooltip: description + material + higher-level scaling
+    if(!d) return "";
+    let t = d.text || "";
+    if(d.material) t += (t ? "\n\n" : "") + "Material: " + d.material;
+    if(d.higher)   t += (t ? "\n\n" : "") + "At Higher Levels. " + d.higher;
+    return t;
+  }
   function propCells(d){                         // Comp / Cast Time / Range / Duration / School
-    return `<td class="col-comp sp-comp">${d?esc(d.components||""):""}</td>`+
+    const comp = d ? esc(d.components||"") + (d.ritual ? ` <span class="sp-tag" title="Ritual">R</span>` : "") : "";
+    return `<td class="col-comp sp-comp">${comp}</td>`+
            `<td class="col-time sp-time">${d?esc(d.time||""):""}</td>`+
            `<td class="col-range sp-range">${d?esc(d.range||""):""}</td>`+
            `<td class="col-dur sp-dur">${d?esc(d.duration||""):""}</td>`+
@@ -1907,7 +1927,7 @@
       Object.keys(info.fixed).map(Number).sort((a,b)=>a-b).forEach(l => {
         fbody += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
         info.fixed[l].forEach(name => {
-          const d = spellData(name), titleAttr = (d && d.text) ? ` title="${esc(d.text)}"` : "";
+          const d = spellData(name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           fbody += `<tr><td class="col-prep"></td><td class="col-name"${titleAttr}>${esc(name)}</td>`+ propCells(d) +`</tr>`;
         });
       });
@@ -1923,7 +1943,7 @@
       body += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
       if(l>0 && fullByLvl){                      // full-list class → pre-fill this level's real spells (Prep checkbox each)
         (fullByLvl[l]||[]).forEach(sp => {
-          const d = spellData(sp.n), titleAttr = (d && d.text) ? ` title="${esc(d.text)}"` : "";
+          const d = spellData(sp.n), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           body += `<tr>`+
             `<td class="col-prep"><input type="checkbox" class="prep-spell" data-sp="${esc(sp.n)}" ${preparedSpells[sp.n] ? "checked" : ""}></td>`+
             `<td class="col-name"${titleAttr}>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
@@ -1931,7 +1951,7 @@
       } else {                                   // learn-spells rows (cantrips never show Prep)
         const names = classSpellNamesAt(cls, l);   // dropdown of this class's spells at this level (null → free-text)
         (spellEntries[l]||[]).forEach((m,i) => {
-          const d = spellData(m.name), titleAttr = (d && d.text) ? ` title="${esc(d.text)}"` : "";
+          const d = spellData(m.name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           const prepCell = l===0 ? `<td class="col-prep"></td>`
                                   : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
           const nameField = names ? spellRowSelect(l, i, m.name, names)
@@ -2100,15 +2120,20 @@
       $("spelldc").textContent = 8 + pb + mods[sa];
       $("spellatk").textContent = sgn(pb + mods[sa]);
     } else { $("spelldc").textContent = ""; $("spellatk").textContent = ""; }
-    // --- prepared casters: how many spells they can prepare (ability mod + level; half level for Paladin/Artificer) ---
-    const spInfo = CASTERS[$("spellclass").value];
-    if(spInfo && !spInfo.prepares){
-      $("prep-stat").style.display = "none";          // active known caster (Bard/Sorcerer/Ranger/Warlock) — no preparation
-    } else {                                          // prepared caster OR no class selected → keep a writable box
-      $("prep-stat").style.display = "";
+    // --- prepared casters: spells they can prepare; known casters: spells known (from class progression) ---
+    const spName = $("spellclass").value, spInfo = CASTERS[spName], spLbl = $("prep-stat-label");
+    if(spInfo && !spInfo.prepares){                   // known caster → show "Spells Known" if the class has that progression
+      const cls = DATA && findBy(DATA.classes, spName), prog = cls && cls.spellsKnown;
+      if(prog && prog.length){
+        $("prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Spells Known";
+        const slvl = charLevel();
+        $("prepcount").textContent = (slvl != null) ? (prog[Math.min(Math.max(slvl,1),20)-1] || "") : "";
+      } else $("prep-stat").style.display = "none";
+    } else {                                          // prepared caster OR no class selected → "Can Prepare" (writable)
+      $("prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Can Prepare";
       const slvl = charLevel();
       if(spInfo && spInfo.prepares && sa && slvl != null && mods[sa] != null){
-        const half = ["Paladin","Artificer"].includes($("spellclass").value);
+        const half = ["Paladin","Artificer"].includes(spName);
         $("prepcount").textContent = Math.max(1, mods[sa] + (half ? Math.floor(slvl/2) : slvl));
       } else $("prepcount").textContent = "";         // blank → write it in on a printed/blank sheet
     }
@@ -2257,10 +2282,12 @@
         const d = spellData(t.value), tr = t.closest("tr"), nameCell = t.closest(".col-name");   // auto-fill props from DATA
         if(tr){
           const set = (sel,v)=>{ const c = tr.querySelector(sel); if(c) c.textContent = v; };
-          set(".sp-comp", d?d.components||"":""); set(".sp-time", d?d.time||"":""); set(".sp-range", d?d.range||"":"");
+          const comp = tr.querySelector(".sp-comp");
+          if(comp) comp.innerHTML = (d ? esc(d.components||"") + (d.ritual ? ` <span class="sp-tag" title="Ritual">R</span>` : "") : "");
+          set(".sp-time", d?d.time||"":""); set(".sp-range", d?d.range||"":"");
           set(".sp-dur", d?d.duration||"":""); set(".sp-school", d?d.school||"":"");
         }
-        if(nameCell){ if(d && d.text) nameCell.title = d.text; else nameCell.removeAttribute("title"); }
+        if(nameCell){ const tt = spellTitle(d); if(tt) nameCell.title = tt; else nameCell.removeAttribute("title"); }
       } else spellEntries[l][i].prep = t.checked;
     }
     if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
@@ -2684,6 +2711,12 @@
       if(c && c.features && c.features.length){                                    // class features up to this level → Features page
         const lines = c.features.filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${cls} ${f.level}). ${f.text}`);
         if(lines.length){ const t = $("features"); const block = lines.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
+      }
+      const subObj = (c && sub) ? (c.subclasses||[]).find(x => x.name === sub) : null;   // chosen subclass → its features + always-prepared spells
+      if(subObj){
+        const sfl = (subObj.features||[]).filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${sub} ${f.level}). ${f.text}`);
+        if(subObj.spells && subObj.spells.length) sfl.push(`${sub} spells (always prepared): ${subObj.spells.map(sp => sp.n).join(", ")}.`);
+        if(sfl.length){ const t = $("features"); const block = sfl.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
       }
       const eq = (c && c.equip) || {};                                            // starting gold OR equipment
       if(wizEquip === "gold"){ const g = goldAverage(eq.gold); if(g != null) $("gp").value = g; }
