@@ -961,7 +961,8 @@
         <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser.</p>
         <button class="btn primary" id="btn-savedata" title="Download a copy of this sheet with all loaded books baked into the file">Save data file</button>
         <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
-        <p class="wiz-hint">A browser can't overwrite the open file, so <strong>Save data file</strong> downloads an updated copy (with every loaded book baked in) — keep it / replace your sheet with it to make the books permanent.</p>
+        <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
+        <p class="wiz-hint">A browser can't overwrite the open file, so <strong>Save data file</strong> downloads an updated copy (with every loaded book baked in) — keep it / replace your sheet with it to make the books permanent. <strong>Clear loaded books</strong> forgets anything loaded in this browser and reverts to the data baked into this file (use it to re-load a book with refreshed data).</p>
       </div>
       <div class="modal-foot">
         <span class="wiz-hint" style="flex:1; margin:0"></span>
@@ -1450,11 +1451,18 @@
     });
   }
   function etClasses(data, SRC){
-    return (data.class||[]).filter(c => c.source === SRC).map(c => {
+    // All subclasses from THIS book, grouped by base-class name — even when the base class lives in another
+    // book (e.g. TCE's Order of Scribes belongs to the PHB Wizard). mergeBook attaches these to the class.
+    const subMap = {};
+    (data.subclass||[]).forEach(s => {
+      if(s.source !== SRC || !s.className) return;
+      const short = s.shortName||s.name;
+      const arr = subMap[s.className] = subMap[s.className] || [];
+      if(!arr.some(x => x.short === short)) arr.push({name:s.name, short});
+    });
+    const classes = (data.class||[]).filter(c => c.source === SRC).map(c => {
       const sp = c.startingProficiencies || {};
       const {fixed:skFixed, choose:skChoose} = etSkills(sp.skills);
-      const seen = {}, subs = [];
-      (data.subclass||[]).forEach(s => { if(s.source !== SRC || s.className !== c.name) return; const short = s.shortName||s.name; if(seen[short]) return; seen[short]=1; subs.push({name:s.name, short}); });
       const se = c.startingEquipment || {};
       const equip = {items:(se.default||[]).filter(x => typeof x === "string").map(etTags), gold:etTags(se.goldAlternative||"")};
       const features = (data.classFeature||[])
@@ -1469,8 +1477,9 @@
       }
       return {name:c.name, hd:(c.hd||{}).faces, saves:c.proficiency||[], skillChoose:skChoose, skillsFixed:skFixed,
         armor:etProfList(sp.armor), weapons:etProfList(sp.weapons), casterAbility:c.spellcastingAbility, casterProgression:c.casterProgression,
-        cantrips:c.cantripProgression||null, equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:subs};
+        cantrips:c.cantripProgression||null, equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:(subMap[c.name]||[])};
     });
+    return {classes, subclasses: subMap};
   }
   function etFeats(raw, SRC){ return (raw.feat||[]).filter(f => f.source === SRC).map(f => ({name:f.name, text:etText(f.entries||[])})); }
   function etRange(r){ if(!r || typeof r !== "object") return String(r==null?"":r); const d = r.distance||{}; if(r.type === "point" && d) return ((d.amount||"")+" "+(d.type||"")).trim(); return r.type||""; }
@@ -1564,7 +1573,8 @@
     const classAll = {class:[], subclass:[]};
     classArr.forEach(d => { (d.class||[]).forEach(c => classAll.class.push(c)); (d.subclass||[]).forEach(s => classAll.subclass.push(s)); });
     const items = etItems(itemsBase, srcCode);
-    return {races:etRaces(races,srcCode), backgrounds:etBackgrounds(bg,srcCode), classes:etClasses(classAll,srcCode),
+    const cls = etClasses(classAll, srcCode);
+    return {races:etRaces(races,srcCode), backgrounds:etBackgrounds(bg,srcCode), classes:cls.classes, subclasses:cls.subclasses,
       feats:etFeats(feats,srcCode), spells:etSpells(spellsData,srcCode), classSpells:etClassSpells(spellsData,sourcesForSrc,srcCode),
       acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
       languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
@@ -1573,7 +1583,7 @@
   function mergeBook(into, add, bookName){
     into._meta = into._meta || {};
     into._meta.books = into._meta.books || (into._meta.book ? [into._meta.book] : []);
-    ["races","backgrounds","classes","feats","spells","weapons","armor"].forEach(cat => {
+    ["races","backgrounds","feats","spells","weapons","armor"].forEach(cat => {
       into[cat] = into[cat] || [];
       const idx = new Map(into[cat].map((x,i) => [x.name, i]));
       (add[cat]||[]).forEach(x => {                                  // overwrite existing (refreshes corrected data), else append
@@ -1581,6 +1591,22 @@
         else { idx.set(x.name, into[cat].length); into[cat].push(x); }
       });
     });
+    // classes: overwrite base fields but UNION subclasses, so a later book's subclasses aren't lost
+    const unionSubs = (target, extra) => {                           // append subclasses not already present (by short)
+      target.subclasses = target.subclasses || [];
+      const shorts = new Set(target.subclasses.map(s => s.short));
+      (extra||[]).forEach(s => { if(!shorts.has(s.short)){ target.subclasses.push(s); shorts.add(s.short); } });
+    };
+    into.classes = into.classes || [];
+    { const idx = new Map(into.classes.map((x,i) => [x.name, i]));
+      (add.classes||[]).forEach(x => {
+        if(idx.has(x.name)){ const ex = into.classes[idx.get(x.name)]; const keep = ex.subclasses || [];
+          into.classes[idx.get(x.name)] = {...x}; unionSubs(into.classes[idx.get(x.name)], keep); unionSubs(into.classes[idx.get(x.name)], x.subclasses);
+        } else { idx.set(x.name, into.classes.length); into.classes.push(x); }
+      });
+      // cross-book subclasses (e.g. TCE's Order of Scribes for the PHB Wizard) attach to the existing class
+      for(const cn in (add.subclasses||{})){ const cls = into.classes.find(c => c.name === cn); if(cls) unionSubs(cls, add.subclasses[cn]); }
+    }
     { into.acItems = into.acItems || [];
       const idx = new Map(into.acItems.map((x,i) => [x.n, i]));
       (add.acItems||[]).forEach(x => { if(idx.has(x.n)) into.acItems[idx.get(x.n)] = x; else { idx.set(x.n, into.acItems.length); into.acItems.push(x); } });
@@ -1657,6 +1683,16 @@
     const ed = clone.querySelector("#embedded-data"); if(ed) ed.textContent = "null";   // a clean data template, no specific character
     const st = clone.querySelector("#status"); if(st) st.textContent = "";
     download("<!DOCTYPE html>\n" + clone.outerHTML, "Character Sheet (Source Data).html", "text/html");
+  }
+  function clearLoadedBooks(){           // forget books loaded in this browser; revert to the data baked into the file
+    if(!confirm("Forget all sourcebooks loaded in this browser and revert to the data baked into this file?\n\n(Your character isn't affected.)")) return;
+    try{ localStorage.removeItem(SOURCES_KEY); }catch(e){}
+    let baked = null; try{ baked = JSON.parse($("source-data").textContent); }catch(e){}
+    DATA = baked || null;
+    _spellIndex = null;
+    bakeSourceData();   // keep the in-document block consistent with the reverted data
+    populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); populateBookSelect(); compute();
+    flashStatus(DATA ? "Reverted to the data baked into this file — reload books as needed." : "Loaded books cleared.");
   }
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data);
@@ -2665,6 +2701,7 @@
 
     $("btn-savedata").addEventListener("click", saveDataFile);
     $("btn-import").addEventListener("click", ()=> $("file-input").click());
+    $("btn-clearbooks").addEventListener("click", clearLoadedBooks);
     $("file-input").addEventListener("change", ev=>{
       const f = ev.target.files[0]; if(!f) return;
       const r = new FileReader();
