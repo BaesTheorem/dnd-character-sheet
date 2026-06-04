@@ -321,6 +321,15 @@
   .invdrag:active{cursor:grabbing}
   .invtable tr.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
   .invtable tr.drop-into td{box-shadow:inset 0 0 0 2px var(--accent); background:var(--accent-soft)}   /* dropping onto a container */
+  /* Features page: a collapsible raw-text editor + one independent card per feature */
+  .feat-editor{margin-bottom:12px}
+  .feat-editor > summary{cursor:pointer; font-weight:600; font-size:13px; color:var(--accent); padding:4px 0; list-style:none; user-select:none}
+  .feat-editor > summary::-webkit-details-marker{display:none}
+  .feat-editor > summary::before{content:"▸ "; }
+  .feat-editor[open] > summary::before{content:"▾ "; }
+  .feat-cards{display:flex; flex-direction:column; gap:8px}
+  .feat-card-title{font-weight:700; font-size:14px; margin-bottom:3px}
+  .feat-card-body{white-space:pre-wrap; line-height:1.45; font-size:13px}
   .item-search-wrap{position:relative; margin-bottom:10px}
   .item-search-wrap input{width:100%; padding:8px 10px; background:var(--field); border:1px solid var(--line); border-radius:8px; font-size:13px}
   .item-results{position:absolute; left:0; right:0; top:100%; z-index:30; background:#fff; border:1px solid var(--line); border-radius:0 0 8px 8px; max-height:260px; overflow:auto; box-shadow:var(--shadow)}
@@ -470,9 +479,14 @@
     #page-inv .card.grow, .page[data-page^="overflow-"] .card.grow{flex:1 1 auto}   /* Equipment Notes / overflow Inventory takes the remaining height */
     #page-inv .invtable td input{padding:3px 2px}                                  /* inventory rows tall enough to write in */
     /* full-text pages: fill at least one sheet, then flow onto extra sheets if the content is long */
-    #page-feat,#page-story,#page-notes{display:block !important}
-    #page-feat .card.grow,#page-story .card.grow,#page-notes .card.grow{display:block; break-inside:auto}
-    #page-feat .ta-print,#page-story .ta-print,#page-notes .ta-print{min-height:247mm; break-inside:auto}
+    #page-feat{display:flex !important; flex-direction:column; gap:8px}   /* feat page = a stack of per-feature cards that flow across sheets */
+    #feat-cards{display:flex; flex-direction:column; gap:8px}
+    .feat-card{break-inside:avoid}                                        /* never split one feature across a page break */
+    .feat-card-title{font-size:10px; font-weight:700; margin-bottom:1px; letter-spacing:.02em}
+    .feat-card-body{font-size:8px; line-height:1.32; white-space:pre-wrap}
+    #page-story,#page-notes{display:block !important}
+    #page-story .card.grow,#page-notes .card.grow{display:block; break-inside:auto}
+    #page-story .ta-print,#page-notes .ta-print{min-height:247mm; break-inside:auto}
     .card{padding:5px 7px; margin:0; border-color:#999; break-inside:avoid}
     .card>h2, .atk-top h2{margin:0 0 3px; font-size:8px; letter-spacing:.07em}   /* Attacks h2 is inside .atk-top, not a direct card child — include it for header parity */
     input,select,textarea{background:#fff !important; padding:1px 3px}
@@ -809,9 +823,11 @@
 
     <!-- PAGE 3: FEATURES & TRAITS -->
     <section class="page" id="page-feat" data-page="feat">
-      <div class="card grow"><h2>Features & Traits</h2>
+      <details class="feat-editor noprint" id="feat-editor" open>
+        <summary>Features &amp; Traits — edit text (one feature per block, blank line between)</summary>
         <textarea data-save id="features" placeholder="Class features, racial traits, feats…"></textarea>
-      </div>
+      </details>
+      <div id="feat-cards" class="feat-cards"></div>
     </section>
 
     <!-- SPELL SHEET -->
@@ -2498,6 +2514,7 @@
     renderAcItems();         // auto AC-bonus items (equipped + attuned) into the Armor card
     renderContainers();      // container carets, nesting, collapse
     refreshLimitedFeatures();// auto-add limited-use features / feats / equipped items to the Limited Features card
+    renderFeatureCards();    // render each feature as its own card on the Features page
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
   }
 
@@ -3541,6 +3558,26 @@
       const cuts = [s.indexOf(" ("), s.indexOf(". ")].filter(x => x >= 0); const cut = cuts.length ? Math.min(...cuts) : s.length;
       return {name: s.slice(0, cut).trim(), text: b};
     }).filter(x => x.name);
+  }
+  // Split the Features box into {title, body} for the per-feature card view (separate from featureBlocks, which the
+  // limited-use detector uses — this one keeps the full body and drops the "Name. " lead-in for a clean card title).
+  function featureCards(){
+    const v = ($("features").value||""); if(!v.trim()) return [];
+    return v.split(/\n\s*\n+/).map(b => {
+      const s = b.trim().replace(/^Feat:\s*/i, ""); if(!s) return null;
+      const dot = s.indexOf(". "), par = s.indexOf(" (");
+      let cut = -1, skip = 0;
+      if(dot >= 0 && (par < 0 || dot < par)){ cut = dot; skip = 2; }   // "Rage. You can…" → title "Rage"
+      else if(par >= 0){ cut = par; skip = 1; }                        // "Darkvision (60 ft)…" → title "Darkvision", keep the paren in the body
+      if(cut < 0){ const nl = s.indexOf("\n"); return nl >= 0 ? {title:s.slice(0,nl).trim(), body:s.slice(nl+1).trim()} : {title:s, body:""}; }
+      return {title:s.slice(0,cut).trim(), body:s.slice(cut+skip).trim()};
+    }).filter(Boolean);
+  }
+  function renderFeatureCards(){
+    const wrap = $("feat-cards"); if(!wrap) return;
+    wrap.innerHTML = featureCards().map(c =>
+      `<div class="card feat-card"><div class="feat-card-title">${esc(c.title)}</div>`
+      + (c.body ? `<div class="feat-card-body">${esc(c.body)}</div>` : "") + `</div>`).join("");
   }
   function lfIndexByName(name){ const q = String(name).toLowerCase(); for(let i=0;i<NLIMITED;i++){ if(($("lfname-"+i).value||"").trim().toLowerCase() === q) return i; } return -1; }
   function clearLfRow(i){ $("lfname-"+i).value=""; $("lfmax-"+i).value=""; $("lfrec-"+i).value=""; $("lfused-"+i).value=""; $("lfname-"+i).removeAttribute("title"); }
