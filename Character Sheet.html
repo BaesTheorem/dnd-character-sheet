@@ -321,6 +321,10 @@
   .invdrag:active{cursor:grabbing}
   .invtable tr.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
   .invtable tr.drop-into td{box-shadow:inset 0 0 0 2px var(--accent); background:var(--accent-soft)}   /* dropping onto a container */
+  .overflow-split{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:stretch; flex:1 1 auto}   /* Overflow page: 50/50 inventory | features */
+  .overflow-split > .card{margin:0; display:flex; flex-direction:column}
+  .overflow-split textarea{flex:1 1 auto; min-height:320px; line-height:1.5}
+  @media (max-width:560px){ .overflow-split{grid-template-columns:1fr} }
   .item-search-wrap{position:relative; margin-bottom:10px}
   .item-search-wrap input{width:100%; padding:8px 10px; background:var(--field); border:1px solid var(--line); border-radius:8px; font-size:13px}
   .item-results{position:absolute; left:0; right:0; top:100%; z-index:30; background:#fff; border:1px solid var(--line); border-radius:0 0 8px 8px; max-height:260px; overflow:auto; box-shadow:var(--shadow)}
@@ -466,7 +470,8 @@
     .stack{display:flex; flex-direction:column; gap:8px}
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
     #page-inv{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards */
-    #page-spells:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), #page-overflow:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
+    #page-spells:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), .page[data-page^="overflow-"]:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
+    .overflow-split .ta-print{min-height:0}
     #page-inv .card.grow{flex:1 1 auto}                                            /* Equipment Notes takes the remaining height */
     #page-inv .invtable td input{padding:3px 2px}                                  /* inventory rows tall enough to write in */
     /* full-text pages: fill at least one sheet, then flow onto extra sheets if the content is long */
@@ -573,7 +578,6 @@
       <button class="ptab" data-page="bg" type="button">Background</button>
       <button class="ptab" data-page="story" type="button">Backstory</button>
       <button class="ptab" data-page="notes" type="button">Notes</button>
-      <button class="ptab" data-page="overflow" type="button">Overflow</button>
       <button class="ptab" data-page="mini" type="button">Mini</button>
     </nav>
 
@@ -901,29 +905,6 @@
       <div class="card grow"><h2>Notes</h2><textarea data-save id="notes"></textarea></div>
     </section>
 
-    <!-- PAGE: OVERFLOW — spillover space for the Inventory and Limited Features lists -->
-    <section class="page" id="page-overflow" data-page="overflow">
-      <div class="card"><h2>Inventory (overflow)</h2>
-        <div class="inv-cols">
-          <table class="invtable">
-            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
-            <tbody id="inv3"></tbody>
-          </table>
-          <table class="invtable">
-            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
-            <tbody id="inv4"></tbody>
-          </table>
-        </div>
-        <p class="help noprint">Extra inventory rows — they share your main inventory (weight, equip, containers, and the search box all carry over here).</p>
-      </div>
-      <div class="card"><h2>Limited Features (overflow)</h2>
-        <table class="lftable">
-          <thead><tr><th>Feature</th><th style="width:48px">Max</th><th style="width:112px">Recover</th><th style="width:48px">Used</th></tr></thead>
-          <tbody id="limited2"></tbody>
-        </table>
-        <p class="help noprint">Auto-filled features spill here when the Core card's eight rows are full.</p>
-      </div>
-    </section>
 
     <section class="page" id="page-mini" data-page="mini">
       <div class="card noprint mini-hidden-note">
@@ -1129,9 +1110,10 @@
   ];
   const ABBR = {str:"Str",dex:"Dex",con:"Con",int:"Int",wis:"Wis",cha:"Cha"};
   const NATTACKS = 5;
-  const INV_MAIN = 34, INV_OVER = 34, NINV = INV_MAIN + INV_OVER;   // 34 rows on the Inventory page + 34 on the Overflow page
+  const INV_MAIN = 34, OV_INV = 24;     // 34 inventory rows on the Inventory page; +24 (one column) per Overflow page
   const NSPELLROWS = 24;    // spell list rows
-  const LIM_MAIN = 8, LIM_OVER = 8, NLIMITED = LIM_MAIN + LIM_OVER; // 8 limited-feature rows on Core + 8 on the Overflow page
+  const LIM_MAIN = 8, OV_LIM = 8;       // 8 Limited Features rows on Core; +8 per Overflow page
+  let NINV = INV_MAIN, NLIMITED = LIM_MAIN, overflowPages = 0;   // grow as Overflow pages are added (each: 8 limited + 24 inventory + a Features box)
   const invRowHTML = i =>
     `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
     `<td class="invitem"><span class="cont-caret" id="contcaret-${i}" data-r="${i}"></span><input data-save id="invname-${i}" list="item-options" autocomplete="off"></td>`+
@@ -1143,6 +1125,38 @@
     `<td><input data-save id="lfmax-${i}"></td>`+
     `<td><input data-save id="lfrec-${i}" placeholder="LR / SR / Dawn"></td>`+
     `<td><input data-save id="lfused-${i}"></td></tr>`;
+  // ---- Overflow pages: each adds 8 Limited Features rows + (50/50) an Inventory list and a Features box ----
+  const OV_LF_HEAD = `<thead><tr><th>Feature</th><th style="width:48px">Max</th><th style="width:112px">Recover</th><th style="width:48px">Used</th></tr></thead>`;
+  const OV_INV_HEAD = `<thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:64px">Qty</th><th style="width:70px">Wt (lb)</th><th class="noprint" style="width:60px" title="Equipped">Equip</th></tr></thead>`;
+  function overflowPageHTML(k){ const n = k+1;
+    return `<section class="page" id="page-overflow-${k}" data-page="overflow-${k}">`
+      + `<div class="card"><h2>Limited Features (overflow ${n})</h2><table class="lftable">${OV_LF_HEAD}<tbody id="limov-${k}"></tbody></table></div>`
+      + `<div class="overflow-split">`
+        + `<div class="card grow"><h2>Inventory (overflow ${n})</h2><table class="invtable">${OV_INV_HEAD}<tbody id="invov-${k}"></tbody></table></div>`
+        + `<div class="card grow"><h2>Features &amp; Traits (overflow ${n})</h2><textarea data-save id="featov-${k}" placeholder="Continue features &amp; traits here…"></textarea></div>`
+      + `</div>`
+      + `<button class="btn noprint" data-addoverflow type="button" style="margin-top:8px">+ Add overflow page</button>`
+      + `</section>`;
+  }
+  function appendOverflowPage(){
+    const k = overflowPages;
+    $("page-mini").insertAdjacentHTML("beforebegin", overflowPageHTML(k));
+    document.querySelector('#pagetabs .ptab[data-page="mini"]').insertAdjacentHTML("beforebegin", `<button class="ptab ov-tab" data-page="overflow-${k}" type="button">Overflow${k?(" "+(k+1)):""}</button>`);
+    let li=""; for(let i=LIM_MAIN+k*OV_LIM;i<LIM_MAIN+(k+1)*OV_LIM;i++) li += limitedRowHTML(i); $("limov-"+k).innerHTML = li;
+    let iv=""; for(let i=INV_MAIN+k*OV_INV;i<INV_MAIN+(k+1)*OV_INV;i++) iv += invRowHTML(i); $("invov-"+k).innerHTML = iv;
+    overflowPages++; NLIMITED += OV_LIM; NINV += OV_INV;
+  }
+  function removeOverflowPages(){
+    document.querySelectorAll('.page[data-page^="overflow-"]').forEach(el => el.remove());
+    document.querySelectorAll('#pagetabs .ov-tab').forEach(el => el.remove());
+    overflowPages = 0; NINV = INV_MAIN; NLIMITED = LIM_MAIN;
+  }
+  function setOverflowPages(n){ removeOverflowPages(); for(let i=0;i<Math.max(1, n||1);i++) appendOverflowPage(); }
+  function overflowPageUsed(k){
+    const ia = INV_MAIN + k*OV_INV; for(let i=ia;i<ia+OV_INV;i++){ const e=$("invname-"+i); if(e && (e.value||"").trim()) return true; }
+    const la = LIM_MAIN + k*OV_LIM; for(let i=la;i<la+OV_LIM;i++){ const e=$("lfname-"+i); if(e && (e.value||"").trim()) return true; }
+    const f = $("featov-"+k); return !!(f && (f.value||"").trim());
+  }
 
   // 5e (2014) ability-score generation
   const POINTBUY_COST = {8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9};
@@ -1218,16 +1232,12 @@
     }
     $("attacks").innerHTML = rows;
 
-    const lfRange = (a,b) => { let s=""; for(let i=a;i<b;i++) s += limitedRowHTML(i); return s; };
-    $("limited").innerHTML = lfRange(0, LIM_MAIN);                    // Core page
-    if($("limited2")) $("limited2").innerHTML = lfRange(LIM_MAIN, NLIMITED);   // Overflow page
+    let lf = ""; for(let i=0;i<LIM_MAIN;i++) lf += limitedRowHTML(i);
+    $("limited").innerHTML = lf;                                     // Core page (overflow limited rows are built per Overflow page)
 
-    const invRange = (a,b) => { let s=""; for(let i=a;i<b;i++) s += invRowHTML(i); return s; };
     const h1 = Math.ceil(INV_MAIN/2);                                // Inventory page: rows 0..INV_MAIN-1, two columns
-    $("inv").innerHTML = invRange(0, h1); $("inv2").innerHTML = invRange(h1, INV_MAIN);
-    const h2 = INV_MAIN + Math.ceil(INV_OVER/2);                     // Overflow page: rows INV_MAIN..NINV-1, two columns
-    if($("inv3")) $("inv3").innerHTML = invRange(INV_MAIN, h2);
-    if($("inv4")) $("inv4").innerHTML = invRange(h2, NINV);
+    let invL="", invR=""; for(let i=0;i<h1;i++) invL += invRowHTML(i); for(let i=h1;i<INV_MAIN;i++) invR += invRowHTML(i);
+    $("inv").innerHTML = invL; $("inv2").innerHTML = invR;
 
     let sl = "";
     for(let l=1;l<=9;l++) sl +=
@@ -1491,7 +1501,7 @@
   }
   // ---- Layout: which pages/tabs are shown (Settings) ----
   const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["spells","Spells"],
-                 ["companion","Companions"],["bg","Background"],["story","Backstory"],["notes","Notes"],["overflow","Overflow"],["mini","Mini"]];
+                 ["companion","Companions"],["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
@@ -2072,22 +2082,21 @@
     populateWizard(); populateArmor(); populateItemList(); renderSpellStyle(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
     flashStatus(DATA ? "Reverted to the data baked into this file — reload books as needed." : "Loaded books cleared.");
   }
-  function overflowUsed(){   // any overflow inventory row or limited-feature row filled in?
-    for(let i=INV_MAIN;i<NINV;i++){ const e=$("invname-"+i); if(e && (e.value||"").trim()) return true; }
-    for(let i=LIM_MAIN;i<NLIMITED;i++){ const e=$("lfname-"+i); if(e && (e.value||"").trim()) return true; }
-    return false;
-  }
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
-    const overflow = overflowUsed();
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
-      const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "overflow" && !overflow);   // overflow page prints only when it holds something
+      const excluded = userHidden || (key === "mini" && !hasPortrait);
       const tab = document.querySelector('.ptab[data-page="'+key+'"]');
       if(tab){ tab.style.display = userHidden ? "none" : ""; tab.classList.toggle("muted", excluded && !userHidden); }
       const page = $("page-"+key);
       if(page) page.classList.toggle("excluded", excluded);
     });
+    for(let k=0;k<overflowPages;k++){          // each Overflow page prints only when it holds something
+      const used = overflowPageUsed(k), pg = $("page-overflow-"+k), tab = document.querySelector('.ptab[data-page="overflow-'+k+'"]');
+      if(pg) pg.classList.toggle("excluded", !used);
+      if(tab) tab.classList.toggle("muted", !used);
+    }
     const active = document.querySelector(".page.active");          // active page hidden → jump to first visible
     if(active && active.classList.contains("excluded")){
       const firstKey = PAGES.map(p=>p[0]).find(k => { const pg=$("page-"+k); return pg && !pg.classList.contains("excluded"); });
@@ -2510,6 +2519,7 @@
     data.invUnits = []; for(let i=0;i<NINV;i++) data.invUnits.push($("invwt-"+i).dataset.unit || "");   // per-item inventory weights
     data.invConts = []; for(let i=0;i<NINV;i++) data.invConts.push(rowCont(i));   // per-row container assignment
     data.collapsed = [...collapsedContainers];   // collapsed container groups
+    data.overflowPages = overflowPages;          // how many Overflow pages exist
     data.invEquip = []; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i); data.invEquip.push(!!(cb && cb.checked)); }   // per-row equipped state
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     data.companions = companions;
@@ -2564,6 +2574,7 @@
     }
     renderAbilities();
     renderHoodControls();
+    setOverflowPages(data && data.overflowPages);   // build the right number of Overflow pages BEFORE restoring their rows (sets NINV/NLIMITED)
     applyFields(data);
     for(let i=0;i<NINV;i++){                       // restore per-item inventory weights (legacy sheets stored per-item in invwt-*)
       let u = null;
@@ -3476,7 +3487,10 @@
     if(!name) return;
     for(let i=0;i<NLIMITED;i++){ if(($("lfname-"+i).value||"").trim().toLowerCase() === name.toLowerCase()) return; }
     let idx = -1; for(let i=0;i<NLIMITED;i++){ if(!($("lfname-"+i).value||"").trim()){ idx = i; break; } }
-    if(idx < 0) return;   // card full
+    if(idx < 0){ appendOverflowPage();   // all rows full → automatically spill onto a new Overflow page
+      for(let i=0;i<NLIMITED;i++){ if(!($("lfname-"+i).value||"").trim()){ idx = i; break; } }
+      if(idx < 0) return;
+    }
     $("lfname-"+idx).value = name; $("lfmax-"+idx).value = (max!=null && max!=="") ? String(max) : ""; $("lfrec-"+idx).value = rec || "";
     if(desc) $("lfname-"+idx).title = desc;
   }
@@ -3594,6 +3608,7 @@
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
+    document.addEventListener("click", e => { if(e.target.closest("[data-addoverflow]")){ appendOverflowPage(); applyLayout(); showPage("overflow-"+(overflowPages-1)); save(); compute(); } });
     setupItemSearch();
 
     // --- inventory drag-to-reorder (across both columns) ---
