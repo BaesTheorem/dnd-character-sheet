@@ -508,15 +508,31 @@ def _mon_spellcasting(sc):
                     chunks.append(f"{lvl}: {names}")
         chunks.append(entries_to_text(blk.get("footerEntries", [])))
     return "\n".join(c for c in chunks if c)
+def _monster_img_map():
+    # name(lower) -> first internal art path (relative to /img/), from the bestiary fluff file.
+    fn = os.path.join(SRC, "bestiary", f"fluff-bestiary-{SRC_TAG.lower()}.json")
+    if not os.path.exists(fn): return {}
+    out = {}
+    for fl in json.load(open(fn)).get("monsterFluff", []):
+        if fl.get("source") != SRC_TAG: continue
+        for im in fl.get("images", []) or []:
+            h = im.get("href") or {}
+            if h.get("type") == "internal" and h.get("path"):
+                out[fl["name"].lower()] = h["path"]; break
+    return out
+
 def build_monsters():
     fn = os.path.join(SRC, "bestiary", f"bestiary-{SRC_TAG.lower()}.json")
     if not os.path.exists(fn): return []
+    imgs = _monster_img_map()
     out = []
     for m in json.load(open(fn)).get("monster", []):
         if not is_src(m) or m.get("_copy"): continue
         ac, acnote = _mon_ac(m.get("ac"))
         hp = m.get("hp", {}) or {}
         crn = cr_num(m.get("cr", 0))
+        img = imgs.get(m["name"].lower())
+        rec = ({"img": img} if img else {})
         out.append({"name": m["name"], "size": _mon_size(m.get("size","M")), "type": _mon_type(m.get("type","")),
             "beast": _is_beast(m.get("type","")), "align": _mon_align(m.get("alignment")),
             "ac": ac, "acNote": acnote, "hp": hp.get("average"), "hpFormula": hp.get("formula",""),
@@ -531,7 +547,7 @@ def build_monsters():
             "cr": str(m.get("cr","")) if not isinstance(m.get("cr"), dict) else str(m["cr"].get("cr","")), "crNum": crn, "pb": cr_pb(crn),
             "traits": _mon_block(m.get("trait")), "actions": _mon_block(m.get("action")),
             "reactions": _mon_block(m.get("reaction")), "legendary": _mon_block(m.get("legendary")),
-            "spellcasting": _mon_spellcasting(m.get("spellcasting"))})
+            "spellcasting": _mon_spellcasting(m.get("spellcasting")), **rec})
     out.sort(key=lambda x: x["name"])
     return out
 

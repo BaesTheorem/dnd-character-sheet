@@ -1825,6 +1825,16 @@
     out.sort((a,b) => a.name.localeCompare(b.name));
     return out;
   }
+  // First internal image path for a fluff entry (relative to the server's /img/ root), e.g. "bestiary/MM/Goblin.webp".
+  function _fluffImgPath(fl){
+    for(const im of ((fl && fl.images) || [])){ const h = im && im.href; if(h && h.type === "internal" && h.path) return h.path; }
+    return "";
+  }
+  // Attach each monster's art path (m.img) from the bestiary fluff file (mirror of build_monsters' image pass).
+  function etAttachMonsterImages(monsters, fluff, SRC){
+    const map = {}; (((fluff||{}).monsterFluff)||[]).forEach(fl => { if(fl.source !== SRC) return; const p = _fluffImgPath(fl); if(p) map[(fl.name||"").toLowerCase()] = p; });
+    monsters.forEach(m => { const p = map[(m.name||"").toLowerCase()]; if(p) m.img = p; });
+  }
   function etItems(raw, itemsData, SRC){
     const weapons = [], armor = [];
     (raw.baseitem||[]).forEach(it => {
@@ -1933,9 +1943,11 @@
     const items = etItems(itemsBase, itemsData, srcCode);
     const cls = etClasses(classAll, srcCode);
     const bestiary = await J("bestiary/bestiary-"+srcCode.toLowerCase()+".json").catch(()=>({}));   // monsters (Monster Manual etc.)
+    const fluff = await J("bestiary/fluff-bestiary-"+srcCode.toLowerCase()+".json").catch(()=>({})); // monster art (images)
+    const monsters = etMonsters(bestiary,srcCode); etAttachMonsterImages(monsters, fluff, srcCode);
     return {races:etRaces(races,srcCode), backgrounds:etBackgrounds(bg,srcCode), classes:cls.classes, subclasses:cls.subclasses,
       feats:etFeats(feats,srcCode), spells:etSpells(spellsData,srcCode), classSpells:etClassSpells(spellsData,sourcesForSrc,srcCode),
-      monsters:etMonsters(bestiary,srcCode),
+      monsters,
       acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
       languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
       itemWeights:etItemWeights(itemsBase,itemsData,srcCode),
@@ -2918,7 +2930,7 @@
   const COMP_TEMPLATES = [["","— no template —"],["familiar","Familiar (Find Familiar)"],["chain","Pact of the Chain familiar"],
     ["companion","Animal Companion (Beast Master)"],["wildshape","Wild Shape"],["summon","Summon / Polymorph"]];
   function blankCompanion(){ return {name:"",monster:"",template:"",ac:"",hp:"",curhp:"",speed:"",str:"",dex:"",con:"",int:"",wis:"",cha:"",
-    save:"",skill:"",senses:"",languages:"",resist:"",immune:"",vuln:"",condimmune:"",cr:"",pb:"",traits:"",actions:"",notes:"",portrait:null}; }
+    save:"",skill:"",senses:"",languages:"",resist:"",immune:"",vuln:"",condimmune:"",cr:"",pb:"",traits:"",actions:"",notes:"",portrait:null,autoPortrait:false}; }
   function compMod(v){ const n = parseInt(v,10); return isNaN(n) ? "" : sgn(Math.floor((n-10)/2)); }
   function monsterByName(name){ const n = String(name||"").trim().toLowerCase(); return ((DATA&&DATA.monsters)||[]).find(m => (m.name||"").toLowerCase() === n) || null; }
   function populateMonsterList(){
@@ -2940,7 +2952,27 @@
     if((m.legendary||[]).length) act += "\n\nLegendary Actions\n" + m.legendary.map(a => `${a.name}. ${a.text}`).join("\n\n");
     if(m.spellcasting) act += "\n\nSpellcasting\n" + m.spellcasting;
     c.actions = act.trim();
+    // Auto-load the monster's art into the portrait — unless the user uploaded their own.
+    const wantAuto = !c.portrait || c.autoPortrait;
+    if(wantAuto && c._autoImgFor !== m.name){          // a different stat block than the current auto art
+      c.portrait = null; c.autoPortrait = false; c._autoImgFor = null;
+      if(m.img) fetchMonsterPortrait(c, m);            // async, fire-and-forget (skips silently if no server / no image)
+    }
     applyCompanionTemplate(c);   // Phase C overlays template rules
+  }
+  // Fetch a monster's art from the loaded 5etools server and set it as the companion's portrait (data URL).
+  async function fetchMonsterPortrait(c, m){
+    if(!m || !m.img) return;
+    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    const url = base.replace(/\/+$/,"") + "/img/" + m.img.split("/").map(encodeURIComponent).join("/");
+    try{
+      const r = await fetch(url); if(!r.ok) return;
+      const blob = await r.blob();
+      const dataUrl = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(blob); });
+      if(c.monster === m.name && (!c.portrait || c.autoPortrait)){   // still the same creature and no manual portrait snuck in
+        c.portrait = dataUrl; c.autoPortrait = true; c._autoImgFor = m.name; renderCompanions(); save();
+      }
+    }catch(e){ /* offline / baked data / missing art → leave portrait empty */ }
   }
   // Auto-apply the deterministic parts of a template to a creature (called on fresh monster base).
   function applyCompanionTemplate(c){
@@ -3005,7 +3037,7 @@
     if(!companions[ci]) return;
     const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
     inp.onchange = () => { const f = inp.files && inp.files[0]; if(!f) return;
-      const r = new FileReader(); r.onload = () => { companions[ci].portrait = r.result; renderCompanions(); save(); }; r.readAsDataURL(f); };
+      const r = new FileReader(); r.onload = () => { companions[ci].portrait = r.result; companions[ci].autoPortrait = false; companions[ci]._autoImgFor = null; renderCompanions(); save(); }; r.readAsDataURL(f); };
     inp.click();
   }
   // ---- Guided character creation wizard ----
