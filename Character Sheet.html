@@ -1746,12 +1746,18 @@
     out.sort((a,b) => a.name.localeCompare(b.name));
     return out;
   }
-  function etItems(raw, SRC){
+  function etItems(raw, itemsData, SRC){
     const weapons = [], armor = [];
     (raw.baseitem||[]).forEach(it => {
       if(it.source !== SRC) return;
       if(it.weapon) weapons.push({name:it.name, cat:it.weaponCategory==="martial"?"martial":"simple", melee:it.type==="M", dmg:it.dmg1||"", dmgType:ET_DMG[it.dmgType]||it.dmgType||"", versatile:it.dmg2||"", props:(it.property||[]).map(p=>ET_WPROP[p]||p), range:it.range||""});
       else if(it.armor || ["LA","MA","HA","S"].includes(it.type||"")) armor.push({name:it.name, ac:it.ac, type:it.type||"", stealth:!!it.stealth, strength:it.strength});
+    });
+    // named magic armors (Elven Chain, Dwarven Plate, ...) live in items.json, not baseitem
+    (((itemsData||{}).item)||[]).forEach(it => {
+      if(it.source !== SRC) return;
+      const ty = (it.type||"").split("|")[0];
+      if(["LA","MA","HA"].includes(ty) && it.ac != null) armor.push({name:it.name, ac:it.ac, type:ty, stealth:!!it.stealth, strength:it.strength});
     });
     return {weapons, armor};
   }
@@ -1811,7 +1817,7 @@
     const classAll = {class:[], subclass:[], classFeature:[], subclassFeature:[]};
     classArr.forEach(d => { (d.class||[]).forEach(c => classAll.class.push(c)); (d.subclass||[]).forEach(s => classAll.subclass.push(s));
       (d.classFeature||[]).forEach(f => classAll.classFeature.push(f)); (d.subclassFeature||[]).forEach(f => classAll.subclassFeature.push(f)); });   // features live in the class files too — collect them or every class/subclass loads featureless
-    const items = etItems(itemsBase, srcCode);
+    const items = etItems(itemsBase, itemsData, srcCode);
     const cls = etClasses(classAll, srcCode);
     const bestiary = await J("bestiary/bestiary-"+srcCode.toLowerCase()+".json").catch(()=>({}));   // monsters (Monster Manual etc.)
     return {races:etRaces(races,srcCode), backgrounds:etBackgrounds(bg,srcCode), classes:cls.classes, subclasses:cls.subclasses,

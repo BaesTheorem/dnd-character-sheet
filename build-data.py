@@ -351,7 +351,7 @@ def build_feats(raw):
                     "prof": prof_block(f)})
     return out
 
-def build_items(raw):
+def build_items(raw, items=None):
     weapons, armor = [], []
     for it in raw.get("baseitem", []):
         if not is_src(it): continue
@@ -364,6 +364,13 @@ def build_items(raw):
                             "range": it.get("range","")})
         elif it.get("armor") or it.get("type","") in ("LA","MA","HA","S"):
             armor.append({"name": it["name"], "ac": it.get("ac"), "type": it.get("type",""),
+                          "stealth": bool(it.get("stealth")), "strength": it.get("strength")})
+    # named magic armors (Elven Chain, Dwarven Plate, ...) live in items.json, not baseitem
+    for it in (items or {}).get("item", []):
+        if not is_src(it): continue
+        ty = (it.get("type") or "").split("|")[0]
+        if ty in ("LA","MA","HA") and it.get("ac") is not None:
+            armor.append({"name": it["name"], "ac": it.get("ac"), "type": ty,
                           "stealth": bool(it.get("stealth")), "strength": it.get("strength")})
     return weapons, armor
 
@@ -619,7 +626,7 @@ def main():
     items_base = load("items-base.json")
     try: items = load("items.json")
     except Exception: items = {}
-    weapons, armor = build_items(items_base)
+    weapons, armor = build_items(items_base, items)
     out["weapons"], out["armor"] = weapons, armor
     out["tools"] = build_tools(items_base, items)
     out["languages"] = build_languages()
