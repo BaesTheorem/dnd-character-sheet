@@ -1029,11 +1029,11 @@
         </div>
         <label class="lbl" style="display:block; margin:10px 0 4px">5etools server</label>
         <input id="server-url" value="http://localhost:5050" spellcheck="false">
-        <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser.</p>
+        <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser and stay in the list marked <em>(loaded)</em> — pick one and <strong>Load</strong> again to refresh its data.</p>
         <button class="btn primary" id="btn-savedata" title="Download a copy of this sheet with all loaded books baked into the file">Save data file</button>
         <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
         <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
-        <p class="wiz-hint">A browser can't overwrite the open file, so <strong>Save data file</strong> downloads an updated copy (with every loaded book baked in) — keep it / replace your sheet with it to make the books permanent. <strong>Clear loaded books</strong> forgets anything loaded in this browser and reverts to the data baked into this file (use it to re-load a book with refreshed data).</p>
+        <p class="wiz-hint">A browser can't overwrite the open file, so <strong>Save data file</strong> downloads an updated copy (with every loaded book baked in) — keep it / replace your sheet with it to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
       </div>
       <div class="modal-foot">
         <span class="wiz-hint" style="flex:1; margin:0"></span>
@@ -1893,22 +1893,25 @@
     try{
       const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
       // This is a 2014-ruleset sheet — 2024 books are filtered out (a 2024-compliant sheet is on the roadmap).
-      // Already-loaded books are filtered out too (nothing to re-load).
+      // Already-loaded books stay in the list (marked) so you can re-load one to refresh its data.
       const loaded = new Set(loadedBooks().map(n => String(n).toLowerCase()));
       const books = (bj.book||[])
-        .filter(b => !isBook2024(b) && !loaded.has(String(b.name||b.id||"").toLowerCase()))
+        .filter(b => !isBook2024(b))
         .sort((a,b) => (a.name||"").localeCompare(b.name||""));
-      sel.innerHTML = (books.length ? '<option value="">Pick a book…</option>' : '<option value="">All available books already loaded</option>')
-        + books.map(b => `<option value="${esc(b.id||b.source)}">${esc(b.name||b.id)}</option>`).join("");
+      sel.innerHTML = '<option value="">Pick a book…</option>'
+        + books.map(b => { const nm = b.name||b.id, isLd = loaded.has(String(nm).toLowerCase());
+            return `<option value="${esc(b.id||b.source)}" data-name="${esc(nm)}">${esc(nm)}${isLd ? " (loaded — reload to refresh)" : ""}</option>`; }).join("");
       sel.disabled = !books.length;
     }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; }
   }
   async function loadBookFromServer(){
     const sel = $("book-select"), srcCode = sel && sel.value;
     if(!srcCode){ flashStatus("Pick a book first"); return; }
-    const bookName = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : srcCode;
+    const opt = sel.options[sel.selectedIndex];
+    const bookName = (opt && opt.dataset && opt.dataset.name) || (opt ? opt.textContent : srcCode);   // clean name (no "(loaded…)" suffix)
+    const wasLoaded = new Set(loadedBooks().map(n => String(n).toLowerCase())).has(String(bookName).toLowerCase());
     const base = ($("server-url").value || "").trim() || "http://localhost:5050";
-    const btn = $("btn-loadbook"); if(btn){ btn.disabled = true; btn.textContent = "Loading…"; }
+    const btn = $("btn-loadbook"); if(btn){ btn.disabled = true; btn.textContent = wasLoaded ? "Reloading…" : "Loading…"; }
     try{
       const data = await fetch5etoolsBook(base, srcCode);
       if(!DATA) DATA = {_meta:{books:[]}};
@@ -1918,8 +1921,8 @@
       try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }
       catch(e){ flashStatus(bookName+" loaded (too large to save — stays this session)"); }
       populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); populateMonsterList(); compute();
-      populateBookSelect();   // drop the just-loaded book from the picker
-      flashStatus(bookName+" loaded — use “Save data file” to bake it into your sheet");
+      populateBookSelect();   // re-mark the just-loaded book as loaded in the picker
+      flashStatus(bookName + (wasLoaded ? " reloaded (data refreshed)" : " loaded — use “Save data file” to bake it into your sheet"));
     }catch(e){ flashStatus("Load failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = "Load"; } }
   }
