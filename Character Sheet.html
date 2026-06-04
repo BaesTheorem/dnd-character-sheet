@@ -1899,10 +1899,10 @@
     flashStatus(DATA ? "Reverted to the data baked into this file — reload books as needed." : "Loaded books cleared.");
   }
   function applyLayout(){
-    const hasPortrait = !!(portraitData && portraitData.data);
+    const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
-      const excluded = userHidden || (key === "mini" && !hasPortrait);   // mini also needs a portrait
+      const excluded = userHidden || (key === "mini" && !hasPortrait);   // mini needs at least one portrait (character or companion)
       const tab = document.querySelector('.ptab[data-page="'+key+'"]');
       if(tab){ tab.style.display = userHidden ? "none" : ""; tab.classList.toggle("muted", excluded && !userHidden); }
       const page = $("page-"+key);
@@ -2472,11 +2472,24 @@
     }
     renderMini();
   }
-  // ---- paper mini: reuse the character portrait on a fold-over standee ----
+  // ---- paper minis: a fold-over standee for the character and each companion with a portrait ----
   function renderMini(){
-    const url = (portraitData && portraitData.data) ? `url("${portraitData.data}")` : "";
-    document.querySelectorAll("#mini-embed .mp").forEach(p => p.style.backgroundImage = url);
-    applyLayout();   // mini visibility depends on whether a portrait exists
+    const charUrl = (portraitData && portraitData.data) ? `url("${portraitData.data}")` : "";
+    document.querySelectorAll("#mini-embed .mp").forEach(p => p.style.backgroundImage = charUrl);
+    const wrap = $("mini-wrap");
+    if(wrap){
+      const charCol = $("mini-embed").closest(".mini-col"); if(charCol) charCol.style.display = charUrl ? "" : "none";
+      wrap.querySelectorAll(".comp-mini-col").forEach(el => el.remove());
+      const instr = wrap.querySelector(".mini-col:last-child");     // the cut/fold instructions column (kept last)
+      (companions||[]).forEach(c => {
+        if(!c.portrait) return;
+        const col = document.createElement("div"); col.className = "mini-col comp-mini-col";
+        col.innerHTML = `<div class="mini-embed"><div class="mp mp-back"></div><div class="mp mp-front"></div></div><p class="mini-cap">${esc(c.name||"Companion")}</p>`;
+        col.querySelectorAll(".mp").forEach(p => p.style.backgroundImage = `url("${c.portrait}")`);
+        if(instr) wrap.insertBefore(col, instr); else wrap.appendChild(col);
+      });
+    }
+    applyLayout();   // mini page visibility depends on whether any portrait exists
   }
   function dataURLtoBlob(durl){
     const [head, b64] = durl.split(",");
@@ -2696,6 +2709,7 @@
     list.innerHTML = companions.length ? companions.map(compBlock).join("")
       : `<div class="card"><p class="wiz-hint" style="margin:0">No creatures yet. Click <strong>+ Add creature</strong> to add an animal companion, familiar, or Wild Shape form.</p></div>`;
     list.querySelectorAll("textarea").forEach(autoGrow);
+    if(typeof renderMini === "function") renderMini();   // companion portraits → Mini page
   }
   const COMP_TEMPLATE_NOTES = {
     familiar:"Familiar: acts on its own initiative, obeys you, and can't attack. Telepathic link and shared senses within 100 ft. Forms: bat, cat, crab, frog, hawk, lizard, octopus, owl, poisonous snake, fish (quipper), rat, raven, sea horse, spider, or weasel.",
