@@ -475,7 +475,7 @@
     .stack{display:flex; flex-direction:column; gap:8px}
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
     #page-inv{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards */
-    #page-spells:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), .page[data-page^="overflow-"]:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
+    #page-spells:not(.excluded), .page.spell-extra:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), .page[data-page^="overflow-"]:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
     #page-inv .card.grow, .page[data-page^="overflow-"] .card.grow{flex:1 1 auto}   /* Equipment Notes / overflow Inventory takes the remaining height */
     #page-inv .invtable td input{padding:3px 2px}                                  /* inventory rows tall enough to write in */
     /* full-text pages: fill at least one sheet, then flow onto extra sheets if the content is long */
@@ -558,7 +558,7 @@
     .slot-io .io input{font-size:9px; padding:0}
     .spellhead .stat .calc{min-height:17px}   /* keep DC / Attack / Can Prepare writable in print */
     .spelltable .sp-section td{font-size:7px; padding:2px 4px; border-top-width:1px}
-    #page-spells .spell-list{break-inside:auto}     /* let the spell list flow onto extra sheets */
+    #page-spells .spell-list, .spell-extra .spell-list{break-inside:auto}     /* let the spell list flow onto extra sheets */
     .spelltable tr{break-inside:avoid}              /* don't split a spell row across pages */
     .spelltable .sp-section td{break-after:avoid}   /* keep a level header with its first rows */
   }
@@ -873,6 +873,7 @@
             <tbody id="spells"></tbody>
           </table>
         </div>
+        <button class="btn noprint" data-addspellsheet type="button" style="margin-top:8px; font-size:11px; padding:4px 10px" title="Add a second, independent spell sheet for another class">+ Add spell sheet</button>
       </div>
     </section>
 
@@ -1248,14 +1249,7 @@
     let invL="", invR=""; for(let i=0;i<h1;i++) invL += invRowHTML(i); for(let i=h1;i<INV_MAIN;i++) invR += invRowHTML(i);
     $("inv").innerHTML = invL; $("inv2").innerHTML = invR;
 
-    let sl = "";
-    for(let l=1;l<=9;l++) sl +=
-      `<div class="slot" id="slotcell${l}"><div class="k">Lv ${l}</div>`+
-      `<div class="slot-io">`+
-        `<label class="io"><span>Total</span><input data-save type="number" id="slot${l}" min="0"></label>`+
-        `<label class="io"><span>Used</span><input data-save type="number" id="slot${l}u" min="0"></label>`+
-      `</div></div>`;
-    $("slots").innerHTML = sl;
+    $("slots").innerHTML = slotsHTML(0);
     // spell rows are built by renderSpellTable() (class-dependent), called from renderSpellStyle()
   }
 
@@ -2053,7 +2047,7 @@
       bakeSourceData();   // keep the in-document data block in sync so saves carry the books
       try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }
       catch(e){ flashStatus(bookName+" loaded (too large to save — stays this session)"); }
-      populateWizard(); populateArmor(); populateItemList(); renderSpellStyle(false); updateSourcebookStatus(); populateMonsterList(); compute();
+      populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false); updateSourcebookStatus(); populateMonsterList(); compute();
       populateBookSelect();   // move the just-loaded book over to the reload picker
       flashStatus(bookName + (reloading ? " reloaded (data refreshed)" : " loaded — use “Save data file” to bake it into your sheet"));
     }catch(e){ flashStatus((reloading?"Reload":"Load")+" failed — is your 5etools server running at "+base+"?"); }
@@ -2080,7 +2074,7 @@
       }
       _spellIndex = null; bakeSourceData();
       try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }catch(e){}
-      populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
+      populateWizard(); populateArmor(); renderAllSpellSheets(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
       flashStatus("Reloaded " + n + " source" + (n===1?"":"s") + (missed?" ("+missed+" not on server)":"") + " — data refreshed");
     }catch(e){ flashStatus("Reload failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Reload all loaded sources"; } }
@@ -2100,7 +2094,7 @@
     DATA = baked || null;
     _spellIndex = null;
     bakeSourceData();   // keep the in-document block consistent with the reverted data
-    populateWizard(); populateArmor(); populateItemList(); renderSpellStyle(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
+    populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
     flashStatus(DATA ? "Reverted to the data baked into this file — reload books as needed." : "Loaded books cleared.");
   }
   function applyLayout(){
@@ -2115,6 +2109,11 @@
     });
     for(let k=0;k<overflowPages;k++){          // each Overflow page prints only when it holds something
       const used = overflowPageUsed(k), pg = $("page-overflow-"+k), tab = document.querySelector('.ptab[data-page="overflow-'+k+'"]');
+      if(pg) pg.classList.toggle("excluded", !used);
+      if(tab) tab.classList.toggle("muted", !used);
+    }
+    for(let i=1;i<spellSheets;i++){            // each extra spell sheet prints only when it holds something
+      const used = spellSheetUsed(i), pg = $("page-"+sx(i,'spells')), tab = document.querySelector('.ptab[data-page="'+sx(i,'spells')+'"]');
       if(pg) pg.classList.toggle("excluded", !used);
       if(tab) tab.classList.toggle("muted", !used);
     }
@@ -2151,9 +2150,17 @@
     "Fighter (Eldritch Knight)":[0,0,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3],
     "Rogue (Arcane Trickster)":[0,0,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4] };
   // Fixed-list casters (e.g. Shadow Monk) render their spells directly in renderSpellTable — no write-in rows to seed.
-  let preparedSpells = {};                     // {spellName: true} for pre-filled full-list classes
-  let spellEntries = {};                       // {lvl: [{name,prep}]} — write-your-own rows; lvl 0 = cantrips
-  let spellMaxLevel = 9;                        // highest spell-level section shown (sections shrink/grow on creation)
+  // ---- Multiple independent spell sheets ----------------------------------------------------------
+  // Sheet 0 is the built-in Spells page (keeps its bare element ids for backward-compatible saves);
+  // each extra sheet is its own page with every id suffixed "__<inst>". State lives in these arrays.
+  let spellSheets = 1;                                 // number of spell sheets (>=1)
+  let spellEntriesByInst = [];                         // [inst] -> {lvl:[{name,prep}]} write-your-own rows (lazily created via spellEntriesOf; CANTRIP_COUNT is declared below, so don't call defaultSpellEntries() at load time)
+  let preparedByInst = [{}];                           // [inst] -> {spellName:true} pre-filled full-list picks
+  let spellMaxByInst = [9];                            // [inst] -> highest spell-level section shown
+  const sx = (inst, base) => inst ? base + "__" + inst : base;   // namespaced element id (sheet 0 = bare id)
+  const sEl = (inst, base) => $(sx(inst, base));
+  function spellEntriesOf(inst){ return spellEntriesByInst[inst] || (spellEntriesByInst[inst] = defaultSpellEntries()); }
+  function preparedOf(inst){ return preparedByInst[inst] || (preparedByInst[inst] = {}); }
   const CANTRIP_COUNT = 5, PER_LEVEL = 10;      // default blank entries per section
   function mkSpellRows(n){ return Array.from({length:n}, ()=>({name:"",prep:false})); }
   function defaultSpellEntries(){ const o = {0:mkSpellRows(CANTRIP_COUNT)}; for(let l=1;l<=9;l++) o[l]=mkSpellRows(PER_LEVEL); return o; }
@@ -2170,13 +2177,13 @@
     return list.filter(sp => (sp.l||0) === l).map(sp => sp.n);
   }
   // <select> for a write-in row, listing the class's spells of that level (+ blank, + any current value not in the list).
-  function spellRowSelect(l, i, cur, names){
+  function spellRowSelect(l, i, cur, names, inst){
     const lc = (cur||"").toLowerCase();
     const inList = names.some(n => n.toLowerCase() === lc);
     let o = `<option value=""></option>`;
     if(cur && !inList) o += `<option value="${esc(cur)}" selected>${esc(cur)} (off-list)</option>`;
     o += names.map(n => `<option value="${esc(n)}"${n.toLowerCase()===lc?" selected":""}>${esc(n)}</option>`).join("");
-    return `<select class="sp-name" data-l="${l}" data-i="${i}">${o}</select>`;
+    return `<select class="sp-name" data-inst="${inst||0}" data-l="${l}" data-i="${i}">${o}</select>`;
   }
   // the highest spell level a class can EVER reach (caps the sheet by class alone, even with no level)
   const THIRD_CASTERS = ["Fighter (Eldritch Knight)","Rogue (Arcane Trickster)"];
@@ -2216,21 +2223,21 @@
     const row = tbl[L]; if(!row) return {};      // caster, but no slots at this level yet
     const map = {}; row.forEach((c,i) => { if(c) map[i+1] = c; }); return map;
   }
-  function refreshSpellSlots(){                  // auto-fill (and lock) the Total boxes for a known single-class caster
-    const cls = $("spellclass").value;
+  function refreshSpellSlots(inst=0){            // auto-fill (and lock) the Total boxes for a known single-class caster
+    const cls = sEl(inst,"spellclass").value;
     const multi = (((($("classlevel").value||"").match(/[A-Za-z'’][A-Za-z'’\- ]*?\s+\d+/g))||[]).length) > 1;
     const map = multi ? null : autoSlots(cls, charLevel());   // multiclass slots are manual (don't stack cleanly)
     for(let l=1;l<=9;l++){
-      const tot = $("slot"+l); if(!tot) continue;
+      const tot = sEl(inst,"slot"+l); if(!tot) continue;
       if(map){ const c = map[l]; tot.value = (c != null) ? String(c) : ""; tot.readOnly = true; }
       else if(tot.readOnly){ tot.value = ""; tot.readOnly = false; }   // reverting to manual: clear the stale auto value, unlock
     }
   }
-  function applySlotFilter(){                    // show only slot levels the build can use (matches the spell list)
-    const info = CASTERS[$("spellclass").value];
-    const card = $("slots-card"); if(card) card.style.display = (info && info.noSlots) ? "none" : "";   // ki casters (Shadow Monk) use no slots
-    for(let l=1;l<=9;l++){ const c = $("slotcell"+l); if(c) c.style.display = (l <= spellMaxLevel) ? "" : "none"; }
-    refreshSpellSlots();
+  function applySlotFilter(inst=0){              // show only slot levels the build can use (matches the spell list)
+    const info = CASTERS[sEl(inst,"spellclass").value];
+    const card = sEl(inst,"slots-card"); if(card) card.style.display = (info && info.noSlots) ? "none" : "";   // ki casters (Shadow Monk) use no slots
+    for(let l=1;l<=9;l++){ const c = sEl(inst,"slotcell"+l); if(c) c.style.display = (l <= spellMaxByInst[inst]) ? "" : "none"; }
+    refreshSpellSlots(inst);
   }
   // spell-data lookup by name (components / time / range / duration / school / full text)
   let _spellIndex = null;
@@ -2254,9 +2261,9 @@
            `<td class="col-dur sp-dur">${d?esc(d.duration||""):""}</td>`+
            `<td class="col-school sp-school">${d?esc(d.school||""):""}</td>`;
   }
-  function renderSpellTable(){
-    const cls = $("spellclass").value, info = CASTERS[cls];
-    $("spelltable").classList.toggle("hide-prep", !(info ? info.prepares : true));   // blank/Other shows Prep
+  function renderSpellTable(inst=0){
+    const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], spellEntries = spellEntriesOf(inst), preparedSpells = preparedOf(inst);
+    sEl(inst,"spelltable").classList.toggle("hide-prep", !(info ? info.prepares : true));   // blank/Other shows Prep
     if(info && info.fixed){                      // fixed-list caster (e.g. Shadow Monk) — exactly these spells, no blank rows
       // these spells live ONLY in the fixed list — scrub any copies out of the write-in rows so they don't linger when you switch class
       const fixedNames = new Set(Object.values(info.fixed).flat().map(n => n.toLowerCase()));
@@ -2269,21 +2276,21 @@
           fbody += `<tr><td class="col-prep"></td><td class="col-name"${titleAttr}>${esc(name)}</td>`+ propCells(d) +`</tr>`;
         });
       });
-      $("spells").innerHTML = fbody;
+      sEl(inst,"spells").innerHTML = fbody;
       return;
     }
     const full = classSpellList(cls);
     let fullByLvl = null;
     if(full){ fullByLvl = {}; full.forEach(sp => { (fullByLvl[sp.l] = fullByLvl[sp.l] || []).push(sp); }); }
     let body = "";
-    for(let l=0; l<=spellMaxLevel; l++){
+    for(let l=0; l<=spellMaxByInst[inst]; l++){
       if(l===0 && !(spellEntries[0]||[]).length) continue;   // class knows no cantrips at this level → no Cantrips section
       body += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
       if(l>0 && fullByLvl){                      // full-list class → pre-fill this level's real spells (Prep checkbox each)
         (fullByLvl[l]||[]).forEach(sp => {
           const d = spellData(sp.n), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           body += `<tr>`+
-            `<td class="col-prep"><input type="checkbox" class="prep-spell" data-sp="${esc(sp.n)}" ${preparedSpells[sp.n] ? "checked" : ""}></td>`+
+            `<td class="col-prep"><input type="checkbox" class="prep-spell" data-inst="${inst}" data-sp="${esc(sp.n)}" ${preparedSpells[sp.n] ? "checked" : ""}></td>`+
             `<td class="col-name"${titleAttr}>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
         });
       } else {                                   // learn-spells rows (cantrips never show Prep)
@@ -2296,14 +2303,14 @@
         (spellEntries[l]||[]).forEach((m,i) => {
           const d = spellData(m.name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           const prepCell = l===0 ? `<td class="col-prep"></td>`
-                                  : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
-          const nameField = names ? spellRowSelect(l, i, m.name, names)
-                                  : `<input class="sp-name" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
+                                  : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-inst="${inst}" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
+          const nameField = names ? spellRowSelect(l, i, m.name, names, inst)
+                                  : `<input class="sp-name" data-inst="${inst}" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
           body += `<tr>${prepCell}<td class="col-name"${titleAttr}>${nameField}</td>`+ propCells(d) +`</tr>`;
         });
       }
     }
-    $("spells").innerHTML = body;
+    sEl(inst,"spells").innerHTML = body;
   }
   // How many cantrips the class knows at the current level (drives the number of cantrip rows). Default count if no level set.
   function cantripCount(cls){
@@ -2316,19 +2323,87 @@
     if(c) return 0;                                                         // known class with no cantrips (Paladin/Ranger)
     return CANTRIP_COUNT;                                                   // unknown class ("Other"/blank) → default
   }
-  function resizeCantrips(n){                    // grow/shrink the cantrip rows to n; never drop a filled cantrip
-    const arr = spellEntries[0] || (spellEntries[0] = []);
+  function resizeCantrips(n, inst=0){            // grow/shrink the cantrip rows to n; never drop a filled cantrip
+    const e = spellEntriesOf(inst), arr = e[0] || (e[0] = []);
     while(arr.length < n) arr.push({name:"", prep:false});
     while(arr.length > n && !(arr[arr.length-1].name||"").trim()) arr.pop();
   }
-  function renderSpellStyle(setAbility){
-    const cls = $("spellclass").value, info = CASTERS[cls];
-    $("cast-note").textContent = info ? info.note : "Flexible layout — fill in as needed. Pick a class to tailor it.";
-    if(info && setAbility && info.ability) $("spellability").value = info.ability;
-    spellMaxLevel = (cls && CASTERS[cls]) ? maxSpellLevel(cls, charLevel()) : 9;   // shrink/grow sections to the build
-    if(!(info && info.fixed)) resizeCantrips(cantripCount(cls));                    // cantrip rows = cantrips known at this level
-    renderSpellTable();
-    applySlotFilter();
+  function renderSpellStyle(setAbility, inst=0){
+    const cls = sEl(inst,"spellclass").value, info = CASTERS[cls];
+    sEl(inst,"cast-note").textContent = info ? info.note : "Flexible layout — fill in as needed. Pick a class to tailor it.";
+    if(info && setAbility && info.ability) sEl(inst,"spellability").value = info.ability;
+    spellMaxByInst[inst] = (cls && CASTERS[cls]) ? maxSpellLevel(cls, charLevel()) : 9;   // shrink/grow sections to the build
+    if(!(info && info.fixed)) resizeCantrips(cantripCount(cls), inst);              // cantrip rows = cantrips known at this level
+    renderSpellTable(inst);
+    applySlotFilter(inst);
+  }
+  function renderAllSpellSheets(setAbility){ for(let i=0;i<spellSheets;i++) renderSpellStyle(setAbility, i); }
+  // The 9 spell-slot trackers for one sheet (Total/Used per level); ids namespaced by instance.
+  function slotsHTML(inst){
+    let sl = "";
+    for(let l=1;l<=9;l++) sl +=
+      `<div class="slot" id="${sx(inst,'slotcell'+l)}"><div class="k">Lv ${l}</div>`+
+      `<div class="slot-io">`+
+        `<label class="io"><span>Total</span><input data-save type="number" id="${sx(inst,'slot'+l)}" min="0"></label>`+
+        `<label class="io"><span>Used</span><input data-save type="number" id="${sx(inst,'slot'+l+'u')}" min="0"></label>`+
+      `</div></div>`;
+    return sl;
+  }
+  // Full markup for an extra spell sheet (instance >= 1). Mirrors the built-in Spells page with namespaced ids.
+  function spellSheetPageHTML(inst){
+    const S = b => sx(inst, b);
+    const classOpts = `<option value=""></option>`+
+      `<option>Artificer</option><option>Bard</option><option>Cleric</option><option>Druid</option>`+
+      `<option>Fighter (Eldritch Knight)</option><option>Monk (Way of Shadow)</option>`+
+      `<option>Paladin</option><option>Ranger</option><option>Rogue (Arcane Trickster)</option>`+
+      `<option>Sorcerer</option><option>Warlock</option><option>Wizard</option><option value="Other">Other</option>`;
+    const abilOpts = `<option value=""></option><option value="int">Int</option><option value="wis">Wis</option>`+
+      `<option value="cha">Cha</option><option value="str">Str</option><option value="dex">Dex</option><option value="con">Con</option>`;
+    return `<section class="page spell-extra" id="page-${S('spells')}" data-page="${S('spells')}">`+
+      `<div id="${S('spellbody')}">`+
+        `<div class="card"><h2>Spellcasting — Sheet ${inst+1}</h2>`+
+          `<div class="spellhead">`+
+            `<div><label class="lbl">Spellcasting Class</label><select data-save id="${S('spellclass')}">${classOpts}</select></div>`+
+            `<div><label class="lbl">Ability</label><select data-save id="${S('spellability')}">${abilOpts}</select></div>`+
+            `<div class="stat"><div class="k">Spell Save DC</div><div class="calc" id="${S('spelldc')}"></div></div>`+
+            `<div class="stat"><div class="k">Spell Attack</div><div class="calc" id="${S('spellatk')}"></div></div>`+
+            `<div class="stat" id="${S('prep-stat')}" style="display:none"><div class="k" id="${S('prep-stat-label')}">Can Prepare</div><div class="calc" id="${S('prepcount')}"></div></div>`+
+          `</div>`+
+          `<p class="help" id="${S('cast-note')}">Pick a class to tailor the spell list, or leave blank for a flexible layout.</p>`+
+        `</div>`+
+        `<div class="card" id="${S('slots-card')}"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="${S('slots')}"></div></div>`+
+        `<div class="card spell-list"><h2 id="${S('spells-h2')}">Spells</h2>`+
+          `<p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Hover a spell name for the full description.</p>`+
+          `<table class="spelltable" id="${S('spelltable')}">`+
+            `<thead><tr><th class="col-prep" style="width:34px">Prep</th><th class="col-name">Name</th><th class="col-comp" style="width:44px">Comp</th><th class="col-time" style="width:62px">Cast Time</th><th class="col-range" style="width:62px">Range</th><th class="col-dur" style="width:84px">Duration</th><th class="col-school" style="width:66px">School</th></tr></thead>`+
+            `<tbody id="${S('spells')}"></tbody>`+
+          `</table>`+
+        `</div>`+
+        `<button class="btn noprint" data-addspellsheet type="button" style="margin-top:8px; font-size:11px; padding:4px 10px">+ Add spell sheet</button>`+
+      `</div>`+
+      `</section>`;
+  }
+  function appendSpellSheet(){                   // add one more independent spell sheet (page + tab)
+    const inst = spellSheets;
+    $("page-companion").insertAdjacentHTML("beforebegin", spellSheetPageHTML(inst));
+    document.querySelector('#pagetabs .ptab[data-page="companion"]')
+      .insertAdjacentHTML("beforebegin", `<button class="ptab spell-tab" data-page="${sx(inst,'spells')}" type="button">Spells ${inst+1}</button>`);
+    sEl(inst,"slots").innerHTML = slotsHTML(inst);
+    spellSheets++;
+    renderSpellStyle(false, inst);
+  }
+  function removeExtraSpellSheets(){             // tear down all extra sheets (DOM only; state arrays are rebuilt by applyAll)
+    document.querySelectorAll('.page.spell-extra').forEach(el => el.remove());
+    document.querySelectorAll('#pagetabs .spell-tab').forEach(el => el.remove());
+    spellSheets = 1;
+  }
+  function setSpellSheets(n){ removeExtraSpellSheets(); for(let i=1;i<Math.max(1, n||1);i++) appendSpellSheet(); }
+  function spellSheetUsed(inst){                 // does an extra sheet hold anything? (drives print exclusion)
+    if((sEl(inst,"spellclass").value||"").trim()) return true;
+    const e = spellEntriesByInst[inst] || {};
+    for(const l in e) if((e[l]||[]).some(r => (r.name||"").trim())) return true;
+    if(Object.keys(preparedByInst[inst] || {}).length) return true;
+    return false;
   }
 
   // ---- The automation ----
@@ -2481,28 +2556,30 @@
     if(document.activeElement !== $("speed"))
       $("speed").value = (baseSpeed == null) ? "" : Math.max(0, baseSpeed - speedPenalty + speedBonus) + " ft";
 
-    // --- spellcasting (DC/attack need a level, an ability, and that ability's score) ---
-    const sa = $("spellability").value;
-    if(sa && pb != null && mods[sa] != null){
-      $("spelldc").textContent = 8 + pb + mods[sa];
-      $("spellatk").textContent = sgn(pb + mods[sa]);
-    } else { $("spelldc").textContent = ""; $("spellatk").textContent = ""; }
-    // --- prepared casters: spells they can prepare; known casters: spells known (from class progression) ---
-    const spName = $("spellclass").value, spInfo = CASTERS[spName], spLbl = $("prep-stat-label");
-    if(spInfo && !spInfo.prepares){                   // known caster → show "Spells Known" if the class has that progression
-      const cls = DATA && findBy(DATA.classes, spName), prog = cls && cls.spellsKnown;
-      if(prog && prog.length){
-        $("prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Spells Known";
+    // --- spellcasting (DC/attack/prepared count) — computed per spell sheet ---
+    for(let inst=0; inst<spellSheets; inst++){
+      const sa = sEl(inst,"spellability").value;
+      if(sa && pb != null && mods[sa] != null){
+        sEl(inst,"spelldc").textContent = 8 + pb + mods[sa];
+        sEl(inst,"spellatk").textContent = sgn(pb + mods[sa]);
+      } else { sEl(inst,"spelldc").textContent = ""; sEl(inst,"spellatk").textContent = ""; }
+      // prepared casters: spells they can prepare; known casters: spells known (from class progression)
+      const spName = sEl(inst,"spellclass").value, spInfo = CASTERS[spName], spLbl = sEl(inst,"prep-stat-label");
+      if(spInfo && !spInfo.prepares){                 // known caster → show "Spells Known" if the class has that progression
+        const cls = DATA && findBy(DATA.classes, spName), prog = cls && cls.spellsKnown;
+        if(prog && prog.length){
+          sEl(inst,"prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Spells Known";
+          const slvl = charLevel();
+          sEl(inst,"prepcount").textContent = (slvl != null) ? (prog[Math.min(Math.max(slvl,1),20)-1] || "") : "";
+        } else sEl(inst,"prep-stat").style.display = "none";
+      } else {                                        // prepared caster OR no class selected → "Can Prepare" (writable)
+        sEl(inst,"prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Can Prepare";
         const slvl = charLevel();
-        $("prepcount").textContent = (slvl != null) ? (prog[Math.min(Math.max(slvl,1),20)-1] || "") : "";
-      } else $("prep-stat").style.display = "none";
-    } else {                                          // prepared caster OR no class selected → "Can Prepare" (writable)
-      $("prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Can Prepare";
-      const slvl = charLevel();
-      if(spInfo && spInfo.prepares && sa && slvl != null && mods[sa] != null){
-        const half = ["Paladin","Artificer"].includes(spName);
-        $("prepcount").textContent = Math.max(1, mods[sa] + (half ? Math.floor(slvl/2) : slvl));
-      } else $("prepcount").textContent = "";         // blank → write it in on a printed/blank sheet
+        if(spInfo && spInfo.prepares && sa && slvl != null && mods[sa] != null){
+          const half = ["Paladin","Artificer"].includes(spName);
+          sEl(inst,"prepcount").textContent = Math.max(1, mods[sa] + (half ? Math.floor(slvl/2) : slvl));
+        } else sEl(inst,"prepcount").textContent = "";   // blank → write it in on a printed/blank sheet
+      }
     }
 
     updateGenStatus();
@@ -2530,9 +2607,13 @@
     data.baseVals = baseVals;
     data.bonusVals = bonusVals;
     data.portrait = portraitData;
-    data.spellEntries = spellEntries;
-    data.spellMaxLevel = spellMaxLevel;
-    data.preparedSpells = preparedSpells;
+    data.spellSheets = spellSheets;                       // multi-sheet spell state
+    data.spellEntriesByInst = spellEntriesByInst;
+    data.preparedByInst = preparedByInst;
+    data.spellMaxByInst = spellMaxByInst;
+    data.spellEntries = spellEntriesByInst[0];            // backward-compat: an older reader still sees sheet 0
+    data.spellMaxLevel = spellMaxByInst[0];
+    data.preparedSpells = preparedByInst[0];
     data.hiddenPages = hiddenPages;
     data.hitDieFaces = hitDieFaces;
     data.speedBase = speedBase;
@@ -2574,17 +2655,31 @@
       : [];
     asiFeatsAdded = (data && data.asiFeatsAdded) ? {...data.asiFeatsAdded} : {};
     if(data && data.asiChoices) applyAsiBonuses();   // ASI column derives from the picks (legacy sheets keep their manual column)
-    preparedSpells = (data && data.preparedSpells) || {};
-    spellEntries = defaultSpellEntries();
-    spellMaxLevel = (data && typeof data.spellMaxLevel === "number") ? data.spellMaxLevel : 9;
-    if(data && data.spellEntries){
-      for(let l=0;l<=9;l++) if(Array.isArray(data.spellEntries[l]))
-        spellEntries[l] = data.spellEntries[l].map(m => ({name:(m&&m.name)||"", prep:!!(m&&m.prep)}));
-    } else if(data && Array.isArray(data.manualSpells)){            // legacy flat list → bucket into per-level sections
-      const tmp = {}; for(let l=0;l<=9;l++) tmp[l] = [];
-      data.manualSpells.forEach(m => { if(!m || !m.name) return; let l = parseInt(m.lvl,10); if(isNaN(l)||l<0||l>9) l = 1; tmp[l].push({name:m.name, prep:!!m.prep}); });
-      for(let l=0;l<=9;l++){ const min = l===0 ? CANTRIP_COUNT : PER_LEVEL; while(tmp[l].length < min) tmp[l].push({name:"",prep:false}); spellEntries[l] = tmp[l]; }
+    // ---- spell sheets (multi-sheet, with legacy single-sheet fallback) ----
+    const loadEntries = src => { const e = defaultSpellEntries();
+      if(src) for(let l=0;l<=9;l++) if(Array.isArray(src[l])) e[l] = src[l].map(m => ({name:(m&&m.name)||"", prep:!!(m&&m.prep)}));
+      return e; };
+    if(data && Array.isArray(data.spellEntriesByInst) && data.spellEntriesByInst.length){   // new multi-sheet format
+      spellEntriesByInst = data.spellEntriesByInst.map(loadEntries);
+      preparedByInst = (data.preparedByInst||[]).map(p => ({...(p||{})}));
+      spellMaxByInst = (data.spellMaxByInst||[]).map(n => typeof n === "number" ? n : 9);
+    } else {                                                          // legacy: a single sheet
+      let e0 = defaultSpellEntries();
+      if(data && data.spellEntries) e0 = loadEntries(data.spellEntries);
+      else if(data && Array.isArray(data.manualSpells)){              // older flat list → bucket into per-level sections
+        const tmp = {}; for(let l=0;l<=9;l++) tmp[l] = [];
+        data.manualSpells.forEach(m => { if(!m || !m.name) return; let l = parseInt(m.lvl,10); if(isNaN(l)||l<0||l>9) l = 1; tmp[l].push({name:m.name, prep:!!m.prep}); });
+        for(let l=0;l<=9;l++){ const min = l===0 ? CANTRIP_COUNT : PER_LEVEL; while(tmp[l].length < min) tmp[l].push({name:"",prep:false}); } e0 = tmp;
+      }
+      spellEntriesByInst = [e0];
+      preparedByInst = [ (data && data.preparedSpells) || {} ];
+      spellMaxByInst = [ (data && typeof data.spellMaxLevel === "number") ? data.spellMaxLevel : 9 ];
     }
+    const nSheets = Math.max(1, (data && data.spellSheets) || spellEntriesByInst.length || 1);
+    while(spellEntriesByInst.length < nSheets) spellEntriesByInst.push(defaultSpellEntries());
+    while(preparedByInst.length < nSheets) preparedByInst.push({});
+    while(spellMaxByInst.length < nSheets) spellMaxByInst.push(9);
+    spellEntriesByInst.length = nSheets; preparedByInst.length = nSheets; spellMaxByInst.length = nSheets;
     hitDieFaces = (data && typeof data.hitDieFaces === "number") ? data.hitDieFaces : null;
     if(hitDieFaces == null && data){ const m = String(data.hitdice||"").match(/d(\d+)/); if(m) hitDieFaces = +m[1]; }   // legacy "5d8" → 8
     speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
@@ -2597,6 +2692,7 @@
     renderAbilities();
     renderHoodControls();
     setOverflowPages(data && data.overflowPages);   // build the right number of Overflow pages BEFORE restoring their rows (sets NINV/NLIMITED)
+    setSpellSheets(nSheets);                         // build the right number of extra spell pages BEFORE restoring their data-save fields
     applyFields(data);
     for(let i=0;i<NINV;i++){                       // restore per-item inventory weights (legacy sheets stored per-item in invwt-*)
       let u = null;
@@ -2625,7 +2721,7 @@
     document.querySelectorAll("textarea").forEach(autoGrow);
     updateModeUI();
     renderInsp();
-    renderSpellStyle(false);
+    renderAllSpellSheets(false);
     renderLayoutToggles();
     applyLayout();
     compute();
@@ -2670,13 +2766,15 @@
     const t = e.target;
     if(t.id === "inspiration") return;
     if(t.tagName === "TEXTAREA") autoGrow(t);
-    if(t.id === "classlevel") renderSpellStyle(false);   // level changes the castable spell range → re-filter list + slots
+    if(t.id === "classlevel") renderAllSpellSheets(false);   // level changes the castable spell range → re-filter every sheet's list + slots
+    if(t.id === "spellclass" || /^spellclass__\d+$/.test(t.id||"")){   // class picker on any sheet → re-tailor that sheet
+      const inst = t.id.includes("__") ? +t.id.split("__")[1] : 0; renderSpellStyle(true, inst); }
     if(t.classList.contains("sp-name") || t.classList.contains("sp-prep")){   // write-your-own spell rows
-      const l = +t.dataset.l, i = +t.dataset.i;
-      spellEntries[l] = spellEntries[l] || [];
-      spellEntries[l][i] = spellEntries[l][i] || {name:"", prep:false};
+      const inst = +(t.dataset.inst||0), l = +t.dataset.l, i = +t.dataset.i, SE = spellEntriesOf(inst);
+      SE[l] = SE[l] || [];
+      SE[l][i] = SE[l][i] || {name:"", prep:false};
       if(t.classList.contains("sp-name")){
-        spellEntries[l][i].name = t.value;
+        SE[l][i].name = t.value;
         const d = spellData(t.value), tr = t.closest("tr"), nameCell = t.closest(".col-name");   // auto-fill props from DATA
         if(tr){
           const set = (sel,v)=>{ const c = tr.querySelector(sel); if(c) c.textContent = v; };
@@ -2686,10 +2784,11 @@
           set(".sp-dur", d?d.duration||"":""); set(".sp-school", d?d.school||"":"");
         }
         if(nameCell){ const tt = spellTitle(d); if(tt) nameCell.title = tt; else nameCell.removeAttribute("title"); }
-      } else spellEntries[l][i].prep = t.checked;
+      } else SE[l][i].prep = t.checked;
     }
     if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
-      if(t.checked) preparedSpells[t.dataset.sp] = true; else delete preparedSpells[t.dataset.sp]; }
+      const P = preparedOf(+(t.dataset.inst||0));
+      if(t.checked) P[t.dataset.sp] = true; else delete P[t.dataset.sp]; }
     if(t.id === "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base
     const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
     if(im){ const i = im[1];
@@ -3109,10 +3208,14 @@
       seen.add(name); out.push(name); }
     return out;
   }
-  function hasSpellNamed(name){   // is this spell on the character's recorded spell list (written rows or prepared list)?
+  function hasSpellNamed(name){   // is this spell on ANY of the character's spell sheets (written rows or prepared list)?
     const q = String(name).trim().toLowerCase();
-    for(const l in spellEntries){ if((spellEntries[l]||[]).some(r => (r.name||"").trim().toLowerCase() === q)) return true; }
-    for(const k in (preparedSpells||{})){ if(preparedSpells[k] && String(k).toLowerCase() === q) return true; }
+    for(let inst=0; inst<spellSheets; inst++){
+      const SE = spellEntriesByInst[inst] || {};
+      for(const l in SE){ if((SE[l]||[]).some(r => (r.name||"").trim().toLowerCase() === q)) return true; }
+      const P = preparedByInst[inst] || {};
+      for(const k in P){ if(P[k] && String(k).toLowerCase() === q) return true; }
+    }
     return false;
   }
   function refreshEquippedPickers(){   // Armor + Attunement dropdowns list only equipped qualifying items from inventory
@@ -3623,7 +3726,7 @@
       if(c && c.hd){ hitDieFaces = c.hd; $("hd-total").value = lvl; }
       const subKey = (cls && sub) ? `${cls} (${sub})` : null;                   // subclass casters keyed "Class (Subclass)" (e.g. Monk (Way of Shadow))
       const spellKey = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[cls] ? cls : null);
-      if(spellKey){ $("spellclass").value = spellKey; renderSpellStyle(true); }   // tailor the spell sheet
+      if(spellKey){ $("spellclass").value = spellKey; renderSpellStyle(true, 0); }   // tailor the (primary) spell sheet
       document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // chosen class skills
       if(c && c.features && c.features.length){                                    // class features up to this level → Features page
         const lines = c.features.filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${cls} ${f.level}). ${f.text}`);
@@ -3697,6 +3800,7 @@
     document.addEventListener("change", onChange);
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
     document.addEventListener("click", e => { if(e.target.closest("[data-addoverflow]")){ appendOverflowPage(); applyLayout(); showPage("overflow-"+(overflowPages-1)); save(); compute(); } });
+    document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet(); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
     setupItemSearch();
 
     // --- inventory drag-to-reorder (across both columns) ---
@@ -3740,7 +3844,6 @@
     $("speed").addEventListener("focus", ()=>{ $("speed").value = (speedBase != null ? speedBase : ""); });   // show base for editing
     $("speed").addEventListener("blur", compute);                                                            // restore modified value
     $("pagetabs").addEventListener("click", e => { const b = e.target.closest(".ptab"); if(b) showPage(b.dataset.page); });
-    $("spellclass").addEventListener("change", ()=>{ renderSpellStyle(true); save(); compute(); });
     $("modes").addEventListener("click", e => { const b = e.target.closest(".mode-btn"); if(b) setMode(b.dataset.mode); });
     $("hood-abilities").addEventListener("click", e => {
       const btn = e.target.closest(".step"); if(btn) stepPointBuy(btn.dataset.ab, parseInt(btn.dataset.dir,10));
@@ -3846,7 +3949,7 @@
         catch(e){ flashStatus("Sourcebook loaded (too large to persist locally)"); }
         populateWizard();
         populateArmor(); populateItemList();
-        renderSpellStyle(false);
+        renderAllSpellSheets(false);
         updateSourcebookStatus();
         compute();
         flashStatus("Sourcebook loaded — Create is ready");
