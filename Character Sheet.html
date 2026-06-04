@@ -304,6 +304,9 @@
   .invtable input{background:var(--field); padding:6px 5px}
   .invtable select.invcont{width:100%; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 4px; font-size:11px; color:var(--ink)}
   .invtable tr.in-container input{color:var(--muted)}   /* an item stored in a weightless container: weight not counted */
+  .invtable tr.in-container td:nth-child(2){position:relative}
+  .invtable tr.in-container td:nth-child(2) input{padding-left:20px}            /* nested under its container */
+  .invtable tr.in-container td:nth-child(2)::before{content:"\21B3"; position:absolute; left:6px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:12px; pointer-events:none}
   .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px}
   .invdrag:active{cursor:grabbing}
   .invtable tr.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
@@ -3335,9 +3338,9 @@
       if(invDrag == null) return; e.preventDefault();
       const tr = e.target.closest("tr");
       if(tr){ const to = +tr.dataset.r;
-        if(to !== invDrag && isContainerRow(to)){                                // drop onto a container → assign the dragged item to it
+        if(to !== invDrag && isContainerRow(to)){                                // drop onto a container → store inside it + nest right under it
           const sel = $("invcont-"+invDrag); if(sel) sel.dataset.cont = ($("invname-"+to).value||"").trim();
-          save(); compute();
+          moveInvRow(invDrag, invDrag < to ? to : to+1);                         // place the item directly below the container row (carries cont + saves + computes)
         } else moveInvRow(invDrag, to);                                          // otherwise reorder
       }
       clearDrop(); invDrag = null;
