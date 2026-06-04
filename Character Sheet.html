@@ -237,11 +237,12 @@
   .stat.on{background:var(--accent); border-color:var(--accent)}
   .stat.on .k,.stat.on .calc{color:#fff}
   .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
-  .deathsaves{display:flex; align-items:center; gap:18px; margin-top:12px; flex-wrap:wrap}
-  .deathsaves .ds-title{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em;
-    color:var(--ink); margin-right:16px}
+  .deathsaves{display:flex; align-items:center; gap:16px; margin-top:12px}
+  .deathsaves .ds-title{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--ink)}
+  .ds-rows{display:flex; flex-direction:column; gap:8px}   /* Failures stacked under Successes */
   .deathsaves .grp{display:flex; align-items:center; gap:8px}
-  .deathsaves .grp .k{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
+  .deathsaves .grp .k{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+    width:74px; flex:none}   /* fixed label column so Successes/Failures pips line up */
   .pips{display:flex; gap:5px}
   .topblock{display:grid; grid-template-columns:332px 1fr; gap:16px; align-items:stretch}   /* Combat/PB squished to the min that keeps every box label on one line; Resistances takes the rest */
   .topblock-left{display:flex; flex-direction:column; gap:16px; min-width:0}
@@ -634,8 +635,10 @@
               </div>
               <div class="deathsaves">
                 <span class="ds-title">Death Saves:</span>
-                <div class="grp"><span class="k">Successes</span><span class="pips" id="ds-success"></span></div>
-                <div class="grp"><span class="k">Failures</span><span class="pips" id="ds-fail"></span></div>
+                <div class="ds-rows">
+                  <div class="grp"><span class="k">Successes</span><span class="pips" id="ds-success"></span></div>
+                  <div class="grp"><span class="k">Failures</span><span class="pips" id="ds-fail"></span></div>
+                </div>
               </div>
             </div>
           </div>
