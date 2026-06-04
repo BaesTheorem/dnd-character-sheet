@@ -1027,9 +1027,13 @@
           <select id="book-select"><option value="">Open Settings to load…</option></select>
           <button class="btn" id="btn-loadbook" type="button">Load</button>
         </div>
+        <div class="srcbook-load" id="reload-row" style="display:none; margin-top:8px">
+          <select id="reload-select" title="Re-fetch an already-loaded book to refresh its data"></select>
+          <button class="btn" id="btn-reloadbook" type="button">Reload</button>
+        </div>
         <label class="lbl" style="display:block; margin:10px 0 4px">5etools server</label>
         <input id="server-url" value="http://localhost:5050" spellcheck="false">
-        <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser and stay in the list marked <em>(loaded)</em> — pick one and <strong>Load</strong> again to refresh its data.</p>
+        <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. To refresh an already-loaded book's data, use the <strong>Reload</strong> picker (it appears once a book is loaded).</p>
         <button class="btn primary" id="btn-savedata" title="Download a copy of this sheet with all loaded books baked into the file">Save data file</button>
         <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
         <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
@@ -1888,30 +1892,28 @@
   }
   async function populateBookSelect(){
     const sel = $("book-select"); if(!sel) return;
+    const rsel = $("reload-select"), rrow = $("reload-row");
     const base = ($("server-url").value || "").trim() || "http://localhost:5050";
     sel.innerHTML = '<option value="">Loading book list…</option>'; sel.disabled = true;
+    const opt = b => `<option value="${esc(b.id||b.source)}" data-name="${esc(b.name||b.id)}">${esc(b.name||b.id)}</option>`;
     try{
       const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
-      // This is a 2014-ruleset sheet — 2024 books are filtered out (a 2024-compliant sheet is on the roadmap).
-      // Already-loaded books stay in the list (marked) so you can re-load one to refresh its data.
+      // 2014-ruleset sheet — 2024 books are filtered out. Not-yet-loaded books go in the main picker;
+      // already-loaded books go in a separate "reload" picker so you can refresh one's data.
       const loaded = new Set(loadedBooks().map(n => String(n).toLowerCase()));
-      const books = (bj.book||[])
-        .filter(b => !isBook2024(b))
-        .sort((a,b) => (a.name||"").localeCompare(b.name||""));
-      sel.innerHTML = '<option value="">Pick a book…</option>'
-        + books.map(b => { const nm = b.name||b.id, isLd = loaded.has(String(nm).toLowerCase());
-            return `<option value="${esc(b.id||b.source)}" data-name="${esc(nm)}">${esc(nm)}${isLd ? " (loaded — reload to refresh)" : ""}</option>`; }).join("");
-      sel.disabled = !books.length;
-    }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; }
+      const books = (bj.book||[]).filter(b => !isBook2024(b)).sort((a,b) => (a.name||"").localeCompare(b.name||""));
+      const isLd = b => loaded.has(String(b.name||b.id||"").toLowerCase());
+      const fresh = books.filter(b => !isLd(b)), reload = books.filter(isLd);
+      sel.innerHTML = (fresh.length ? '<option value="">Pick a book…</option>' : '<option value="">All available books already loaded</option>') + fresh.map(opt).join("");
+      sel.disabled = !fresh.length;
+      if(rsel){ rsel.innerHTML = '<option value="">Pick a loaded book…</option>' + reload.map(opt).join(""); rsel.disabled = !reload.length; }
+      if(rrow) rrow.style.display = reload.length ? "" : "none";
+    }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; if(rrow) rrow.style.display = "none"; }
   }
-  async function loadBookFromServer(){
-    const sel = $("book-select"), srcCode = sel && sel.value;
-    if(!srcCode){ flashStatus("Pick a book first"); return; }
-    const opt = sel.options[sel.selectedIndex];
-    const bookName = (opt && opt.dataset && opt.dataset.name) || (opt ? opt.textContent : srcCode);   // clean name (no "(loaded…)" suffix)
-    const wasLoaded = new Set(loadedBooks().map(n => String(n).toLowerCase())).has(String(bookName).toLowerCase());
+  async function doLoadBook(srcCode, bookName, reloading, btn){   // shared by the load + reload pickers
     const base = ($("server-url").value || "").trim() || "http://localhost:5050";
-    const btn = $("btn-loadbook"); if(btn){ btn.disabled = true; btn.textContent = wasLoaded ? "Reloading…" : "Loading…"; }
+    const orig = btn ? btn.textContent : "";
+    if(btn){ btn.disabled = true; btn.textContent = reloading ? "Reloading…" : "Loading…"; }
     try{
       const data = await fetch5etoolsBook(base, srcCode);
       if(!DATA) DATA = {_meta:{books:[]}};
@@ -1921,10 +1923,21 @@
       try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }
       catch(e){ flashStatus(bookName+" loaded (too large to save — stays this session)"); }
       populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); populateMonsterList(); compute();
-      populateBookSelect();   // re-mark the just-loaded book as loaded in the picker
-      flashStatus(bookName + (wasLoaded ? " reloaded (data refreshed)" : " loaded — use “Save data file” to bake it into your sheet"));
-    }catch(e){ flashStatus("Load failed — is your 5etools server running at "+base+"?"); }
-    finally{ if(btn){ btn.disabled = false; btn.textContent = "Load"; } }
+      populateBookSelect();   // move the just-loaded book over to the reload picker
+      flashStatus(bookName + (reloading ? " reloaded (data refreshed)" : " loaded — use “Save data file” to bake it into your sheet"));
+    }catch(e){ flashStatus((reloading?"Reload":"Load")+" failed — is your 5etools server running at "+base+"?"); }
+    finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Load"; } }
+  }
+  function bookFromSelect(sel){ const o = sel && sel.options[sel.selectedIndex]; return o ? {code:sel.value, name:(o.dataset && o.dataset.name) || o.textContent} : null; }
+  function loadBookFromServer(){
+    const b = bookFromSelect($("book-select"));
+    if(!b || !b.code){ flashStatus("Pick a book first"); return; }
+    doLoadBook(b.code, b.name, false, $("btn-loadbook"));
+  }
+  function reloadBookFromServer(){
+    const b = bookFromSelect($("reload-select"));
+    if(!b || !b.code){ flashStatus("Pick a loaded book to reload"); return; }
+    doLoadBook(b.code, b.name, true, $("btn-reloadbook"));
   }
   function bakeSourceData(){ const pd = $("source-data"); if(pd) pd.textContent = JSON.stringify(DATA || null); }
   function saveDataFile(){               // download a copy of the sheet with all loaded books baked into the file
@@ -3262,6 +3275,7 @@
 
     $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("settings").classList.add("open"); });
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
+    $("btn-reloadbook").addEventListener("click", reloadBookFromServer);
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
     $("settings-done").addEventListener("click", ()=> $("settings").classList.remove("open"));
