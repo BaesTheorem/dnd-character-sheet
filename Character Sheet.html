@@ -3460,6 +3460,13 @@
   // class resources handled (with computed counts) by LIMITED_RESOURCES — don't double-add them by text heuristic
   const LIMITED_FEAT_NAMES = new Set();
   Object.values(LIMITED_RESOURCES).forEach(list => list.forEach(r => { LIMITED_FEAT_NAMES.add(r.feat.toLowerCase()); LIMITED_FEAT_NAMES.add(r.name.toLowerCase()); }));
+  // Features the heuristic gets wrong — never track these as limited-use:
+  const LIMITED_EXCLUDE = new Set(["spellcasting", "pact magic"]);
+  // Known limited features with exact values (override the heuristic's guess):
+  const LIMITED_OVERRIDES = {
+    "awakened spellbook":{max:"1", rec:"LR"}, "manifest mind":{max:"1", rec:"LR"},
+    "master scrivener":{max:"1", rec:"LR"}, "one with the word":{max:"1", rec:"LR"}
+  };
   // Detect a limited daily/rest use from a feature/feat/item description → {name, max, rec} or null.
   function limitedFromText(name, text){
     if(!name) return null;
@@ -3502,9 +3509,16 @@
       return {name: s.slice(0, cut).trim(), text: b};
     }).filter(x => x.name);
   }
+  function lfIndexByName(name){ const q = String(name).toLowerCase(); for(let i=0;i<NLIMITED;i++){ if(($("lfname-"+i).value||"").trim().toLowerCase() === q) return i; } return -1; }
   function refreshLimitedFeatures(){   // auto-add limited-use class/subclass features, feats, and equipped items
     featureBlocks().forEach(b => {
-      if(LIMITED_FEAT_NAMES.has(b.name.toLowerCase())) return;
+      const lc = b.name.toLowerCase();
+      if(LIMITED_FEAT_NAMES.has(lc)) return;                                  // class resources handled with computed counts
+      if(LIMITED_EXCLUDE.has(lc)){ const i = lfIndexByName(b.name); if(i>=0){ $("lfname-"+i).value=""; $("lfmax-"+i).value=""; $("lfrec-"+i).value=""; $("lfused-"+i).value=""; $("lfname-"+i).removeAttribute("title"); } return; }   // never limited → clear any stray row
+      if(LIMITED_OVERRIDES[lc]){ const o = LIMITED_OVERRIDES[lc], i = lfIndexByName(b.name);   // known exact values
+        if(i>=0){ $("lfmax-"+i).value = o.max; $("lfrec-"+i).value = o.rec; }                  // correct an existing row (keep its Used count)
+        else addLimitedRow(b.name, o.max, o.rec, b.text.slice(0,300));
+        return; }
       const r = limitedFromText(b.name, b.text); if(r) addLimitedRow(r.name, r.max, r.rec, b.text.slice(0,300));
     });
     const txt = (DATA && DATA.itemText) || {};
