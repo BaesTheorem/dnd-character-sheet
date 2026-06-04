@@ -242,18 +242,12 @@
   .deathsaves .grp{display:flex; align-items:center; gap:8px}
   .deathsaves .grp .k{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
   .pips{display:flex; gap:5px}
-  .topblock{display:grid; grid-template-columns:270px 1fr; gap:16px; align-items:start}
+  .topblock{display:grid; grid-template-columns:1fr 230px; gap:16px; align-items:stretch}
   .topblock-left{display:flex; flex-direction:column; gap:16px}
   .topblock-left > .card{margin:0}
-  .defenses-card{margin:0}
+  .defenses-card{margin:0; display:flex; flex-direction:column}
+  .defenses-card textarea{flex:1 1 auto; min-height:120px; line-height:1.5}
   @media (max-width:640px){ .topblock{grid-template-columns:1fr} }
-  .def-head{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:8px 0 5px}
-  .def-head:first-child{margin-top:0}
-  #dmg-res{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px}
-  .def-row{display:grid; grid-template-columns:1fr 106px; gap:5px}
-  #cond-imm{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-bottom:8px}
-  .defenses select{padding:4px 6px}
-  .defenses textarea{min-height:42px; line-height:1.5}
   #proficiencies{min-height:72px}   /* compact floor; auto-grows to content */
 
   /* attacks */
@@ -503,13 +497,7 @@
     .deathsaves .ds-title{font-size:9px; margin-right:10px}
     .deathsaves .grp{gap:5px}
     .deathsaves .grp .k{font-size:7px}
-    .defenses{margin-top:5px; padding-top:4px}
-    .def-head{font-size:7px; margin-bottom:1px}
-    #dmg-res{gap:3px; margin-bottom:3px}
-    .def-row{gap:3px}
-    #cond-imm{gap:3px; margin-bottom:3px}
-    .defenses select{padding:1px 2px}
-    .defenses textarea{min-height:0}
+    .defenses-card .ta-print{min-height:60px}
 
     th{font-size:6px; padding:1px 3px}
     td{padding:1px 2px}
@@ -649,15 +637,9 @@
               </div>
             </div>
           </div>
-          <div class="card defenses-card">
-            <h2>Resistances &amp; Immunities</h2>
-            <div class="defenses">
-              <div class="def-head">Damage</div>
-              <div id="dmg-res"></div>
-              <div class="def-head">Conditions</div>
-              <div id="cond-imm"></div>
-              <textarea data-save id="defnotes" placeholder="Other defenses or notes (e.g. resistance to nonmagical bludgeoning/piercing/slashing)…"></textarea>
-            </div>
+          <div class="card grow defenses-card">
+            <h2>Resistances / Immunities / Defenses</h2>
+            <textarea data-save id="defnotes" placeholder="Damage resistances/immunities/vulnerabilities, condition immunities, and other defenses…"></textarea>
           </div>
         </div>
 
@@ -1078,9 +1060,6 @@
   const NINV = 34;          // inventory rows (17 per column × 2)
   const NSPELLROWS = 24;    // spell list rows
   const NLIMITED = 8;       // limited-feature rows
-  const NDMGRES = 4, NCONDIMM = 4;   // damage resistance/immunity rows + condition-immunity dropdowns
-  const DAMAGE_TYPES = ["Acid","Bludgeoning","Cold","Fire","Force","Lightning","Necrotic","Piercing","Poison","Psychic","Radiant","Slashing","Thunder"];
-  const CONDITIONS = ["Blinded","Charmed","Deafened","Exhaustion","Frightened","Grappled","Incapacitated","Paralyzed","Petrified","Poisoned","Prone","Restrained","Stunned","Unconscious"];
 
   // 5e (2014) ability-score generation
   const POINTBUY_COST = {8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9};
@@ -1163,18 +1142,6 @@
       `<td><input data-save id="lfrec-${i}" placeholder="LR / SR / Dawn"></td>`+
       `<td><input data-save id="lfused-${i}"></td></tr>`;
     $("limited").innerHTML = lf;
-
-    // Defenses: damage resistance/immunity rows + condition-immunity dropdowns
-    const dmgOpts = `<option value=""></option>` + DAMAGE_TYPES.map(d => `<option>${d}</option>`).join("");
-    const condOpts = `<option value=""></option>` + CONDITIONS.map(c => `<option>${c}</option>`).join("");
-    let dr = "";
-    for(let i=0;i<NDMGRES;i++) dr +=
-      `<div class="def-row"><select data-save id="dmgres-${i}">${dmgOpts}</select>`+
-      `<select data-save id="dmgrestype-${i}"><option>Resistance</option><option>Immunity</option><option>Vulnerability</option></select></div>`;
-    if($("dmg-res")) $("dmg-res").innerHTML = dr;
-    let ci = "";
-    for(let i=0;i<NCONDIMM;i++) ci += `<select data-save id="condimm-${i}">${condOpts}</select>`;
-    if($("cond-imm")) $("cond-imm").innerHTML = ci;
 
     let acb = "";
     for(let i=0;i<3;i++) acb +=
@@ -2644,13 +2611,6 @@
   }
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
 
-  // Set the next empty damage-resistance row to a known damage type; returns false if it isn't one (caller routes to notes).
-  function addDamageDefense(name, kind){
-    const dt = DAMAGE_TYPES.find(d => d.toLowerCase() === String(name||"").trim().toLowerCase());
-    if(!dt) return false;
-    for(let i=0;i<NDMGRES;i++){ const s = $("dmgres-"+i); if(s && !s.value){ s.value = dt; const t = $("dmgrestype-"+i); if(t) t.value = kind || "Resistance"; return true; } }
-    return false;
-  }
   // Route a normalized prof block to its homes: fixed skills → checkboxes; everything else → Proficiencies & Languages box.
   function applyProficiencies(prof, label){
     if(!prof) return;
@@ -2683,9 +2643,9 @@
         }
       });
       applyProficiencies(r.prof, name);                // race skills/weapons/armor/tools/languages → their homes
-      (r.resist||[]).forEach(rz => {                  // race damage resistances → Resistances/Immunities section
-        if(!addDamageDefense(rz, "Resistance")){ const n = $("defnotes"); if(n){ n.value = n.value.trim() ? n.value+"\nResist: "+rz : "Resist: "+rz; autoGrow(n); } }
-      });
+      if(r.resist && r.resist.length){                // race damage resistances → Resistances/Immunities/Defenses box
+        const n = $("defnotes"); if(n){ const line = "Resistance: " + r.resist.join(", "); n.value = n.value.trim() ? n.value+"\n"+line : line; autoGrow(n); }
+      }
       if(r.traits && r.traits.length && !$("features").value.trim())
         $("features").value = r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n");
       autoGrow($("features"));
