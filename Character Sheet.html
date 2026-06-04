@@ -308,8 +308,10 @@
   .rowtotal .v{font-size:20px; font-weight:700; color:var(--accent)}
   .encgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
   .encgrid .stat .calc{min-height:30px; display:flex; align-items:center; justify-content:center}
-  .attune{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
-  @media (max-width:560px){ .coins{grid-template-columns:repeat(3,1fr)} .encgrid{grid-template-columns:repeat(2,1fr)} .attune{grid-template-columns:1fr} }
+  .attune{display:grid; grid-template-columns:1fr; gap:8px}   /* attuned items stacked vertically */
+  .armor-attune{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start}
+  .armor-attune > .card{margin-bottom:16px}
+  @media (max-width:560px){ .coins{grid-template-columns:repeat(3,1fr)} .encgrid{grid-template-columns:repeat(2,1fr)} .armor-attune{grid-template-columns:1fr} }
 
   /* ---- spell sheet ---- */
   .incl{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600}
@@ -636,17 +638,6 @@
         </div>
 
         <div class="card">
-          <h2>Armor</h2>
-          <div><label class="lbl">Armor (sets base AC)</label><select data-save id="armorsel"></select>
-            <input data-save id="armor-custom" placeholder="custom armor + AC" title="Type your armor and its AC; the number is used as the base AC (bonuses below still add)" style="display:none; margin-top:6px">
-            <p class="help" id="armor-note" style="margin:4px 0 0; display:none"></p></div>
-          <table class="acitems">
-            <thead><tr><th>Item (adds to AC)</th><th style="width:64px">Bonus</th></tr></thead>
-            <tbody id="acbonuses"></tbody>
-          </table>
-        </div>
-
-        <div class="card">
           <div class="atk-top">
             <h2>Attacks</h2>
             <div class="stat atk-per-box"><div class="k">Attacks / Action</div><div class="calc" id="attacks-per"></div></div>
@@ -716,13 +707,25 @@
           <div class="coin"><label class="lbl">Coin wt</label><div class="calc" id="coinwt">0</div></div>
         </div>
       </div>
-      <div class="card"><h2>Attuned Items</h2>
-        <div class="attune">
-          <input data-save id="attune-0" placeholder="Attuned item 1">
-          <input data-save id="attune-1" placeholder="Attuned item 2">
-          <input data-save id="attune-2" placeholder="Attuned item 3">
+      <div class="armor-attune">
+        <div class="card">
+          <h2>Armor</h2>
+          <div><label class="lbl">Armor (sets base AC)</label><select data-save id="armorsel"></select>
+            <input data-save id="armor-custom" placeholder="custom armor + AC" title="Type your armor and its AC; the number is used as the base AC (bonuses below still add)" style="display:none; margin-top:6px">
+            <p class="help" id="armor-note" style="margin:4px 0 0; display:none"></p></div>
+          <table class="acitems">
+            <thead><tr><th>Item (adds to AC)</th><th style="width:64px">Bonus</th></tr></thead>
+            <tbody id="acbonuses"></tbody>
+          </table>
         </div>
-        <p class="help noprint">You can be attuned to a maximum of 3 magic items at once.</p>
+        <div class="card"><h2>Attuned Items</h2>
+          <div class="attune">
+            <input data-save id="attune-0" placeholder="Attuned item 1">
+            <input data-save id="attune-1" placeholder="Attuned item 2">
+            <input data-save id="attune-2" placeholder="Attuned item 3">
+          </div>
+          <p class="help noprint">You can be attuned to a maximum of 3 magic items at once.</p>
+        </div>
       </div>
       <div class="card"><h2>Inventory</h2>
         <div class="inv-cols">
