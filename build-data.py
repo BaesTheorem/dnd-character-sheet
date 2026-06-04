@@ -601,7 +601,7 @@ def build_item_text(items_base, items):   # descriptions of magic items that loo
             if not is_src(it) or not it.get("name"): continue
             if not (it.get("rarity") in MAGIC_RARITY or it.get("wondrous") or it.get("reqAttune")): continue
             txt = entries_to_text(it.get("entries", []))
-            if txt and LIMITED_SIGNAL.search(txt): out[it["name"]] = txt[:800]
+            if txt and LIMITED_SIGNAL.search(txt): out[it["name"]] = txt[:1600]   # keep enough to reach a late "regains charges at dawn" clause
     return out
 
 def build_containers(items_base, items):   # weightless containers (Bag of Holding, Heward's Handy Haversack, ...)

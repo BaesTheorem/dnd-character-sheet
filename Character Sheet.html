@@ -1854,7 +1854,7 @@
     [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => {
       if(it.source !== SRC || !it.name) return;
       if(!(ET_MAGIC_RARITY.has(it.rarity) || it.wondrous || it.reqAttune)) return;
-      const txt = etText(it.entries||[]); if(txt && ET_LIMITED_SIGNAL.test(txt)) out[it.name] = txt.slice(0,800);
+      const txt = etText(it.entries||[]); if(txt && ET_LIMITED_SIGNAL.test(txt)) out[it.name] = txt.slice(0,1600);
     }));
     return out;
   }
@@ -3432,7 +3432,7 @@
       /\b(?:expend|spend)s?\b[^.]{0,40}\b(?:charge|use|luck point|ki point|sorcery point)\b/.test(t) ||
       /\bregains?\b[^.]{0,60}\b(?:expended|all)\b[^.]{0,30}\b(?:charges|uses|luck points|ki points|sorcery points)\b/.test(t) ||
       /\b(?:once|twice|three times|\d+ times)\b(?!\s+(?:your|the\b|per\b|equal))/.test(t) ||   // "three times" (not a multiplier like "twice your level")
-      /\bcan(?:'t|not) ?be used again\b/.test(t) ||                                            // "can't be used again until the next dawn"
+      /\bcan(?:'t|not) ?be used\b[^.]{0,25}\bagain\b/.test(t) ||                                 // "can't be used (this way) again until the next dawn"
       /\bcan'?t use (?:it|this)\b[^.]{0,40}\bagain\b/.test(t) ||
       /\bnumber of times equal to\b/.test(t);
     if(!usage) return null;
