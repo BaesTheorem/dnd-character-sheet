@@ -299,6 +299,7 @@
   .invtable td:nth-child(3) input,.invtable td:nth-child(4) input{text-align:center} /* Qty / Wt → centered */
   .invtable th{text-align:left}
   .lftable input{background:var(--field)}
+  .lftable input[title]{cursor:help}   /* auto-populated limited features show their details on hover */
   .lftable td:nth-child(2) input,.lftable td:nth-child(3) input,.lftable td:nth-child(4) input{text-align:center}
   .acitems input,.acitems select{background:var(--field)}
   .acitems td:nth-child(2) input{text-align:center}
@@ -2314,6 +2315,7 @@
     data.invUnits = []; for(let i=0;i<NINV;i++) data.invUnits.push($("invwt-"+i).dataset.unit || "");   // per-item inventory weights
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     data.companions = companions;
+    data.lfDesc = []; for(let i=0;i<NLIMITED;i++){ const el = $("lfname-"+i); data.lfDesc.push((el && el.title) || ""); }   // limited-feature tooltips
     return data;
   }
   function applyFields(data){                 // restores data-save fields + inspiration
@@ -2378,6 +2380,8 @@
     }
     companions = (data && Array.isArray(data.companions)) ? data.companions.map(c => Object.assign(blankCompanion(), c)) : [];
     renderCompanions();
+    for(let i=0;i<NLIMITED;i++){ const el = $("lfname-"+i); if(!el) continue;   // restore limited-feature tooltips
+      const t = (data && Array.isArray(data.lfDesc)) ? data.lfDesc[i] : ""; if(t) el.title = t; else el.removeAttribute("title"); }
     portraitData = (data && data.portrait) || null;
     renderPortrait();
     document.querySelectorAll("textarea").forEach(autoGrow);
@@ -2772,6 +2776,8 @@
       const r = new FileReader(); r.onload = () => { companions[ci].portrait = r.result; renderCompanions(); save(); }; r.readAsDataURL(f); };
     inp.click();
   }
+  // ---- Guided character creation wizard ----
+  let wizStep = 0, wizMethod = "manual", wizEquip = "equipment";
   const WIZ_LAST = 6;
   function renderWizStep(){
     document.querySelectorAll(".wiz-step").forEach(s => s.hidden = (+s.dataset.step !== wizStep));
@@ -3038,6 +3044,37 @@
     }));
     $("wiz-race-hint").textContent = (parts.length ? `Ability: ${parts.join(", ")}. ` : "") + (r.speed ? `Speed ${r.speed} ft.` : "");
   }
+  // Limited-use class resources → the Limited Features card. count(level, abilityMods)→number; rec = recovery; min = first level.
+  const LIMITED_RESOURCES = {
+    Barbarian:[{name:"Rage", rec:"LR", feat:"Rage", count:l => l>=17?6:l>=12?5:l>=6?4:l>=3?3:2}],
+    Bard:[{name:"Bardic Inspiration", rec:l => l>=5?"SR":"LR", feat:"Bardic Inspiration", count:(l,m) => Math.max(1, m.cha||0)}],
+    Cleric:[{name:"Channel Divinity", rec:"SR", feat:"Channel Divinity", min:2, count:l => l>=18?3:l>=6?2:1}],
+    Druid:[{name:"Wild Shape", rec:"SR", feat:"Wild Shape", min:2, count:() => 2}],
+    Fighter:[{name:"Second Wind", rec:"SR", feat:"Second Wind", count:() => 1},
+             {name:"Action Surge", rec:"SR", feat:"Action Surge", min:2, count:l => l>=17?2:1},
+             {name:"Indomitable", rec:"LR", feat:"Indomitable", min:9, count:l => l>=17?3:l>=13?2:1}],
+    Monk:[{name:"Ki Points", rec:"SR", feat:"Ki", min:2, count:l => l}],
+    Paladin:[{name:"Lay on Hands", rec:"LR", feat:"Lay on Hands", count:l => l*5},
+             {name:"Divine Sense", rec:"LR", feat:"Divine Sense", count:(l,m) => 1 + (m.cha||0)},
+             {name:"Channel Divinity", rec:"SR", feat:"Channel Divinity", min:3, count:() => 1}],
+    Sorcerer:[{name:"Sorcery Points", rec:"LR", feat:"Font of Magic", min:2, count:l => l}],
+    Wizard:[{name:"Arcane Recovery", rec:"1/Day", feat:"Arcane Recovery", count:() => 1}],
+  };
+  function fillLimitedFeatures(cls, lvl, featMap){
+    const list = LIMITED_RESOURCES[cls]; if(!list || lvl == null) return;
+    const mods = {}; ABILITIES.forEach(([k]) => mods[k] = modOf(k));
+    list.forEach(r => {
+      if(lvl < (r.min||1)) return;
+      const cnt = r.count(lvl, mods), rec = (typeof r.rec === "function") ? r.rec(lvl) : r.rec;
+      let idx = -1;
+      for(let i=0;i<NLIMITED;i++){ if(($("lfname-"+i).value||"").trim().toLowerCase() === r.name.toLowerCase()){ idx = i; break; } }   // refresh existing
+      if(idx < 0) for(let i=0;i<NLIMITED;i++){ if(!($("lfname-"+i).value||"").trim()){ idx = i; break; } }                              // else next empty
+      if(idx < 0) return;                                                                                                              // card full
+      $("lfname-"+idx).value = r.name; $("lfmax-"+idx).value = String(cnt); $("lfrec-"+idx).value = rec; $("lfused-"+idx).value = "";
+      const desc = (featMap && featMap[r.feat.toLowerCase()]) || r.desc || "";
+      if(desc) $("lfname-"+idx).title = desc; else $("lfname-"+idx).removeAttribute("title");
+    });
+  }
   function createCharacter(){
     const name=$("wiz-name").value.trim(), race=$("wiz-race").value, cls=$("wiz-class").value,
           sub=$("wiz-subclass").value, lvl=Math.min(20,Math.max(1,num($("wiz-level").value,1))), bg=$("wiz-bg").value;
@@ -3065,6 +3102,10 @@
         if(subObj.spells && subObj.spells.length) sfl.push(`${sub} spells (always prepared): ${subObj.spells.map(sp => sp.n).join(", ")}.`);
         if(sfl.length){ const t = $("features"); const block = sfl.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
       }
+      const featMap = {};                                                          // feature name → text, for limited-use tooltips
+      (c && c.features || []).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
+      (subObj && subObj.features || []).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
+      fillLimitedFeatures(cls, lvl, featMap);                                       // Ki / Sorcery Points / Rage / Channel Divinity → Limited Features card
       const eq = (c && c.equip) || {};                                            // starting gold OR equipment
       if(wizEquip === "gold"){ const g = goldAverage(eq.gold); if(g != null) $("gp").value = g; }
       else (eq.items||[]).forEach((line,i) => {                                    // resolve each choice (weapons/packs) → Inventory rows
