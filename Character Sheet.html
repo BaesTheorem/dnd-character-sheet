@@ -1627,7 +1627,7 @@
       const arr = subMap[s.className] = subMap[s.className] || [];
       if(arr.some(x => x.short === short)) return;
       const features = (data.subclassFeature||[])
-        .filter(f => f.source === SRC && f.className === s.className && f.subclassShortName === short && (f.classSource||SRC) === SRC && f.name)
+        .filter(f => f.source === SRC && f.className === s.className && f.subclassShortName === short && (f.subclassSource||SRC) === SRC && f.name)
         .map(f => ({name:f.name||"", level:f.level||1, text:etText(f.entries||[])}))
         .sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
       const spells = [];                              // always-prepared domain/oath/etc. spells
@@ -1682,8 +1682,10 @@
     for(const name in (sourcesForSrc||{})){
       const lv = levels[name]; if(lv == null) continue;      // every class's full list, cantrips (lv 0) included → drives the per-row dropdowns
       (sourcesForSrc[name].class||[]).forEach(c => { if(c.source === SRC){ (out[c.name] = out[c.name]||[]).push({n:name, l:lv}); } });
+      // classVariant = this book adds an existing-class spell (e.g. XGE adds Toll the Dead to Cleric/Wizard/Warlock)
+      (sourcesForSrc[name].classVariant||[]).forEach(c => { (out[c.name] = out[c.name]||[]).push({n:name, l:lv}); });
     }
-    for(const cn in out) out[cn].sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
+    for(const cn in out){ const seen = new Set(); out[cn] = out[cn].filter(x => seen.has(x.n) ? false : seen.add(x.n)); out[cn].sort((a,b) => a.l-b.l || a.n.localeCompare(b.n)); }
     return out;
   }
   // ---- Bestiary (mirror of build-data.py build_monsters) ----

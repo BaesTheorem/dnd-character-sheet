@@ -293,7 +293,7 @@ def build_classes():
                 sfeats = [{"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))}
                           for f in data.get("subclassFeature", [])
                           if is_src(f) and f.get("className")==c["name"] and f.get("subclassShortName")==short
-                          and f.get("classSource", SRC_TAG)==SRC_TAG and f.get("name")]
+                          and f.get("subclassSource", SRC_TAG)==SRC_TAG and f.get("name")]
                 sfeats.sort(key=lambda x: (x["level"], x["name"]))
                 sspells = []
                 for blk in s.get("additionalSpells") or []:
@@ -532,7 +532,12 @@ def build_class_spells():
         for c in info.get("class", []):
             if c.get("source") == SRC_TAG:
                 out.setdefault(c["name"], []).append({"n": name, "l": lv})
-    for cn in out: out[cn].sort(key=lambda x: (x["l"], x["n"]))
+        # classVariant = this book adds an existing-class spell (e.g. XGE adds Toll the Dead to Cleric/Wizard/Warlock)
+        for c in info.get("classVariant", []):
+            out.setdefault(c["name"], []).append({"n": name, "l": lv})
+    for cn in out:
+        seen = set(); out[cn] = [x for x in out[cn] if not (x["n"] in seen or seen.add(x["n"]))]
+        out[cn].sort(key=lambda x: (x["l"], x["n"]))
     return out
 
 def build_item_weights(items_base, items):   # {lowercased name: weight in lb} for inventory auto-weight
