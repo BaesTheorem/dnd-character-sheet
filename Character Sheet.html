@@ -242,8 +242,9 @@
   .deathsaves .grp{display:flex; align-items:center; gap:8px}
   .deathsaves .grp .k{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
   .pips{display:flex; gap:5px}
-  .topblock{display:grid; grid-template-columns:1fr 230px; gap:16px; align-items:stretch}
-  .topblock-left{display:flex; flex-direction:column; gap:16px}
+  .topblock{display:grid; grid-template-columns:332px 1fr; gap:16px; align-items:stretch}   /* Combat/PB squished to the min that keeps every box label on one line; Resistances takes the rest */
+  .topblock-left{display:flex; flex-direction:column; gap:16px; min-width:0}
+  .topblock-left .stat .k{white-space:nowrap}
   .topblock-left > .card{margin:0}
   .defenses-card{margin:0; display:flex; flex-direction:column}
   .defenses-card textarea{flex:1 1 auto; min-height:120px; line-height:1.5}
