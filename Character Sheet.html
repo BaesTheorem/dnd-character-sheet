@@ -504,9 +504,9 @@
       <button class="ptab active" data-page="core" type="button">Core</button>
       <button class="ptab" data-page="inv" type="button">Inventory</button>
       <button class="ptab" data-page="feat" type="button">Features</button>
+      <button class="ptab" data-page="spells" type="button">Spells</button>
       <button class="ptab" data-page="bg" type="button">Background</button>
       <button class="ptab" data-page="story" type="button">Backstory</button>
-      <button class="ptab" data-page="spells" type="button">Spells</button>
       <button class="ptab" data-page="notes" type="button">Notes</button>
       <button class="ptab" data-page="mini" type="button">Mini</button>
     </nav>
@@ -735,32 +735,7 @@
       </div>
     </section>
 
-    <!-- PAGE 4: BACKGROUND & PERSONALITY -->
-    <section class="page" id="page-bg" data-page="bg">
-      <div class="card"><h2>Appearance</h2>
-        <div class="meta-grid">
-          <div><label class="lbl">Age</label><input data-save id="age"></div>
-          <div><label class="lbl">Height</label><input data-save id="height"></div>
-          <div><label class="lbl">Weight</label><input data-save id="weight"></div>
-          <div><label class="lbl">Eyes</label><input data-save id="eyes"></div>
-          <div><label class="lbl">Skin</label><input data-save id="skin"></div>
-          <div><label class="lbl">Hair</label><input data-save id="hair"></div>
-        </div>
-      </div>
-      <div class="card"><h2>Personality Traits</h2><textarea data-save id="personality"></textarea></div>
-      <div class="card"><h2>Ideals</h2><textarea data-save id="ideals"></textarea></div>
-      <div class="card"><h2>Bonds</h2><textarea data-save id="bonds"></textarea></div>
-      <div class="card"><h2>Flaws</h2><textarea data-save id="flaws"></textarea></div>
-      <div class="card"><h2>Allies</h2><textarea data-save id="bg-allies" placeholder="Friends, contacts, organizations who support you…"></textarea></div>
-      <div class="card"><h2>Enemies</h2><textarea data-save id="bg-enemies" placeholder="Rivals, foes, factions opposed to you…"></textarea></div>
-    </section>
-
-    <!-- PAGE 5: BACKSTORY -->
-    <section class="page" id="page-story" data-page="story">
-      <div class="card grow"><h2>Character Backstory</h2><textarea data-save id="backstory"></textarea></div>
-    </section>
-
-    <!-- PAGE 6: SPELL SHEET -->
+    <!-- SPELL SHEET -->
     <section class="page" id="page-spells" data-page="spells">
       <div id="spellbody">
         <div class="card"><h2>Spellcasting</h2>
@@ -802,6 +777,31 @@
           </table>
         </div>
       </div>
+    </section>
+
+    <!-- BACKGROUND & PERSONALITY -->
+    <section class="page" id="page-bg" data-page="bg">
+      <div class="card"><h2>Appearance</h2>
+        <div class="meta-grid">
+          <div><label class="lbl">Age</label><input data-save id="age"></div>
+          <div><label class="lbl">Height</label><input data-save id="height"></div>
+          <div><label class="lbl">Weight</label><input data-save id="weight"></div>
+          <div><label class="lbl">Eyes</label><input data-save id="eyes"></div>
+          <div><label class="lbl">Skin</label><input data-save id="skin"></div>
+          <div><label class="lbl">Hair</label><input data-save id="hair"></div>
+        </div>
+      </div>
+      <div class="card"><h2>Personality Traits</h2><textarea data-save id="personality"></textarea></div>
+      <div class="card"><h2>Ideals</h2><textarea data-save id="ideals"></textarea></div>
+      <div class="card"><h2>Bonds</h2><textarea data-save id="bonds"></textarea></div>
+      <div class="card"><h2>Flaws</h2><textarea data-save id="flaws"></textarea></div>
+      <div class="card"><h2>Allies</h2><textarea data-save id="bg-allies" placeholder="Friends, contacts, organizations who support you…"></textarea></div>
+      <div class="card"><h2>Enemies</h2><textarea data-save id="bg-enemies" placeholder="Rivals, foes, factions opposed to you…"></textarea></div>
+    </section>
+
+    <!-- BACKSTORY -->
+    <section class="page" id="page-story" data-page="story">
+      <div class="card grow"><h2>Character Backstory</h2><textarea data-save id="backstory"></textarea></div>
     </section>
 
     <!-- PAGE: NOTES -->
@@ -1370,8 +1370,8 @@
     document.querySelectorAll("#page-"+name+" textarea").forEach(autoGrow);   // re-fit now that it's visible
   }
   // ---- Layout: which pages/tabs are shown (Settings) ----
-  const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["bg","Background"],
-                 ["story","Backstory"],["spells","Spells"],["notes","Notes"],["mini","Mini"]];
+  const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["spells","Spells"],
+                 ["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
