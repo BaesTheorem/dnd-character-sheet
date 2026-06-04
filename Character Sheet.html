@@ -2158,13 +2158,17 @@
   let spellEntriesByInst = [];                         // [inst] -> {lvl:[{name,prep}]} write-your-own rows (lazily created via spellEntriesOf; CANTRIP_COUNT is declared below, so don't call defaultSpellEntries() at load time)
   let preparedByInst = [{}];                           // [inst] -> {spellName:true} pre-filled full-list picks
   let spellMaxByInst = [9];                            // [inst] -> highest spell-level section shown
+  // [inst] -> 'character' (sheet 0, follows the character) | 'manual' (made with the + button; has its own Class Level
+  // dropdown) | 'class' (reserved: a future level-up/multiclass system will auto-anchor these to that class's level).
+  let spellSheetKind = ['character'];
   const sx = (inst, base) => inst ? base + "__" + inst : base;   // namespaced element id (sheet 0 = bare id)
   const sEl = (inst, base) => $(sx(inst, base));
   function spellEntriesOf(inst){ return spellEntriesByInst[inst] || (spellEntriesByInst[inst] = defaultSpellEntries()); }
   function preparedOf(inst){ return preparedByInst[inst] || (preparedByInst[inst] = {}); }
-  // Level a sheet's spell math runs off: extra sheets may override it (their "Class Level" dropdown); else the character's level.
+  // Level a sheet's spell math runs off. A manual sheet (made with the + button) may override it via its own Class Level
+  // dropdown; everything else (the character sheet, and future multiclass-anchored sheets) follows the character's level.
   function sheetLevel(inst){
-    if(inst){ const el = sEl(inst,"spelllevel"), v = el && el.value; if(v) return Math.min(20, Math.max(1, parseInt(v,10))); }
+    if(spellSheetKind[inst] === "manual"){ const el = sEl(inst,"spelllevel"), v = el && el.value; if(v) return Math.min(20, Math.max(1, parseInt(v,10))); }
     return charLevel();
   }
   const CANTRIP_COUNT = 5, PER_LEVEL = 10;      // default blank entries per section
@@ -2358,8 +2362,10 @@
     return sl;
   }
   // Full markup for an extra spell sheet (instance >= 1). Mirrors the built-in Spells page with namespaced ids.
-  function spellSheetPageHTML(inst){
+  // kind 'manual' adds a Class Level override dropdown; other kinds anchor to the character level (multiclass system, later).
+  function spellSheetPageHTML(inst, kind){
     const S = b => sx(inst, b);
+    const manual = kind === "manual";
     const classOpts = `<option value=""></option>`+
       `<option>Artificer</option><option>Bard</option><option>Cleric</option><option>Druid</option>`+
       `<option>Fighter (Eldritch Knight)</option><option>Monk (Way of Shadow)</option>`+
@@ -2369,13 +2375,16 @@
       `<option value="cha">Cha</option><option value="str">Str</option><option value="dex">Dex</option><option value="con">Con</option>`;
     let lvlOpts = `<option value="">Character level</option>`;
     for(let l=1;l<=20;l++) lvlOpts += `<option value="${l}">${l}</option>`;
+    const lvlField = manual
+      ? `<div><label class="lbl">Class Level</label><select data-save id="${S('spelllevel')}" title="Level this sheet's slots, spell levels, and known/prepared counts are based on. 'Character level' follows your main level.">${lvlOpts}</select></div>`
+      : "";
     return `<section class="page spell-extra" id="page-${S('spells')}" data-page="${S('spells')}">`+
       `<div id="${S('spellbody')}">`+
         `<div class="card"><h2>Spellcasting — Sheet ${inst+1}</h2>`+
-          `<div class="spellhead spellhead-lvl">`+
+          `<div class="spellhead${manual ? ' spellhead-lvl' : ''}">`+
             `<div><label class="lbl">Spellcasting Class</label><select data-save id="${S('spellclass')}">${classOpts}</select></div>`+
             `<div><label class="lbl">Ability</label><select data-save id="${S('spellability')}">${abilOpts}</select></div>`+
-            `<div><label class="lbl">Class Level</label><select data-save id="${S('spelllevel')}" title="Level this sheet's slots, spell levels, and known/prepared counts are based on. 'Character level' follows your main level.">${lvlOpts}</select></div>`+
+            lvlField+
             `<div class="stat"><div class="k">Spell Save DC</div><div class="calc" id="${S('spelldc')}"></div></div>`+
             `<div class="stat"><div class="k">Spell Attack</div><div class="calc" id="${S('spellatk')}"></div></div>`+
             `<div class="stat" id="${S('prep-stat')}" style="display:none"><div class="k" id="${S('prep-stat-label')}">Can Prepare</div><div class="calc" id="${S('prepcount')}"></div></div>`+
@@ -2394,9 +2403,11 @@
       `</div>`+
       `</section>`;
   }
-  function appendSpellSheet(){                   // add one more independent spell sheet (page + tab)
+  function appendSpellSheet(kind){               // add one more independent spell sheet (page + tab)
     const inst = spellSheets;
-    $("page-companion").insertAdjacentHTML("beforebegin", spellSheetPageHTML(inst));
+    kind = kind || spellSheetKind[inst] || "manual";   // restore uses the saved kind; the + button passes 'manual'
+    spellSheetKind[inst] = kind;
+    $("page-companion").insertAdjacentHTML("beforebegin", spellSheetPageHTML(inst, kind));
     document.querySelector('#pagetabs .ptab[data-page="companion"]')
       .insertAdjacentHTML("beforebegin", `<button class="ptab spell-tab" data-page="${sx(inst,'spells')}" type="button">Spells ${inst+1}</button>`);
     sEl(inst,"slots").innerHTML = slotsHTML(inst);
@@ -2619,6 +2630,7 @@
     data.bonusVals = bonusVals;
     data.portrait = portraitData;
     data.spellSheets = spellSheets;                       // multi-sheet spell state
+    data.spellSheetKind = spellSheetKind;
     data.spellEntriesByInst = spellEntriesByInst;
     data.preparedByInst = preparedByInst;
     data.spellMaxByInst = spellMaxByInst;
@@ -2691,6 +2703,9 @@
     while(preparedByInst.length < nSheets) preparedByInst.push({});
     while(spellMaxByInst.length < nSheets) spellMaxByInst.push(9);
     spellEntriesByInst.length = nSheets; preparedByInst.length = nSheets; spellMaxByInst.length = nSheets;
+    spellSheetKind = (data && Array.isArray(data.spellSheetKind)) ? data.spellSheetKind.slice(0, nSheets) : [];   // extra sheets default to 'manual' (the only way they could exist so far)
+    spellSheetKind[0] = "character";
+    while(spellSheetKind.length < nSheets) spellSheetKind.push("manual");
     hitDieFaces = (data && typeof data.hitDieFaces === "number") ? data.hitDieFaces : null;
     if(hitDieFaces == null && data){ const m = String(data.hitdice||"").match(/d(\d+)/); if(m) hitDieFaces = +m[1]; }   // legacy "5d8" → 8
     speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
@@ -3813,7 +3828,7 @@
     document.addEventListener("change", onChange);
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
     document.addEventListener("click", e => { if(e.target.closest("[data-addoverflow]")){ appendOverflowPage(); applyLayout(); showPage("overflow-"+(overflowPages-1)); save(); compute(); } });
-    document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet(); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
+    document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
     setupItemSearch();
 
     // --- inventory drag-to-reorder (across both columns) ---
