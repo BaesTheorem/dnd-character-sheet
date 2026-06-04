@@ -591,6 +591,15 @@ def build_attune_items(items_base, items):   # items that require attunement, fo
             if is_src(it) and it.get("name") and it.get("reqAttune"): out.add(it["name"])
     return sorted(out)
 
+MAGIC_RARITY = {"common", "uncommon", "rare", "very rare", "legendary", "artifact", "unknown (magic)"}
+def build_magic_items(items_base, items):   # magic items (rarity / wondrous / attunement), so the Equipped box can appear on them
+    out = set()
+    for coll, key in ((items_base, "baseitem"), (items, "item")):
+        for it in coll.get(key, []):
+            if not is_src(it) or not it.get("name"): continue
+            if it.get("rarity") in MAGIC_RARITY or it.get("wondrous") or it.get("reqAttune"): out.add(it["name"])
+    return sorted(out)
+
 def build_packs(items):   # equipment packs → {name: [{name, qty}]} so the sheet can disambiguate contents
     out = {}
     for it in items.get("item", []):
@@ -659,6 +668,7 @@ def main():
     out["itemNames"] = build_item_names(items_base, items)
     out["containers"] = build_containers(items_base, items)
     out["attuneItems"] = build_attune_items(items_base, items)
+    out["magicItems"] = build_magic_items(items_base, items)
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
     sz = os.path.getsize(OUT)
     print(f"wrote {OUT}  ({sz/1024:.0f} KB)")
