@@ -169,6 +169,28 @@
   .hood-row input, .hood-row select{width:100%; box-sizing:border-box; text-align:center; padding:3px 2px; font-weight:700}
   .hood-row .stepper{justify-content:center}
 
+  /* ASI / Feat attention flag (pulses until every improvement is chosen) */
+  .asi-flag{display:block; width:100%; margin:0 0 16px; text-align:left; cursor:pointer;
+    border:2px solid #c2410c; background:#fff7ed; color:#7c2d12; border-radius:var(--radius);
+    padding:12px 16px; font:inherit; font-weight:700; font-size:14px; letter-spacing:.01em;
+    box-shadow:0 0 0 0 rgba(194,65,12,.55); animation:asipulse 1.5s ease-out infinite}
+  .asi-flag:hover{background:#ffedd5}
+  .asi-flag .sub{display:block; font-weight:500; font-size:11px; color:#9a3412; margin-top:3px}
+  @keyframes asipulse{0%{box-shadow:0 0 0 0 rgba(194,65,12,.5)} 70%{box-shadow:0 0 0 10px rgba(194,65,12,0)} 100%{box-shadow:0 0 0 0 rgba(194,65,12,0)}}
+  @media (prefers-reduced-motion:reduce){ .asi-flag{animation:none} }
+  /* ASI picker modal rows */
+  .asi-slot{border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px}
+  .asi-slot.done{border-color:#16a34a; background:#f0fdf4}
+  .asi-slot-head{display:flex; align-items:center; gap:8px; font-weight:700; font-size:12px; margin-bottom:7px}
+  .asi-slot-head .badge{font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    padding:2px 7px; border-radius:999px; background:#fee2e2; color:#991b1b}
+  .asi-slot.done .badge{background:#dcfce7; color:#166534}
+  .asi-type{display:flex; gap:16px; font-size:12px; margin-bottom:7px}
+  .asi-type label{display:flex; align-items:center; gap:5px; font-weight:600; cursor:pointer}
+  .asi-body{display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:12px}
+  .asi-body label{font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+  .asi-body select{width:auto; min-width:120px}
+
   /* small stat chips */
   .chips{display:flex; gap:10px; flex-wrap:wrap}
   .chip{flex:1; min-width:90px; text-align:center; background:var(--field);
@@ -379,9 +401,10 @@
     #page-inv{display:flex !important; flex-direction:column; min-height:261mm}     /* fill the printed sheet */
     #page-inv .card.grow{flex:1 1 auto}                                            /* Equipment Notes takes the remaining height */
     #page-inv .invtable td input{padding:3px 2px}                                  /* inventory rows tall enough to write in */
-    #page-feat{display:flex !important; flex-direction:column; min-height:261mm}    /* Features & Traits fills the sheet */
-    #page-story{display:flex !important; flex-direction:column; min-height:261mm}   /* Backstory fills the sheet */
-    #page-notes{display:flex !important; flex-direction:column; min-height:261mm}   /* Notes fills the sheet */
+    /* full-text pages: fill at least one sheet, then flow onto extra sheets if the content is long */
+    #page-feat,#page-story,#page-notes{display:block !important}
+    #page-feat .card.grow,#page-story .card.grow,#page-notes .card.grow{display:block; break-inside:auto}
+    #page-feat .ta-print,#page-story .ta-print,#page-notes .ta-print{min-height:247mm; break-inside:auto}
     .card{padding:5px 7px; margin:0; border-color:#999; break-inside:avoid}
     .card>h2{margin:0 0 3px; font-size:8px; letter-spacing:.07em}
     input,select,textarea{background:#fff !important; padding:1px 3px}
@@ -420,8 +443,8 @@
     .combat-top{gap:4px}
     .combat-top .stat, .hp-grid .stat{min-height:0; display:block}   /* compact natural size in print (screen uses 52px min) */
     .encgrid{gap:5px}                                                /* compact Carrying Capacity + Total Weight to fit the inventory on one page */
-    .encgrid .stat{padding:3px}
-    .encgrid .stat .calc{min-height:0}
+    .encgrid .stat{padding:4px 3px 2px}
+    .encgrid .stat .calc{min-height:24px}   /* tall enough to write a weight value into on a blank sheet */
     .rowtotal{margin-top:5px; padding:3px 7px}
     .rowtotal .v{font-size:12px}
     #equipment + .ta-print{min-height:46px}
@@ -512,6 +535,8 @@
       </div>
       <input type="file" id="portrait-input" accept="image/*,.heic,.heif" hidden>
     </div>
+
+    <button class="asi-flag noprint" id="asi-flag" type="button" style="display:none"></button>
 
     <div class="columns">
       <!-- LEFT COLUMN -->
@@ -734,6 +759,7 @@
               <select data-save id="spellclass">
                 <option value=""></option>
                 <option>Artificer</option><option>Bard</option><option>Cleric</option><option>Druid</option>
+                <option>Monk (Way of Shadow)</option>
                 <option>Paladin</option><option>Ranger</option><option>Sorcerer</option><option>Warlock</option>
                 <option>Wizard</option><option value="Other">Other</option>
               </select></div>
@@ -897,6 +923,23 @@
     </div>
   </div>
 
+  <div class="modal noprint" id="asimodal">
+    <div class="modal-panel" style="max-width:560px">
+      <div class="modal-head">
+        <h2>Ability Score Improvements</h2>
+        <button class="btn ghost" id="asi-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="wiz-hint" style="margin-top:0">Your class grants an Ability Score Improvement at certain levels. For each one, take <strong>either</strong> an ASI (+2 to one ability, or +1 to two) <strong>or</strong> a Feat.</p>
+        <div id="asi-list"></div>
+      </div>
+      <div class="modal-foot">
+        <span class="wiz-hint" style="flex:1; margin:0" id="asi-summary"></span>
+        <button class="btn primary" id="asi-done" type="button">Done</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal noprint" id="settings">
     <div class="modal-panel">
       <div class="modal-head">
@@ -977,6 +1020,8 @@
   const BONUS_CATS = [["asi","ASI"],["racial","Racial"],["magical","Magical"],["misc","Misc"]];
   const zeroAb = () => ({str:0,dex:0,con:0,int:0,wis:0,cha:0});
   let bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};  // per-category ability bonuses
+  let asiChoices = [];                         // one entry per ASI the build is owed: {type:"asi"|"feat"|"", ab1, ab2, feat}
+  let asiFeatsAdded = {};                      // feat names already written to the Features page (avoid dupes)
   let inspState = false;
   let hitDieFaces = null;                      // class hit-die size (e.g. 8) → Hit Dice box shows "1d8+CON"
   let speedBase = null;                        // base walking speed; Speed box shows the modified value, base shown only while focused
@@ -1076,6 +1121,108 @@
       `<span class="score-out" id="score-${k}-out"></span>`+
       `<span class="mod" id="mod-${k}"></span></div>`).join("");
   }
+  // ---- Ability Score Improvements (flag + ASI/Feat picker) ----
+  // Levels at which a class grants an ASI (Fighter & Rogue get extras).
+  function classAsiLevels(cls){
+    const c = (cls || "").toLowerCase();
+    if(/fighter/.test(c)) return [4,6,8,12,14,16,19];
+    if(/rogue/.test(c))   return [4,8,10,12,16,19];
+    return [4,8,12,16,19];
+  }
+  // Count ASIs owed by parsing "Class N" pairs from the Class & Level field (handles multiclass).
+  function asiCount(){
+    const str = $("classlevel").value || "";
+    const re = /([A-Za-z'’][A-Za-z'’\- ]*?)\s+(\d+)/g;
+    let m, total = 0, matched = false;
+    while((m = re.exec(str))){ matched = true; const lv = parseInt(m[2],10); total += classAsiLevels(m[1]).filter(l => l <= lv).length; }
+    if(!matched){ const lv = charLevel(); if(lv != null) total += classAsiLevels(str).filter(l => l <= lv).length; }
+    return total;
+  }
+  function asiSlotComplete(s){
+    if(!s || !s.type) return false;
+    if(s.type === "asi")  return !!(s.ab1 || s.ab2);
+    if(s.type === "feat") return !!s.feat;
+    return false;
+  }
+  // Resize asiChoices to match the count the build is owed (keep existing choices).
+  function syncAsiSlots(){
+    const n = asiCount();
+    while(asiChoices.length < n) asiChoices.push({type:"", ab1:"", ab2:"", feat:""});
+    if(asiChoices.length > n) asiChoices.length = n;
+  }
+  // ASI ability picks feed the "ASI" bonus column; recompute it from the chosen slots.
+  function applyAsiBonuses(){
+    bonusVals.asi = zeroAb();
+    asiChoices.forEach(s => {
+      if(s.type !== "asi") return;
+      if(s.ab1 && bonusVals.asi[s.ab1] != null) bonusVals.asi[s.ab1] += 1;
+      if(s.ab2 && bonusVals.asi[s.ab2] != null) bonusVals.asi[s.ab2] += 1;
+    });
+    // chosen feats → append to the Features page once (never auto-removed)
+    asiChoices.forEach(s => {
+      if(s.type === "feat" && s.feat && !asiFeatsAdded[s.feat]){
+        const f = (PHB && PHB.feats) ? PHB.feats.find(x => x.name === s.feat) : null;
+        const line = "Feat: " + s.feat + (f && f.text ? ". " + f.text : "");
+        const t = $("features");
+        if(t && !(t.value||"").includes("Feat: " + s.feat)){ t.value = t.value.trim() ? t.value + "\n\n" + line : line; autoGrow(t); }
+        asiFeatsAdded[s.feat] = true;
+      }
+    });
+  }
+  // The attention flag: shown until every owed ASI has a complete choice.
+  function updateAsiFlag(){
+    syncAsiSlots();
+    const flag = $("asi-flag"); if(!flag) return;
+    const pending = asiChoices.filter(s => !asiSlotComplete(s)).length;
+    if(pending > 0){
+      flag.style.display = "";
+      flag.innerHTML = "⚠ " + pending + " Ability Score Improvement" + (pending>1?"s":"") + " to assign"+
+        "<span class=\"sub\">Click to choose an ASI (+2/+1+1) or a Feat for each.</span>";
+    } else flag.style.display = "none";
+  }
+  function abilityOptions(sel){
+    return `<option value=""></option>` + ABILITIES.map(([k,name]) =>
+      `<option value="${k}"${sel===k?" selected":""}>${name}</option>`).join("");
+  }
+  function featOptions(sel){
+    const feats = (PHB && PHB.feats) ? PHB.feats.slice().sort((a,b)=>a.name.localeCompare(b.name)) : [];
+    return `<option value=""></option>` + feats.map(f =>
+      `<option value="${esc(f.name)}"${sel===f.name?" selected":""}>${esc(f.name)}</option>`).join("");
+  }
+  function renderAsiList(){
+    syncAsiSlots();
+    const lvlPlan = (()=>{                         // map each slot index to the level it comes from (single-class only, for labelling)
+      const str = $("classlevel").value || "";
+      const single = !/[\/,]| and /i.test(str);
+      if(!single) return null;
+      const lv = charLevel();
+      return classAsiLevels(str).filter(l => lv==null || l <= lv);
+    })();
+    $("asi-list").innerHTML = asiChoices.map((s,i) => {
+      const done = asiSlotComplete(s);
+      const lvlLabel = (lvlPlan && lvlPlan[i]!=null) ? ` (level ${lvlPlan[i]})` : "";
+      const body = s.type === "asi"
+        ? `<div class="asi-body"><label>Score +1</label><select class="asi-ab" data-i="${i}" data-which="ab1">${abilityOptions(s.ab1)}</select>`+
+          `<label>Score +1</label><select class="asi-ab" data-i="${i}" data-which="ab2">${abilityOptions(s.ab2)}</select>`+
+          `<span class="wiz-hint" style="margin:0">Pick the same ability twice for +2.</span></div>`
+        : s.type === "feat"
+        ? `<div class="asi-body"><label>Feat</label><select class="asi-featsel" data-i="${i}">${featOptions(s.feat)}</select>`+
+          (((PHB&&PHB.feats)||[]).length ? "" : `<span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span>`)+`</div>`
+        : "";
+      return `<div class="asi-slot${done?" done":""}">`+
+        `<div class="asi-slot-head">Improvement #${i+1}${lvlLabel}<span class="badge">${done?(s.type==="feat"?"Feat":"ASI"):"Choose"}</span></div>`+
+        `<div class="asi-type">`+
+          `<label><input type="radio" name="asi-type-${i}" class="asi-type-r" data-i="${i}" value="asi"${s.type==="asi"?" checked":""}> Ability Score Improvement</label>`+
+          `<label><input type="radio" name="asi-type-${i}" class="asi-type-r" data-i="${i}" value="feat"${s.type==="feat"?" checked":""}> Feat</label>`+
+        `</div>${body}</div>`;
+    }).join("") || `<p class="wiz-hint">No Ability Score Improvements yet — set your Class &amp; Level first.</p>`;
+    const pending = asiChoices.filter(s => !asiSlotComplete(s)).length;
+    $("asi-summary").textContent = asiChoices.length
+      ? (pending ? pending + " of " + asiChoices.length + " still to choose" : "All " + asiChoices.length + " assigned ✓")
+      : "";
+  }
+  function openAsiModal(){ renderAsiList(); $("asimodal").classList.add("open"); }
+
   // ---- "Under the hood": generation method + base & bonus inputs ----
   function renderHoodControls(){
     $("hood-abilities").innerHTML = ABILITIES.map(([k,name]) => {
@@ -1469,7 +1616,25 @@
     Sorcerer:  {fullList:false, prepares:false, ability:"cha", note:"Sorcerer: write your spells known — always ready (no preparation)."},
     Ranger:    {fullList:false, prepares:false, ability:"wis", note:"Ranger: write your spells known — always ready (no preparation)."},
     Warlock:   {fullList:false, prepares:false, ability:"cha", note:"Warlock (Pact Magic): write your spells known — always ready; slots recharge on a short rest."},
+    "Monk (Way of Shadow)": {fullList:false, prepares:false, ability:"wis",
+      fixed:{0:["Minor Illusion"], 2:["Darkness","Darkvision","Pass Without Trace","Silence"]},
+      note:"Monk (Way of Shadow) — Shadow Arts: cast these spells with ki (no material components); always known, not prepared. Minor Illusion cantrip included."},
   };
+  // classes whose spell list is a fixed, always-known set (seeded into the write-in rows on selection)
+  function seedFixedSpells(cls){
+    const info = CASTERS[cls];
+    if(!info || !info.fixed) return;
+    if(!spellEntries || !Object.keys(spellEntries).length) spellEntries = defaultSpellEntries();
+    Object.keys(info.fixed).forEach(key => {
+      const l = +key;
+      spellEntries[l] = spellEntries[l] || mkSpellRows(l===0 ? CANTRIP_COUNT : PER_LEVEL);
+      info.fixed[key].forEach(name => {
+        if(spellEntries[l].some(r => (r.name||"").trim().toLowerCase() === name.toLowerCase())) return;  // already present
+        const slot = spellEntries[l].find(r => !(r.name||"").trim());
+        if(slot) slot.name = name; else spellEntries[l].push({name, prep:false});
+      });
+    });
+  }
   let preparedSpells = {};                     // {spellName: true} for pre-filled full-list classes
   let spellEntries = {};                       // {lvl: [{name,prep}]} — write-your-own rows; lvl 0 = cantrips
   let spellMaxLevel = 9;                        // highest spell-level section shown (sections shrink/grow on creation)
@@ -1483,6 +1648,7 @@
   }
   // the highest spell level a class can EVER reach (caps the sheet by class alone, even with no level)
   function classMaxSpellLevel(cls){
+    if(cls === "Monk (Way of Shadow)") return 2;                             // Shadow Arts: fixed 2nd-level set
     if(["Paladin","Ranger","Artificer","Warlock"].includes(cls)) return 5;   // half casters + Warlock top out at 5
     return 9;                                                                // full casters / Other / blank
   }
@@ -1686,17 +1852,20 @@
     } else { $("spelldc").textContent = ""; $("spellatk").textContent = ""; }
     // --- prepared casters: how many spells they can prepare (ability mod + level; half level for Paladin/Artificer) ---
     const spInfo = CASTERS[$("spellclass").value];
-    if(spInfo && spInfo.prepares){
+    if(spInfo && !spInfo.prepares){
+      $("prep-stat").style.display = "none";          // active known caster (Bard/Sorcerer/Ranger/Warlock) — no preparation
+    } else {                                          // prepared caster OR no class selected → keep a writable box
       $("prep-stat").style.display = "";
       const slvl = charLevel();
-      if(sa && slvl != null && mods[sa] != null){
+      if(spInfo && spInfo.prepares && sa && slvl != null && mods[sa] != null){
         const half = ["Paladin","Artificer"].includes($("spellclass").value);
         $("prepcount").textContent = Math.max(1, mods[sa] + (half ? Math.floor(slvl/2) : slvl));
-      } else $("prepcount").textContent = "";
-    } else $("prep-stat").style.display = "none";
+      } else $("prepcount").textContent = "";         // blank → write it in on a printed/blank sheet
+    }
 
     updateGenStatus();
     updateStepStates();
+    updateAsiFlag();
   }
 
   // ---- Persistence ----
@@ -1717,6 +1886,8 @@
     data.hiddenPages = hiddenPages;
     data.hitDieFaces = hitDieFaces;
     data.speedBase = speedBase;
+    data.asiChoices = asiChoices;
+    data.asiFeatsAdded = asiFeatsAdded;
     return data;
   }
   function applyFields(data){                 // restores data-save fields + inspiration
@@ -1740,6 +1911,11 @@
       if(data.bonusVals) BONUS_CATS.forEach(([c]) => { if(data.bonusVals[c]) bonusVals[c] = {...bonusVals[c], ...data.bonusVals[c]}; });
       else if(data.racialVals) bonusVals.racial = {...bonusVals.racial, ...data.racialVals};   // legacy: old single racial bonus
     }
+    asiChoices = (data && Array.isArray(data.asiChoices))
+      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||""}))
+      : [];
+    asiFeatsAdded = (data && data.asiFeatsAdded) ? {...data.asiFeatsAdded} : {};
+    if(data && data.asiChoices) applyAsiBonuses();   // ASI column derives from the picks (legacy sheets keep their manual column)
     preparedSpells = (data && data.preparedSpells) || {};
     spellEntries = defaultSpellEntries();
     spellMaxLevel = (data && typeof data.spellMaxLevel === "number") ? data.spellMaxLevel : 9;
@@ -2204,6 +2380,7 @@
           sub=$("wiz-subclass").value, lvl=Math.min(20,Math.max(1,num($("wiz-level").value,1))), bg=$("wiz-bg").value;
     // proficiencies become authoritative for the new build
     document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
+    asiChoices = []; asiFeatsAdded = {}; bonusVals.asi = zeroAb();   // new build → unassigned ASIs, flagged for the player
     if(name) $("charname").value = name;
     if(race) applyRace(race);
     if(cls){
@@ -2211,7 +2388,9 @@
       const c = findBy(PHB.classes, cls);
       $("classlevel").value = cls + " " + lvl + (sub ? ` (${sub})` : "");
       if(c && c.hd){ hitDieFaces = c.hd; $("hd-total").value = lvl; }
-      if(CASTERS[cls]){ $("spellclass").value = cls; renderSpellStyle(true); }   // tailor the spell sheet
+      const subKey = (cls && sub) ? `${cls} (${sub})` : null;                   // subclass casters keyed "Class (Subclass)" (e.g. Monk (Way of Shadow))
+      const spellKey = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[cls] ? cls : null);
+      if(spellKey){ $("spellclass").value = spellKey; seedFixedSpells(spellKey); renderSpellStyle(true); }   // tailor the spell sheet
       document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // chosen class skills
       if(c && c.features && c.features.length){                                    // class features up to this level → Features page
         const lines = c.features.filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${cls} ${f.level}). ${f.text}`);
@@ -2285,7 +2464,7 @@
     $("speed").addEventListener("focus", ()=>{ $("speed").value = (speedBase != null ? speedBase : ""); });   // show base for editing
     $("speed").addEventListener("blur", compute);                                                            // restore modified value
     $("pagetabs").addEventListener("click", e => { const b = e.target.closest(".ptab"); if(b) showPage(b.dataset.page); });
-    $("spellclass").addEventListener("change", ()=>{ renderSpellStyle(true); save(); compute(); });
+    $("spellclass").addEventListener("change", ()=>{ seedFixedSpells($("spellclass").value); renderSpellStyle(true); save(); compute(); });
     $("modes").addEventListener("click", e => { const b = e.target.closest(".mode-btn"); if(b) setMode(b.dataset.mode); });
     $("hood-abilities").addEventListener("click", e => {
       const btn = e.target.closest(".step"); if(btn) stepPointBuy(btn.dataset.ab, parseInt(btn.dataset.dir,10));
@@ -2294,6 +2473,21 @@
     $("hood-close").addEventListener("click", ()=> $("hood").classList.remove("open"));
     $("hood-done").addEventListener("click", ()=> $("hood").classList.remove("open"));
     $("hood").addEventListener("click", e => { if(e.target.id === "hood") $("hood").classList.remove("open"); });
+
+    // Ability Score Improvement flag + picker
+    $("asi-flag").addEventListener("click", openAsiModal);
+    $("asi-close").addEventListener("click", ()=> $("asimodal").classList.remove("open"));
+    $("asi-done").addEventListener("click", ()=> $("asimodal").classList.remove("open"));
+    $("asimodal").addEventListener("click", e => { if(e.target.id === "asimodal") $("asimodal").classList.remove("open"); });
+    $("asi-list").addEventListener("change", e => {
+      const t = e.target, i = +t.dataset.i;
+      if(isNaN(i) || !asiChoices[i]) return;
+      if(t.classList.contains("asi-type-r")){ asiChoices[i].type = t.value; }
+      else if(t.classList.contains("asi-ab")){ asiChoices[i][t.dataset.which] = t.value; }
+      else if(t.classList.contains("asi-featsel")){ asiChoices[i].feat = t.value; }
+      applyAsiBonuses();
+      renderAsiList(); renderHoodControls(); save(); compute();
+    });
 
     $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("settings").classList.add("open"); });
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
