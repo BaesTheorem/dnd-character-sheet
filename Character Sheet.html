@@ -1623,6 +1623,13 @@
       return {name:b.name, skills:fixed, skillChoose:choose, prof:etProfBlock(b), feature:{name:feat?feat.name.replace("Feature: ",""):"", text:feat?etText(feat.entries||[]):""}, equip:etBgEquipment(b)};
     });
   }
+  // Pull concrete spell names out of an additionalSpells value, which may be a string, an array, or a
+  // nested object (Sun Soul: {resource:{"2":["burning hands"]}}). Skip choose/filter directives.
+  function _collectSpellNames(v, out){
+    if(typeof v === "string"){ if(v.indexOf("=") < 0) out.push(v); return; }
+    if(Array.isArray(v)){ v.forEach(x => _collectSpellNames(x, out)); return; }
+    if(v && typeof v === "object"){ for(const k in v){ if(k === "choose" || k === "all") continue; _collectSpellNames(v[k], out); } }
+  }
   function etClasses(data, SRC){
     // All subclasses from THIS book, grouped by base-class name — even when the base class lives in another
     // book (e.g. TCE's Order of Scribes belongs to the PHB Wizard). mergeBook attaches these to the class.
@@ -1638,7 +1645,8 @@
         .sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
       const spells = [];                              // always-prepared domain/oath/etc. spells
       (s.additionalSpells||[]).forEach(blk => { const prep = blk.prepared || blk.known || blk.innate || {};
-        for(const lv in prep){ (prep[lv]||[]).forEach(nm => { if(typeof nm === "string") spells.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0}); }); } });
+        for(const lv in prep){ const names = []; _collectSpellNames(prep[lv], names);   // prep[lv] may be an array, or a nested object (e.g. Sun Soul's {resource:{2:[...]}}) — walk either
+          names.forEach(nm => spells.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0})); } });
       arr.push({name:s.name, short, features, spells});
     });
     const classes = (data.class||[]).filter(c => c.source === SRC).map(c => {
@@ -1791,8 +1799,9 @@
     const spellsData = spellIdx[srcCode] ? await J("spells/"+spellIdx[srcCode]).catch(()=>({})) : {};
     let sourcesForSrc = {}; try{ sourcesForSrc = (await J("spells/sources.json"))[srcCode] || {}; }catch(e){}
     const classArr = await Promise.all(Object.values(classIdx).map(f => J("class/"+f).catch(()=>({}))));
-    const classAll = {class:[], subclass:[]};
-    classArr.forEach(d => { (d.class||[]).forEach(c => classAll.class.push(c)); (d.subclass||[]).forEach(s => classAll.subclass.push(s)); });
+    const classAll = {class:[], subclass:[], classFeature:[], subclassFeature:[]};
+    classArr.forEach(d => { (d.class||[]).forEach(c => classAll.class.push(c)); (d.subclass||[]).forEach(s => classAll.subclass.push(s));
+      (d.classFeature||[]).forEach(f => classAll.classFeature.push(f)); (d.subclassFeature||[]).forEach(f => classAll.subclassFeature.push(f)); });   // features live in the class files too — collect them or every class/subclass loads featureless
     const items = etItems(itemsBase, srcCode);
     const cls = etClasses(classAll, srcCode);
     const bestiary = await J("bestiary/bestiary-"+srcCode.toLowerCase()+".json").catch(()=>({}));   // monsters (Monster Manual etc.)

@@ -274,6 +274,17 @@ def build_backgrounds(raw):
                     "equip": bg_equipment(b)})
     return out
 
+def _collect_spell_names(v, out):
+    # additionalSpells value may be a string, array, or nested object (Sun Soul: {resource:{"2":[...]}}); skip choose/filter directives
+    if isinstance(v, str):
+        if "=" not in v: out.append(v)
+    elif isinstance(v, list):
+        for x in v: _collect_spell_names(x, out)
+    elif isinstance(v, dict):
+        for k, val in v.items():
+            if k in ("choose", "all"): continue
+            _collect_spell_names(val, out)
+
 def build_classes():
     out = []
     for fn in sorted(os.listdir(os.path.join(SRC, "class"))):
@@ -298,9 +309,10 @@ def build_classes():
                 sspells = []
                 for blk in s.get("additionalSpells") or []:
                     prep = blk.get("prepared") or blk.get("known") or blk.get("innate") or {}
-                    for lv, names in prep.items():
-                        for nm in (names or []):
-                            if isinstance(nm, str): sspells.append({"n": _titlecase(_clean(nm)), "l": int(lv) if str(lv).isdigit() else 0})
+                    for lv, val in prep.items():
+                        names = []; _collect_spell_names(val, names)   # val may be array or nested object (e.g. Sun Soul resource:{2:[...]})
+                        for nm in names:
+                            sspells.append({"n": _titlecase(_clean(nm)), "l": int(lv) if str(lv).isdigit() else 0})
                 subs.append({"name": s["name"], "short": short, "features": sfeats, "spells": sspells})
             sub_lvl = None
             for f in c.get("classFeatures", []):
