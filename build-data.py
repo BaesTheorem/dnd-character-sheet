@@ -1,19 +1,28 @@
 #!/usr/bin/env python3
 """
-Build a trimmed PHB (2014) data subset for the character sheet from a local 5eTools copy.
+Build a trimmed source-data subset for the character sheet from a local 5eTools copy.
 
-Personal-use tool: it reads content from your own legal copy of the PHB (via a local 5eTools data
-folder). The output (source-data.json) is copyrighted WotC content trimmed for personal use — do NOT
-redistribute the data-bearing sheet or commit source-data.json.
+Personal-use tool: it reads content from your own legal copy of a sourcebook (via a local 5eTools
+data folder). The output (source-data.json) is copyrighted WotC content trimmed for personal use — do
+NOT redistribute the data-bearing sheet or commit source-data.json.
+
+Which book to extract defaults to the 2014 Player's Handbook ("PHB"); pass another 5eTools source code
+to extract that book instead. The in-browser loader (Settings -> Source books) is the equivalent for
+loading any book live; this is the offline/CLI baker.
 
 Set the source folder via the FIVETOOLS_DATA env var, or it defaults to ~/My Drive/5etools/data.
-Re-run this if the 5eTools data updates.  Usage:  python3 build-data.py
+Re-run this if the 5eTools data updates.  Usage:
+    python3 build-data.py            # Player's Handbook (2014)
+    python3 build-data.py XGE        # Xanathar's Guide to Everything
+    SOURCE_BOOK=TCE python3 build-data.py
 """
-import json, os, re
+import json, os, re, sys
 
 SRC = os.environ.get("FIVETOOLS_DATA", os.path.expanduser("~/My Drive/5etools/data"))
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json")
-PHB = "PHB"  # 2014 Player's Handbook source tag (2024 book is "XPHB")
+# 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
+SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
+BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
 DATA_VERSION = 9  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
@@ -65,9 +74,16 @@ def render_prof_list(lst):
 
 def load(*parts):
     return json.load(open(os.path.join(SRC, *parts)))
-def is_phb(x): return x.get("source") == PHB
+def is_src(x): return x.get("source") == SRC_TAG       # belongs to the book we're extracting
+def book_name(code):                                   # friendly title for _meta.book
+    if code in BOOK_NAMES: return BOOK_NAMES[code]
+    try:
+        for b in load("books.json").get("book", []):
+            if (b.get("id") or b.get("source")) == code: return b.get("name", code)
+    except Exception: pass
+    return code
 
-# ---- Races (+ PHB subraces) ----
+# ---- Races (+ subraces) ----
 def _traits(entries):
     return [{"name": t.get("name",""), "text": entries_to_text(t.get("entries",[]))}
             for t in entries if isinstance(t, dict) and t.get("name")]
@@ -86,18 +102,29 @@ def race_langs(r):
                 out.append(f"{v} language{'s' if v > 1 else ''} of your choice{kind}")
     return out
 
+def feat_grants(r):                                 # number of feats a race/subrace grants (Variant Human = 1)
+    n = 0
+    for fg in (r.get("feats") or []):
+        if isinstance(fg, dict):
+            if "any" in fg: n += fg.get("any") or 1
+            elif "anyFromCategory" in fg: n += (fg["anyFromCategory"].get("count") or 1)
+            else: n += 1                            # specific granted feat
+        elif fg: n += 1
+    return n
+
 def build_races(raw):
     out, bases, base_idx = [], {}, {}
     for r in raw.get("race", []):
-        if not is_phb(r): continue
+        if not is_src(r): continue
         ab = list(r.get("ability") or [])
-        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", [])), "langs": race_langs(r)}
+        fg = feat_grants(r)
+        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", [])), "langs": race_langs(r), "featGrants": fg}
         base_idx[r["name"]] = len(out)
         out.append({"name": r["name"], "ability": ab,
                     "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
-                    "speed": _speed(r), "traits": _traits(r.get("entries", [])), "langs": race_langs(r)})
+                    "speed": _speed(r), "traits": _traits(r.get("entries", [])), "langs": race_langs(r), "featGrants": fg})
     for s in raw.get("subrace", []):
-        if not is_phb(s): continue
+        if not is_src(s): continue
         parent = s.get("raceName")
         if not s.get("name"):                       # unnamed "standard" subrace -> fold into base option
             i = base_idx.get(parent)
@@ -105,6 +132,7 @@ def build_races(raw):
                 out[i]["ability"] = (out[i]["ability"] or []) + (s.get("ability") or [])
                 out[i]["traits"]  = (out[i]["traits"] or []) + _traits(s.get("entries", []))
                 out[i]["langs"]   = (out[i].get("langs") or []) + race_langs(s)
+                out[i]["featGrants"] = (out[i].get("featGrants") or 0) + feat_grants(s)
             continue
         base = bases.get(parent, {})               # named subrace -> "Race (Subrace)", base + subrace
         out.append({"name": f"{parent} ({s['name']})",
@@ -112,7 +140,8 @@ def build_races(raw):
                     "size": "", "speed": _speed(s) if s.get("speed") is not None else base.get("speed", 30),
                     "subraceOf": parent,
                     "traits": (base.get("traits") or []) + _traits(s.get("entries", [])),
-                    "langs": (base.get("langs") or []) + race_langs(s)})
+                    "langs": (base.get("langs") or []) + race_langs(s),
+                    "featGrants": (base.get("featGrants") or 0) + feat_grants(s)})
     return out
 
 def skills_from(spo):
@@ -125,16 +154,32 @@ def skills_from(spo):
                 fixed.append(k)
     return fixed, choose
 
+def bg_equipment(b):                                # starting items + gold a background provides
+    items, gold = [], 0.0
+    for group in (b.get("startingEquipment") or []):
+        if not isinstance(group, dict): continue
+        entries = group["_"] if "_" in group else (next(iter(group.values())) if group else [])  # all of "_", else first choice
+        for e in entries:
+            if isinstance(e, str):
+                nm = e.split("|")[0].strip()
+                if nm: items.append({"n": nm, "q": 1})
+            elif isinstance(e, dict):
+                if e.get("containsValue"): gold += e["containsValue"] / 100.0   # copper → gp
+                nm = (e.get("displayName") or e.get("special") or e.get("item") or "").split("|")[0].strip()
+                if nm: items.append({"n": nm, "q": e.get("quantity", 1) or 1})
+    return {"items": items, "gold": int(gold) if gold == int(gold) else round(gold, 2)}
+
 def build_backgrounds(raw):
     out = []
     for b in raw.get("background", []):
-        if not is_phb(b): continue
+        if not is_src(b): continue
         fixed, choose = skills_from(b.get("skillProficiencies"))
         feat = next((e for e in b.get("entries", []) if isinstance(e, dict)
                      and str(e.get("name","")).startswith("Feature:")), None)
         out.append({"name": b["name"], "skills": fixed, "skillChoose": choose,
                     "feature": {"name": feat["name"].replace("Feature: ","") if feat else "",
-                                "text": entries_to_text(feat.get("entries",[])) if feat else ""}})
+                                "text": entries_to_text(feat.get("entries",[])) if feat else ""},
+                    "equip": bg_equipment(b)})
     return out
 
 def build_classes():
@@ -143,12 +188,12 @@ def build_classes():
         if not fn.startswith("class-") or not fn.endswith(".json"): continue
         data = load("class", fn)
         for c in data.get("class", []):
-            if not is_phb(c): continue
+            if not is_src(c): continue
             sp = c.get("startingProficiencies", {})
             sk_fixed, sk_choose = skills_from(sp.get("skills"))
             seen, subs = set(), []
             for s in data.get("subclass", []):
-                if not is_phb(s) or s.get("className") != c["name"]: continue
+                if not is_src(s) or s.get("className") != c["name"]: continue
                 short = s.get("shortName", s["name"])
                 if short in seen: continue
                 seen.add(short); subs.append({"name": s["name"], "short": short})
@@ -164,8 +209,8 @@ def build_classes():
             feats_c = [{"name": f.get("name", ""), "level": f.get("level", 1),
                         "text": entries_to_text(f.get("entries", []))}
                        for f in data.get("classFeature", [])
-                       if f.get("source") == PHB and f.get("className") == c["name"]
-                       and f.get("classSource", PHB) == PHB and f.get("name")]
+                       if f.get("source") == SRC_TAG and f.get("className") == c["name"]
+                       and f.get("classSource", SRC_TAG) == SRC_TAG and f.get("name")]
             feats_c.sort(key=lambda x: (x["level"], x["name"]))
             out.append({"name": c["name"],
                         "hd": c.get("hd", {}).get("faces"),
@@ -174,6 +219,7 @@ def build_classes():
                         "armor": render_prof_list(sp.get("armor")), "weapons": render_prof_list(sp.get("weapons")),
                         "casterAbility": c.get("spellcastingAbility"),
                         "casterProgression": c.get("casterProgression"),
+                        "cantrips": c.get("cantripProgression"),   # cantrips known per level (None if class has no cantrips)
                         "equip": equip, "features": feats_c,
                         "subclassTitle": c.get("subclassTitle",""), "subclassLevel": sub_lvl, "subclasses": subs})
     return out
@@ -181,14 +227,14 @@ def build_classes():
 def build_feats(raw):
     out = []
     for f in raw.get("feat", []):
-        if not is_phb(f): continue
+        if not is_src(f): continue
         out.append({"name": f["name"], "text": entries_to_text(f.get("entries", []))})
     return out
 
 def build_items(raw):
     weapons, armor = [], []
     for it in raw.get("baseitem", []):
-        if not is_phb(it): continue
+        if not is_src(it): continue
         if it.get("weapon"):
             weapons.append({"name": it["name"], "cat": "martial" if it.get("weaponCategory")=="martial" else "simple",
                             "melee": it.get("type") == "M",
@@ -204,9 +250,9 @@ def build_items(raw):
 def build_spells():
     spells = []
     for fn in os.listdir(os.path.join(SRC, "spells")):
-        if not re.match(r"spells-phb\.json$", fn): continue
+        if not re.match(rf"spells-{SRC_TAG.lower()}\.json$", fn): continue
         for s in load("spells", fn).get("spell", []):
-            if not is_phb(s): continue
+            if not is_src(s): continue
             comp = s.get("components", {})
             spells.append({"name": s["name"], "level": s.get("level", 0),
                            "school": SCHOOL.get(s.get("school",""), s.get("school","")),
@@ -221,7 +267,7 @@ def build_spells():
     return spells
 
 # Items that grant a flat AC bonus (shield, rings/cloaks/bracers of protection, etc.) for the
-# Armor section's bonus-item pickers. PHB only has the Shield, so this pulls from the wider data.
+# Armor section's bonus-item pickers. The PHB only has the Shield, so this pulls from the wider data.
 def build_ac_items():
     out, seen = [{"n": "Shield", "b": 2}], {"Shield"}
     try: items = load("items.json").get("item", [])
@@ -238,22 +284,22 @@ def build_ac_items():
     out.sort(key=lambda x: x["n"])
     return out
 
-# Per-class PHB spell lists (levels 1-9) for classes that prepare from their whole list.
+# Per-class spell lists (cantrips + levels 1-9) for EVERY class.
+# Drives the per-row spell dropdowns (learn-spells classes) and the pre-filled list (full casters).
 def build_class_spells():
     levels = {}
     for fn in os.listdir(os.path.join(SRC, "spells")):
-        if not re.match(r"spells-phb\.json$", fn): continue
+        if not re.match(rf"spells-{SRC_TAG.lower()}\.json$", fn): continue
         for s in load("spells", fn).get("spell", []):
-            if is_phb(s): levels[s["name"]] = s.get("level", 0)
-    try: src = load("spells", "sources.json").get("PHB", {})
+            if is_src(s): levels[s["name"]] = s.get("level", 0)
+    try: src = load("spells", "sources.json").get(SRC_TAG, {})
     except Exception: return {}
-    FULL = {"Cleric", "Druid", "Paladin"}   # Artificer's list is scattered across non-PHB books → not pre-populated
     out = {}
     for name, info in src.items():
         lv = levels.get(name)
-        if lv is None or lv == 0: continue            # PHB, leveled spells only (cantrips go in their own box)
+        if lv is None: continue                       # leveled book spells (cantrips included)
         for c in info.get("class", []):
-            if c.get("source") == PHB and c.get("name") in FULL:
+            if c.get("source") == SRC_TAG:
                 out.setdefault(c["name"], []).append({"n": name, "l": lv})
     for cn in out: out[cn].sort(key=lambda x: (x["l"], x["n"]))
     return out
@@ -262,14 +308,14 @@ def build_item_weights(items_base, items):   # {lowercased name: weight in lb} f
     w = {}
     for coll, key in ((items_base, "baseitem"), (items, "item")):
         for it in coll.get(key, []):
-            if is_phb(it) and it.get("weight") is not None and it.get("name"):
+            if is_src(it) and it.get("weight") is not None and it.get("name"):
                 w[it["name"].lower()] = it["weight"]
     return w
 
 def build_packs(items):   # equipment packs → {name: [{name, qty}]} so the sheet can disambiguate contents
     out = {}
     for it in items.get("item", []):
-        if not is_phb(it): continue
+        if not is_src(it): continue
         pc = it.get("packContents")
         if not pc: continue
         contents = []
@@ -284,14 +330,14 @@ def build_packs(items):   # equipment packs → {name: [{name, qty}]} so the she
 def build_languages():
     try: raw = load("languages.json")
     except Exception: return []
-    return sorted({l["name"] for l in raw.get("language", []) if is_phb(l) and l.get("name")})
+    return sorted({l["name"] for l in raw.get("language", []) if is_src(l) and l.get("name")})
 
 def build_tools(items_base, items):   # AT/INS live in items-base.json; GS/T (thieves' tools, kits, gaming sets) live in items.json
     out = set()
     for it in items_base.get("baseitem", []):
-        if is_phb(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
+        if is_src(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
     for it in items.get("item", []):
-        if is_phb(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
+        if is_src(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
     return sorted(out)
 
 def render_range(r):
@@ -311,8 +357,8 @@ def render_duration(d):
 def main():
     races = load("races.json")
     out = {
-        "_meta": {"book": "Player's Handbook (2014)", "dataVersion": DATA_VERSION,
-                  "source": "D&D 5e PHB (2014) via local 5eTools — personal use, do not redistribute"},
+        "_meta": {"book": book_name(SRC_TAG), "dataVersion": DATA_VERSION,
+                  "source": f"D&D 5e {SRC_TAG} via local 5eTools — personal use, do not redistribute"},
         "races": build_races(races),
         "backgrounds": build_backgrounds(load("backgrounds.json")),
         "classes": build_classes(),
@@ -339,7 +385,7 @@ def main():
     return out
 
 def build_sheet(data):
-    """Bake the PHB data into a personal single-file copy of the sheet (gitignored)."""
+    """Bake the extracted data into a personal single-file copy of the sheet (gitignored)."""
     here = os.path.dirname(os.path.abspath(__file__))
     app = os.path.join(here, "Character Sheet.html")
     out = os.path.join(here, "Character Sheet (Source Data).html")
@@ -347,10 +393,10 @@ def build_sheet(data):
         print("  (skip build_sheet: Character Sheet.html not found)"); return
     html = open(app).read()
     blob = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
-    new = re.sub(r'(<script id="phb-data" type="application/json">).*?(</script>)',
+    new = re.sub(r'(<script id="source-data" type="application/json">).*?(</script>)',
                  lambda m: m.group(1) + blob + m.group(2), html, count=1, flags=re.S)
     if new == html:
-        print("  (skip build_sheet: no #phb-data block in Character Sheet.html yet)"); return
+        print("  (skip build_sheet: no #source-data block in Character Sheet.html yet)"); return
     open(out, "w").write(new)
     print(f"  baked -> {out}  ({os.path.getsize(out)/1024:.0f} KB)")
 

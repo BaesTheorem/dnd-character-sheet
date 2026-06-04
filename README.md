@@ -106,9 +106,14 @@ app stays content-free.
 ## Sourcebook data (personal use)
 There are two ways to get content into the sheet (see **Source books** above): load any book live
 from a local 5etools server in-browser, or bake a starter file with `build-data.py`, which extracts a
-trimmed D&D 5e **PHB (2014)** subset (races, backgrounds, classes, feats, weapons/armor, all 361
-spells) from a local 5eTools copy into `source-data.json` and bakes it into
-`Character Sheet (Source Data).html`. Re-run with `python3 build-data.py`.
+trimmed subset (races, backgrounds, classes, feats, weapons/armor, spells) from a local 5eTools copy
+into `source-data.json` and bakes it into `Character Sheet (Source Data).html`. It defaults to the
+**Player's Handbook (2014)**; pass a 5eTools source code to extract a different book:
+
+```
+python3 build-data.py            # Player's Handbook (2014) — the default
+python3 build-data.py XGE        # Xanathar's Guide to Everything
+```
 
 This is **copyrighted WotC content** included for personal use under ownership of the books. Owning a
 book does not grant redistribution rights, so `source-data.json` and any sheet with data baked in

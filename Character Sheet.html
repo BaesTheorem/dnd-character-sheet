@@ -111,7 +111,7 @@
   .meta-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px 14px; margin-top:14px}
   @media (max-width:560px){ .meta-grid{grid-template-columns:repeat(2,1fr)} }
 
-  /* PHB build pickers */
+  /* Source-data build pickers */
   .build-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   .build-note{font-size:11px; color:var(--muted); margin-top:10px; line-height:1.55; white-space:pre-line}
   .build-note b{color:var(--ink)}
@@ -385,7 +385,7 @@
     html,body{background:#fff; padding:0; font-size:9px;
       -webkit-print-color-adjust:exact; print-color-adjust:exact}
     /* hide builder/interaction chrome — print character data only */
-    .toolbar,.noprint,#phb-build,.gen-status,.build-note{display:none !important}
+    .toolbar,.noprint,.gen-status,.build-note{display:none !important}
     .sheet{margin:0; max-width:none; padding:0}
     .pagetabs{display:none !important}
     .page{display:block !important}                 /* print every page... */
@@ -775,7 +775,7 @@
           </div>
           <p class="help" id="cast-note">Pick a class to tailor the spell list, or leave blank for a flexible layout.</p>
         </div>
-        <div class="card"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="slots"></div></div>
+        <div class="card" id="slots-card"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="slots"></div></div>
         <div class="card spell-list"><h2 id="spells-h2">Spells</h2>
           <p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Hover a spell name for the full description.</p>
           <table class="spelltable" id="spelltable">
@@ -818,7 +818,7 @@
     </section>
   </div>
 
-  <!-- Guided character creation (uses baked PHB data) -->
+  <!-- Guided character creation (uses baked source data) -->
   <div class="modal noprint" id="wizard">
     <div class="modal-panel">
       <div class="modal-head">
@@ -926,11 +926,11 @@
   <div class="modal noprint" id="asimodal">
     <div class="modal-panel" style="max-width:560px">
       <div class="modal-head">
-        <h2>Ability Score Improvements</h2>
+        <h2>Ability Score Improvements &amp; Feats</h2>
         <button class="btn ghost" id="asi-close" type="button">✕</button>
       </div>
       <div class="modal-body">
-        <p class="wiz-hint" style="margin-top:0">Your class grants an Ability Score Improvement at certain levels. For each one, take <strong>either</strong> an ASI (+2 to one ability, or +1 to two) <strong>or</strong> a Feat.</p>
+        <p class="wiz-hint" style="margin-top:0">Your class grants an Ability Score Improvement at certain levels — for each, take <strong>either</strong> an ASI (+2 to one ability, or +1 to two) <strong>or</strong> a Feat. Some races (Variant Human, Custom Lineage) also grant a feat.</p>
         <div id="asi-list"></div>
       </div>
       <div class="modal-foot">
@@ -972,8 +972,8 @@
 
   <!-- Embedded character data for "Save copy (HTML)". Leave as null in the master file. -->
   <script id="embedded-data" type="application/json">null</script>
-  <!-- PHB content baked in by build-data.py (null in the shareable app; do not commit when filled). -->
-  <script id="phb-data" type="application/json">null</script>
+  <!-- Source-data content baked in by build-data.py (null in the shareable app; do not commit when filled). -->
+  <script id="source-data" type="application/json">null</script>
 
   <script>
   "use strict";
@@ -1096,7 +1096,7 @@
       `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
       `<td><input data-save id="invname-${i}"></td>`+
       `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
-      `<td><input data-save type="number" id="invwt-${i}" min="0" step="0.1"></td></tr>`;
+      `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td></tr>`;
     const half = Math.ceil(NINV/2);
     let invL = "", invR = "";
     for(let i=0;i<half;i++) invL += invRow(i);
@@ -1144,11 +1144,23 @@
     if(s.type === "feat") return !!s.feat;
     return false;
   }
-  // Resize asiChoices to match the count the build is owed (keep existing choices).
+  // Feats granted by the chosen race (Variant Human, Custom Lineage, …) — looked up by the Race field.
+  function raceFeatGrants(){
+    const rn = ($("race").value || "").trim().toLowerCase();
+    if(!rn || !DATA || !DATA.races) return 0;
+    const r = DATA.races.find(x => (x.name||"").toLowerCase() === rn);
+    return (r && r.featGrants) ? r.featGrants : 0;
+  }
+  // Resize asiChoices to the build's owed slots: class ASIs (ASI-or-feat) + race feats (feat only). Keep existing choices.
   function syncAsiSlots(){
-    const n = asiCount();
-    while(asiChoices.length < n) asiChoices.push({type:"", ab1:"", ab2:"", feat:""});
-    if(asiChoices.length > n) asiChoices.length = n;
+    const nClass = asiCount(), nRace = raceFeatGrants();
+    const classSlots = asiChoices.filter(s => s.source !== "race");
+    const raceSlots  = asiChoices.filter(s => s.source === "race");
+    while(classSlots.length < nClass) classSlots.push({type:"", ab1:"", ab2:"", feat:"", source:"class"});
+    if(classSlots.length > nClass) classSlots.length = nClass;
+    while(raceSlots.length < nRace) raceSlots.push({type:"feat", ab1:"", ab2:"", feat:"", source:"race"});
+    if(raceSlots.length > nRace) raceSlots.length = nRace;
+    asiChoices = classSlots.concat(raceSlots);
   }
   // ASI ability picks feed the "ASI" bonus column; recompute it from the chosen slots.
   function applyAsiBonuses(){
@@ -1161,22 +1173,30 @@
     // chosen feats → append to the Features page once (never auto-removed)
     asiChoices.forEach(s => {
       if(s.type === "feat" && s.feat && !asiFeatsAdded[s.feat]){
-        const f = (PHB && PHB.feats) ? PHB.feats.find(x => x.name === s.feat) : null;
+        const f = (DATA && DATA.feats) ? DATA.feats.find(x => x.name === s.feat) : null;
         const line = "Feat: " + s.feat + (f && f.text ? ". " + f.text : "");
         const t = $("features");
         if(t && !(t.value||"").includes("Feat: " + s.feat)){ t.value = t.value.trim() ? t.value + "\n\n" + line : line; autoGrow(t); }
+        if(FEAT_SENSES[s.feat]) addSense(FEAT_SENSES[s.feat]);   // sense-affecting feats also land in the Senses box
         asiFeatsAdded[s.feat] = true;
       }
     });
   }
-  // The attention flag: shown until every owed ASI has a complete choice.
+  // Feats that contribute a line to the Senses box.
+  const FEAT_SENSES = { "Observant": "Observant (+5 passive Perception & Investigation)" };
+  // The attention flag: shown until every owed ASI / racial feat has a complete choice.
   function updateAsiFlag(){
     syncAsiSlots();
     const flag = $("asi-flag"); if(!flag) return;
-    const pending = asiChoices.filter(s => !asiSlotComplete(s)).length;
+    const pendingClass = asiChoices.filter(s => s.source !== "race" && !asiSlotComplete(s)).length;
+    const pendingRace  = asiChoices.filter(s => s.source === "race" && !asiSlotComplete(s)).length;
+    const pending = pendingClass + pendingRace;
     if(pending > 0){
+      const parts = [];
+      if(pendingClass) parts.push(pendingClass + " Ability Score Improvement" + (pendingClass>1?"s":""));
+      if(pendingRace)  parts.push(pendingRace + " racial feat" + (pendingRace>1?"s":""));
       flag.style.display = "";
-      flag.innerHTML = "⚠ " + pending + " Ability Score Improvement" + (pending>1?"s":"") + " to assign"+
+      flag.innerHTML = "⚠ " + parts.join(" + ") + " to assign"+
         "<span class=\"sub\">Click to choose an ASI (+2/+1+1) or a Feat for each.</span>";
     } else flag.style.display = "none";
   }
@@ -1185,7 +1205,7 @@
       `<option value="${k}"${sel===k?" selected":""}>${name}</option>`).join("");
   }
   function featOptions(sel){
-    const feats = (PHB && PHB.feats) ? PHB.feats.slice().sort((a,b)=>a.name.localeCompare(b.name)) : [];
+    const feats = (DATA && DATA.feats) ? DATA.feats.slice().sort((a,b)=>a.name.localeCompare(b.name)) : [];
     return `<option value=""></option>` + feats.map(f =>
       `<option value="${esc(f.name)}"${sel===f.name?" selected":""}>${esc(f.name)}</option>`).join("");
   }
@@ -1198,24 +1218,33 @@
       const lv = charLevel();
       return classAsiLevels(str).filter(l => lv==null || l <= lv);
     })();
+    const rname = ($("race").value || "").trim();
+    let classIdx = 0, raceIdx = 0;
     $("asi-list").innerHTML = asiChoices.map((s,i) => {
       const done = asiSlotComplete(s);
-      const lvlLabel = (lvlPlan && lvlPlan[i]!=null) ? ` (level ${lvlPlan[i]})` : "";
+      const featBody =
+        `<div class="asi-body"><label>Feat</label><select class="asi-featsel" data-i="${i}">${featOptions(s.feat)}</select>`+
+        (((DATA&&DATA.feats)||[]).length ? "" : `<span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span>`)+`</div>`;
+      if(s.source === "race"){                       // racial feat — feat only, no ASI option
+        raceIdx++;
+        return `<div class="asi-slot${done?" done":""}">`+
+          `<div class="asi-slot-head">Racial Feat${rname?` (from ${esc(rname)})`:""}<span class="badge">${done?"Feat":"Choose"}</span></div>`+
+          featBody+`</div>`;
+      }
+      classIdx++;
+      const lvlLabel = (lvlPlan && lvlPlan[classIdx-1]!=null) ? ` (level ${lvlPlan[classIdx-1]})` : "";
       const body = s.type === "asi"
         ? `<div class="asi-body"><label>Score +1</label><select class="asi-ab" data-i="${i}" data-which="ab1">${abilityOptions(s.ab1)}</select>`+
           `<label>Score +1</label><select class="asi-ab" data-i="${i}" data-which="ab2">${abilityOptions(s.ab2)}</select>`+
           `<span class="wiz-hint" style="margin:0">Pick the same ability twice for +2.</span></div>`
-        : s.type === "feat"
-        ? `<div class="asi-body"><label>Feat</label><select class="asi-featsel" data-i="${i}">${featOptions(s.feat)}</select>`+
-          (((PHB&&PHB.feats)||[]).length ? "" : `<span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span>`)+`</div>`
-        : "";
+        : s.type === "feat" ? featBody : "";
       return `<div class="asi-slot${done?" done":""}">`+
-        `<div class="asi-slot-head">Improvement #${i+1}${lvlLabel}<span class="badge">${done?(s.type==="feat"?"Feat":"ASI"):"Choose"}</span></div>`+
+        `<div class="asi-slot-head">Improvement #${classIdx}${lvlLabel}<span class="badge">${done?(s.type==="feat"?"Feat":"ASI"):"Choose"}</span></div>`+
         `<div class="asi-type">`+
           `<label><input type="radio" name="asi-type-${i}" class="asi-type-r" data-i="${i}" value="asi"${s.type==="asi"?" checked":""}> Ability Score Improvement</label>`+
           `<label><input type="radio" name="asi-type-${i}" class="asi-type-r" data-i="${i}" value="feat"${s.type==="feat"?" checked":""}> Feat</label>`+
         `</div>${body}</div>`;
-    }).join("") || `<p class="wiz-hint">No Ability Score Improvements yet — set your Class &amp; Level first.</p>`;
+    }).join("") || `<p class="wiz-hint">No Ability Score Improvements or racial feats yet — set your Race and Class &amp; Level first.</p>`;
     const pending = asiChoices.filter(s => !asiSlotComplete(s)).length;
     $("asi-summary").textContent = asiChoices.length
       ? (pending ? pending + " of " + asiChoices.length + " still to choose" : "All " + asiChoices.length + " assigned ✓")
@@ -1309,15 +1338,15 @@
     ).join("");
   }
   function loadedBooks(){
-    if(!PHB || !PHB._meta) return [];
-    return PHB._meta.books || (PHB._meta.book ? [PHB._meta.book] : []);
+    if(!DATA || !DATA._meta) return [];
+    return DATA._meta.books || (DATA._meta.book ? [DATA._meta.book] : []);
   }
   function updateSourcebookStatus(){
     const el = $("sourcebook-status"); if(!el) return;
-    if(PHB && Array.isArray(PHB.spells)){
+    if(DATA && Array.isArray(DATA.spells)){
       const books = loadedBooks();
-      el.innerHTML = `<strong>${books.length ? books.map(esc).join(", ") : "Sourcebook"}</strong> — ${PHB.spells.length} spells, ${(PHB.classes||[]).length} classes, ${(PHB.races||[]).length} races.`;
-    } else el.textContent = "No sourcebook loaded. Load one from your 5etools server below, or import a phb-data.json file.";
+      el.innerHTML = `<strong>${books.length ? books.map(esc).join(", ") : "Sourcebook"}</strong> — ${DATA.spells.length} spells, ${(DATA.classes||[]).length} classes, ${(DATA.races||[]).length} races.`;
+    } else el.textContent = "No sourcebook loaded. Load one from your 5etools server below, or import a source-data.json file.";
   }
 
   // ===== In-browser 5etools data processing (port of build-data.py) =====
@@ -1325,7 +1354,7 @@
   const ET_DMG = {S:"slashing",P:"piercing",B:"bludgeoning",R:"radiant",F:"fire",C:"cold",L:"lightning",A:"acid",O:"force",Y:"psychic",T:"thunder",N:"necrotic"};
   const ET_SIZE = {T:"Tiny",S:"Small",M:"Medium",L:"Large",H:"Huge",G:"Gargantuan"};
   const ET_WPROP = {A:"ammunition",F:"finesse",H:"heavy",L:"light",LD:"loading",R:"reach",S:"special",T:"thrown","2H":"two-handed",V:"versatile"};
-  const ET_FULL = ["Cleric","Druid","Paladin"];   // classes whose entire spell list is pre-populated (Artificer's list is scattered/non-PHB → write-your-own)
+  const ET_FULL = ["Cleric","Druid","Paladin"];   // classes whose entire spell list is pre-populated (Artificer's list is scattered/non-DATA → write-your-own)
   function etTags(s){
     if(typeof s !== "string") return s;
     let prev = null;
@@ -1368,29 +1397,56 @@
     } });
     return out;
   }
+  function etFeatGrants(r){                          // how many feats this race/subrace grants (Variant Human = 1)
+    let n = 0;
+    (r.feats||[]).forEach(fg => {
+      if(fg && typeof fg === "object"){
+        if(fg.any != null) n += fg.any || 1;
+        else if(fg.anyFromCategory) n += (fg.anyFromCategory.count || 1);
+        else n += 1;                                 // specific granted feat
+      } else if(fg) n += 1;
+    });
+    return n;
+  }
   function etRaces(raw, SRC){
     const out = [], bases = {}, baseIdx = {};
     (raw.race||[]).forEach(r => {
       if(r.source !== SRC) return;
-      const ab = (r.ability||[]).slice();
-      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), langs:etRaceLangs(r)};
+      const ab = (r.ability||[]).slice(), fg = etFeatGrants(r);
+      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), langs:etRaceLangs(r), featGrants:fg};
       baseIdx[r.name] = out.length;
-      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), traits:etTraits(r.entries||[]), langs:etRaceLangs(r)});
+      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), traits:etTraits(r.entries||[]), langs:etRaceLangs(r), featGrants:fg});
     });
     (raw.subrace||[]).forEach(s => {
       if(s.source !== SRC) return;
       const parent = s.raceName;
-      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].langs = (out[i].langs||[]).concat(etRaceLangs(s)); } return; }
+      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].langs = (out[i].langs||[]).concat(etRaceLangs(s)); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); } return; }
       const base = bases[parent] || {};
-      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), langs:(base.langs||[]).concat(etRaceLangs(s))});
+      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), langs:(base.langs||[]).concat(etRaceLangs(s)), featGrants:(base.featGrants||0) + etFeatGrants(s)});
     });
     return out;
+  }
+  function etBgEquipment(b){                          // starting items + gold a background provides
+    const items = []; let gold = 0;
+    (b.startingEquipment||[]).forEach(group => {
+      if(!group || typeof group !== "object") return;
+      const entries = ("_" in group) ? group["_"] : (Object.values(group)[0] || []);   // all of "_", else first choice
+      (entries||[]).forEach(e => {
+        if(typeof e === "string"){ const nm = e.split("|")[0].trim(); if(nm) items.push({n:nm, q:1}); }
+        else if(e && typeof e === "object"){
+          if(e.containsValue) gold += e.containsValue / 100;                            // copper → gp
+          const nm = (e.displayName || e.special || e.item || "").split("|")[0].trim();
+          if(nm) items.push({n:nm, q:e.quantity || 1});
+        }
+      });
+    });
+    return {items, gold:(gold === Math.floor(gold)) ? gold : Math.round(gold*100)/100};
   }
   function etBackgrounds(raw, SRC){
     return (raw.background||[]).filter(b => b.source === SRC).map(b => {
       const {fixed, choose} = etSkills(b.skillProficiencies);
       const feat = (b.entries||[]).find(e => e && typeof e==="object" && String(e.name||"").startsWith("Feature:"));
-      return {name:b.name, skills:fixed, skillChoose:choose, feature:{name:feat?feat.name.replace("Feature: ",""):"", text:feat?etText(feat.entries||[]):""}};
+      return {name:b.name, skills:fixed, skillChoose:choose, feature:{name:feat?feat.name.replace("Feature: ",""):"", text:feat?etText(feat.entries||[]):""}, equip:etBgEquipment(b)};
     });
   }
   function etClasses(data, SRC){
@@ -1413,7 +1469,7 @@
       }
       return {name:c.name, hd:(c.hd||{}).faces, saves:c.proficiency||[], skillChoose:skChoose, skillsFixed:skFixed,
         armor:etProfList(sp.armor), weapons:etProfList(sp.weapons), casterAbility:c.spellcastingAbility, casterProgression:c.casterProgression,
-        equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:subs};
+        cantrips:c.cantripProgression||null, equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:subs};
     });
   }
   function etFeats(raw, SRC){ return (raw.feat||[]).filter(f => f.source === SRC).map(f => ({name:f.name, text:etText(f.entries||[])})); }
@@ -1437,8 +1493,8 @@
     (spellsData.spell||[]).forEach(s => { if(s.source === SRC) levels[s.name] = s.level||0; });
     const out = {};
     for(const name in (sourcesForSrc||{})){
-      const lv = levels[name]; if(lv == null || lv === 0) continue;
-      (sourcesForSrc[name].class||[]).forEach(c => { if(c.source === SRC && ET_FULL.includes(c.name)){ (out[c.name] = out[c.name]||[]).push({n:name, l:lv}); } });
+      const lv = levels[name]; if(lv == null) continue;      // every class's full list, cantrips (lv 0) included → drives the per-row dropdowns
+      (sourcesForSrc[name].class||[]).forEach(c => { if(c.source === SRC){ (out[c.name] = out[c.name]||[]).push({n:name, l:lv}); } });
     }
     for(const cn in out) out[cn].sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
     return out;
@@ -1567,18 +1623,18 @@
     const btn = $("btn-loadbook"); if(btn){ btn.disabled = true; btn.textContent = "Loading…"; }
     try{
       const data = await fetch5etoolsBook(base, srcCode);
-      if(!PHB) PHB = {_meta:{books:[]}};
-      mergeBook(PHB, data, bookName);
+      if(!DATA) DATA = {_meta:{books:[]}};
+      mergeBook(DATA, data, bookName);
       _spellIndex = null;
       bakeSourceData();   // keep the in-document data block in sync so saves carry the books
-      try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(PHB)); }
+      try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }
       catch(e){ flashStatus(bookName+" loaded (too large to save — stays this session)"); }
       populateWizard(); populateArmor(); renderSpellStyle(false); updateSourcebookStatus(); compute();
       flashStatus(bookName+" loaded — use “Save data file” to bake it into your sheet");
     }catch(e){ flashStatus("Load failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = "Load"; } }
   }
-  function bakeSourceData(){ const pd = $("phb-data"); if(pd) pd.textContent = JSON.stringify(PHB || null); }
+  function bakeSourceData(){ const pd = $("source-data"); if(pd) pd.textContent = JSON.stringify(DATA || null); }
   function saveDataFile(){               // download a copy of the sheet with all loaded books baked into the file
     bakeSourceData();
     const clone = document.documentElement.cloneNode(true);
@@ -1611,30 +1667,16 @@
     Cleric:    {fullList:true,  prepares:true,  ability:"wis", note:"Cleric: your whole class list is pre-filled — check which spells you have prepared today."},
     Druid:     {fullList:true,  prepares:true,  ability:"wis", note:"Druid: your whole class list is pre-filled — check which spells you have prepared today."},
     Paladin:   {fullList:true,  prepares:true,  ability:"cha", note:"Paladin: your whole class list is pre-filled — check which spells you have prepared."},
-    Artificer: {fullList:false, prepares:true,  ability:"int", note:"Artificer: write the spells you've prepared (its spell list is scattered across non-PHB books, so it isn't auto-filled)."},
+    Artificer: {fullList:false, prepares:true,  ability:"int", note:"Artificer: write the spells you've prepared (its spell list is scattered across non-DATA books, so it isn't auto-filled)."},
     Bard:      {fullList:false, prepares:false, ability:"cha", note:"Bard: write your spells known — they're always ready (no preparation)."},
     Sorcerer:  {fullList:false, prepares:false, ability:"cha", note:"Sorcerer: write your spells known — always ready (no preparation)."},
     Ranger:    {fullList:false, prepares:false, ability:"wis", note:"Ranger: write your spells known — always ready (no preparation)."},
     Warlock:   {fullList:false, prepares:false, ability:"cha", note:"Warlock (Pact Magic): write your spells known — always ready; slots recharge on a short rest."},
     "Monk (Way of Shadow)": {fullList:false, prepares:false, ability:"wis",
-      fixed:{0:["Minor Illusion"], 2:["Darkness","Darkvision","Pass Without Trace","Silence"]},
-      note:"Monk (Way of Shadow) — Shadow Arts: cast these spells with ki (no material components); always known, not prepared. Minor Illusion cantrip included."},
+      fixed:{0:["Minor Illusion"], 2:["Darkness","Darkvision","Pass Without Trace","Silence"]}, noSlots:true,
+      note:"Monk (Way of Shadow) — Shadow Arts: cast these spells with ki (no spell slots, no material components); always known, not prepared. Minor Illusion cantrip included."},
   };
-  // classes whose spell list is a fixed, always-known set (seeded into the write-in rows on selection)
-  function seedFixedSpells(cls){
-    const info = CASTERS[cls];
-    if(!info || !info.fixed) return;
-    if(!spellEntries || !Object.keys(spellEntries).length) spellEntries = defaultSpellEntries();
-    Object.keys(info.fixed).forEach(key => {
-      const l = +key;
-      spellEntries[l] = spellEntries[l] || mkSpellRows(l===0 ? CANTRIP_COUNT : PER_LEVEL);
-      info.fixed[key].forEach(name => {
-        if(spellEntries[l].some(r => (r.name||"").trim().toLowerCase() === name.toLowerCase())) return;  // already present
-        const slot = spellEntries[l].find(r => !(r.name||"").trim());
-        if(slot) slot.name = name; else spellEntries[l].push({name, prep:false});
-      });
-    });
-  }
+  // Fixed-list casters (e.g. Shadow Monk) render their spells directly in renderSpellTable — no write-in rows to seed.
   let preparedSpells = {};                     // {spellName: true} for pre-filled full-list classes
   let spellEntries = {};                       // {lvl: [{name,prep}]} — write-your-own rows; lvl 0 = cantrips
   let spellMaxLevel = 9;                        // highest spell-level section shown (sections shrink/grow on creation)
@@ -1643,8 +1685,23 @@
   function defaultSpellEntries(){ const o = {0:mkSpellRows(CANTRIP_COUNT)}; for(let l=1;l<=9;l++) o[l]=mkSpellRows(PER_LEVEL); return o; }
   function classSpellList(cls){
     const info = CASTERS[cls];
-    return (info && info.fullList && PHB && PHB.classSpells && (PHB.classSpells[cls]||[]).length)
-      ? PHB.classSpells[cls] : null;
+    return (info && info.fullList && DATA && DATA.classSpells && (DATA.classSpells[cls]||[]).length)
+      ? DATA.classSpells[cls] : null;
+  }
+  // Names of every spell available to a class at a given level (for the per-row dropdown); null if the class has no list.
+  function classSpellNamesAt(cls, l){
+    const list = (DATA && DATA.classSpells && DATA.classSpells[cls]) || null;
+    if(!list || !list.length) return null;
+    return list.filter(sp => (sp.l||0) === l).map(sp => sp.n);
+  }
+  // <select> for a write-in row, listing the class's spells of that level (+ blank, + any current value not in the list).
+  function spellRowSelect(l, i, cur, names){
+    const lc = (cur||"").toLowerCase();
+    const inList = names.some(n => n.toLowerCase() === lc);
+    let o = `<option value=""></option>`;
+    if(cur && !inList) o += `<option value="${esc(cur)}" selected>${esc(cur)} (off-list)</option>`;
+    o += names.map(n => `<option value="${esc(n)}"${n.toLowerCase()===lc?" selected":""}>${esc(n)}</option>`).join("");
+    return `<select class="sp-name" data-l="${l}" data-i="${i}">${o}</select>`;
   }
   // the highest spell level a class can EVER reach (caps the sheet by class alone, even with no level)
   function classMaxSpellLevel(cls){
@@ -1664,12 +1721,14 @@
     return Math.min(cap, byLvl, 9);
   }
   function applySlotFilter(){                    // show only slot levels the build can use (matches the spell list)
+    const info = CASTERS[$("spellclass").value];
+    const card = $("slots-card"); if(card) card.style.display = (info && info.noSlots) ? "none" : "";   // ki casters (Shadow Monk) use no slots
     for(let l=1;l<=9;l++){ const c = $("slotcell"+l); if(c) c.style.display = (l <= spellMaxLevel) ? "" : "none"; }
   }
   // spell-data lookup by name (components / time / range / duration / school / full text)
   let _spellIndex = null;
   function spellIndex(){
-    if(!_spellIndex){ _spellIndex = {}; if(PHB && PHB.spells) PHB.spells.forEach(s => { _spellIndex[s.name.toLowerCase()] = s; }); }
+    if(!_spellIndex){ _spellIndex = {}; if(DATA && DATA.spells) DATA.spells.forEach(s => { _spellIndex[s.name.toLowerCase()] = s; }); }
     return _spellIndex;
   }
   function spellData(name){ return (name && spellIndex()[String(name).toLowerCase()]) || null; }
@@ -1683,11 +1742,27 @@
   function renderSpellTable(){
     const cls = $("spellclass").value, info = CASTERS[cls];
     $("spelltable").classList.toggle("hide-prep", !(info ? info.prepares : true));   // blank/Other shows Prep
+    if(info && info.fixed){                      // fixed-list caster (e.g. Shadow Monk) — exactly these spells, no blank rows
+      // these spells live ONLY in the fixed list — scrub any copies out of the write-in rows so they don't linger when you switch class
+      const fixedNames = new Set(Object.values(info.fixed).flat().map(n => n.toLowerCase()));
+      for(let l=0; l<=9; l++) if(spellEntries[l]) spellEntries[l].forEach(r => { if(r.name && fixedNames.has(r.name.trim().toLowerCase())) r.name = ""; });
+      let fbody = "";
+      Object.keys(info.fixed).map(Number).sort((a,b)=>a-b).forEach(l => {
+        fbody += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
+        info.fixed[l].forEach(name => {
+          const d = spellData(name), titleAttr = (d && d.text) ? ` title="${esc(d.text)}"` : "";
+          fbody += `<tr><td class="col-prep"></td><td class="col-name"${titleAttr}>${esc(name)}</td>`+ propCells(d) +`</tr>`;
+        });
+      });
+      $("spells").innerHTML = fbody;
+      return;
+    }
     const full = classSpellList(cls);
     let fullByLvl = null;
     if(full){ fullByLvl = {}; full.forEach(sp => { (fullByLvl[sp.l] = fullByLvl[sp.l] || []).push(sp); }); }
     let body = "";
     for(let l=0; l<=spellMaxLevel; l++){
+      if(l===0 && !(spellEntries[0]||[]).length) continue;   // class knows no cantrips at this level → no Cantrips section
       body += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
       if(l>0 && fullByLvl){                      // full-list class → pre-fill this level's real spells (Prep checkbox each)
         (fullByLvl[l]||[]).forEach(sp => {
@@ -1696,22 +1771,41 @@
             `<td class="col-prep"><input type="checkbox" class="prep-spell" data-sp="${esc(sp.n)}" ${preparedSpells[sp.n] ? "checked" : ""}></td>`+
             `<td class="col-name"${titleAttr}>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
         });
-      } else {                                   // write-your-own rows (cantrips never show Prep)
+      } else {                                   // learn-spells rows (cantrips never show Prep)
+        const names = classSpellNamesAt(cls, l);   // dropdown of this class's spells at this level (null → free-text)
         (spellEntries[l]||[]).forEach((m,i) => {
           const d = spellData(m.name), titleAttr = (d && d.text) ? ` title="${esc(d.text)}"` : "";
           const prepCell = l===0 ? `<td class="col-prep"></td>`
                                   : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
-          body += `<tr>${prepCell}<td class="col-name"${titleAttr}><input class="sp-name" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}"></td>`+ propCells(d) +`</tr>`;
+          const nameField = names ? spellRowSelect(l, i, m.name, names)
+                                  : `<input class="sp-name" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
+          body += `<tr>${prepCell}<td class="col-name"${titleAttr}>${nameField}</td>`+ propCells(d) +`</tr>`;
         });
       }
     }
     $("spells").innerHTML = body;
+  }
+  // How many cantrips the class knows at the current level (drives the number of cantrip rows). Default count if no level set.
+  function cantripCount(cls){
+    const lvl = charLevel();
+    if(lvl == null) return CANTRIP_COUNT;                                   // no level denoted → leave the default count
+    const c = DATA && DATA.classes && findBy(DATA.classes, cls);
+    const prog = c && c.cantrips;
+    if(prog && prog.length) return prog[Math.min(Math.max(lvl,1),20)-1] || 0;
+    if(c) return 0;                                                         // known class with no cantrips (Paladin/Ranger)
+    return CANTRIP_COUNT;                                                   // unknown class ("Other"/blank) → default
+  }
+  function resizeCantrips(n){                    // grow/shrink the cantrip rows to n; never drop a filled cantrip
+    const arr = spellEntries[0] || (spellEntries[0] = []);
+    while(arr.length < n) arr.push({name:"", prep:false});
+    while(arr.length > n && !(arr[arr.length-1].name||"").trim()) arr.pop();
   }
   function renderSpellStyle(setAbility){
     const cls = $("spellclass").value, info = CASTERS[cls];
     $("cast-note").textContent = info ? info.note : "Flexible layout — fill in as needed. Pick a class to tailor it.";
     if(info && setAbility && info.ability) $("spellability").value = info.ability;
     spellMaxLevel = (cls && CASTERS[cls]) ? maxSpellLevel(cls, charLevel()) : 9;   // shrink/grow sections to the build
+    if(!(info && info.fixed)) resizeCantrips(cantripCount(cls));                    // cantrip rows = cantrips known at this level
     renderSpellTable();
     applySlotFilter();
   }
@@ -1769,7 +1863,7 @@
         acBase = m ? parseInt(m[0], 10) : null;
       } else {
         const armor = (sel === "Mage Armor") ? {ac:13, type:"LA"}              // Mage Armor: 13 + Dex
-                    : ((PHB && PHB.armor) ? PHB.armor.find(a => a.name === sel) : null);
+                    : ((DATA && DATA.armor) ? DATA.armor.find(a => a.name === sel) : null);
         let base = 10, needDex = true, dexAdd = mods.dex;
         if(armor){
           base = armor.ac;
@@ -1803,10 +1897,9 @@
     $("coinwt").textContent = coins ? round1(coinWt) + " lb" : "";
     let invWt = 0;
     for(let i=0;i<NINV;i++){
-      const w = parseFloat($("invwt-"+i).value) || 0;
-      if(!w) continue;
-      const qv = $("invqty-"+i).value;
-      invWt += (qv === "" ? 1 : (num(qv,1) || 1)) * w;
+      const u = rowUnit(i);
+      if(u == null) continue;
+      invWt += u * rowQty(i);
     }
     const carried = invWt + coinWt;
     const carriedTxt = (carried > 0) ? round1(carried) + " lb" : "";
@@ -1888,6 +1981,7 @@
     data.speedBase = speedBase;
     data.asiChoices = asiChoices;
     data.asiFeatsAdded = asiFeatsAdded;
+    data.invUnits = []; for(let i=0;i<NINV;i++) data.invUnits.push($("invwt-"+i).dataset.unit || "");   // per-item inventory weights
     return data;
   }
   function applyFields(data){                 // restores data-save fields + inspiration
@@ -1912,7 +2006,7 @@
       else if(data.racialVals) bonusVals.racial = {...bonusVals.racial, ...data.racialVals};   // legacy: old single racial bonus
     }
     asiChoices = (data && Array.isArray(data.asiChoices))
-      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||""}))
+      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||"", source:(s&&s.source)||"class"}))
       : [];
     asiFeatsAdded = (data && data.asiFeatsAdded) ? {...data.asiFeatsAdded} : {};
     if(data && data.asiChoices) applyAsiBonuses();   // ASI column derives from the picks (legacy sheets keep their manual column)
@@ -1939,6 +2033,13 @@
     renderAbilities();
     renderHoodControls();
     applyFields(data);
+    for(let i=0;i<NINV;i++){                       // restore per-item inventory weights (legacy sheets stored per-item in invwt-*)
+      let u = null;
+      if(data && Array.isArray(data.invUnits) && i < data.invUnits.length){ const v = data.invUnits[i]; u = (v===""||v==null) ? null : parseFloat(v); }
+      else if(data && (("invwt-"+i) in data)){ const v = parseFloat(data["invwt-"+i]); u = isNaN(v) ? null : v; }
+      setRowUnit(i, (u==null||isNaN(u)) ? null : u);
+    }
+    refreshAllWeights();
     portraitData = (data && data.portrait) || null;
     renderPortrait();
     document.querySelectorAll("textarea").forEach(autoGrow);
@@ -1996,7 +2097,7 @@
       spellEntries[l][i] = spellEntries[l][i] || {name:"", prep:false};
       if(t.classList.contains("sp-name")){
         spellEntries[l][i].name = t.value;
-        const d = spellData(t.value), tr = t.closest("tr"), nameCell = t.closest(".col-name");   // auto-fill props from PHB
+        const d = spellData(t.value), tr = t.closest("tr"), nameCell = t.closest(".col-name");   // auto-fill props from DATA
         if(tr){
           const set = (sel,v)=>{ const c = tr.querySelector(sel); if(c) c.textContent = v; };
           set(".sp-comp", d?d.components||"":""); set(".sp-time", d?d.time||"":""); set(".sp-range", d?d.range||"":"");
@@ -2009,15 +2110,19 @@
       if(t.checked) preparedSpells[t.dataset.sp] = true; else delete preparedSpells[t.dataset.sp]; }
     if(t.classList.contains("acitem")){                                // AC-bonus item picked → auto-fill its bonus
       const i = t.id.split("-")[1];
-      const it = PHB && PHB.acItems && PHB.acItems.find(x => x.n === t.value);
+      const it = DATA && DATA.acItems && DATA.acItems.find(x => x.n === t.value);
       if(it) $("acbonus-"+i).value = it.b;
     }
     if(t.id === "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base
     const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
     if(im){ const i = im[1];
-      if(!t.value.trim()){ const q = $("invqty-"+i), w = $("invwt-"+i); if(q) q.value = ""; if(w) w.value = ""; }   // cleared → also clear qty + weight
-      else { const wEl = $("invwt-"+i); if(wEl && !wEl.value){ const w = itemWeight(t.value); if(w != null) wEl.value = w; } }   // else auto-fill weight
+      if(!t.value.trim()){ const q = $("invqty-"+i); if(q) q.value = ""; setRowUnit(i, null); const w = $("invwt-"+i); if(w) w.value = ""; }   // cleared → clear qty + weight
+      else if(rowUnit(i) == null){ const w = itemWeight(t.value); if(w != null){ setRowUnit(i, w); refreshRowWeight(i); } }                    // auto-fill per-item weight → total
     }
+    const qm = t.id && t.id.match(/^invqty-(\d+)$/);                    // quantity changed → rescale the line total
+    if(qm) refreshRowWeight(qm[1]);
+    const wm = t.id && t.id.match(/^invwt-(\d+)$/);                     // editing the box sets the line total → derive per-item weight
+    if(wm){ const i = wm[1], tot = parseFloat(t.value); setRowUnit(i, isNaN(tot) ? null : tot / rowQty(i)); }
     if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
     else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
     else if(t.classList.contains("ab-bonus")) bonusVals[t.dataset.cat][t.dataset.ab] = num(t.value,0);
@@ -2094,8 +2199,8 @@
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 1000);
   }
 
-  // ---- PHB content pickers (data baked in by build-data.py; null in the shareable app) ----
-  let PHB = null;
+  // ---- DATA content pickers (data baked in by build-data.py; null in the shareable app) ----
+  let DATA = null;
   const ABKEYS = ["str","dex","con","int","wis","cha"];
   const SKILL_KEY = {"acrobatics":"acrobatics","animal handling":"animal","arcana":"arcana",
     "athletics":"athletics","deception":"deception","history":"history","insight":"insight",
@@ -2108,15 +2213,15 @@
 
   function populateWizard(){
     const btn = $("btn-create");
-    if(!PHB){ if(btn){ btn.disabled=true; btn.title="Import sourcebook data to enable character creation"; } return; }
+    if(!DATA){ if(btn){ btn.disabled=true; btn.title="Import sourcebook data to enable character creation"; } return; }
     if(btn){ btn.disabled=false; btn.title=""; }
-    $("wiz-race").innerHTML  = `<option value="">—</option>` + PHB.races.map(r=>optTag(r.name,r.name)).join("");
-    $("wiz-class").innerHTML = `<option value="">—</option>` + PHB.classes.map(c=>optTag(c.name,c.name)).join("");
-    $("wiz-bg").innerHTML    = `<option value="">—</option>` + PHB.backgrounds.map(b=>optTag(b.name,b.name)).join("");
+    $("wiz-race").innerHTML  = `<option value="">—</option>` + DATA.races.map(r=>optTag(r.name,r.name)).join("");
+    $("wiz-class").innerHTML = `<option value="">—</option>` + DATA.classes.map(c=>optTag(c.name,c.name)).join("");
+    $("wiz-bg").innerHTML    = `<option value="">—</option>` + DATA.backgrounds.map(b=>optTag(b.name,b.name)).join("");
     populateSubclass("");
   }
   function populateArmor(){
-    const armor = (PHB && PHB.armor) || [], acItems = (PHB && PHB.acItems) || [];
+    const armor = (DATA && DATA.armor) || [], acItems = (DATA && DATA.acItems) || [];
     if($("armorsel")) $("armorsel").innerHTML = `<option value=""></option>` + `<option value="Unarmored">Unarmored</option>` +
       armor.filter(a => ["LA","MA","HA"].includes(a.type)).map(a => optTag(a.name, a.name)).join("") +
       `<option value="Mage Armor">Mage Armor (13 + Dex)</option>` +
@@ -2126,8 +2231,8 @@
     for(let i=0;i<3;i++){ const s=$("acitem-"+i); if(s) s.innerHTML = itemOpts; }
   }
   function populateSubclass(clsName){
-    const sel=$("wiz-subclass"), wrap=$("wiz-subclass-wrap"); if(!sel || !PHB) return;
-    const cls=findBy(PHB.classes,clsName), subs=cls?cls.subclasses:[];
+    const sel=$("wiz-subclass"), wrap=$("wiz-subclass-wrap"); if(!sel || !DATA) return;
+    const cls=findBy(DATA.classes,clsName), subs=cls?cls.subclasses:[];
     const subLvl = (cls && cls.subclassLevel) || 1;                       // level the class gains its subclass
     const lvl = Math.min(20, Math.max(1, num($("wiz-level").value, 1)));
     if(!subs.length || lvl < subLvl){                                     // no subclasses, or level too low → hide entirely
@@ -2143,7 +2248,7 @@
 
   function applyRace(name){
     bonusVals.racial = zeroAb();                     // race owns the Racial bonus column
-    const r = PHB && findBy(PHB.races,name);
+    const r = DATA && findBy(DATA.races,name);
     if(r){
       $("race").value = name;
       let choose=null;
@@ -2172,7 +2277,7 @@
   }
   function applyClass(name){
     populateSubclass(name);
-    const c = PHB && findBy(PHB.classes,name);
+    const c = DATA && findBy(DATA.classes,name);
     if(c){
       const lvl = charLevel();
       $("classlevel").value = name+" "+lvl;
@@ -2185,7 +2290,7 @@
     } else setNote("");
   }
   function applyBackground(name){
-    const b = PHB && findBy(PHB.backgrounds,name);
+    const b = DATA && findBy(DATA.backgrounds,name);
     if(b){
       $("background").value = name;
       (b.skills||[]).forEach(s=>{ const key=SKILL_KEY[s], box=key&&$("skp-"+key); if(box) box.checked=true; });
@@ -2211,7 +2316,7 @@
     if(wizStep === 3) renderWizEquip();
     if(wizStep === 4) updateCustomBgVisibility();
   }
-  function wizClass(){ return PHB && findBy(PHB.classes, $("wiz-class").value); }
+  function wizClass(){ return DATA && findBy(DATA.classes, $("wiz-class").value); }
   function renderWizSkills(){
     const c = wizClass(), box = $("wiz-skills"), hint = $("wiz-skills-hint"), ch = c && c.skillChoose;
     if(!ch || !ch.from || !ch.from.length){ box.innerHTML = ""; hint.textContent = c ? "This class grants no skill choices." : "Pick a class first."; return; }
@@ -2234,15 +2339,27 @@
     const mul = String(f).match(/[×x*]\s*(\d+)/); if(mul) avg *= +mul[1];
     return Math.round(avg);
   }
-  function itemWeight(name){ const w = PHB && PHB.itemWeights; if(!w || !name) return null; const v = w[String(name).trim().toLowerCase()]; return (v == null) ? null : v; }
-  function getInvData(){ const a = []; for(let i=0;i<NINV;i++) a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, wt:$("invwt-"+i).value}); return a; }
-  function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; $("invwt-"+i).value = a[i].wt||""; } }
+  function itemWeight(name){ const w = DATA && DATA.itemWeights; if(!w || !name) return null; const v = w[String(name).trim().toLowerCase()]; return (v == null) ? null : v; }
+  // Inventory weight model: the Wt box shows the LINE TOTAL (per-item weight × quantity).
+  // The per-item weight is the source of truth, kept in the input's dataset.unit.
+  function rowQty(i){ const qv = $("invqty-"+i).value; return qv === "" ? 1 : (num(qv,1) || 1); }
+  function rowUnit(i){ const el = $("invwt-"+i); if(!el) return null; const v = parseFloat(el.dataset.unit); return isNaN(v) ? null : v; }
+  function setRowUnit(i, u){ const el = $("invwt-"+i); if(!el) return; if(u == null || isNaN(u)) delete el.dataset.unit; else el.dataset.unit = u; }
+  function refreshRowWeight(i){                 // render the line total; never clobber the box while it's being typed in
+    const el = $("invwt-"+i); if(!el || document.activeElement === el) return;
+    const u = rowUnit(i);
+    el.value = (u == null) ? "" : String(round1(u * rowQty(i)));
+  }
+  function refreshAllWeights(){ for(let i=0;i<NINV;i++) refreshRowWeight(i); }
+  function getInvData(){ const a = []; for(let i=0;i<NINV;i++) a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||"")}); return a; }
+  function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); refreshRowWeight(i); } }
   function moveInvRow(from, to){ if(from === to || from == null || to == null) return; const a = getInvData(); const [row] = a.splice(from,1); a.splice(to,0,row); setInvData(a); save(); compute(); }
   function addInvItem(name, qty){            // place in next empty inventory row + auto-fill qty/weight
     for(let i=0;i<NINV;i++){ const el = $("invname-"+i); if(el && !el.value){
       el.value = name;
       if(qty && qty > 1){ const q = $("invqty-"+i); if(q) q.value = qty; }
-      const w = itemWeight(name), wEl = $("invwt-"+i); if(w != null && wEl && !wEl.value) wEl.value = w;
+      const w = itemWeight(name); if(w != null && rowUnit(i) == null) setRowUnit(i, w);
+      refreshRowWeight(i);
       return;
     } }
   }
@@ -2259,7 +2376,7 @@
     return slots;
   }
   function weaponsFor(slot){
-    return ((PHB && PHB.weapons) || []).filter(w => w.cat === slot.cat && (!slot.melee || (slot.melee === "melee" ? w.melee : !w.melee)));
+    return ((DATA && DATA.weapons) || []).filter(w => w.cat === slot.cat && (!slot.melee || (slot.melee === "melee" ? w.melee : !w.melee)));
   }
   function renderEquipSub(lineEl, optText){     // weapon-category dropdowns under a chosen option
     const sub = lineEl.querySelector(".equip-sub"); if(!sub) return;
@@ -2270,7 +2387,7 @@
     }).join("");
   }
   function matchPack(text){
-    const packs = (PHB && PHB.packs) || {}, t = String(text).toLowerCase().replace(/^\s*(a|an)\s+/,"").trim();
+    const packs = (DATA && DATA.packs) || {}, t = String(text).toLowerCase().replace(/^\s*(a|an)\s+/,"").trim();
     for(const name in packs){ if(name.toLowerCase() === t) return packs[name]; }
     return null;
   }
@@ -2320,7 +2437,7 @@
     return s;
   }
   function populateCustomBgTL(){
-    const langs = (PHB && PHB.languages) || [], tools = (PHB && PHB.tools) || [];
+    const langs = (DATA && DATA.languages) || [], tools = (DATA && DATA.tools) || [];
     const opts = `<option value=""></option>`
       + (langs.length ? `<optgroup label="Languages">` + langs.map(l => optTag(l, l)).join("") + `</optgroup>` : "")
       + (tools.length ? `<optgroup label="Tools">` + tools.map(t => optTag(t, t)).join("") + `</optgroup>` : "");
@@ -2328,7 +2445,7 @@
   }
   function populateCustomBgFeatures(){
     const sel = $("wiz-cbg-featpick"); if(!sel || sel.children.length) return;
-    const bgs = ((PHB && PHB.backgrounds) || []).filter(b => b.feature && b.feature.name);
+    const bgs = ((DATA && DATA.backgrounds) || []).filter(b => b.feature && b.feature.name);
     sel.innerHTML = `<option value="">— write your own —</option>` + bgs.map(b => optTag(b.name, `${b.feature.name} (${b.name})`)).join("");
   }
   function updateCustomBgVisibility(){
@@ -2356,7 +2473,7 @@
     const h = $("wiz-cbg-skills-hint"); if(h) h.textContent = `(${checked}/2 chosen)`;
   }
   function openWizard(){
-    if(!PHB){ alert("Character creation needs sourcebook data. Open Settings → Source books and load a book from your 5etools server (or import a source-data.json)."); return; }
+    if(!DATA){ alert("Character creation needs sourcebook data. Open Settings → Source books and load a book from your 5etools server (or import a source-data.json)."); return; }
     wizStep = 0; wizEquip = "equipment";
     $("wiz-cbg-skills").innerHTML = ""; $("wiz-custom-bg").hidden = true;      // fresh custom-bg fields
     document.querySelectorAll(".cbg-tl").forEach(s => s.innerHTML = "");
@@ -2366,7 +2483,7 @@
   }
   function closeWizard(){ $("wizard").classList.remove("open"); }
   function raceHint(){
-    const r = PHB && findBy(PHB.races, $("wiz-race").value);
+    const r = DATA && findBy(DATA.races, $("wiz-race").value);
     if(!r){ $("wiz-race-hint").textContent = ""; return; }
     const parts = [];
     (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
@@ -2385,12 +2502,12 @@
     if(race) applyRace(race);
     if(cls){
       applyClass(cls);
-      const c = findBy(PHB.classes, cls);
+      const c = findBy(DATA.classes, cls);
       $("classlevel").value = cls + " " + lvl + (sub ? ` (${sub})` : "");
       if(c && c.hd){ hitDieFaces = c.hd; $("hd-total").value = lvl; }
       const subKey = (cls && sub) ? `${cls} (${sub})` : null;                   // subclass casters keyed "Class (Subclass)" (e.g. Monk (Way of Shadow))
       const spellKey = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[cls] ? cls : null);
-      if(spellKey){ $("spellclass").value = spellKey; seedFixedSpells(spellKey); renderSpellStyle(true); }   // tailor the spell sheet
+      if(spellKey){ $("spellclass").value = spellKey; renderSpellStyle(true); }   // tailor the spell sheet
       document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // chosen class skills
       if(c && c.features && c.features.length){                                    // class features up to this level → Features page
         const lines = c.features.filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${cls} ${f.level}). ${f.text}`);
@@ -2412,7 +2529,14 @@
       if(tl.length){ const p = $("proficiencies"); const line = tl.join(", "); p.value = p.value.trim() ? p.value+"\n"+line : line; autoGrow(p); }
       const fn = $("wiz-cbg-featname").value.trim(), ft = $("wiz-cbg-feattext").value.trim();
       if(fn || ft){ const line = (fn ? fn+" (Background). " : "") + ft; const t = $("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t); }
-    } else if(bg) applyBackground(bg);
+    } else if(bg){
+      applyBackground(bg);
+      const b = DATA && findBy(DATA.backgrounds, bg);                            // deposit background's provided items + gold
+      if(b && b.equip){
+        (b.equip.items||[]).forEach(it => addInvItem(it.n, it.q||1));
+        if(b.equip.gold) $("gp").value = num($("gp").value,0) + b.equip.gold;   // adds on top of any class starting gold
+      }
+    }
     genMode = wizMethod;
     if(wizMethod === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });
     renderHoodControls(); updateModeUI();
@@ -2424,11 +2548,11 @@
     buildStatic();
     let _stored = null, _baked = null;
     try{ const s = localStorage.getItem(SOURCES_KEY); if(s) _stored = JSON.parse(s); }catch(e){}            // books loaded from the server / imported
-    try{ _baked = JSON.parse($("phb-data").textContent); }catch(e){}                                        // baked default (PHB build)
+    try{ _baked = JSON.parse($("source-data").textContent); }catch(e){}                                        // baked default (DATA build)
     const srcComplete = d => d && ["races","classes","spells","armor","acItems"].every(k => Array.isArray(d[k]));
     const verOf = d => (d && d._meta && d._meta.dataVersion) || 0;
     const sameVer = verOf(_stored) === verOf(_baked);   // discard stored data built by an OLDER app/data shape
-    PHB = (srcComplete(_stored) && (sameVer || !_baked)) ? _stored : (_baked || _stored || null);
+    DATA = (srcComplete(_stored) && (sameVer || !_baked)) ? _stored : (_baked || _stored || null);
     try{ const sv = localStorage.getItem(SERVER_KEY); if(sv) $("server-url").value = sv; }catch(e){}
     let data = null;
     try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
@@ -2464,7 +2588,7 @@
     $("speed").addEventListener("focus", ()=>{ $("speed").value = (speedBase != null ? speedBase : ""); });   // show base for editing
     $("speed").addEventListener("blur", compute);                                                            // restore modified value
     $("pagetabs").addEventListener("click", e => { const b = e.target.closest(".ptab"); if(b) showPage(b.dataset.page); });
-    $("spellclass").addEventListener("change", ()=>{ seedFixedSpells($("spellclass").value); renderSpellStyle(true); save(); compute(); });
+    $("spellclass").addEventListener("change", ()=>{ renderSpellStyle(true); save(); compute(); });
     $("modes").addEventListener("click", e => { const b = e.target.closest(".mode-btn"); if(b) setMode(b.dataset.mode); });
     $("hood-abilities").addEventListener("click", e => {
       const btn = e.target.closest(".step"); if(btn) stepPointBuy(btn.dataset.ab, parseInt(btn.dataset.dir,10));
@@ -2531,10 +2655,10 @@
         try{ d = JSON.parse(r.result); }
         catch(e){ alert("That file isn't valid JSON."); $("file-input").value=""; return; }
         if(!d || !Array.isArray(d.races) || !Array.isArray(d.classes) || !Array.isArray(d.spells)){
-          alert("That doesn't look like sourcebook data.\nExpected a phb-data.json file generated by build-data.py (with races / classes / spells).");
+          alert("That doesn't look like sourcebook data.\nExpected a source-data.json file generated by build-data.py (with races / classes / spells).");
           $("file-input").value=""; return;
         }
-        PHB = d; _spellIndex = null;
+        DATA = d; _spellIndex = null;
         bakeSourceData();
         try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(d)); }
         catch(e){ flashStatus("Sourcebook loaded (too large to persist locally)"); }
@@ -2580,7 +2704,7 @@
     $("wiz-bg").addEventListener("change", updateCustomBgVisibility);
     $("wiz-cbg-skills").addEventListener("change", updateCustomBgLimit);
     $("wiz-cbg-featpick").addEventListener("change", e => {   // fill name/desc from a chosen existing feature
-      const b = findBy(PHB.backgrounds, e.target.value);
+      const b = findBy(DATA.backgrounds, e.target.value);
       if(b && b.feature){ $("wiz-cbg-featname").value = b.feature.name || ""; $("wiz-cbg-feattext").value = b.feature.text || ""; autoGrow($("wiz-cbg-feattext")); }
     });
     document.querySelectorAll(".wiz-method").forEach(b => b.addEventListener("click", ()=>{
