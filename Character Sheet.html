@@ -2178,7 +2178,7 @@
       let fbody = "";
       Object.keys(info.fixed).map(Number).sort((a,b)=>a-b).forEach(l => {
         fbody += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
-        info.fixed[l].forEach(name => {
+        info.fixed[l].slice().sort((a,b)=>a.localeCompare(b)).forEach(name => {
           const d = spellData(name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           fbody += `<tr><td class="col-prep"></td><td class="col-name"${titleAttr}>${esc(name)}</td>`+ propCells(d) +`</tr>`;
         });
@@ -2202,6 +2202,11 @@
         });
       } else {                                   // learn-spells rows (cantrips never show Prep)
         const names = classSpellNamesAt(cls, l);   // dropdown of this class's spells at this level (null → free-text)
+        if(spellEntries[l]) spellEntries[l].sort((a,b) => {   // alphabetical within the level; blank rows sink to the bottom
+          const an = (a.name||"").trim(), bn = (b.name||"").trim();
+          if(!an !== !bn) return an ? -1 : 1;
+          return an.localeCompare(bn);
+        });
         (spellEntries[l]||[]).forEach((m,i) => {
           const d = spellData(m.name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           const prepCell = l===0 ? `<td class="col-prep"></td>`
@@ -3043,7 +3048,9 @@
       const q = inp.value.trim().toLowerCase();
       if(!q){ res.hidden = true; res.innerHTML = ""; matches = []; sel = -1; return; }
       const names = (DATA && DATA.itemNames) || [];
-      matches = names.filter(n => n.toLowerCase().includes(q)).slice(0, 50);
+      const starts = [], contains = [];   // rank name-starts-with-query above contains, so relevant items aren't cut off
+      for(const n of names){ const i = n.toLowerCase().indexOf(q); if(i === 0) starts.push(n); else if(i > 0) contains.push(n); }
+      matches = starts.concat(contains).slice(0, 200);   // list scrolls (max-height); no alphabetical truncation
       sel = matches.length ? 0 : -1;
       res.innerHTML = matches.length
         ? matches.map((n,i) => { const w = itemWeight(n); return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(n)}${w!=null?`<span class="w">${w} lb</span>`:''}</div>`; }).join("")
