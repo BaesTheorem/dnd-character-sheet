@@ -305,12 +305,18 @@
   .inv-cols .invtable{width:100%}
   @media (max-width:560px){ .inv-cols{grid-template-columns:1fr} }
   .invtable input{background:var(--field); padding:6px 5px}
-  .invtable select.invcont{width:100%; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 4px; font-size:11px; color:var(--ink)}
+  .invtable td.invitem{display:flex; align-items:center; gap:1px}
+  .invtable td.invitem input{flex:1; min-width:0}
+  .cont-caret{flex:none; width:0; overflow:hidden; text-align:center; color:var(--muted); font-size:12px; user-select:none}
+  .cont-caret.show{width:15px}
+  .cont-caret.toggle{cursor:pointer}
   .invtable tr.in-container input{color:var(--muted)}   /* an item stored in a weightless container: weight not counted */
-  .invtable tr.in-container td:nth-child(2){position:relative}
-  .invtable tr.in-container td:nth-child(2) input{padding-left:20px}            /* nested under its container */
-  .invtable tr.in-container td:nth-child(2)::before{content:"\21B3"; position:absolute; left:6px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:12px; pointer-events:none}
   .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px}
+  .ac-items-auto{display:flex; flex-direction:column; gap:4px; margin-top:4px}
+  .ac-items-auto .aci{display:flex; justify-content:space-between; align-items:center; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:13px}
+  .ac-items-auto .aci .b{font-weight:700; color:var(--accent)}
+  .ac-items-auto .aci.pending{opacity:.55} .ac-items-auto .aci.pending .b{color:var(--muted)}
+  .ac-items-auto .none{color:var(--muted); font-size:12px}
   .invdrag:active{cursor:grabbing}
   .invtable tr.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
   .invtable tr.drop-into td{box-shadow:inset 0 0 0 2px var(--accent); background:var(--accent-soft)}   /* dropping onto a container */
@@ -751,10 +757,9 @@
                 <option value="+3">+3 (magic armor)</option>
               </select></div>
             <p class="help" id="armor-note" style="margin:4px 0 0; display:none"></p></div>
-          <table class="acitems">
-            <thead><tr><th>Item (adds to AC)</th><th style="width:64px">Bonus</th></tr></thead>
-            <tbody id="acbonuses"></tbody>
-          </table>
+          <label class="lbl" style="margin-top:10px">Items (add to AC)</label>
+          <div id="ac-items-auto" class="ac-items-auto"></div>
+          <p class="help noprint">Auto-filled from equipped items that boost AC (Shield, Ring/Cloak of Protection, …). Attunement items only count once attuned.</p>
         </div>
         <div class="card"><h2>Attuned Items</h2>
           <div class="attune">
@@ -772,11 +777,11 @@
         </div>
         <div class="inv-cols">
           <table class="invtable">
-            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:104px" title="Store in a weightless container (Bag of Holding / Handy Haversack)">In</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
             <tbody id="inv"></tbody>
           </table>
           <table class="invtable">
-            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:104px" title="Store in a weightless container (Bag of Holding / Handy Haversack)">In</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
             <tbody id="inv2"></tbody>
           </table>
         </div>
@@ -1186,18 +1191,11 @@
       `<td><input data-save id="lfused-${i}"></td></tr>`;
     $("limited").innerHTML = lf;
 
-    let acb = "";
-    for(let i=0;i<3;i++) acb +=
-      `<tr><td><select class="acitem" data-save id="acitem-${i}"></select></td>`+
-      `<td><input data-save type="number" id="acbonus-${i}"></td></tr>`;
-    $("acbonuses").innerHTML = acb;
-
     const invRow = i =>
       `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
-      `<td><input data-save id="invname-${i}" list="item-options" autocomplete="off"></td>`+
+      `<td class="invitem"><span class="cont-caret" id="contcaret-${i}" data-r="${i}"></span><input data-save id="invname-${i}" list="item-options" autocomplete="off"></td>`+
       `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
       `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
-      `<td class="noprint"><select class="invcont" id="invcont-${i}" data-r="${i}" title="Store this in a weightless container — its weight stops counting toward what you carry" style="display:none"></select></td>`+
       `<td class="noprint" style="text-align:center"><input type="checkbox" class="invequip" id="invequip-${i}" data-r="${i}" title="Equipped — weapons are added to Attacks; equipped armor & attunement items become selectable in their pickers" style="display:none"></td></tr>`;
     const half = Math.ceil(NINV/2);
     let invL = "", invR = "";
@@ -2281,8 +2279,7 @@
       if(customEl) customEl.style.display = (sel === "Custom") ? "" : "none";   // free-form field only for Custom
       const armNote = $("armor-note"); if(armNote){ armNote.style.display = "none"; armNote.textContent = ""; }
       const modVal = $("armormod") ? $("armormod").value : "";                  // Mithral / Adamantine / +1..+3
-      let bonus = 0;
-      for(let i=0;i<3;i++){ const v = $("acbonus-"+i).value; if(v !== "") bonus += num(v,0); }
+      let bonus = acItemsState().bonus;                                          // equipped (and, if required, attuned) AC-bonus items
       let acBase, realArmor = null;
       if(sel === ""){
         acBase = null;                                                          // no armor chosen → AC blank
@@ -2337,7 +2334,7 @@
     for(let i=0;i<NINV;i++){
       const u = rowUnit(i);
       if(u == null) continue;
-      const sel = $("invcont-"+i), cont = sel ? (sel.dataset.cont||"") : "";
+      const cont = rowCont(i);
       if(cont && presentC.has(cont)) continue;
       invWt += u * rowQty(i);
     }
@@ -2378,7 +2375,7 @@
     let speedBonus = 0;
     const clsLow = ($("classlevel").value || "").toLowerCase();
     const armorSel = $("armorsel") ? $("armorsel").value : "";
-    const hasShield = [0,1,2].some(i => { const s = $("acitem-"+i); return s && s.value === "Shield"; });
+    const hasShield = hasEquippedShield();
     if(/monk/.test(clsLow) && (armorSel === "" || armorSel === "Unarmored") && !hasShield){
       const mm = clsLow.match(/monk[^\d]*(\d+)/), mlvl = mm ? parseInt(mm[1],10) : (charLevel() || 0);
       if(mlvl >= 2) speedBonus = Math.min(30, Math.floor((mlvl - 2) / 4) * 5 + 10);
@@ -2417,7 +2414,8 @@
     refreshAtkRows();        // recompute active-weapon attack rows (live with ability/level)
     refreshEquipToggles();   // show the Equipped box on weapon/armor/magic/attunement rows
     refreshEquippedPickers();// Armor + Attunement dropdowns reflect equipped inventory items
-    refreshContainerSelects();   // show the "In" dropdown on rows when a weightless container is carried
+    renderAcItems();         // auto AC-bonus items (equipped + attuned) into the Armor card
+    renderContainers();      // container carets, nesting, collapse
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
   }
 
@@ -2442,7 +2440,8 @@
     data.asiChoices = asiChoices;
     data.asiFeatsAdded = asiFeatsAdded;
     data.invUnits = []; for(let i=0;i<NINV;i++) data.invUnits.push($("invwt-"+i).dataset.unit || "");   // per-item inventory weights
-    data.invConts = []; for(let i=0;i<NINV;i++){ const s = $("invcont-"+i); data.invConts.push((s && s.dataset.cont) || ""); }   // per-row container assignment
+    data.invConts = []; for(let i=0;i<NINV;i++) data.invConts.push(rowCont(i));   // per-row container assignment
+    data.collapsed = [...collapsedContainers];   // collapsed container groups
     data.invEquip = []; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i); data.invEquip.push(!!(cb && cb.checked)); }   // per-row equipped state
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     data.companions = companions;
@@ -2505,8 +2504,9 @@
       setRowUnit(i, (u==null||isNaN(u)) ? null : u);
     }
     refreshAllWeights();
-    for(let i=0;i<NINV;i++){ const s = $("invcont-"+i); if(s) s.dataset.cont = (data && Array.isArray(data.invConts)) ? (data.invConts[i]||"") : ""; }   // restore container assignments
-    refreshContainerSelects();
+    for(let i=0;i<NINV;i++) setRowCont(i, (data && Array.isArray(data.invConts)) ? (data.invConts[i]||"") : "");   // restore container assignments
+    collapsedContainers = new Set((data && Array.isArray(data.collapsed)) ? data.collapsed : []);
+    renderContainers();
     for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(!el) continue;   // restore active-weapon links on the Attacks rows
       const lk = (data && Array.isArray(data.atkLinks)) ? data.atkLinks[i] : "";
       if(lk) el.dataset.weapon = lk; else delete el.dataset.weapon;
@@ -2589,11 +2589,6 @@
     }
     if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
       if(t.checked) preparedSpells[t.dataset.sp] = true; else delete preparedSpells[t.dataset.sp]; }
-    if(t.classList.contains("acitem")){                                // AC-bonus item picked → auto-fill its bonus
-      const i = t.id.split("-")[1];
-      const it = DATA && DATA.acItems && DATA.acItems.find(x => x.n === t.value);
-      if(it) $("acbonus-"+i).value = it.b;
-    }
     if(t.id === "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base
     const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
     if(im){ const i = im[1];
@@ -2605,7 +2600,6 @@
     const wm = t.id && t.id.match(/^invwt-(\d+)$/);                     // editing the box sets the line total → derive per-item weight
     if(wm){ const i = wm[1], tot = parseFloat(t.value); setRowUnit(i, isNaN(tot) ? null : tot / rowQty(i)); }
     if(t.classList.contains("invequip")){ const nm = $("invname-"+t.dataset.r).value; if(weaponByName(nm)) setWeaponActive(nm, t.checked); }   // Equipped weapon → Attacks; armor/attune equip is read by the pickers
-    if(t.classList.contains("invcont")) t.dataset.cont = t.value;   // remember which container this row is stored in
     if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
     else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
     else if(t.classList.contains("ab-bonus")) bonusVals[t.dataset.cat][t.dataset.ab] = num(t.value,0);
@@ -2719,11 +2713,8 @@
     populateSubclass("");
   }
   function populateArmor(){
-    const acItems = (DATA && DATA.acItems) || [];
-    const itemOpts = `<option value=""></option>` +
-      acItems.slice().sort((a,b) => (a.n||"").localeCompare(b.n||"")).map(it => optTag(it.n, `${it.n} (+${it.b})`)).join("") + `<option value="Custom">Custom</option>`;
-    for(let i=0;i<3;i++){ const s=$("acitem-"+i); if(s) s.innerHTML = itemOpts; }
     refreshEquippedPickers();   // Armor + Attunement dropdowns come from equipped inventory items
+    renderAcItems();            // AC-bonus items come from equipped inventory too
   }
   function populateSubclass(clsName){
     const sel=$("wiz-subclass"), wrap=$("wiz-subclass-wrap"); if(!sel || !DATA) return;
@@ -2994,7 +2985,7 @@
     const aset = attuneSet();
     const as = $("armorsel");
     if(as){ const cur = as.value;
-      const eq = byName(equippedNames(n => !!armorByName(n)).map(n => ({name:n})));
+      const eq = byName(equippedNames(n => { const a = armorByName(n); return a && ["LA","MA","HA"].includes(a.type); }).map(n => ({name:n})));   // body armor only (shields are AC-bonus items)
       const mage = (hasSpellNamed("Mage Armor") || cur === "Mage Armor") ? `<option value="Mage Armor">Mage Armor (13 + Dex)</option>` : "";   // only when known
       as.innerHTML = `<option value=""></option><option value="Unarmored">Unarmored</option>`   // Unarmored is always available
         + eq.map(a => optTag(a.name, a.name)).join("")
@@ -3006,6 +2997,25 @@
       s.innerHTML = `<option value=""></option>` + eqAtt.map(a => optTag(a.name, a.name)).join("");
       s.value = cur; });
   }
+  function acItemMap(){ const m = {}; ((DATA && DATA.acItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = it.b); return m; }
+  function attunedNames(){ const s = new Set(); ["0","1","2"].forEach(k => { const v = ($("attune-"+k)||{}).value; if(v) s.add(String(v).toLowerCase()); }); return s; }   // items actually in an attunement slot
+  function acItemsState(){   // equipped AC-bonus items; attunement items count only once attuned
+    const map = acItemMap(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(), items = []; let bonus = 0;
+    for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !cb.checked || !nm) continue;
+      const name = (nm.value||"").trim(), lc = name.toLowerCase();
+      if(!name || !(lc in map) || seen.has(lc)) continue; seen.add(lc);
+      const needsAttune = aset.has(lc), active = !needsAttune || attuned.has(lc);
+      items.push({name, b:map[lc], active, needsAttune}); if(active) bonus += map[lc];
+    }
+    return {bonus, items};
+  }
+  function renderAcItems(){
+    const box = $("ac-items-auto"); if(!box) return; const st = acItemsState();
+    box.innerHTML = st.items.length ? st.items.map(it =>
+      `<div class="aci${it.active?"":" pending"}"><span>${esc(it.name)}${(it.needsAttune && !it.active)?" (attune to activate)":""}</span><span class="b">+${it.b}</span></div>`).join("")
+      : `<div class="none">None — equip a shield, ring/cloak of protection, etc.</div>`;
+  }
+  function hasEquippedShield(){ for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i), nm=$("invname-"+i); if(cb && cb.checked && nm && /shield/i.test(nm.value||"")) return true; } return false; }
   function setupItemSearch(){   // substring-searchable picker that adds an item to the next empty row
     const inp = $("item-search"), res = $("item-results"); if(!inp || !res) return;
     let matches = [], sel = -1;
@@ -3035,28 +3045,30 @@
     document.addEventListener("click", e => { if(!e.target.closest(".item-search-wrap")) res.hidden = true; });
   }
   function containerSet(){ const s = new Set(); ((DATA && DATA.containers)||[]).forEach(n => s.add(String(n).toLowerCase())); return s; }
+  function rowCont(i){ const el = $("invname-"+i); return (el && el.dataset.cont) || ""; }                    // which container this row is stored in
+  function setRowCont(i, v){ const el = $("invname-"+i); if(el){ if(v) el.dataset.cont = v; else delete el.dataset.cont; } }
+  function isContainerRow(i){ const nm = ($("invname-"+i).value||"").trim(); return !!nm && containerSet().has(nm.toLowerCase()); }
+  let collapsedContainers = new Set();   // container names whose contents are collapsed (hidden)
   function presentContainers(){   // distinct weightless-container item names currently sitting in the inventory
     const cs = containerSet(), seen = new Set(), out = [];
     for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value||"").trim(); if(nm && cs.has(nm.toLowerCase()) && !seen.has(nm)){ seen.add(nm); out.push(nm); } }
     return out;
   }
-  function refreshContainerSelects(){   // populate each row's "In" dropdown with the weightless containers you carry
-    const conts = presentContainers(), have = conts.length > 0;
-    const contLC = new Set(conts.map(n => n.toLowerCase()));
-    const opts = '<option value="">Carried</option>' + conts.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  function renderContainers(){   // carets, nesting indent, and collapse-hide for container groups
+    const conts = presentContainers(), have = new Set(conts);
+    const counts = {};   // container name → number of nested items
+    for(let i=0;i<NINV;i++){ let c = rowCont(i); if(c && !have.has(c)){ setRowCont(i, ""); c = ""; } if(c) counts[c] = (counts[c]||0)+1; }
     for(let i=0;i<NINV;i++){
-      const sel = $("invcont-"+i), nm = $("invname-"+i); if(!sel || !nm) continue;
-      const name = (nm.value||"").trim(), isCont = name && contLC.has(name.toLowerCase());   // a container can't go inside itself
-      let cur = sel.dataset.cont || ""; if(cur && !conts.includes(cur)) cur = "";             // chosen container no longer carried
-      sel.dataset.cont = cur;
-      const show = have && !!name && !isCont;
-      sel.style.display = show ? "" : "none";
-      if(show){ sel.innerHTML = opts; sel.value = cur; } else { sel.value = ""; }
-      const tr = sel.closest("tr"); if(tr) tr.classList.toggle("in-container", show && !!cur);
+      const nm = $("invname-"+i), caret = $("contcaret-"+i), tr = nm && nm.closest("tr"); if(!nm || !caret || !tr) continue;
+      const name = (nm.value||"").trim(), cont = rowCont(i);
+      const isCont = name && have.has(name);
+      caret.className = "cont-caret"; caret.textContent = ""; caret.style.cursor = ""; tr.style.display = ""; tr.classList.toggle("in-container", !!cont);
+      if(isCont && counts[name]){ const open = !collapsedContainers.has(name); caret.className = "cont-caret show toggle"; caret.textContent = open ? "▾" : "▸"; caret.dataset.cont = name; }
+      else if(cont){ caret.className = "cont-caret show"; caret.textContent = "↳"; if(collapsedContainers.has(cont)) tr.style.display = "none"; }
     }
   }
-  function getInvData(){ const a = []; for(let i=0;i<NINV;i++){ const s=$("invcont-"+i), cb=$("invequip-"+i); a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||""), cont:(s&&s.dataset.cont)||"", equip:!!(cb&&cb.checked)}); } return a; }
-  function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); const s=$("invcont-"+i); if(s) s.dataset.cont = a[i].cont||""; const cb=$("invequip-"+i); if(cb) cb.checked = !!a[i].equip; refreshRowWeight(i); } refreshContainerSelects(); }
+  function getInvData(){ const a = []; for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i); a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||""), cont:rowCont(i), equip:!!(cb&&cb.checked)}); } return a; }
+  function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); setRowCont(i, a[i].cont||""); const cb=$("invequip-"+i); if(cb) cb.checked = !!a[i].equip; refreshRowWeight(i); } renderContainers(); }
   function moveInvRow(from, to){ if(from === to || from == null || to == null) return; const a = getInvData(); const [row] = a.splice(from,1); a.splice(to,0,row); setInvData(a); save(); compute(); }
   // ---- "Active" weapons → Attacks table (toggled per inventory row; bonus & damage auto-computed) ----
   function weaponByName(name){
@@ -3433,7 +3445,12 @@
     let invDrag = null;
     const invCols = document.querySelector(".inv-cols");
     const clearDrop = () => invCols.querySelectorAll("tr.drop-target, tr.drop-into").forEach(r => r.classList.remove("drop-target","drop-into"));
-    const isContainerRow = i => { const nm = ($("invname-"+i).value||"").trim(); return !!nm && containerSet().has(nm.toLowerCase()); };
+    invCols.addEventListener("click", e => {   // caret on a container row → collapse / expand its contents
+      const c = e.target.closest(".cont-caret.toggle"); if(!c) return;
+      const nm = c.dataset.cont; if(!nm) return;
+      if(collapsedContainers.has(nm)) collapsedContainers.delete(nm); else collapsedContainers.add(nm);
+      save(); renderContainers();
+    });
     invCols.addEventListener("dragstart", e => {
       const h = e.target.closest(".invdrag"); if(!h){ e.preventDefault(); return; }
       invDrag = +h.closest("tr").dataset.r; e.dataTransfer.effectAllowed = "move"; try{ e.dataTransfer.setData("text/plain", String(invDrag)); }catch(_){}
@@ -3449,9 +3466,10 @@
       const tr = e.target.closest("tr");
       if(tr){ const to = +tr.dataset.r;
         if(to !== invDrag && isContainerRow(to)){                                // drop onto a container → store inside it + nest right under it
-          const sel = $("invcont-"+invDrag); if(sel) sel.dataset.cont = ($("invname-"+to).value||"").trim();
-          moveInvRow(invDrag, invDrag < to ? to : to+1);                         // place the item directly below the container row (carries cont + saves + computes)
-        } else moveInvRow(invDrag, to);                                          // otherwise reorder
+          setRowCont(invDrag, ($("invname-"+to).value||"").trim());
+          moveInvRow(invDrag, invDrag < to ? to : to+1);                         // place the item directly below the container row
+        } else { setRowCont(invDrag, ""); moveInvRow(invDrag, to); }             // otherwise reorder (and pull it out of any container)
+        save(); compute();                                                       // refresh even when the row was already adjacent (moveInvRow no-ops)
       }
       clearDrop(); invDrag = null;
     });
