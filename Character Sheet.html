@@ -1528,19 +1528,17 @@
     }).join("");
     if(genMode === "array" || genMode === "rolled") refreshArraySelects();
   }
-  function refreshArraySelects(){   // assign-from-a-pool dropdowns (Standard Array or Rolled); count-based so duplicate rolled values both stay assignable
+  function refreshArraySelects(){   // assign-from-a-pool dropdowns (Standard Array or Rolled); every rolled value is listed (incl. duplicates)
     const pool = abilityPool();
     const avail = {}; pool.forEach(v => avail[v] = (avail[v]||0) + 1);                         // how many of each value the pool offers
     const usedCount = {}; ABILITIES.forEach(([k]) => { const v = baseVals[k]; if(v != null) usedCount[v] = (usedCount[v]||0) + 1; });
     ABILITIES.forEach(([k]) => {
       const sel = $("basesel-"+k); if(!sel) return;
-      let opts = `<option value="">—</option>`;
-      const seen = new Set();
-      pool.forEach(v => {
-        if(seen.has(v)) return; seen.add(v);                                                   // one <option> per distinct value
+      let opts = `<option value="">—</option>`, markedSel = false;
+      pool.forEach(v => {                                                                      // one <option> per pool entry → duplicate rolls show as duplicate options
         const usedByOthers = (usedCount[v]||0) - (baseVals[k] === v ? 1 : 0);
         const disabled = usedByOthers >= (avail[v]||0) ? "disabled" : "";
-        const selected = (baseVals[k] === v) ? "selected" : "";
+        const selected = (!markedSel && baseVals[k] === v) ? "selected" : ""; if(selected) markedSel = true;   // mark just one duplicate as the current pick
         opts += `<option value="${v}" ${disabled} ${selected}>${v}</option>`;
       });
       sel.innerHTML = opts;
