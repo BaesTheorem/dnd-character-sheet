@@ -3215,6 +3215,7 @@
     bonusVals.racial = zeroAb();
     const r = DATA && findBy(DATA.races, name);
     if(r) (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{ if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; }));
+    document.querySelectorAll(".rc-abil").forEach(sel => { const k = sel.value, amt = parseInt(sel.dataset.amt,10)||1; if(k && ABKEYS.includes(k)) bonusVals.racial[k] += amt; });   // + the Race step's "your choice" ability picks
   }
   function applyRace(name, opts){
     opts = opts || null;
@@ -3833,6 +3834,20 @@
     const r = DATA && findBy(DATA.races, $("wiz-race").value);
     if(!r){ box.innerHTML = ""; return; }
     let html = "";
+    // Ability-bonus choices: explicit "choose" blocks (Half-Elf, Variant Human, Custom Lineage, …) or a free assign for races with no ability block (Tasha/MPMM)
+    const chooseBlocks = (r.ability || []).filter(b => b && b.choose);
+    const abilOpt = ks => `<option value=""></option>` + ks.map(k => `<option value="${k}">${esc(ABBR[k]||k)}</option>`).join("");
+    if(chooseBlocks.length){
+      let ah = `<label class="lbl">Ability bonus — your choice</label>`;
+      chooseBlocks.forEach(b => { const amt = b.choose.amount || 1, cnt = b.choose.count || 1, from = (b.choose.from && b.choose.from.length) ? b.choose.from : ABKEYS;
+        for(let i=0;i<cnt;i++) ah += `<select class="rc-abil" data-amt="${amt}">${abilOpt(from)}</select> +${amt} `; });
+      html += `<div class="wiz-racechoice">${ah}</div>`;
+    } else if((r.ability || []).length === 0){
+      html += `<div class="wiz-racechoice"><label class="lbl">Ability bonuses — assign (this race uses the free-assign rule)</label>`
+        + `<select class="rc-abil" data-amt="2">${abilOpt(ABKEYS)}</select> +2 &nbsp; `
+        + `<select class="rc-abil" data-amt="1">${abilOpt(ABKEYS)}</select> +1`
+        + `<p class="wiz-hint" style="margin:4px 0 0">(Or take three +1s instead — set them in the Ability Scores step's Racial column.)</p></div>`;
+    }
     if(r.variableSkillDarkvision){
       const dv = r.darkvision || 60;
       const skillOpts = SKILLS.map(s => `<option value="${s[0]}">${esc(s[1])}</option>`).join("");
