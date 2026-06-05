@@ -595,7 +595,6 @@
     <button class="btn" onclick="window.print()">Print / PDF</button>
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn ghost" id="btn-new" title="Open a new blank character in another tab">New</button>
-    <button class="btn danger" id="btn-reset" title="Clear this sheet and reset to defaults">Reset</button>
     <input type="file" id="file-input" accept="application/json,.json" style="display:none">
   </div>
 
@@ -1090,12 +1089,18 @@
       </div>
       <div class="settings-wrap">
         <nav class="settings-nav" id="settings-nav">
-          <button class="set-tab active" data-sec="pages" type="button">Pages</button>
+          <button class="set-tab active" data-sec="general" type="button">General</button>
+          <button class="set-tab" data-sec="pages" type="button">Pages</button>
           <button class="set-tab" data-sec="spells" type="button">Spells</button>
           <button class="set-tab" data-sec="books" type="button">Source books</button>
         </nav>
         <div class="settings-content">
-          <section class="set-sec active" data-sec="pages">
+          <section class="set-sec active" data-sec="general">
+            <label class="lbl" style="display:block; margin-bottom:6px">Reset</label>
+            <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
+            <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
+          </section>
+          <section class="set-sec" data-sec="pages">
             <label class="lbl" style="display:block; margin-bottom:6px">Visible pages</label>
             <div id="layout-toggles"></div>
             <p class="wiz-hint">Unchecked pages are removed from the tab bar and won't print. (The Mini page also needs a portrait.)</p>
