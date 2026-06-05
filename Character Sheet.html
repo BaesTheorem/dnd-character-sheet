@@ -1236,6 +1236,9 @@
   const POINTBUY_COST = {8:0,9:1,10:2,11:3,12:4,13:5,14:7,15:9};
   const POINTBUY_BUDGET = 27;
   const STANDARD_ARRAY = [15,14,13,12,10,8];
+  // Race Natural Armor (applied in the AC calc when "Unarmored" is selected). stat:'dex' adds full Dex; stat:'con' adds Con instead; fixed = flat, no Dex.
+  const NATURAL_ARMOR = { "lizardfolk":{base:13,stat:"dex"}, "locathah":{base:13,stat:"dex"}, "loxodon":{base:12,stat:"con"},
+    "tortle":{base:17,fixed:true}, "autognome":{base:13,stat:"dex"}, "thri-kreen":{base:13,stat:"dex"}, "plasmoid":{base:13,stat:"dex"} };
 
   const $ = id => document.getElementById(id);
   const sgn = n => (n >= 0 ? "+" : "") + n;
@@ -1669,7 +1672,7 @@
   const ET_ANY_LABELS = {any:"of your choice", anyStandard:"standard language of your choice", anyExotic:"exotic language of your choice",
     anyArtisansTool:"artisan's tools of your choice", anyTool:"tools of your choice", anyMusicalInstrument:"musical instrument of your choice",
     anyGamingSet:"gaming set of your choice", anyInstrument:"instrument of your choice", anySkill:"skill of your choice"};
-  const _clean = s => etTags(String(s)).split("|")[0].trim();
+  const _clean = s => etTags(String(s)).split("|")[0].split("#")[0].trim();   // strip 5etools "|source" and "#level" tags (e.g. "hellish rebuke#2")
   const _titlecase = s => String(s).split(" ").map(w => w ? w[0].toUpperCase()+w.slice(1) : w).join(" ");
   function _pretty(tok){
     const t = String(tok);
@@ -1741,6 +1744,13 @@
   }
   function etTraits(entries){ return (entries||[]).filter(t => t && typeof t==="object" && t.name).map(t => ({name:t.name||"", text:etText(t.entries||[])})); }
   function etSpeed(r){ const sp = r.speed; return (typeof sp === "number") ? sp : ((sp||{}).walk || 30); }
+  function etSpeedExtra(r){   // non-walk movement modes (fly/swim/climb/burrow) as a short string; true means "equal to walking speed"
+    const sp = r.speed; if(!sp || typeof sp === "number") return "";
+    const walk = sp.walk || 30, out = [];
+    ["fly","swim","climb","burrow"].forEach(mode => { const v = sp[mode]; if(v == null || v === false) return;
+      out.push(mode + " " + ((v === true) ? walk : v) + " ft."); });
+    return out.join(", ");
+  }
   function etRaceLangs(r){
     const out = [];
     (r.languageProficiencies||[]).forEach(blk => { for(const k in blk){ const v = blk[k];
@@ -1774,16 +1784,17 @@
       if(r.source !== SRC) return;
       const ab = (r.ability||[]).slice(), fg = etFeatGrants(r), pf = etProfBlock(r), rs = etDamageResist(r);
       const dv = r.darkvision||0, lc = etLangChoose(r.languageProficiencies);
-      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc};
+      const rsp = etRaceSpellNames(r);
+      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc, spells:rsp};
       baseIdx[r.name] = out.length;
-      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc});
+      out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), speedExtra:etSpeedExtra(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc, spells:rsp});
     });
     (raw.subrace||[]).forEach(s => {
       if(s.source !== SRC) return;
       const parent = s.raceName, sdv = s.darkvision||0, slc = etLangChoose(s.languageProficiencies);
-      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); out[i].prof = etMergeProf(out[i].prof, etProfBlock(s)); out[i].resist = (out[i].resist||[]).concat(etDamageResist(s)); out[i].darkvision = Math.max(out[i].darkvision||0, sdv); out[i].langChoose = (out[i].langChoose||0) + slc; } return; }
+      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); out[i].prof = etMergeProf(out[i].prof, etProfBlock(s)); out[i].resist = (out[i].resist||[]).concat(etDamageResist(s)); out[i].darkvision = Math.max(out[i].darkvision||0, sdv); out[i].langChoose = (out[i].langChoose||0) + slc; out[i].spells = (out[i].spells||[]).concat(etRaceSpellNames(s)); } return; }
       const base = bases[parent] || {};
-      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), featGrants:(base.featGrants||0) + etFeatGrants(s), prof:etMergeProf(base.prof, etProfBlock(s)), resist:(base.resist||[]).concat(etDamageResist(s)), darkvision:Math.max(base.darkvision||0, sdv), langChoose:(base.langChoose||0)+slc});
+      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), speedExtra:(s.speed != null ? etSpeedExtra(s) : (base.speedExtra||"")), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), featGrants:(base.featGrants||0) + etFeatGrants(s), prof:etMergeProf(base.prof, etProfBlock(s)), resist:(base.resist||[]).concat(etDamageResist(s)), darkvision:Math.max(base.darkvision||0, sdv), langChoose:(base.langChoose||0)+slc, spells:(base.spells||[]).concat(etRaceSpellNames(s))});
     });
     out.forEach(o => { if(/custom lineage/i.test(o.name)) o.variableSkillDarkvision = true; });   // TCE Custom Lineage: skill proficiency OR darkvision (5etools lists both; the rule is a choice)
     return out;
@@ -1818,6 +1829,14 @@
     if(Array.isArray(v)){ v.forEach(x => _collectSpellNames(x, out)); return; }
     if(v && typeof v === "object"){ for(const k in v){ if(k === "choose" || k === "all") continue; _collectSpellNames(v[k], out); } }
   }
+  // Concrete spell names a race/subrace grants (cantrips + innate/known), for the "Racial spells" reminder.
+  function etRaceSpellNames(r){
+    const set = new Set();
+    (r.additionalSpells||[]).forEach(blk => ["known","innate","prepared"].forEach(k => {
+      if(blk[k]){ const names = []; _collectSpellNames(blk[k], names); names.forEach(n => set.add(_titlecase(_clean(n)))); }
+    }));
+    return [...set];
+  }
   function etClasses(data, SRC){
     // All subclasses from THIS book, grouped by base-class name — even when the base class lives in another
     // book (e.g. TCE's Order of Scribes belongs to the PHB Wizard). mergeBook attaches these to the class.
@@ -1831,11 +1850,16 @@
         .filter(f => f.source === SRC && f.className === s.className && f.subclassShortName === short && (f.subclassSource||SRC) === SRC && f.name)
         .map(f => ({name:f.name||"", level:f.level||1, text:etText(f.entries||[])}))
         .sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
-      const spells = [];                              // always-prepared domain/oath/etc. spells
-      (s.additionalSpells||[]).forEach(blk => { const prep = blk.prepared || blk.known || blk.innate || {};
+      const spells = [], expanded = [];               // always-prepared (domain/oath/…) vs. expanded (Warlock patron) options
+      (s.additionalSpells||[]).forEach(blk => {
+        const prep = blk.prepared || blk.known || blk.innate || {};
         for(const lv in prep){ const names = []; _collectSpellNames(prep[lv], names);   // prep[lv] may be an array, or a nested object (e.g. Sun Soul's {resource:{2:[...]}}) — walk either
-          names.forEach(nm => spells.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0})); } });
-      arr.push({name:s.name, short, features, spells});
+          names.forEach(nm => spells.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0})); }
+        const exp = blk.expanded || {};
+        for(const lv in exp){ const names = []; _collectSpellNames(exp[lv], names);
+          names.forEach(nm => expanded.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0})); }
+      });
+      arr.push({name:s.name, short, features, spells, expanded});
     });
     const classes = (data.class||[]).filter(c => c.source === SRC).map(c => {
       const sp = c.startingProficiencies || {};
@@ -1883,7 +1907,8 @@
     const out = {};
     for(const name in (sourcesForSrc||{})){
       const lv = levels[name]; if(lv == null) continue;      // every class's full list, cantrips (lv 0) included → drives the per-row dropdowns
-      (sourcesForSrc[name].class||[]).forEach(c => { if(c.source === SRC){ (out[c.name] = out[c.name]||[]).push({n:name, l:lv}); } });
+      // link a spell (printed in SRC) to every class that gets it — c.source is the book that GRANTED access, not the spell's book, so don't filter on it (e.g. TCE grants PHB spells to Artificer)
+      (sourcesForSrc[name].class||[]).forEach(c => { (out[c.name] = out[c.name]||[]).push({n:name, l:lv}); });
       // classVariant = this book adds an existing-class spell (e.g. XGE adds Toll the Dead to Cleric/Wizard/Warlock)
       (sourcesForSrc[name].classVariant||[]).forEach(c => { (out[c.name] = out[c.name]||[]).push({n:name, l:lv}); });
     }
@@ -2245,7 +2270,7 @@
     Cleric:    {fullList:true,  prepares:true,  ability:"wis", note:"Cleric: your whole class list is pre-filled — check which spells you have prepared today."},
     Druid:     {fullList:true,  prepares:true,  ability:"wis", note:"Druid: your whole class list is pre-filled — check which spells you have prepared today."},
     Paladin:   {fullList:true,  prepares:true,  ability:"cha", note:"Paladin: your whole class list is pre-filled — check which spells you have prepared."},
-    Artificer: {fullList:false, prepares:true,  ability:"int", note:"Artificer: write the spells you've prepared (its spell list is scattered across non-DATA books, so it isn't auto-filled)."},
+    Artificer: {fullList:true,  prepares:true,  ability:"int", note:"Artificer: your whole class list is pre-filled — check which spells you have prepared today."},
     Bard:      {fullList:false, prepares:false, ability:"cha", note:"Bard: write your spells known — they're always ready (no preparation)."},
     Sorcerer:  {fullList:false, prepares:false, ability:"cha", note:"Sorcerer: write your spells known — always ready (no preparation)."},
     Ranger:    {fullList:false, prepares:false, ability:"wis", note:"Ranger: write your spells known — always ready (no preparation)."},
@@ -2605,10 +2630,19 @@
           else if(armor.type === "MA"){ dexAdd = (mods.dex == null) ? null : Math.min(mods.dex, 2); }  // medium: Dex max 2
           // light (LA) and unarmored: full Dex
           if(armNote && armor.stealth && modVal !== "mithral"){ armNote.textContent = "Disadvantage on Dexterity (Stealth) checks while worn."; armNote.style.display = ""; }  // mithral removes it
-        } else if(sel === "Unarmored"){                                        // Unarmored Defense by class
+        } else if(sel === "Unarmored"){                                        // Unarmored Defense / natural armor / class & race AC
           const cls = ($("classlevel").value || "").toLowerCase();
           if(/barbarian/.test(cls)) base = 10 + (mods.con || 0);               // Barbarian: 10 + Dex + Con
           else if(/monk/.test(cls)) base = 10 + (mods.wis || 0);               // Monk: 10 + Dex + Wis
+          const raceLc = ($("race").value || "").toLowerCase();                 // race Natural Armor (best of class vs. natural)
+          const naKey = Object.keys(NATURAL_ARMOR).find(k => raceLc.indexOf(k) >= 0);
+          if(naKey){ const na = NATURAL_ARMOR[naKey];
+            if(na.fixed){ base = Math.max(base, na.base); needDex = false; dexAdd = 0; }            // Tortle: flat 17, no Dex
+            else if(na.stat === "con"){ base = Math.max(base, na.base + (mods.con || 0)); needDex = false; }  // Loxodon: 12 + Con
+            else base = Math.max(base, na.base);                                                   // 13 + Dex (Dex added below)
+          }
+          if((/sorcerer/.test(cls) && /draconic/.test(cls)) ||                  // Draconic Resilience + Dragon Hide feat → 13 + Dex
+             /\bdragon hide\b/.test(($("features").value || "").toLowerCase())) base = Math.max(base, 13);
         }
         acBase = (needDex && mods.dex == null) ? null : base + (needDex ? dexAdd : 0);
       }
@@ -2619,7 +2653,8 @@
         if(modVal === "adamantine"){ armNote.textContent = (armNote.textContent ? armNote.textContent + " " : "") + "Any critical hit against you becomes a normal hit (while worn)."; armNote.style.display = ""; }
         else if(modVal === "mithral" && !armNote.textContent){ armNote.textContent = "Mithral: no Stealth disadvantage or Strength requirement."; armNote.style.display = ""; }
       }
-      $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus);
+      const warforged = /warforged/.test(($("race").value || "").toLowerCase()) ? 1 : 0;   // Integrated Protection: +1 AC in any configuration
+      $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus + warforged);
     }
 
     // --- hit dice available = total - used ---
@@ -3193,6 +3228,7 @@
         if(k==="choose") choose=v; else if(!keepRacial && ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v;
       }));
       if(r.speed) speedBase = r.speed;               // base speed; Speed box (compute) shows the modified value
+      if(r.speedExtra) addSense("Other speeds: " + r.speedExtra);   // fly/swim/climb/burrow → Senses box
       (r.traits||[]).forEach(tr=>{                     // pull sense traits into the Senses box
         const nm = tr.name||"";
         if(/darkvision|blindsight|tremorsense|truesight/i.test(nm)){
@@ -3217,6 +3253,11 @@
       }
       if(r.traits && r.traits.length && !$("features").value.trim())
         $("features").value = r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n");
+      if(r.spells && r.spells.length){                // racial cantrips / innate spells → reminder on the Features page
+        const t = $("features"), uniq = [...new Set(r.spells)];
+        const line = "Racial Spells. Granted by your race: " + uniq.join(", ") + ". Add them to your Spells page.";
+        if(!t.value.includes("Racial Spells.")) t.value = t.value.trim() ? t.value + "\n\n" + line : line;
+      }
       autoGrow($("features"));
       const fixed = ABKEYS.filter(k=>bonusVals.racial[k]).map(k=>ABBR[k]+" +"+bonusVals.racial[k]).join(", ");
       setNote(`Applied ability bonuses: ${fixed||"none fixed"}.` +
@@ -3825,6 +3866,8 @@
              {name:"Channel Divinity", rec:"SR", feat:"Channel Divinity", min:3, count:() => 1}],
     Sorcerer:[{name:"Sorcery Points", rec:"LR", feat:"Font of Magic", min:2, count:l => l}],
     Wizard:[{name:"Arcane Recovery", rec:"1/Day", feat:"Arcane Recovery", count:() => 1}],
+    Artificer:[{name:"Flash of Genius", rec:"LR", feat:"Flash of Genius", min:7, count:(l,m) => Math.max(1, m.int||0)},
+               {name:"Spell-Storing Item", rec:"LR", feat:"Spell-Storing Item", min:11, count:(l,m) => 2*Math.max(1, m.int||0)}],
   };
   function fillLimitedFeatures(cls, lvl, featMap){
     const list = LIMITED_RESOURCES[cls]; if(!list || lvl == null) return;
@@ -3858,7 +3901,12 @@
     "one with the word":[{label:"One With the Word", max:"1", rec:"LR"}]
   };
   function pbValue(){ const lv = charLevel(); return (lv == null) ? null : 2 + Math.floor((lv - 1) / 4); }
-  function resolveLimMax(max){ if(max === "PB"){ const pb = pbValue(); return pb == null ? "" : String(pb); } return (max != null && max !== "") ? String(max) : ""; }
+  function resolveLimMax(max){
+    if(max === "PB"){ const pb = pbValue(); return pb == null ? "" : String(pb); }
+    const am = /^(str|dex|con|int|wis|cha)mod$/.exec(max || "");          // uses = an ability modifier (min 1)
+    if(am){ const m = modOf(am[1]); return (m == null) ? "" : String(Math.max(1, m)); }
+    return (max != null && max !== "") ? String(max) : "";
+  }
   // Detect a limited daily/rest use from a feature/feat/item description → {name, max, rec} or null.
   function limitedFromText(name, text){
     if(!name) return null;
@@ -3879,8 +3927,18 @@
       /\bcan'?t use (?:it|this)\b[^.]{0,40}\bagain\b/.test(t) ||
       /\bnumber of times equal to\b/.test(t);
     if(!usage) return null;
-    const m = countRe.exec(t) || /\b(\d+)\s+times\b/.exec(t);   // only trust an explicit number; leave blank otherwise (user fills it)
-    return {name, max: m ? m[1] : "", rec};
+    let max = "";
+    const m = countRe.exec(t) || /\b(\d+)\s+times\b/.exec(t);   // explicit number
+    if(m) max = m[1];
+    else if(/number of times equal to your proficiency bonus/.test(t)) max = "PB";   // PB-scaling (War Priest-style use counts, Favored Foe, …)
+    else { const am = /number of times equal to your (strength|dexterity|constitution|intelligence|wisdom|charisma) modifier/.exec(t);
+      if(am) max = am[1].slice(0,3) + "mod"; }
+    if(!max){                                                   // word counts / single-use-until-rest
+      if(/\bthree times\b/.test(t)) max = "3";
+      else if(/\btwice\b/.test(t)) max = "2";
+      else if(/can(?:'t|not) ?(?:be )?used?\b[^.]{0,40}\bagain\b/.test(t)) max = "1";   // "can't use this again until you finish a rest"
+    }
+    return {name, max: resolveLimMax(max), rec};
   }
   function addLimitedRow(name, max, rec, desc){   // add a Limited Features row if not already listed (never clobbers existing rows)
     if(!name) return;
@@ -3930,6 +3988,7 @@
     featureBlocks().forEach(b => {
       const lc = b.name.toLowerCase();
       if(LIMITED_FEAT_NAMES.has(lc)) return;                                  // class resources handled with computed counts
+      if(/^channel divinity\b\s*[:(]/.test(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); return; }   // "Channel Divinity: X" options share the tracked Channel Divinity pool
       if(LIMITED_EXCLUDE.has(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); return; }   // never limited → clear any stray row
       if(LIMITED_OVERRIDES[lc]){ const rows = LIMITED_OVERRIDES[lc];          // known exact values (possibly renamed / split into several rows)
         const labels = rows.map(r => r.label.toLowerCase());
@@ -3977,8 +4036,17 @@
       const subObj = (c && sub) ? (c.subclasses||[]).find(x => x.name === sub) : null;   // chosen subclass → its features + always-prepared spells
       if(subObj){
         const sfl = (subObj.features||[]).filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${sub} ${f.level}). ${f.text}`);
-        if(subObj.spells && subObj.spells.length) sfl.push(`${sub} spells (always prepared): ${subObj.spells.map(sp => sp.n).join(", ")}.`);
+        const sInfo = spellKey && CASTERS[spellKey];
+        if(subObj.spells && subObj.spells.length){
+          sfl.push(`${sub} spells (always prepared): ${subObj.spells.map(sp => sp.n).join(", ")}.`);
+          if(sInfo && sInfo.fullList) subObj.spells.forEach(sp => { preparedByInst[0][sp.n] = true; });        // tick the prep box on the pre-filled list
+          else if(sInfo) subObj.spells.forEach(sp => { const l = Math.min(9, Math.max(0, sp.l||0)), arr = (spellEntriesOf(0)[l] = spellEntriesOf(0)[l] || []);
+            if(!arr.some(r => (r.name||"").toLowerCase() === sp.n.toLowerCase())) arr.push({name:sp.n, prep:true}); });   // write-in caster → add as a prepared row
+        }
+        if(subObj.expanded && subObj.expanded.length)
+          sfl.push(`${sub} expanded spells (added to your spell list): ${[...new Set(subObj.expanded.map(sp => sp.n))].join(", ")}.`);
         if(sfl.length){ const t = $("features"); const block = sfl.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
+        if(spellKey) renderSpellStyle(false, 0);   // reflect the always-prepared subclass spells on the Spells page
       }
       const featMap = {};                                                          // feature name → text, for limited-use tooltips
       (c && c.features || []).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
