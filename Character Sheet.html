@@ -325,6 +325,9 @@
   .invtable input{background:var(--field); padding:6px 5px}
   .invtable td.invitem{display:flex; align-items:center; gap:1px}
   .invtable td.invitem input{flex:1; min-width:0}
+  .inv-del{flex:none; display:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px}
+  .inv-del:hover{color:#b42318}
+  .invtable tr.has-item .inv-del{display:block}   /* delete ✕ shows only on filled rows */
   .cont-caret{flex:none; width:0; overflow:hidden; text-align:center; color:var(--muted); font-size:12px; user-select:none}
   .cont-caret.show{width:15px}                                           /* the ↳ marker, only on nested rows */
   .invtable tr.in-container td.invitem{padding-left:14px}                /* nested rows indent; top-level containers stay flush */
@@ -1185,7 +1188,7 @@
   let NINV = INV_MAIN, NLIMITED = LIM_MAIN, overflowPages = 0;   // grow as Overflow pages are added (each: 8 limited + 24 inventory)
   const invRowHTML = i =>
     `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
-    `<td class="invitem"><span class="cont-caret" id="contcaret-${i}" data-r="${i}"></span><input data-save id="invname-${i}" list="item-options" autocomplete="off"></td>`+
+    `<td class="invitem"><span class="cont-caret" id="contcaret-${i}" data-r="${i}"></span><input data-save id="invname-${i}" list="item-options" autocomplete="off"><button class="inv-del noprint" id="invdel-${i}" data-r="${i}" type="button" tabindex="-1" title="Delete item">✕</button></td>`+
     `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
     `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
     `<td class="noprint" style="text-align:center"><input type="checkbox" class="invequip" id="invequip-${i}" data-r="${i}" title="Equipped — weapons are added to Attacks; equipped armor & attunement items become selectable in their pickers" style="display:none"></td></tr>`;
@@ -3433,7 +3436,8 @@
       as.innerHTML = `<option value=""></option><option value="Unarmored">Unarmored</option>`   // Unarmored is always available
         + eq.map(a => optTag(a.name, a.name)).join("")
         + mage + `<option value="Custom">Custom…</option>`;
-      as.value = cur;   // keep selection when still a valid option
+      const stillValid = cur && [...as.options].some(o => o.value === cur);
+      as.value = stillValid ? cur : (eq.length ? eq[0].name : "");   // keep an explicit choice; otherwise default to the equipped body armor (so "equip Chain Mail" sets your AC base)
     }
     const eqAtt = byName(equippedNames(n => aset.has(n.toLowerCase())).map(n => ({name:n})));
     ["0","1","2"].forEach(k => { const s = $("attune-"+k); if(!s) return; const cur = s.value;
@@ -3507,7 +3511,7 @@
       const nm = $("invname-"+i), caret = $("contcaret-"+i), tr = nm && nm.closest("tr"); if(!nm || !caret || !tr) continue;
       const drag = tr.querySelector(".invdrag");
       const name = (nm.value||"").trim(), cont = rowCont(i), isCont = name && have.has(name);
-      caret.className = "cont-caret"; caret.textContent = ""; tr.style.display = ""; tr.classList.toggle("in-container", !!cont);
+      caret.className = "cont-caret"; caret.textContent = ""; tr.style.display = ""; tr.classList.toggle("in-container", !!cont); tr.classList.toggle("has-item", !!name);   // show the delete ✕ only on filled rows
       if(drag){ drag.textContent = "⠿"; delete drag.dataset.cont; drag.classList.remove("cont-toggle"); drag.title = "Drag to reorder"; }
       if(isCont && counts[name] && drag){                          // a container holding items → drag handle becomes a collapse toggle
         const open = !collapsedContainers.has(name);
@@ -3800,8 +3804,7 @@
              {name:"Action Surge", rec:"SR", feat:"Action Surge", min:2, count:l => l>=17?2:1},
              {name:"Indomitable", rec:"LR", feat:"Indomitable", min:9, count:l => l>=17?3:l>=13?2:1}],
     Monk:[{name:"Ki Points", rec:"SR", feat:"Ki", min:2, count:l => l}],
-    Paladin:[{name:"Lay on Hands", rec:"LR", feat:"Lay on Hands", count:l => l*5},
-             {name:"Divine Sense", rec:"LR", feat:"Divine Sense", count:(l,m) => 1 + (m.cha||0)},
+    Paladin:[{name:"Divine Sense", rec:"LR", feat:"Divine Sense", count:(l,m) => 1 + (m.cha||0)},
              {name:"Channel Divinity", rec:"SR", feat:"Channel Divinity", min:3, count:() => 1}],
     Sorcerer:[{name:"Sorcery Points", rec:"LR", feat:"Font of Magic", min:2, count:l => l}],
     Wizard:[{name:"Arcane Recovery", rec:"1/Day", feat:"Arcane Recovery", count:() => 1}],
@@ -3825,7 +3828,7 @@
   const LIMITED_FEAT_NAMES = new Set();
   Object.values(LIMITED_RESOURCES).forEach(list => list.forEach(r => { LIMITED_FEAT_NAMES.add(r.feat.toLowerCase()); LIMITED_FEAT_NAMES.add(r.name.toLowerCase()); }));
   // Features the heuristic gets wrong — never track these as limited-use:
-  const LIMITED_EXCLUDE = new Set(["spellcasting", "pact magic"]);
+  const LIMITED_EXCLUDE = new Set(["spellcasting", "pact magic", "lay on hands"]);   // Lay on Hands is an HP pool, not a use-count tracker
   // Known limited features with exact values (override the heuristic's guess).
   // Each maps a feature-block name → one or more rows {label, max, rec}. A "label" lets a single
   // feature produce a renamed/disambiguated row (or split into multiple rows). max="PB" means
@@ -4024,6 +4027,7 @@
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
     document.addEventListener("click", e => { if(e.target.closest("[data-addoverflow]")){ appendOverflowPage(); applyLayout(); showPage("overflow-"+(overflowPages-1)); save(); compute(); } });
     document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
+    document.addEventListener("click", e => { const b = e.target.closest(".inv-del"); if(b) deleteInvRow(b.dataset.r); });   // ✕ delete an inventory item
     document.addEventListener("click", e => { const b = e.target.closest(".sp-add"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l;   // add another blank spell row to this level
       const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l].push({name:"", prep:false}); renderSpellTable(inst); save(); } });
     setupItemSearch();
