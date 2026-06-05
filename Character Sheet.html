@@ -2591,7 +2591,7 @@
         acBase = m ? parseInt(m[0], 10) : null;
       } else {
         const armor = (sel === "Mage Armor") ? {ac:13, type:"LA"}              // Mage Armor: 13 + Dex
-                    : ((DATA && DATA.armor) ? DATA.armor.find(a => a.name === sel) : null);
+                    : armorByName(sel);                                        // case-insensitive (wizard gear is e.g. "Chain mail" vs data's "Chain Mail")
         if(armor && sel !== "Mage Armor") realArmor = armor;                    // a real base armor → material/enchant applies
         let base = 10, needDex = true, dexAdd = mods.dex;
         if(armor){
@@ -2666,7 +2666,7 @@
     }
     // Heavy armor whose Strength requirement you don't meet → −10 ft (PHB armor rule)
     {
-      const selArmor = (DATA && DATA.armor) ? DATA.armor.find(a => a.name === ($("armorsel").value || "")) : null;
+      const selArmor = armorByName($("armorsel").value || "");   // case-insensitive match (e.g. "Chain mail" → "Chain Mail")
       const mithralMod = $("armormod") && $("armormod").value === "mithral";    // mithral removes the Strength requirement
       const req = (selArmor && selArmor.strength && !mithralMod) ? parseInt(selArmor.strength, 10) : 0;
       if(req && strScore != null && strScore < req){
