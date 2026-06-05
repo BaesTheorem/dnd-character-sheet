@@ -2939,7 +2939,9 @@
     if(t.id === "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base
     const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
     if(im){ const i = im[1];
-      if(!t.value.trim()){ const q = $("invqty-"+i); if(q) q.value = ""; setRowUnit(i, null); const w = $("invwt-"+i); if(w) w.value = ""; }   // cleared → clear qty + weight
+      if(!t.value.trim()){ const q = $("invqty-"+i); if(q) q.value = ""; setRowUnit(i, null); const w = $("invwt-"+i); if(w) w.value = "";   // cleared → clear qty + weight
+        if(e.type === "change"){ deleteInvRow(i); return; }            // committed deletion → strip references + push the empty row to the bottom
+      }
       else if(rowUnit(i) == null){ const w = itemWeight(t.value); if(w != null){ setRowUnit(i, w); refreshRowWeight(i); } }                    // auto-fill per-item weight → total
     }
     const qm = t.id && t.id.match(/^invqty-(\d+)$/);                    // quantity changed → rescale the line total
@@ -3528,6 +3530,15 @@
   function getInvData(){ const a = []; for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i); a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||""), cont:rowCont(i), equip:!!(cb&&cb.checked)}); } return a; }
   function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); setRowCont(i, a[i].cont||""); const cb=$("invequip-"+i); if(cb) cb.checked = !!a[i].equip; refreshRowWeight(i); } renderContainers(); }
   function moveInvRow(from, to){ if(from === to || from == null || to == null) return; const a = getInvData(); const [row] = a.splice(from,1); a.splice(to,0,row); setInvData(a); save(); compute(); }
+  function deleteInvRow(i){   // clear a row fully and push the empty box to the bottom; equip/Attacks/AC/container references drop via compute
+    i = +i;
+    const cb = $("invequip-"+i); if(cb) cb.checked = false;
+    $("invname-"+i).value = ""; const q = $("invqty-"+i); if(q) q.value = "";
+    setRowUnit(i, null); const w = $("invwt-"+i); if(w) w.value = "";
+    setRowCont(i, "");
+    if(i < NINV-1) moveInvRow(i, NINV-1);      // moveInvRow saves + computes (prunes Attacks, un-nests container contents, refreshes AC pickers)
+    else { renderContainers(); save(); compute(); }
+  }
   // ---- "Active" weapons → Attacks table (toggled per inventory row; bonus & damage auto-computed) ----
   function weaponByName(name){
     const n = String(name||"").trim().toLowerCase();
@@ -3593,6 +3604,10 @@
     }
   }
   function refreshAtkRows(){                  // recompute every derived (weapon-linked) Attacks row; lock its inputs
+    const equipped = new Set();               // weapon names currently equipped in inventory
+    for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(cb && cb.checked && nm){ const n = (nm.value||"").trim().toLowerCase(); if(n) equipped.add(n); } }
+    for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i);   // drop a derived row whose weapon is no longer equipped (e.g. the item was deleted)
+      if(el && el.dataset.weapon && !equipped.has(el.dataset.weapon.toLowerCase())){ el.value = ""; delete el.dataset.weapon; const b=$("atkbonus-"+i), d=$("atkdmg-"+i); if(b) b.value=""; if(d) d.value=""; } }
     for(let i=0;i<NATTACKS;i++){ const nm = $("atkname-"+i); if(!nm) continue;
       const linked = !!nm.dataset.weapon, w = linked ? weaponByName(nm.dataset.weapon) : null;
       [nm, $("atkbonus-"+i), $("atkdmg-"+i)].forEach(el => { if(el) el.readOnly = linked; });
