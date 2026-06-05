@@ -1239,10 +1239,20 @@
   let manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
   let baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null}; // array/rolled/pointbuy base
   let rolledArray = null;                                   // the six 4d6-drop-lowest values for "Rolled" mode (null until rolled)
+  // Unbiased 1..sides die using crypto.getRandomValues with rejection sampling (no modulo bias); Math.random fallback.
+  function rollDie(sides){
+    if(window.crypto && crypto.getRandomValues){
+      const max = 256 - (256 % sides);                 // largest multiple of `sides` ≤ 256 — reject the rest
+      const buf = new Uint8Array(1);
+      let x; do { crypto.getRandomValues(buf); x = buf[0]; } while(x >= max);
+      return 1 + (x % sides);
+    }
+    return 1 + Math.floor(Math.random() * sides);
+  }
   // 4d6 drop lowest, six times, sorted high→low.
   function rollAbilityScores(){
     const set = [];
-    for(let i=0;i<6;i++){ const d = [1,2,3,4].map(() => 1 + Math.floor(Math.random()*6)).sort((a,b)=>a-b); set.push(d[1]+d[2]+d[3]); }
+    for(let i=0;i<6;i++){ const d = [rollDie(6), rollDie(6), rollDie(6), rollDie(6)].sort((a,b)=>a-b); set.push(d[1]+d[2]+d[3]); }
     return set.sort((a,b)=>b-a);
   }
   function abilityPool(){ return genMode === "rolled" ? (rolledArray || []) : STANDARD_ARRAY; }
