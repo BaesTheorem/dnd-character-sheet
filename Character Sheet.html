@@ -433,6 +433,9 @@
   .atk-per-box .calc{min-height:24px; display:flex; align-items:center; justify-content:center}   /* writable on a blank sheet */
   .sp-tag{display:inline-block; font-size:8px; font-weight:700; line-height:1; padding:1px 3px; border-radius:3px;
     background:var(--accent-soft); color:var(--accent); vertical-align:middle; margin-left:2px}
+  .sp-addrow td{padding:2px 4px; border-top:none}
+  .sp-add{font:inherit; font-size:12px; font-weight:600; color:var(--muted); background:none; border:none; cursor:pointer; padding:3px 2px}
+  .sp-add:hover{color:var(--accent); text-decoration:underline}
   .spellhead{display:grid; grid-template-columns:1.4fr .8fr 1fr 1fr 1fr; gap:10px; align-items:end}
   .spellhead.spellhead-lvl{grid-template-columns:1.3fr .7fr .8fr 1fr 1fr 1fr}   /* extra sheets add a Class Level dropdown */
   .spellhead .stat .calc{min-height:30px; display:flex; align-items:center; justify-content:center}   /* room to write on a blank sheet */
@@ -2403,6 +2406,7 @@
                                   : `<input class="sp-name" data-inst="${inst}" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
           body += `<tr>${prepCell}<td class="col-name"${titleAttr}>${nameField}</td>`+ propCells(d) +`</tr>`;
         });
+        body += `<tr class="sp-addrow noprint"><td colspan="7"><button type="button" class="sp-add" data-inst="${inst}" data-l="${l}">+ add blank row</button></td></tr>`;   // grow this level on demand
       }
     }
     sEl(inst,"spells").innerHTML = body;
@@ -3967,6 +3971,8 @@
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
     document.addEventListener("click", e => { if(e.target.closest("[data-addoverflow]")){ appendOverflowPage(); applyLayout(); showPage("overflow-"+(overflowPages-1)); save(); compute(); } });
     document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
+    document.addEventListener("click", e => { const b = e.target.closest(".sp-add"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l;   // add another blank spell row to this level
+      const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l].push({name:"", prep:false}); renderSpellTable(inst); save(); } });
     setupItemSearch();
 
     // --- inventory drag-to-reorder (across both columns) ---
