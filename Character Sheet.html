@@ -663,7 +663,7 @@
       <!-- LEFT COLUMN -->
       <div class="stack">
         <div class="card">
-          <h2>Abilities <button class="hood-btn noprint" id="btn-hood" type="button" title="Set scores, bonuses, and generation method">⚙ Under the hood</button></h2>
+          <h2>Abilities</h2>
           <div class="ability-head"><span class="name"></span><span class="col">Score</span><span class="col">Mod</span></div>
           <div id="abilities"></div>
         </div>
@@ -989,6 +989,22 @@
           <div id="wiz-race-choices"></div>
         </div>
         <div class="wiz-step" data-step="1" hidden>
+          <label class="lbl">Ability Scores</label>
+          <div class="modes" id="modes">
+            <button class="mode-btn" data-mode="manual" type="button">Manual</button>
+            <button class="mode-btn" data-mode="array" type="button">Standard Array</button>
+            <button class="mode-btn" data-mode="pointbuy" type="button">Point Buy</button>
+          </div>
+          <div class="gen-status" id="gen-status"></div>
+          <div class="hood-grid-head">
+            <span class="hname"></span><span>Base</span><span>ASI</span><span>Racial</span><span>Magical</span><span>Misc</span>
+          </div>
+          <div id="hood-abilities"></div>
+          <label class="lbl" style="margin-top:14px; display:block">Notes</label>
+          <textarea data-save id="abilitynotes" placeholder="Where bonuses come from, ASI choices at levels 4/8/…, temporary effects…" style="min-height:60px"></textarea>
+          <p class="wiz-hint">Final score = Base + ASI + Racial + Magical + Misc. Your race's bonuses are pre-filled in Racial.</p>
+        </div>
+        <div class="wiz-step" data-step="2" hidden>
           <label class="lbl">Class</label>
           <select id="wiz-class"></select>
           <label class="lbl" style="margin-top:10px">Level</label>
@@ -998,12 +1014,12 @@
             <select id="wiz-subclass"></select>
           </div>
         </div>
-        <div class="wiz-step" data-step="2" hidden>
+        <div class="wiz-step" data-step="3" hidden>
           <label class="lbl">Class Skill Proficiencies</label>
           <div id="wiz-skills"></div>
           <p class="wiz-hint" id="wiz-skills-hint"></p>
         </div>
-        <div class="wiz-step" data-step="3" hidden>
+        <div class="wiz-step" data-step="4" hidden>
           <label class="lbl">Starting Equipment</label>
           <div class="wiz-methods">
             <button class="btn wiz-equip" data-equip="equipment" type="button">Equipment</button>
@@ -1012,7 +1028,7 @@
           <p class="wiz-hint" id="wiz-equip-hint"></p>
           <div id="wiz-equip-choices"></div>
         </div>
-        <div class="wiz-step" data-step="4" hidden>
+        <div class="wiz-step" data-step="5" hidden>
           <label class="lbl">Background</label>
           <select id="wiz-bg"></select>
           <div id="wiz-custom-bg" hidden>
@@ -1030,15 +1046,6 @@
             <textarea id="wiz-cbg-feattext" placeholder="What the feature does" style="min-height:64px"></textarea>
           </div>
         </div>
-        <div class="wiz-step" data-step="5" hidden>
-          <label class="lbl">Ability Score Method</label>
-          <div class="wiz-methods">
-            <button class="btn wiz-method" data-method="manual" type="button">Manual</button>
-            <button class="btn wiz-method" data-method="array" type="button">Standard Array</button>
-            <button class="btn wiz-method" data-method="pointbuy" type="button">Point Buy</button>
-          </div>
-          <p class="wiz-hint">You'll assign the actual scores on the sheet after creating.</p>
-        </div>
         <div class="wiz-step" data-step="6" hidden>
           <label class="lbl">Character Name</label>
           <input id="wiz-name" placeholder="Name">
@@ -1049,33 +1056,6 @@
         <button class="btn" id="wiz-back" type="button">Back</button>
         <span class="wiz-dots" id="wiz-dots"></span>
         <button class="btn primary" id="wiz-next" type="button">Next</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal noprint" id="hood">
-    <div class="modal-panel" style="max-width:560px">
-      <div class="modal-head">
-        <h2>Ability Scores — Under the Hood</h2>
-        <button class="btn ghost" id="hood-close" type="button">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="modes" id="modes">
-          <button class="mode-btn" data-mode="manual" type="button">Manual</button>
-          <button class="mode-btn" data-mode="array" type="button">Standard Array</button>
-          <button class="mode-btn" data-mode="pointbuy" type="button">Point Buy</button>
-        </div>
-        <div class="gen-status" id="gen-status"></div>
-        <div class="hood-grid-head">
-          <span class="hname"></span><span>Base</span><span>ASI</span><span>Racial</span><span>Magical</span><span>Misc</span>
-        </div>
-        <div id="hood-abilities"></div>
-        <label class="lbl" style="margin-top:14px; display:block">Notes</label>
-        <textarea data-save id="abilitynotes" placeholder="Where bonuses come from, ASI choices at levels 4/8/…, temporary effects…" style="min-height:60px"></textarea>
-      </div>
-      <div class="modal-foot">
-        <span class="wiz-hint" style="flex:1; margin:0">Final score = Base + ASI + Racial + Magical + Misc. The sheet shows only the total and modifier.</span>
-        <button class="btn primary" id="hood-done" type="button">Done</button>
       </div>
     </div>
   </div>
@@ -2722,6 +2702,7 @@
     });
     data.inspiration = inspState;
     data.genMode = genMode;
+    data.created = characterCreated;
     data.manualScores = manualScores;
     data.baseVals = baseVals;
     data.bonusVals = bonusVals;
@@ -2762,6 +2743,7 @@
   }
   function applyAll(data){                     // full restore (generator + fields), then render
     genMode = (data && data.genMode) || "manual";
+    characterCreated = !!(data && data.created); markCharacterCreated();   // toolbar button label reflects whether a character exists
     manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
     baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
     bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};
@@ -2887,8 +2869,6 @@
     if(m === "pointbuy"){
       ABILITIES.forEach(([k]) => { const b = baseVals[k]; if(b == null || b < 8 || b > 15) baseVals[k] = 8; });
     }
-    const wiz = $("wizard");                                    // if set from the hood mid-creation, keep the wizard's method picker in sync
-    if(wiz && wiz.classList.contains("open")){ wizMethod = m; document.querySelectorAll(".wiz-method").forEach(x => x.classList.toggle("active", x.dataset.method === m)); }
     renderHoodControls(); updateModeUI(); save(); compute();
   }
 
@@ -3337,26 +3317,21 @@
     inp.click();
   }
   // ---- Guided character creation wizard ----
-  let wizStep = 0, wizMethod = "manual", wizEquip = "equipment";
+  let wizStep = 0, wizEquip = "equipment", characterCreated = false;
   const WIZ_LAST = 6;
+  // Step order: 0 Race · 1 Ability Scores · 2 Class · 3 Skills · 4 Equipment · 5 Background · 6 Name
   function renderWizStep(){
     document.querySelectorAll(".wiz-step").forEach(s => s.hidden = (+s.dataset.step !== wizStep));
     $("wiz-back").style.visibility = wizStep === 0 ? "hidden" : "visible";
-    $("wiz-next").textContent = wizStep === WIZ_LAST ? "Create" : "Next";
+    $("wiz-next").textContent = wizStep === WIZ_LAST ? (characterCreated ? "Save" : "Create") : "Next";
     $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
     if(wizStep === 0) renderRaceChoices();
-    if(wizStep === 2) renderWizSkills();
-    if(wizStep === 3) renderWizEquip();
-    if(wizStep === 4) updateCustomBgVisibility();
+    if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial
+    if(wizStep === 3) renderWizSkills();
+    if(wizStep === 4) renderWizEquip();
+    if(wizStep === 5) updateCustomBgVisibility();
   }
-  // After Race, before Class: pop the Under the Hood ability generator (with the race's bonuses applied) so scores are set early.
-  function openHoodFromWizard(){
-    const race = $("wiz-race").value;
-    if(race) applyRaceAbilityOnly(race);     // populate the Racial column so the generator previews final scores
-    setMode(wizMethod);                       // open in the wizard's current method (and keep the two in sync)
-    renderHoodControls(); compute();
-    $("hood").classList.add("open");
-  }
+  function markCharacterCreated(){ const b = $("btn-create"); if(b) b.textContent = characterCreated ? "Edit Character" : "Create Character"; }
   function wizClass(){ return DATA && findBy(DATA.classes, $("wiz-class").value); }
   function renderWizSkills(){
     const c = wizClass(), box = $("wiz-skills"), hint = $("wiz-skills-hint"), ch = c && c.skillChoose;
@@ -3967,8 +3942,8 @@
         if(b.equip.gold) $("gp").value = num($("gp").value,0) + b.equip.gold;   // adds on top of any class starting gold
       }
     }
-    genMode = wizMethod;
-    if(wizMethod === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });
+    if(genMode === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });   // genMode/scores were set in the wizard's Ability Scores step
+    characterCreated = true; markCharacterCreated();   // toolbar button now reads "Edit Character"
     renderHoodControls(); updateModeUI();
     document.querySelectorAll("textarea").forEach(autoGrow);
     compute(); save(); closeWizard();
@@ -4049,10 +4024,6 @@
     $("hood-abilities").addEventListener("click", e => {
       const btn = e.target.closest(".step"); if(btn) stepPointBuy(btn.dataset.ab, parseInt(btn.dataset.dir,10));
     });
-    $("btn-hood").addEventListener("click", ()=> $("hood").classList.add("open"));
-    $("hood-close").addEventListener("click", ()=> $("hood").classList.remove("open"));
-    $("hood-done").addEventListener("click", ()=> $("hood").classList.remove("open"));
-    $("hood").addEventListener("click", e => { if(e.target.id === "hood") $("hood").classList.remove("open"); });
 
     // Ability Score Improvement flag + picker
     $("asi-flag").addEventListener("click", openAsiModal);
@@ -4193,7 +4164,7 @@
     $("wiz-close").addEventListener("click", closeWizard);
     $("wizard").addEventListener("click", e=>{ if(e.target.id === "wizard") closeWizard(); });
     $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
-    $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ const from = wizStep; wizStep++; renderWizStep(); if(from === 0) openHoodFromWizard(); } else createCharacter(); });
+    $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
     $("wiz-race").addEventListener("change", raceHint);
     $("wiz-class").addEventListener("change", e=> populateSubclass(e.target.value));
     $("wiz-level").addEventListener("input", ()=> populateSubclass($("wiz-class").value));   // level gates the subclass
@@ -4203,11 +4174,6 @@
       const b = findBy(DATA.backgrounds, e.target.value);
       if(b && b.feature){ $("wiz-cbg-featname").value = b.feature.name || ""; $("wiz-cbg-feattext").value = b.feature.text || ""; autoGrow($("wiz-cbg-feattext")); }
     });
-    document.querySelectorAll(".wiz-method").forEach(b => b.addEventListener("click", ()=>{
-      wizMethod = b.dataset.method;
-      document.querySelectorAll(".wiz-method").forEach(x => x.classList.toggle("active", x === b));
-    }));
-    document.querySelector('.wiz-method[data-method="manual"]').classList.add("active");
     $("wiz-skills").addEventListener("change", updateWizSkillLimit);
     document.querySelectorAll(".wiz-equip").forEach(b => b.addEventListener("click", ()=>{ wizEquip = b.dataset.equip; renderWizEquip(); }));
     $("wiz-equip-choices").addEventListener("change", e => {   // changing an option re-renders its weapon sub-pickers
