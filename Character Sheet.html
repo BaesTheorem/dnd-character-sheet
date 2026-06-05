@@ -1115,6 +1115,9 @@
             <label class="lbl" style="display:block; margin-bottom:6px">Portrait</label>
             <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
             <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Encumbrance</label>
+            <label class="lay-row"><input type="checkbox" id="set-variant-enc"> Use the variant Encumbrance rule</label>
+            <p class="wiz-hint">Off by default. When on, the Carrying Capacity card adds the Encumbered (×5) and Heavily Encumbered (×10) thresholds and applies their speed penalties. When off, only your Max Carry (×15) and Push/Drag/Lift (×30) are shown.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
             <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
             <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
@@ -1598,6 +1601,7 @@
   function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
   let hidePortrait = false;                     // Settings → General: hide the character portrait box (screen + print)
   function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
+  let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
       `<label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="${key}" ${hiddenPages[key] ? "" : "checked"}> ${label}</label>`
@@ -2647,20 +2651,30 @@
     $("carried").textContent = carriedTxt;
     const strScore = finalScore("str");
     const baseSpeed = speedBase;                            // base walking speed (stored; Speed box shows the modified value)
-    const NOTE_DEFAULT = "Thresholds use your Strength score (lb). Encumbered / Heavily are the optional variant rule.";
+    const VARIANT_NOTE = "Thresholds use your Strength score (lb). Encumbered / Heavily are the optional variant rule.";
+    const BASE_NOTE = "Carrying capacity is your Strength score × 15 (lb).";
     let speedPenalty = 0;
+    const e5 = $("enc5") && $("enc5").closest(".stat"), e10 = $("enc10") && $("enc10").closest(".stat");   // variant-only threshold boxes
+    if(e5) e5.style.display = variantEncumbrance ? "" : "none";
+    if(e10) e10.style.display = variantEncumbrance ? "" : "none";
     if(strScore == null){
       ["enc5","enc10","carry","pushdrag","encstatus"].forEach(id => $(id).textContent = "");
-      $("encnote").textContent = NOTE_DEFAULT;
+      $("encnote").textContent = variantEncumbrance ? VARIANT_NOTE : BASE_NOTE;
     } else {
       const enc5=strScore*5, enc10=strScore*10, carry=strScore*15;
       $("enc5").textContent = enc5+" lb"; $("enc10").textContent = enc10+" lb";
       $("carry").textContent = carry+" lb"; $("pushdrag").textContent = (strScore*30)+" lb";
-      let status, note = NOTE_DEFAULT;
-      if(carried > carry){ status = "Over capacity"; speedPenalty = baseSpeed||0; note = "Over capacity — you can't carry this much (more than Strength ×15)."; }
-      else if(carried > enc10){ status = "Heavily encumbered"; speedPenalty = 20; note = "Heavily encumbered: speed −20 ft, and disadvantage on STR/DEX/CON ability checks, attack rolls, and saving throws."; }
-      else if(carried > enc5){ status = "Encumbered"; speedPenalty = 10; note = "Encumbered: speed −10 ft."; }
-      else status = "Unencumbered";
+      let status, note;
+      if(variantEncumbrance){                              // optional variant: Encumbered / Heavily thresholds + speed penalties
+        note = VARIANT_NOTE;
+        if(carried > carry){ status = "Over capacity"; speedPenalty = baseSpeed||0; note = "Over capacity — you can't carry this much (more than Strength ×15)."; }
+        else if(carried > enc10){ status = "Heavily encumbered"; speedPenalty = 20; note = "Heavily encumbered: speed −20 ft, and disadvantage on STR/DEX/CON ability checks, attack rolls, and saving throws."; }
+        else if(carried > enc5){ status = "Encumbered"; speedPenalty = 10; note = "Encumbered: speed −10 ft."; }
+        else status = "Unencumbered";
+      } else {                                             // default: just carrying capacity, no Encumbrance terms or penalties
+        note = BASE_NOTE;
+        status = (carried > carry) ? "Over capacity" : "Within capacity";
+      }
       $("encstatus").textContent = status;
       $("encnote").textContent = note;
     }
@@ -2751,6 +2765,7 @@
     data.hiddenPages = hiddenPages;
     data.showAddSpell = showAddSpell;
     data.hidePortrait = hidePortrait;
+    data.variantEncumbrance = variantEncumbrance;
     data.hitDieFaces = hitDieFaces;
     data.speedBase = speedBase;
     data.asiChoices = asiChoices;
@@ -2828,6 +2843,7 @@
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
+    variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     if(data){                                                       // migrate old per-page include checkboxes
       if(data["spell-include"] === false) hiddenPages.spells = true;
       if(data["mini-include"] === false) hiddenPages.mini = true;
@@ -3434,8 +3450,7 @@
       as.innerHTML = `<option value=""></option><option value="Unarmored">Unarmored</option>`   // Unarmored is always available
         + eq.map(a => optTag(a.name, a.name)).join("")
         + mage + `<option value="Custom">Custom…</option>`;
-      const stillValid = cur && [...as.options].some(o => o.value === cur);
-      as.value = stillValid ? cur : (eq.length ? eq[0].name : "");   // keep an explicit choice; otherwise default to the equipped body armor (so "equip Chain Mail" sets your AC base)
+      as.value = cur;   // keep the selection when still a valid option (the player picks their base armor from the dropdown)
     }
     const eqAtt = byName(equippedNames(n => aset.has(n.toLowerCase())).map(n => ({name:n})));
     ["0","1","2"].forEach(k => { const s = $("attune-"+k); if(!s) return; const cur = s.value;
@@ -4096,7 +4111,7 @@
       renderAsiList(); renderHoodControls(); save(); compute();
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -4104,6 +4119,7 @@
     });
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
+    $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
     $("btn-reload-all").addEventListener("click", reloadAllBooks);
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
