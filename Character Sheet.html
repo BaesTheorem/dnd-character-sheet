@@ -2885,6 +2885,8 @@
     if(m === "pointbuy"){
       ABILITIES.forEach(([k]) => { const b = baseVals[k]; if(b == null || b < 8 || b > 15) baseVals[k] = 8; });
     }
+    const wiz = $("wizard");                                    // if set from the hood mid-creation, keep the wizard's method picker in sync
+    if(wiz && wiz.classList.contains("open")){ wizMethod = m; document.querySelectorAll(".wiz-method").forEach(x => x.classList.toggle("active", x.dataset.method === m)); }
     renderHoodControls(); updateModeUI(); save(); compute();
   }
 
@@ -3135,15 +3137,22 @@
     $("toolmodal").classList.remove("open");
     save(); compute();
   }
+  // Set just the Racial ability column from a race's fixed bonuses — for the in-wizard "Under the Hood" preview.
+  function applyRaceAbilityOnly(name){
+    bonusVals.racial = zeroAb();
+    const r = DATA && findBy(DATA.races, name);
+    if(r) (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{ if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; }));
+  }
   function applyRace(name, opts){
     opts = opts || null;
-    bonusVals.racial = zeroAb();                     // race owns the Racial bonus column
+    const keepRacial = !!(opts && opts.keepRacial);   // wizard pre-applied the Racial column (incl. the player's "choose" picks) → don't overwrite it
+    if(!keepRacial) bonusVals.racial = zeroAb();       // race owns the Racial bonus column
     const r = DATA && findBy(DATA.races,name);
     if(r){
       $("race").value = name;
       let choose=null;
       (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
-        if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; else if(k==="choose") choose=v;
+        if(k==="choose") choose=v; else if(!keepRacial && ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v;
       }));
       if(r.speed) speedBase = r.speed;               // base speed; Speed box (compute) shows the modified value
       (r.traits||[]).forEach(tr=>{                     // pull sense traits into the Senses box
@@ -3337,6 +3346,14 @@
     if(wizStep === 2) renderWizSkills();
     if(wizStep === 3) renderWizEquip();
     if(wizStep === 4) updateCustomBgVisibility();
+  }
+  // After Race, before Class: pop the Under the Hood ability generator (with the race's bonuses applied) so scores are set early.
+  function openHoodFromWizard(){
+    const race = $("wiz-race").value;
+    if(race) applyRaceAbilityOnly(race);     // populate the Racial column so the generator previews final scores
+    setMode(wizMethod);                       // open in the wizard's current method (and keep the two in sync)
+    renderHoodControls(); compute();
+    $("hood").classList.add("open");
   }
   function wizClass(){ return DATA && findBy(DATA.classes, $("wiz-class").value); }
   function renderWizSkills(){
@@ -3891,7 +3908,7 @@
     asiChoices = []; asiFeatsAdded = {}; bonusVals.asi = zeroAb();   // new build → unassigned ASIs, flagged for the player
     if(name) $("charname").value = name;
     if(race){
-      const rObj = findBy(DATA.races, race), opts = {languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean)};
+      const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean)};   // keep the Racial column the wizard's Under-the-Hood step already set (incl. the player's choose picks)
       if(rObj && rObj.variableSkillDarkvision){
         const useDv = (document.querySelector('input[name="rc-skilldv"]:checked')||{}).value === "darkvision";
         if(useDv) opts.darkvision = rObj.darkvision || 60; else opts.skill = ($("rc-skill")||{}).value || "";
@@ -4174,7 +4191,7 @@
     $("wiz-close").addEventListener("click", closeWizard);
     $("wizard").addEventListener("click", e=>{ if(e.target.id === "wizard") closeWizard(); });
     $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
-    $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
+    $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ const from = wizStep; wizStep++; renderWizStep(); if(from === 0) openHoodFromWizard(); } else createCharacter(); });
     $("wiz-race").addEventListener("change", raceHint);
     $("wiz-class").addEventListener("change", e=> populateSubclass(e.target.value));
     $("wiz-level").addEventListener("input", ()=> populateSubclass($("wiz-class").value));   // level gates the subclass
