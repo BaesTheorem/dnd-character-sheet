@@ -268,6 +268,23 @@
   .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line)}
   .modal-head h2{margin:0; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
   .modal-body{padding:18px; min-height:120px}
+  /* Settings: left-side section tabs + right-side content */
+  .settings-panel{max-width:660px}
+  .settings-wrap{display:flex; min-height:320px}
+  .settings-nav{flex:none; width:158px; border-right:1px solid var(--line); padding:12px 0; display:flex; flex-direction:column; gap:2px}
+  .settings-nav .set-tab{font:inherit; font-size:13px; font-weight:600; text-align:left; padding:8px 16px; background:none; border:none; border-left:2px solid transparent; cursor:pointer; color:var(--muted)}
+  .settings-nav .set-tab:hover{color:var(--ink)}
+  .settings-nav .set-tab.active{color:var(--accent); border-left-color:var(--accent); background:var(--accent-soft)}
+  .settings-content{flex:1; padding:18px; min-height:120px; overflow:auto}
+  .set-sec{display:none}
+  .set-sec.active{display:block}
+  .sheet.no-addspell [data-addspellsheet]{display:none !important}   /* Settings → Spells: hide the + Add spell sheet button (created sheets stay) */
+  @media (max-width:560px){
+    .settings-wrap{flex-direction:column}
+    .settings-nav{width:auto; flex-direction:row; border-right:none; border-bottom:1px solid var(--line); overflow-x:auto}
+    .settings-nav .set-tab{border-left:none; border-bottom:2px solid transparent; white-space:nowrap}
+    .settings-nav .set-tab.active{border-bottom-color:var(--accent)}
+  }
   .wiz-hint{font-size:11px; color:var(--muted); margin:10px 0 0; line-height:1.55; white-space:pre-line}
   .wiz-methods{display:flex; gap:6px}
   .wiz-methods .btn{flex:1}
@@ -1062,29 +1079,44 @@
   </div>
 
   <div class="modal noprint" id="settings">
-    <div class="modal-panel">
+    <div class="modal-panel settings-panel">
       <div class="modal-head">
         <h2>Settings</h2>
         <button class="btn ghost" id="settings-close" type="button">✕</button>
       </div>
-      <div class="modal-body">
-        <label class="lbl" style="display:block; margin-bottom:6px">Layout — visible pages</label>
-        <div id="layout-toggles"></div>
-        <p class="wiz-hint">Unchecked pages are removed from the tab bar and won't print. (The Mini page also needs a portrait.)</p>
-        <label class="lbl" style="display:block; margin:16px 0 6px">Source books</label>
-        <p class="wiz-hint" id="sourcebook-status" style="margin:0 0 8px"></p>
-        <div class="srcbook-load">
-          <select id="book-select"><option value="">Open Settings to load…</option></select>
-          <button class="btn" id="btn-loadbook" type="button">Load</button>
+      <div class="settings-wrap">
+        <nav class="settings-nav" id="settings-nav">
+          <button class="set-tab active" data-sec="pages" type="button">Pages</button>
+          <button class="set-tab" data-sec="spells" type="button">Spells</button>
+          <button class="set-tab" data-sec="books" type="button">Source books</button>
+        </nav>
+        <div class="settings-content">
+          <section class="set-sec active" data-sec="pages">
+            <label class="lbl" style="display:block; margin-bottom:6px">Visible pages</label>
+            <div id="layout-toggles"></div>
+            <p class="wiz-hint">Unchecked pages are removed from the tab bar and won't print. (The Mini page also needs a portrait.)</p>
+          </section>
+          <section class="set-sec" data-sec="spells">
+            <label class="lbl" style="display:block; margin-bottom:6px">Spell sheets</label>
+            <label class="lay-row"><input type="checkbox" id="set-addspell" checked> Show the "+ Add spell sheet" button</label>
+            <p class="wiz-hint">The button (on every Spells page) creates extra, independent spell sheets — handy for another class's spell list. Turning this off only hides the button; any spell sheets you've already created stay exactly as they are.</p>
+          </section>
+          <section class="set-sec" data-sec="books">
+            <p class="wiz-hint" id="sourcebook-status" style="margin:0 0 8px"></p>
+            <div class="srcbook-load">
+              <select id="book-select"><option value="">Open Settings to load…</option></select>
+              <button class="btn" id="btn-loadbook" type="button">Load</button>
+            </div>
+            <button class="btn" id="btn-reload-all" type="button" style="display:none; margin-top:8px" title="Re-fetch every loaded book from your 5etools server to refresh its data">Reload all loaded sources</button>
+            <label class="lbl" style="display:block; margin:10px 0 4px">5etools server</label>
+            <input id="server-url" value="http://localhost:5050" spellcheck="false">
+            <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
+            <button class="btn primary" id="btn-savedata" title="Download a copy of this sheet with all loaded books baked into the file">Save data file</button>
+            <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
+            <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
+            <p class="wiz-hint">A browser can't overwrite the open file, so <strong>Save data file</strong> downloads an updated copy (with every loaded book baked in) — keep it / replace your sheet with it to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
+          </section>
         </div>
-        <button class="btn" id="btn-reload-all" type="button" style="display:none; margin-top:8px" title="Re-fetch every loaded book from your 5etools server to refresh its data">Reload all loaded sources</button>
-        <label class="lbl" style="display:block; margin:10px 0 4px">5etools server</label>
-        <input id="server-url" value="http://localhost:5050" spellcheck="false">
-        <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
-        <button class="btn primary" id="btn-savedata" title="Download a copy of this sheet with all loaded books baked into the file">Save data file</button>
-        <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
-        <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
-        <p class="wiz-hint">A browser can't overwrite the open file, so <strong>Save data file</strong> downloads an updated copy (with every loaded book baked in) — keep it / replace your sheet with it to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
       </div>
       <div class="modal-foot">
         <span class="wiz-hint" style="flex:1; margin:0"></span>
@@ -1507,6 +1539,8 @@
   const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["spells","Spells"],
                  ["companion","Companions"],["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
+  let showAddSpell = true;                      // Settings → Spells: show the "+ Add spell sheet" button (created sheets are unaffected)
+  function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
       `<label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="${key}" ${hiddenPages[key] ? "" : "checked"}> ${label}</label>`
@@ -2638,6 +2672,7 @@
     data.spellMaxLevel = spellMaxByInst[0];
     data.preparedSpells = preparedByInst[0];
     data.hiddenPages = hiddenPages;
+    data.showAddSpell = showAddSpell;
     data.hitDieFaces = hitDieFaces;
     data.speedBase = speedBase;
     data.asiChoices = asiChoices;
@@ -2711,6 +2746,7 @@
     speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
     if(speedBase == null && data){ const m = String(data.speed||"").match(/\d+/); if(m) speedBase = +m[0]; }   // legacy "30 ft" → 30
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
+    showAddSpell = !(data && data.showAddSpell === false);   // default on; only an explicit false disables it
     if(data){                                                       // migrate old per-page include checkboxes
       if(data["spell-include"] === false) hiddenPages.spells = true;
       if(data["mini-include"] === false) hiddenPages.mini = true;
@@ -2750,6 +2786,7 @@
     renderAllSpellSheets(false);
     renderLayoutToggles();
     applyLayout();
+    applyAddSpellSetting();
     compute();
   }
   let saveTimer = null;
@@ -3897,7 +3934,13 @@
       renderAsiList(); renderHoodControls(); save(); compute();
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("set-addspell").checked = showAddSpell; $("settings").classList.add("open"); });
+    $("settings-nav").addEventListener("click", e => {   // left-side section tabs
+      const b = e.target.closest(".set-tab"); if(!b) return;
+      document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
+      document.querySelectorAll("#settings .set-sec").forEach(s => s.classList.toggle("active", s.dataset.sec === b.dataset.sec));
+    });
+    $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
     $("btn-reload-all").addEventListener("click", reloadAllBooks);
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
