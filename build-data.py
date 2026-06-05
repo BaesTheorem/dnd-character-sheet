@@ -23,7 +23,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 11  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+DATA_VERSION = 12  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -672,6 +672,15 @@ def build_tools(items_base, items):   # AT/INS live in items-base.json; GS/T (th
         if is_src(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
     return sorted(out)
 
+def build_tool_cats(items_base, items):   # tools split by category so a generic "of your choice" grant can offer concrete picks
+    artisan, instrument = set(), set()
+    for it in list(items_base.get("baseitem", [])) + list(items.get("item", [])):
+        if not is_src(it): continue
+        t = it.get("type", "").split("|")[0]
+        if t == "AT": artisan.add(it["name"])
+        elif t == "INS": instrument.add(it["name"])
+    return {"artisan": sorted(artisan), "instrument": sorted(instrument)}
+
 def render_range(r):
     if not isinstance(r, dict): return str(r)
     d = r.get("distance", {})
@@ -706,6 +715,7 @@ def main():
     weapons, armor = build_items(items_base, items)
     out["weapons"], out["armor"] = weapons, armor
     out["tools"] = build_tools(items_base, items)
+    out["toolCats"] = build_tool_cats(items_base, items)
     out["languages"] = build_languages()
     out["packs"] = build_packs(items)
     out["itemWeights"] = build_item_weights(items_base, items)

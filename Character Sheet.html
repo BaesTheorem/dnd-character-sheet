@@ -1086,6 +1086,23 @@
     </div>
   </div>
 
+  <div class="modal noprint" id="toolmodal">
+    <div class="modal-panel" style="max-width:520px">
+      <div class="modal-head">
+        <h2>Choose Your Tools</h2>
+        <button class="btn ghost" id="tool-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="wiz-hint" style="margin-top:0">A proficiency you were granted lets you pick the specific kind. Choose one for each below.</p>
+        <div id="tool-list"></div>
+      </div>
+      <div class="modal-foot">
+        <span class="wiz-hint" style="flex:1; margin:0"></span>
+        <button class="btn primary" id="tool-done" type="button">Apply</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal noprint" id="settings">
     <div class="modal-panel settings-panel">
       <div class="modal-head">
@@ -1977,6 +1994,15 @@
     (itemsData.item||[]).forEach(it => { if(it.source === SRC && ET_TOOL_TYPES.includes((it.type||"").split("|")[0])) set.add(it.name); });
     return [...set].sort();
   }
+  // Tools split by category (AT = artisan's tools, INS = musical instruments) so a generic "artisan's tools of
+  // your choice" / "musical instrument of your choice" grant can offer the right concrete options to pick from.
+  function etToolCats(itemsBase, itemsData, SRC){
+    const cats = {artisan:new Set(), instrument:new Set()};
+    const add = it => { if(it.source !== SRC) return; const t = (it.type||"").split("|")[0];
+      if(t === "AT") cats.artisan.add(it.name); else if(t === "INS") cats.instrument.add(it.name); };
+    (itemsBase.baseitem||[]).forEach(add); (itemsData.item||[]).forEach(add);
+    return {artisan:[...cats.artisan].sort(), instrument:[...cats.instrument].sort()};
+  }
   // fetch + process one 5etools book from the local server
   async function fetch5etoolsBook(base, srcCode){
     const root = base.replace(/\/+$/,"") + "/data/";
@@ -2001,7 +2027,7 @@
       feats:etFeats(feats,srcCode), spells:etSpells(spellsData,srcCode), classSpells:etClassSpells(spellsData,sourcesForSrc,srcCode),
       monsters,
       acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
-      languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
+      languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), toolCats:etToolCats(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
       itemWeights:etItemWeights(itemsBase,itemsData,srcCode),
       itemNames:etItemNames(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode),
       attuneItems:etAttuneItems(itemsBase,itemsData,srcCode), magicItems:etMagicItems(itemsBase,itemsData,srcCode),
@@ -2057,6 +2083,12 @@
     for(const k in (add.itemWeights||{})) into.itemWeights[k] = add.itemWeights[k];
     into.itemText = into.itemText || {};
     for(const k in (add.itemText||{})) into.itemText[k] = add.itemText[k];
+    into.toolCats = into.toolCats || {artisan:[], instrument:[]};   // union the artisan / instrument option lists
+    ["artisan","instrument"].forEach(cat => {
+      const seen = new Set(into.toolCats[cat] || []);
+      ((add.toolCats && add.toolCats[cat]) || []).forEach(x => { if(!seen.has(x)){ (into.toolCats[cat] = into.toolCats[cat] || []).push(x); seen.add(x); } });
+      if(into.toolCats[cat]) into.toolCats[cat].sort();
+    });
     if(bookName && !into._meta.books.includes(bookName)) into._meta.books.push(bookName);
   }
   const RULESET_2024 = new Set(["XPHB","XDMG","XMM"]);   // 2024 ("One D&D") core books
@@ -3039,6 +3071,53 @@
     if(lines.length){ const p = $("proficiencies"); const block = lines.map(l => l + tag).join("\n"); p.value = p.value.trim() ? p.value + "\n" + block : block; autoGrow(p); }
     if(prof.languages) addLanguages(prof.languages);   // merge onto the shared Languages line
   }
+  // ---- Unspecified "artisan's tools" / "musical instrument" grants → prompt for the specific kind ----
+  // Matches the generic phrase only (not a trailing " (Source)" tag); specific tools like "Smith's Tools" never match.
+  const TOOLPICK_RE = /(?:(\d+)\s+)?(artisan['’]?s tools(?: of your choice)?|musical instruments?(?: of your choice)?|instruments?\s+of your choice)/ig;
+  let toolPickMatches = [];
+  function scanToolPicks(text){
+    const out = []; let m; TOOLPICK_RE.lastIndex = 0;
+    while((m = TOOLPICK_RE.exec(text))){
+      const kind = /artisan/i.test(m[2]) ? "artisan" : "instrument";
+      const opts = (DATA && DATA.toolCats && DATA.toolCats[kind]) || [];
+      if(!opts.length) continue;                       // no concrete options available (book not loaded) → leave the text as-is
+      out.push({start:m.index, end:m.index + m[0].length, kind, count:Math.max(1, parseInt(m[1],10) || 1)});
+    }
+    return out;
+  }
+  function resolveToolChoices(){     // open the picker if the Proficiencies box has any unresolved generic tool grants
+    const p = $("proficiencies"); if(!p) return;
+    toolPickMatches = scanToolPicks(p.value);
+    if(!toolPickMatches.length) return;
+    $("tool-list").innerHTML = toolPickMatches.map((m, mi) => {
+      const opts = DATA.toolCats[m.kind], label = m.kind === "artisan" ? "Artisan's tools" : "Musical instrument";
+      let rows = "";
+      for(let c=0;c<m.count;c++){
+        rows += `<div style="display:flex; align-items:center; gap:10px; margin:8px 0">`
+          + `<span style="flex:1; font-weight:600; font-size:13px">${esc(label)}${m.count>1?" #"+(c+1):""}</span>`
+          + `<select class="tool-pick" data-mi="${mi}" data-c="${c}" style="flex:1">`
+          + opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("") + `</select></div>`;
+      }
+      return rows;
+    }).join("");
+    $("toolmodal").classList.add("open");
+  }
+  function applyToolChoices(){
+    const p = $("proficiencies"); if(!p){ $("toolmodal").classList.remove("open"); return; }
+    const text = p.value;
+    const chosen = toolPickMatches.map((m, mi) => {
+      const names = [];
+      for(let c=0;c<m.count;c++){ const sel = document.querySelector(`.tool-pick[data-mi="${mi}"][data-c="${c}"]`); if(sel) names.push(sel.value); }
+      return names.join(", ");
+    });
+    let out = "", cursor = 0;                           // splice replacements in source order (matches are sorted, non-overlapping)
+    toolPickMatches.forEach((m, mi) => { out += text.slice(cursor, m.start) + chosen[mi]; cursor = m.end; });
+    out += text.slice(cursor);
+    p.value = out; autoGrow(p);
+    toolPickMatches = [];
+    $("toolmodal").classList.remove("open");
+    save(); compute();
+  }
   function applyRace(name, opts){
     opts = opts || null;
     bonusVals.racial = zeroAb();                     // race owns the Racial bonus column
@@ -3857,6 +3936,7 @@
     renderHoodControls(); updateModeUI();
     document.querySelectorAll("textarea").forEach(autoGrow);
     compute(); save(); closeWizard();
+    resolveToolChoices();   // prompt for any unspecified artisan's tools / musical instrument the build granted
   }
 
   function init(){
@@ -3938,9 +4018,12 @@
 
     // Ability Score Improvement flag + picker
     $("asi-flag").addEventListener("click", openAsiModal);
-    $("asi-close").addEventListener("click", ()=> $("asimodal").classList.remove("open"));
-    $("asi-done").addEventListener("click", ()=> $("asimodal").classList.remove("open"));
-    $("asimodal").addEventListener("click", e => { if(e.target.id === "asimodal") $("asimodal").classList.remove("open"); });
+    $("asi-close").addEventListener("click", ()=>{ $("asimodal").classList.remove("open"); resolveToolChoices(); });   // a chosen feat may grant a generic tool/instrument
+    $("asi-done").addEventListener("click", ()=>{ $("asimodal").classList.remove("open"); resolveToolChoices(); });
+    $("asimodal").addEventListener("click", e => { if(e.target.id === "asimodal"){ $("asimodal").classList.remove("open"); resolveToolChoices(); } });
+    $("tool-close").addEventListener("click", ()=>{ toolPickMatches = []; $("toolmodal").classList.remove("open"); });   // leave generic text as-is
+    $("tool-done").addEventListener("click", applyToolChoices);
+    $("toolmodal").addEventListener("click", e => { if(e.target.id === "toolmodal"){ toolPickMatches = []; $("toolmodal").classList.remove("open"); } });
     $("asi-list").addEventListener("change", e => {
       const t = e.target, i = +t.dataset.i;
       if(isNaN(i) || !asiChoices[i]) return;
