@@ -347,6 +347,7 @@
   .feat-cards{display:flex; flex-direction:column; gap:8px}
   .feat-card-title{font-weight:700; font-size:14px; margin-bottom:3px}
   .feat-card-body{white-space:pre-wrap; line-height:1.45; font-size:13px}
+  .feat-blank{display:none}   /* empty Features page: the editor is the screen input; this is a print-only full-page write-in card */
   .item-search-wrap{position:relative; margin-bottom:10px}
   .item-search-wrap input{width:100%; padding:8px 10px; background:var(--field); border:1px solid var(--line); border-radius:8px; font-size:13px}
   .item-results{position:absolute; left:0; right:0; top:100%; z-index:30; background:#fff; border:1px solid var(--line); border-radius:0 0 8px 8px; max-height:260px; overflow:auto; box-shadow:var(--shadow)}
@@ -506,6 +507,7 @@
     /* full-text pages: fill at least one sheet, then flow onto extra sheets if the content is long */
     #page-feat{display:flex !important; flex-direction:column; gap:8px}   /* feat page = a stack of per-feature cards that flow across sheets */
     #feat-cards{display:flex; flex-direction:column; gap:8px}
+    #page-feat .feat-blank{display:block; min-height:247mm}   /* blank Features page prints one full-page write-in card */
     .feat-card{break-inside:avoid}                                        /* never split one feature across a page break */
     .feat-card-title{font-size:10px; font-weight:700; margin-bottom:1px; letter-spacing:.02em}
     .feat-card-body{font-size:8px; line-height:1.32; white-space:pre-wrap}
@@ -3756,9 +3758,12 @@
   }
   function renderFeatureCards(){
     const wrap = $("feat-cards"); if(!wrap) return;
-    wrap.innerHTML = featureCards().map(c =>
-      `<div class="card feat-card"><div class="feat-card-title">${esc(c.title)}</div>`
-      + (c.body ? `<div class="feat-card-body">${esc(c.body)}</div>` : "") + `</div>`).join("");
+    const cards = featureCards();
+    wrap.innerHTML = cards.length
+      ? cards.map(c =>
+          `<div class="card feat-card"><div class="feat-card-title">${esc(c.title)}</div>`
+          + (c.body ? `<div class="feat-card-body">${esc(c.body)}</div>` : "") + `</div>`).join("")
+      : `<div class="card feat-blank"><h2>Features &amp; Traits</h2></div>`;   // nothing written → print a full-page write-in card (hidden on screen)
   }
   function lfIndexByName(name){ const q = String(name).toLowerCase(); for(let i=0;i<NLIMITED;i++){ if(($("lfname-"+i).value||"").trim().toLowerCase() === q) return i; } return -1; }
   function clearLfRow(i){ $("lfname-"+i).value=""; $("lfmax-"+i).value=""; $("lfrec-"+i).value=""; $("lfused-"+i).value=""; $("lfname-"+i).removeAttribute("title"); }
