@@ -4361,7 +4361,8 @@
     return slots;
   }
   function weaponsFor(slot){
-    return ((DATA && DATA.weapons) || []).filter(w => w.cat === slot.cat && (!slot.melee || (slot.melee === "melee" ? w.melee : !w.melee)));
+    const fut = showFuturistic ? null : new Set((DATA && DATA.futuristic) || []);   // hide laser/antimatter weapons from category pickers unless enabled
+    return ((DATA && DATA.weapons) || []).filter(w => w.cat === slot.cat && (!slot.melee || (slot.melee === "melee" ? w.melee : !w.melee)) && (!fut || !fut.has(w.name)));
   }
   function renderEquipSub(lineEl, optText){     // weapon-category dropdowns under a chosen option
     const sub = lineEl.querySelector(".equip-sub"); if(!sub) return;
