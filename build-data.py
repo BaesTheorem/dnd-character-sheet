@@ -23,7 +23,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 12  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+DATA_VERSION = 14  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers` (enables cross-book option merging). Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -229,11 +230,33 @@ def _chooser_options(entries):   # names referenced inside an `options` block �
             if e.get("type") == "options":
                 for o in e.get("entries", []) or []:
                     if isinstance(o, dict):
-                        ref = o.get("subclassFeature") or o.get("optionalfeature")
+                        ref = (o.get("subclassFeature") if o.get("type") == "refSubclassFeature"
+                               else o.get("optionalfeature") if o.get("type") == "refOptionalfeature" else None)   # match JS: only typed refs
                         if ref: names.append(str(ref).split("|")[0].strip())
             for x in e.get("entries", []) or []: walk(x)
     walk(entries)
     return names
+def normalize_subclass(sub):   # mirror of JS normalizeSubclass: derive opt/optGroup tags + featChoices from features + choosers
+    feats, choosers = sub.get("features", []), sub.get("choosers", [])
+    ref_names = set()
+    for c in choosers:
+        for n in c.get("options", []): ref_names.add(n)
+    for f in feats:
+        if f.get("name") in ref_names:
+            f["opt"] = f["name"]
+            g = next((c for c in choosers if c["level"] == f.get("level", 1)), None)
+            f["optGroup"] = g["name"] if g else f.get("optGroup", "")
+        else:
+            f.pop("opt", None); f.pop("optGroup", None)
+    present = lambda c: [n for n in c.get("options", []) if any(f.get("name") == n for f in feats)]
+    groups = {}
+    for c in sorted(choosers, key=lambda c: c["level"]):
+        groups.setdefault("|".join(sorted(present(c))), []).append(c)
+    fc = []
+    for g in groups.values():
+        opts = present(g[0])
+        if opts: fc.append({"label": g[0]["name"], "options": opts, "levels": [c["level"] for c in g]})
+    sub["featChoices"] = fc
 _ANY_LABELS = {"any": "of your choice", "anyStandard": "standard language of your choice",
     "anyExotic": "exotic language of your choice", "anyArtisansTool": "artisan's tools of your choice",
     "anyTool": "tools of your choice", "anyMusicalInstrument": "musical instrument of your choice",
@@ -356,43 +379,30 @@ def build_classes():
                 short = s.get("shortName", s["name"])
                 if short in seen: continue
                 seen.add(short)
+                # NOT filtered by subclassSource — same as JS — so a same-book subclass keeps all its features.
                 raw_feats = [f for f in data.get("subclassFeature", [])
-                          if is_src(f) and f.get("className")==c["name"] and f.get("subclassShortName")==short
-                          and f.get("subclassSource", SRC_TAG)==SRC_TAG and f.get("name")]
-                choosers = []; option_names = set()           # features offering a "choose one" set (Totem Spirit, …)
+                          if is_src(f) and f.get("className")==c["name"] and f.get("subclassShortName")==short and f.get("name")]
+                choosers = []                                   # features offering a "choose one" set (Totem Spirit, …)
                 for cf in raw_feats:
                     opts = _chooser_options(cf.get("entries", []))
-                    if opts: choosers.append({"name": cf.get("name"), "level": cf.get("level",1), "options": opts}); option_names.update(opts)
-                sfeats = []
-                for f in raw_feats:
-                    o = {"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))}
-                    if f.get("name") in option_names:           # a per-option feature (e.g. "Bear") — shown only when chosen
-                        o["opt"] = f.get("name")
-                        g = next((c for c in choosers if c["level"] == o["level"]), None)
-                        if g: o["optGroup"] = g["name"]
-                    sfeats.append(o)
+                    if opts: choosers.append({"name": cf.get("name"), "level": cf.get("level",1), "options": opts})
+                sfeats = [{"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))} for f in raw_feats]
                 sfeats.sort(key=lambda x: (x["level"], x["name"]))
-                feat_choices = []                               # collapse same-option choosers into one picker (Totem Warrior's 3 levels → one pick)
-                if choosers:
-                    present = lambda ch: [n for n in ch["options"] if any(f.get("name")==n for f in raw_feats)]
-                    groups = {}
-                    for ch in sorted(choosers, key=lambda ch: ch["level"]):
-                        groups.setdefault("|".join(sorted(present(ch))), []).append(ch)
-                    for g in groups.values():
-                        opts = present(g[0])
-                        if opts: feat_choices.append({"label": g[0]["name"], "options": opts, "levels": [ch["level"] for ch in g]})
+                _lvl = lambda lv: int(str(lv).lstrip("sS")) if str(lv).lstrip("sS").isdigit() else 0   # "s1"→1 (expanded-spell level keys)
                 sspells = []; sexpanded = []
                 for blk in s.get("additionalSpells") or []:
                     prep = blk.get("prepared") or blk.get("known") or blk.get("innate") or {}
                     for lv, val in prep.items():
                         names = []; _collect_spell_names(val, names)   # val may be array or nested object (e.g. Sun Soul resource:{2:[...]})
                         for nm in names:
-                            sspells.append({"n": _titlecase(_clean(nm)), "l": int(lv) if str(lv).isdigit() else 0})
+                            sspells.append({"n": _titlecase(_clean(nm)), "l": _lvl(lv)})
                     for lv, val in (blk.get("expanded") or {}).items():   # Warlock patron expanded lists
                         names = []; _collect_spell_names(val, names)
                         for nm in names:
-                            sexpanded.append({"n": _titlecase(_clean(nm)), "l": int(lv) if str(lv).isdigit() else 0})
-                subs.append({"name": s["name"], "short": short, "features": sfeats, "spells": sspells, "expanded": sexpanded, "featChoices": feat_choices})
+                            sexpanded.append({"n": _titlecase(_clean(nm)), "l": _lvl(lv)})
+                sub = {"name": s["name"], "short": short, "features": sfeats, "choosers": choosers, "spells": sspells, "expanded": sexpanded, "featChoices": []}
+                normalize_subclass(sub)
+                subs.append(sub)
             sub_lvl = None
             for f in c.get("classFeatures", []):
                 if isinstance(f, dict) and f.get("gainSubclassFeature") and f.get("classFeature"):
@@ -408,6 +418,10 @@ def build_classes():
                        if f.get("source") == SRC_TAG and f.get("className") == c["name"]
                        and f.get("classSource", SRC_TAG) == SRC_TAG and f.get("name")]
             feats_c.sort(key=lambda x: (x["level"], x["name"]))
+            mc = c.get("multiclassing", {}) or {}              # multiclass prereq + limited proficiencies gained when multiclassing in
+            pg = mc.get("proficienciesGained")
+            mc_prof = prof_block({"armorProficiencies": pg.get("armor"), "weaponProficiencies": pg.get("weapons"),
+                                  "toolProficiencies": pg.get("tools"), "skillProficiencies": pg.get("skills")}) if pg else None
             out.append({"name": c["name"],
                         "hd": c.get("hd", {}).get("faces"),
                         "saves": c.get("proficiency", []),
@@ -418,6 +432,7 @@ def build_classes():
                         "cantrips": c.get("cantripProgression"),   # cantrips known per level (None if class has no cantrips)
                         "spellsKnown": c.get("spellsKnownProgression"),   # spells-known per level for known casters
                         "equip": equip, "features": feats_c,
+                        "mcReq": mc.get("requirements"), "mcProf": mc_prof,
                         "subclassTitle": c.get("subclassTitle",""), "subclassLevel": sub_lvl, "subclasses": subs})
     return out
 

@@ -113,9 +113,6 @@
   @media (max-width:560px){ .meta-grid{grid-template-columns:repeat(2,1fr)} }
 
   /* Source-data build pickers */
-  .build-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-  .build-note{font-size:11px; color:var(--muted); margin-top:10px; line-height:1.55; white-space:pre-line}
-  .build-note b{color:var(--ink)}
 
   /* Ability-score method selector */
   .modes{display:flex; gap:4px; background:var(--field); border:1px solid var(--line);
@@ -145,8 +142,6 @@
     width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
     font-size:20px; font-weight:700; color:var(--accent); background:var(--accent-soft); border-radius:8px;
   }
-  .gen-control{display:flex; align-items:center; gap:5px; flex:none}
-  .gen-control select{width:52px; padding:6px 2px; text-align:center; font-weight:700; font-size:14px}
   .stepper{display:flex; align-items:center; gap:1px}
   .stepper .step{width:21px; height:30px; flex:none; border:1px solid var(--line2); background:#fff;
     border-radius:6px; font-size:16px; font-weight:700; color:var(--accent); cursor:pointer; line-height:1; padding:0}
@@ -157,9 +152,6 @@
     font-size:19px; font-weight:700; border:1px solid var(--line2); background:#fff; box-sizing:border-box}
 
   /* "Under the hood" — generation method + per-ability base & bonus inputs (modal) */
-  .hood-btn{float:right; font:inherit; font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
-    color:var(--muted); background:var(--field); border:1px solid var(--line); padding:3px 9px; cursor:pointer}
-  .hood-btn:hover{color:var(--accent); border-color:var(--accent)}
   .hood-grid-head, .hood-row{display:grid; grid-template-columns:72px 72px repeat(4,1fr); gap:6px; align-items:center}
   .hood-grid-head{font-size:8px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     color:var(--muted); text-align:center; margin-bottom:5px}
@@ -171,14 +163,12 @@
   .hood-row .stepper{justify-content:center}
 
   /* ASI / Feat attention flag (pulses until every improvement is chosen) */
-  .asi-flag{display:block; width:100%; margin:0 0 16px; text-align:left; cursor:pointer;
-    border:2px solid #c2410c; background:#fff7ed; color:#7c2d12; border-radius:var(--radius);
-    padding:12px 16px; font:inherit; font-weight:700; font-size:14px; letter-spacing:.01em;
-    box-shadow:0 0 0 0 rgba(194,65,12,.55); animation:asipulse 1.5s ease-out infinite}
+  .asi-flag{display:block; width:100%; margin:0 0 10px; text-align:left; cursor:pointer;
+    border:1px solid #c2410c; border-left-width:4px; background:#fff7ed; color:#7c2d12;
+    padding:11px 15px; font:inherit; font-weight:700; font-size:14px; letter-spacing:.01em}
+  .asi-flag + .asi-flag{margin-top:-4px}   /* when both flags show, read as one stacked block */
   .asi-flag:hover{background:#ffedd5}
   .asi-flag .sub{display:block; font-weight:500; font-size:11px; color:#9a3412; margin-top:3px}
-  @keyframes asipulse{0%{box-shadow:0 0 0 0 rgba(194,65,12,.5)} 70%{box-shadow:0 0 0 10px rgba(194,65,12,0)} 100%{box-shadow:0 0 0 0 rgba(194,65,12,0)}}
-  @media (prefers-reduced-motion:reduce){ .asi-flag{animation:none} }
   /* ASI picker modal rows */
   .asi-slot{border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px}
   .asi-slot.done{border-color:#16a34a; background:#f0fdf4}
@@ -191,6 +181,11 @@
   .asi-body{display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:12px}
   .asi-body label{font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
   .asi-body select{width:auto; min-width:120px}
+  .asi-scores{display:flex; gap:6px; margin-bottom:12px}
+  .asi-score{flex:1; text-align:center; border:1px solid var(--line); border-radius:8px; padding:5px 2px}
+  .asi-score .ab{display:block; font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
+  .asi-score .sc{display:block; font-size:17px; font-weight:700; line-height:1.1}
+  .asi-score .md{display:block; font-size:11px; color:var(--muted)}
 
   /* small stat chips */
   .chips{display:flex; gap:10px; flex-wrap:wrap}
@@ -198,7 +193,6 @@
     border:1px solid var(--line); border-radius:10px; padding:8px 6px}
   .chip .v{font-size:22px; font-weight:700; color:var(--accent)}
   .chip .k{font-size:9px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
-  .chip.toggleable{cursor:pointer; user-select:none}
   .chip.on{background:var(--accent); border-color:var(--accent)}
   .chip.on .v,.chip.on .k{color:#fff}
 
@@ -222,7 +216,6 @@
 
   /* combat */
   .combat-top{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
-  @media (max-width:560px){ .combat-top{grid-template-columns:repeat(3,1fr)} }
   .topstats{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   .stat{background:var(--field); border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center}
   .stat .k{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
@@ -266,6 +259,8 @@
     align-items:flex-start; justify-content:center; padding:48px 16px; overflow:auto}
   .modal.open{display:flex}
   .modal-panel{background:#fff; border:1px solid var(--line2); width:100%; max-width:460px}
+  #wizard .modal-panel{max-width:720px}   /* the class builder's list + 1–20 detail needs room */
+  @media (max-width:620px){ #wizard .modal-panel{max-width:460px} .wiz-build{grid-template-columns:1fr} #wiz-class-list{max-height:200px} }
   .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line)}
   .modal-head h2{margin:0; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
   .modal-body{padding:18px; min-height:120px}
@@ -289,7 +284,7 @@
   .wiz-hint{font-size:11px; color:var(--muted); margin:10px 0 0; line-height:1.55; white-space:pre-line}
   .wiz-methods{display:flex; gap:6px}
   .wiz-methods .btn{flex:1}
-  .btn.wiz-method.active, .btn.wiz-equip.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .btn.wiz-equip.active{background:var(--accent); color:#fff; border-color:var(--accent)}
   .wiz-racechoice{margin-top:10px; padding-top:10px; border-top:1px solid var(--line)}
   .wiz-racechoice .wiz-radio{display:block; font-size:14px; font-weight:600; margin:4px 0; cursor:pointer}
   .wiz-racechoice select{margin:2px 0}
@@ -297,6 +292,47 @@
   .wiz-skill input:disabled + span{opacity:.4}
   .wiz-skill.maxed input:not(:checked){opacity:.35; cursor:default}
   .wiz-skill.taken{opacity:.45} .wiz-skill.taken span{text-decoration:line-through}
+  /* Multiclass class builder (step 2) */
+  .wiz-build{display:grid; grid-template-columns:170px 1fr; gap:12px; align-items:start}
+  .wiz-build-list{display:flex; flex-direction:column}
+  #wiz-class-list{display:flex; flex-direction:column; border:1px solid var(--line); max-height:340px; overflow:auto}
+  .wiz-cls{display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line);
+    padding:8px 10px; font-size:13px; font-weight:600; cursor:pointer; color:var(--ink)}
+  .wiz-cls:last-child{border-bottom:0}
+  .wiz-cls:hover{background:var(--panel)}
+  .wiz-cls.active{background:var(--accent); color:#fff}
+  .wiz-build-detail{min-height:120px}
+  .wiz-cd-head{font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:8px}
+  .wiz-cd-err{color:#b91c1c; font-weight:700; font-size:12px; margin:8px 0}
+  .wiz-cd-table{max-height:300px; overflow:auto; border:1px solid var(--line); padding:8px 10px; margin-top:6px}
+  .wiz-cd-lvl{font-size:13px; line-height:1.5; margin:0 0 8px}
+  .wiz-cd-lvl b{color:var(--accent)}
+  .wiz-cd-feat{display:block; margin:2px 0 2px 0}
+  .wiz-cd-feat .t{font-size:11px; color:var(--muted); display:block; white-space:pre-line}
+  #wiz-chosen{margin-top:14px}
+  .wiz-chosen-row{display:flex; align-items:center; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:14px}
+  .wiz-chosen-row .nm{font-weight:700; flex:1}
+  .wiz-chosen-row .badge{font-size:10px; font-weight:700; color:#fff; background:var(--accent); padding:1px 6px; text-transform:uppercase; letter-spacing:.04em}
+  .wiz-chosen-row input[type=number]{width:56px}
+  .wiz-chosen-row .x{background:none; border:0; color:var(--muted); font-size:15px; cursor:pointer; padding:2px 6px}
+  .wiz-chosen-row .x:hover{color:#b91c1c}
+  #wiz-hp{margin-top:14px}
+  #wiz-hp .hp-modes{display:flex; gap:6px; margin:6px 0}
+  #wiz-hp .hp-modes .btn{flex:1}
+  #wiz-hp .hp-modes .btn.active{background:var(--accent); color:#fff; border-color:var(--accent)}
+  #wiz-hp .hp-rows{border:1px solid var(--line); max-height:200px; overflow:auto; margin-top:6px}
+  .hp-row{display:flex; align-items:center; gap:8px; padding:5px 10px; border-bottom:1px solid var(--line); font-size:13px}
+  .hp-row:last-child{border-bottom:0}
+  .hp-row .lv{font-weight:700; width:46px; flex:none}
+  .hp-row .die{color:var(--muted); flex:1}
+  .hp-row input{width:52px}
+  .hp-row.lvl1 .die::after{content:" · max"; color:var(--accent)}
+  #wiz-hp .hp-total{font-weight:700; margin-top:8px; font-size:14px}
+  #wiz-pending{margin-top:14px}
+  .wiz-pend-head{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9a3412; margin:0 0 6px}
+  .wiz-pend-row{display:flex; align-items:center; gap:8px; padding:6px 8px; border:1px solid #fed7aa; background:#fff7ed; margin:5px 0; font-size:13px}
+  .wiz-pend-row .lbl2{flex:1; font-weight:600; margin:0}
+  .wiz-pend-row select{max-width:200px}
   .equip-line{margin-top:6px}
   .equip-line select{width:100%}
   .equip-fixed{display:block; padding:3px 2px; font-size:13px; color:var(--muted)}
@@ -325,6 +361,7 @@
   .invtable input{background:var(--field); padding:6px 5px}
   .invtable td.invitem{display:flex; align-items:center; gap:1px}
   .invtable td.invitem input{flex:1; min-width:0}
+  #inv-ac{position:fixed; z-index:60; max-height:260px; overflow:auto}   /* shared per-row item autocomplete popup (positioned under the focused row) */
   .inv-del{flex:none; display:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px}
   .inv-del:hover{color:#b42318}
   .invtable tr.has-item .inv-del{display:block}   /* delete ✕ shows only on filled rows */
@@ -341,8 +378,8 @@
   .ac-items-auto .none{color:var(--muted); font-size:12px}
   .ac-items-write{display:none}   /* print-only blank write-in box (see @media print) */
   .invdrag:active{cursor:grabbing}
-  .invtable tr.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
-  .invtable tr.drop-into td{box-shadow:inset 0 0 0 2px var(--accent); background:var(--accent-soft)}   /* dropping onto a container */
+  .invtable tr.drop-target td{border-top:2px solid var(--accent)}   /* flat outline (survives the global box-shadow:none) */
+  .invtable tr.drop-into td{outline:2px solid var(--accent); outline-offset:-2px; background:var(--accent-soft)}   /* dropping onto a container */
   /* Features page: a collapsible raw-text editor + one independent card per feature */
   .feat-editor{margin-bottom:12px}
   .feat-editor > summary{cursor:pointer; font-weight:600; font-size:13px; color:var(--accent); padding:4px 0; list-style:none; user-select:none}
@@ -367,8 +404,6 @@
   .lftable input{background:var(--field)}
   .lftable input[title]{cursor:help}   /* auto-populated limited features show their details on hover */
   .lftable td:nth-child(2) input,.lftable td:nth-child(3) input,.lftable td:nth-child(4) input{text-align:center}
-  .acitems input,.acitems select{background:var(--field)}
-  .acitems td:nth-child(2) input{text-align:center}
   .rowtotal{display:flex; justify-content:space-between; align-items:center; margin-top:12px;
     background:var(--field); border:1px solid var(--line); padding:10px 12px}
   .rowtotal .k{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
@@ -389,9 +424,7 @@
   .srcbook-load{display:flex; gap:8px}
   .srcbook-load select{flex:1; min-width:0}
   .srcbook-load .btn{flex:none}
-  .spell-hidden-note{display:none}
   #page-spells.excluded #spellbody{display:none}
-  #page-spells.excluded .spell-hidden-note{display:block}
 
   /* ---- paper mini (fold-over standee, auto-built from the portrait) ---- */
   .mini-wrap{display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start; padding:8px 2px}
@@ -453,8 +486,6 @@
   .slot-io .io span{display:block; font-size:7px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); margin-bottom:1px}
   .slot-io .io input{width:100%; box-sizing:border-box; text-align:center; font-size:15px; font-weight:700; background:#fff; border:1px solid var(--line); padding:2px}
   .spelltable input{background:var(--field)}
-  .spelltable .col-lvl{text-align:center; font-weight:700; color:var(--muted)}
-  .spelltable .col-lvl input{text-align:center; font-weight:400; color:var(--ink)}
   .spelltable .col-prep{text-align:center}
   .spelltable.hide-prep .col-prep{display:none}
   .spelltable td.col-comp, .spelltable td.col-time, .spelltable td.col-range,
@@ -492,7 +523,7 @@
     html,body{background:#fff; padding:0; font-size:9px;
       -webkit-print-color-adjust:exact; print-color-adjust:exact}
     /* hide builder/interaction chrome — print character data only */
-    .toolbar,.noprint,.gen-status,.build-note{display:none !important}
+    .toolbar,.noprint,.gen-status{display:none !important}
     .sheet{margin:0; max-width:none; padding:0}
     .pagetabs{display:none !important}
     .page{display:block !important}                 /* print every page... */
@@ -661,7 +692,9 @@
       <input type="file" id="portrait-input" accept="image/*,.heic,.heif" hidden>
     </div>
 
+    <button class="asi-flag noprint" id="sources-flag" type="button" style="display:none"></button>
     <button class="asi-flag noprint" id="asi-flag" type="button" style="display:none"></button>
+    <button class="asi-flag noprint" id="decisions-flag" type="button" style="display:none"></button>
 
     <div class="columns">
       <!-- LEFT COLUMN -->
@@ -801,6 +834,7 @@
       <div class="armor-attune">
         <div class="card">
           <h2>Armor</h2>
+          <p class="wiz-hint noprint" id="armor-hint" style="display:none; margin:0 0 8px; color:#b45309"></p>
           <div><label class="lbl">Armor (sets base AC)</label><select data-save id="armorsel"></select>
             <input data-save id="armor-custom" placeholder="custom armor + AC" title="Type your armor and its AC; the number is used as the base AC (bonuses below still add)" style="display:none; margin-top:6px">
             <div id="armormod-wrap" style="display:none; margin-top:6px"><label class="lbl">Material / Enchantment</label>
@@ -843,7 +877,7 @@
           </table>
         </div>
         <div class="rowtotal"><span class="k">Total weight (items + coins)</span><span class="v" id="totalwt">0 lb</span></div>
-        <datalist id="item-options"></datalist>
+        <div id="inv-ac" class="item-results" hidden></div>
         <p class="help noprint">Search the box above (or type in any row) to add items from your loaded sourcebooks — weight auto-fills. Check <strong>Equip</strong> on a weapon (→ Attacks), armor or attunement item (→ their pickers). Carry a <strong>Bag of Holding</strong> or <strong>Handy Haversack</strong> and an <strong>In</strong> dropdown appears on each row; assign an item to one (or <strong>drag its row onto the container</strong>) and its weight stops counting.</p>
       </div>
       <div class="card grow"><h2>Equipment Notes</h2>
@@ -1010,15 +1044,18 @@
           <p class="wiz-hint">Final score = Base + ASI + Racial + Magical + Misc. Your race's bonuses are pre-filled in Racial.</p>
         </div>
         <div class="wiz-step" data-step="2" hidden>
-          <label class="lbl">Class</label>
-          <select id="wiz-class"></select>
-          <label class="lbl" style="margin-top:10px">Level</label>
-          <input type="number" id="wiz-level" min="1" max="20" value="1">
-          <div id="wiz-subclass-wrap" hidden>
-            <label class="lbl" style="margin-top:10px">Subclass</label>
-            <select id="wiz-subclass"></select>
+          <div class="wiz-build">
+            <div class="wiz-build-list">
+              <label class="lbl">Classes</label>
+              <div id="wiz-class-list"></div>
+            </div>
+            <div class="wiz-build-detail">
+              <div id="wiz-class-detail"><p class="wiz-hint">Pick a class on the left to see its full progression, then add it.</p></div>
+            </div>
           </div>
-          <div id="wiz-subchoice-wrap" hidden></div>
+          <div id="wiz-chosen"></div>
+          <div id="wiz-hp"></div>
+          <div id="wiz-pending"></div>
         </div>
         <div class="wiz-step" data-step="3" hidden>
           <label class="lbl">Class Skill Proficiencies</label>
@@ -1169,9 +1206,11 @@
   const BASE_KEY = "dnd-sheet-2014-v1";
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
+  const DATA_VERSION = 14;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
+  function serverBase(){ return (($("server-url")||{}).value || "").trim() || "http://localhost:5050"; }   // the 5etools server URL (single source)
 
   const ABILITIES = [
     ["str","Strength"],["dex","Dexterity"],["con","Constitution"],
@@ -1196,7 +1235,7 @@
   let NINV = INV_MAIN, NLIMITED = LIM_MAIN, overflowPages = 0;   // grow as Overflow pages are added (each: 8 limited + 24 inventory)
   const invRowHTML = i =>
     `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
-    `<td class="invitem"><span class="cont-caret" id="contcaret-${i}" data-r="${i}"></span><input data-save id="invname-${i}" list="item-options" autocomplete="off"><button class="inv-del noprint" id="invdel-${i}" data-r="${i}" type="button" tabindex="-1" title="Delete item">✕</button></td>`+
+    `<td class="invitem"><button class="inv-del noprint" id="invdel-${i}" data-r="${i}" type="button" tabindex="-1" title="Delete item">✕</button><span class="cont-caret" id="contcaret-${i}" data-r="${i}"></span><input data-save id="invname-${i}" class="invname-ac" autocomplete="off"></td>`+
     `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
     `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
     `<td class="noprint" style="text-align:center"><input type="checkbox" class="invequip" id="invequip-${i}" data-r="${i}" title="Equipped — weapons are added to Attacks; equipped armor & attunement items become selectable in their pickers" style="display:none"></td></tr>`;
@@ -1249,6 +1288,45 @@
   const num = (v, d=0) => { const n = parseInt(v,10); return isNaN(n) ? d : n; };
 
   // ---- Generator state (managed in JS, not via data-save attributes) ----
+  let charClasses = [];                                     // saved multiclass build [{name,level,sub,subOpts}] — drives the main-sheet decisions flag
+  let genFeatures = [], genProf = [], genDefenses = [];     // exact Feature blocks + Proficiency lines + Defense notes the wizard last generated, so "Edit Character" replaces them instead of duplicating
+  function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
+  function scanDefenses(text){   // pull "you have/gain resistance/immunity to X" out of feature prose → concise Resistances/Immunities lines (with any "while …" qualifier)
+    const out = [];
+    String(text||"").split(/(?<=[.;:])\s+/).forEach(raw => {
+      const s = raw.trim(); let m;
+      const cm = s.match(/^(while [^,]+?|when [^,]+?),/i), q = cm ? ` (${cm[1].toLowerCase()})` : "";
+      if(m = s.match(/you (?:have|gain|are granted|gains) resistance to ([^.;]+)/i)) out.push("Resistance: " + _tidyDef(m[1]) + q);
+      if(m = s.match(/you (?:have|gain|are granted) immunity to ([^.;]+)/i)) out.push("Immunity: " + _tidyDef(m[1]) + q);
+      if(m = s.match(/you(?:'re| are) immune to ([^.;]+)/i)) out.push("Immune: " + _tidyDef(m[1]) + q);
+    });
+    return [...new Set(out)];
+  }
+  function _splitBlocks(t){ return String(t||"").split(/\n\n+/).map(b => b.trim()).filter(Boolean); }
+  function _removeBlocks(id, blocks){ const el = $(id); if(!el || !blocks || !blocks.length) return; const drop = new Set(blocks);
+    el.value = _splitBlocks(el.value).filter(b => !drop.has(b)).join("\n\n"); autoGrow(el); }
+  function _removeLines(id, lines){ const el = $(id); if(!el || !lines || !lines.length) return; const drop = new Set(lines);
+    el.value = el.value.split("\n").filter(l => !drop.has(l)).join("\n"); autoGrow(el); }
+  // ===== Hit points by level (records) =====
+  let hpMode = "manual";    // "max" | "average" | "rolled" | "manual" — how the per-level hit-die rolls are produced
+  let hpRolls = [];         // per character level: the hit-die contribution BEFORE Con (index 0 = level 1). Con is added live in compute().
+  function levelDiceFor(list){   // hit-die faces per character level, first-class-first (level 1 = the initial class's die)
+    const out = []; (list||[]).forEach(w => { const c = DATA && findBy(DATA.classes, w.name), die = (c && c.hd) || 8; for(let i=0;i<(w.level||0);i++) out.push(die); });
+    return out;
+  }
+  function hpAvg(die){ return Math.floor(die/2) + 1; }   // 5e fixed-HP average: d6→4, d8→5, d10→6, d12→7
+  function rollDie(die){ return 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % die); }
+  function regenHp(mode, list, reroll){   // (re)build hpRolls for the given mode; level 1 is always max of the first class
+    const dice = levelDiceFor(list); const prev = (reroll && mode === "rolled") ? [] : hpRolls.slice();
+    hpRolls = dice.map((die,i) => {
+      if(i === 0) return die;                                   // level 1 = max
+      if(mode === "max") return die;
+      if(mode === "average") return hpAvg(die);
+      if(mode === "rolled") return (prev[i] != null && hpMode === "rolled") ? prev[i] : rollDie(die);   // keep prior rolls unless re-rolling
+      return prev[i] != null ? prev[i] : hpAvg(die);            // manual: keep what's there, seed new levels with average
+    });
+  }
+  function syncHpToBuild(){ if(hpRolls.length || hpMode !== "manual") regenHp(hpMode, wizClasses); }   // keep records sized to the build (called when classes/levels change)
   let genMode = "manual";                                   // manual | array | rolled | pointbuy
   let manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
   let baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null}; // array/rolled/pointbuy base
@@ -1465,6 +1543,29 @@
         "<span class=\"sub\">Click to choose an ASI (+2/+1+1) or a Feat for each.</span>";
     } else flag.style.display = "none";
   }
+  // First-run / stale-data banner so source loading isn't buried three layers deep in Settings.
+  function updateSourcesFlag(){
+    const flag = $("sources-flag"); if(!flag) return;
+    const none = !(DATA && Array.isArray(DATA.classes) && DATA.classes.length);
+    const stale = !none && sourcesAreStale();
+    if(none){
+      flag.style.display = "";
+      flag.innerHTML = "⚠ No sourcebooks loaded<span class=\"sub\">Click to load D&D content (races, classes, spells…) so Create Character works.</span>";
+    } else if(stale){
+      flag.style.display = "";
+      flag.innerHTML = "⚠ Sourcebooks are out of date<span class=\"sub\">Click, then “Reload all loaded sources,” to enable new features (e.g. subclass choices).</span>";
+    } else flag.style.display = "none";
+  }
+  // Companion flag for the OTHER overdue level decisions the builder tracks (subclass + subclass options).
+  function updateDecisionsFlag(){
+    const flag = $("decisions-flag"); if(!flag) return;
+    const n = (DATA && charClasses.length) ? pendingFor(charClasses).length : 0;
+    if(n > 0){
+      flag.style.display = "";
+      flag.innerHTML = "⚠ " + n + " class decision" + (n>1?"s":"") + " to make" +
+        "<span class=\"sub\">Subclass / subclass options still unchosen. Click to open the class builder.</span>";
+    } else flag.style.display = "none";
+  }
   function abilityOptions(sel){
     return `<option value=""></option>` + ABILITIES.map(([k,name]) =>
       `<option value="${k}"${sel===k?" selected":""}>${name}</option>`).join("");
@@ -1484,8 +1585,12 @@
       return classAsiLevels(str).filter(l => lv==null || l <= lv);
     })();
     const rname = ($("race").value || "").trim();
+    const scoresStrip = `<div class="asi-scores">` + ABILITIES.map(([k,name]) => {   // current totals (include ASI picks already made), updated live as you choose
+      const sc = finalScore(k), m = modOf(k);
+      return `<div class="asi-score"><span class="ab">${ABBR[k]||name}</span><span class="sc">${sc==null?"—":sc}</span><span class="md">${sc==null?"":(m>=0?"+"+m:m)}</span></div>`;
+    }).join("") + `</div>`;
     let classIdx = 0, raceIdx = 0;
-    $("asi-list").innerHTML = asiChoices.map((s,i) => {
+    const slotsHtml = asiChoices.map((s,i) => {
       const done = asiSlotComplete(s);
       const featBody =
         `<div class="asi-body"><label>Feat</label><select class="asi-featsel" data-i="${i}">${featOptions(s.feat)}</select>`+
@@ -1511,6 +1616,7 @@
           `<label><input type="radio" name="asi-type-${i}" class="asi-type-r" data-i="${i}" value="feat"${s.type==="feat"?" checked":""}> Feat</label>`+
         `</div>${body}</div>`;
     }).join("") || `<p class="wiz-hint">No Ability Score Improvements or racial feats yet — set your Race and Class &amp; Level first.</p>`;
+    $("asi-list").innerHTML = scoresStrip + slotsHtml;
     const pending = asiChoices.filter(s => !asiSlotComplete(s)).length;
     $("asi-summary").textContent = asiChoices.length
       ? (pending ? pending + " of " + asiChoices.length + " still to choose" : "All " + asiChoices.length + " assigned ✓")
@@ -1524,7 +1630,7 @@
     const lbl = (f.saves && f.saves.choose) ? "+1 &amp; save in" : "+1 to";
     return `<div class="asi-body"><label>${lbl}</label><select class="asi-featabil" data-i="${i}">${opts}</select></div>`;
   }
-  function openAsiModal(){ renderAsiList(); $("asimodal").classList.add("open"); }
+  function openAsiModal(){ renderAsiList(); $("asimodal").classList.add("open"); focusModal($("asimodal")); }
 
   // ---- "Under the hood": generation method + base & bonus inputs ----
   function renderHoodControls(){
@@ -1625,11 +1731,15 @@
     if(!DATA || !DATA._meta) return [];
     return DATA._meta.books || (DATA._meta.book ? [DATA._meta.book] : []);
   }
+  function sourcesAreStale(){   // loaded data was processed by an older extractor (e.g. before subclass-option choices like Totem Spirit existed)
+    return !!(DATA && DATA._meta && loadedBooks().length && ((DATA._meta.dataVersion || 0) < DATA_VERSION));
+  }
   function updateSourcebookStatus(){
     const el = $("sourcebook-status"); if(!el) return;
     if(DATA && Array.isArray(DATA.spells)){
       const n = loadedBooks().length;   // book names live in the Reload picker now; here just summarize the totals
-      el.innerHTML = `<strong>${n} book${n===1?"":"s"} loaded</strong> — ${DATA.spells.length} spells, ${(DATA.classes||[]).length} classes, ${(DATA.races||[]).length} races.`;
+      el.innerHTML = `<strong>${n} book${n===1?"":"s"} loaded</strong> — ${DATA.spells.length} spells, ${(DATA.classes||[]).length} classes, ${(DATA.races||[]).length} races.`+
+        (sourcesAreStale() ? `<br><span style="color:#b45309">⚠ Processed by an older version — click <strong>Reload all loaded sources</strong> to pick up new features (e.g. subclass choices).</span>` : "");
     } else el.textContent = "No sourcebook loaded. Load one from your 5etools server below, or import a source-data.json file.";
   }
   function disabledBooks(){ return new Set((DATA && DATA._meta && DATA._meta.disabled) || []); }
@@ -1914,43 +2024,66 @@
     walk(entries);
     return names;
   }
+  // Derive a subclass's option tags + featChoices pickers from its (possibly cross-book-merged) features + choosers.
+  // Idempotent — safe to re-run after a merge brings in another book's option features (e.g. SCAG's Elk/Tiger totems).
+  function normalizeSubclass(sub){
+    const feats = sub.features || [], choosers = sub.choosers || [];
+    const refNames = new Set(); choosers.forEach(c => (c.options||[]).forEach(n => refNames.add(n)));
+    feats.forEach(f => {
+      if(refNames.has(f.name)){ f.opt = f.name; const g = choosers.find(c => c.level === f.level); f.optGroup = g ? g.name : (f.optGroup||""); }
+      else { delete f.opt; delete f.optGroup; }
+    });
+    const present = c => (c.options||[]).filter(n => feats.some(f => f.name === n));   // only options whose feature is actually loaded
+    const groups = {}; choosers.slice().sort((a,b)=>a.level-b.level).forEach(c => { const k = present(c).slice().sort().join("|"); (groups[k] = groups[k] || []).push(c); });
+    sub.featChoices = Object.values(groups).map(g => ({label:g[0].name, options:present(g[0]), levels:g.map(c=>c.level)})).filter(g => g.options.length);
+  }
   function etClasses(data, SRC){
     // All subclasses from THIS book, grouped by base-class name — even when the base class lives in another
     // book (e.g. TCE's Order of Scribes belongs to the PHB Wizard). mergeBook attaches these to the class.
-    const subMap = {};
+    const subMap = {}, subAug = {};
+    // Group THIS book's subclass features by (className, shortName) — NOT filtered by subclassSource, so a book that
+    // ADDS options to another book's subclass (e.g. SCAG's Elk/Tiger for PHB's Totem Warrior) is captured too.
+    const featsBySub = {};
+    (data.subclassFeature||[]).forEach(f => {
+      if(f.source !== SRC || !f.className || !f.subclassShortName || !f.name) return;
+      const key = f.className + " " + f.subclassShortName;
+      (featsBySub[key] = featsBySub[key] || []).push(f);
+    });
+    const buildFeatsChoosers = rawFeats => {            // raw 5etools feature entries → {features, choosers} (un-normalized; normalizeSubclass tags them)
+      const choosers = [];
+      rawFeats.forEach(f => { const opts = _chooserOptions(f.entries||[]); if(opts.length) choosers.push({name:f.name, level:f.level||1, options:opts}); });
+      const features = rawFeats.map(f => ({name:f.name||"", level:f.level||1, text:etText(f.entries||[])}))
+        .sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
+      return {features, choosers};
+    };
+    const definedHere = new Set();
     (data.subclass||[]).forEach(s => {
       if(s.source !== SRC || !s.className) return;
-      const short = s.shortName||s.name;
+      const short = s.shortName||s.name, key = s.className + " " + short;
+      definedHere.add(key);
       const arr = subMap[s.className] = subMap[s.className] || [];
       if(arr.some(x => x.short === short)) return;
-      const rawFeats = (data.subclassFeature||[])
-        .filter(f => f.source === SRC && f.className === s.className && f.subclassShortName === short && (f.subclassSource||SRC) === SRC && f.name);
-      const choosers = [];                              // features that offer a "choose one" set (Totem Spirit, Aspect of the Beast, …)
-      const optionNames = new Set();
-      rawFeats.forEach(f => { const opts = _chooserOptions(f.entries||[]); if(opts.length){ choosers.push({name:f.name, level:f.level||1, options:opts}); opts.forEach(n => optionNames.add(n)); } });
-      const features = rawFeats
-        .map(f => { const o = {name:f.name||"", level:f.level||1, text:etText(f.entries||[])};
-          if(optionNames.has(f.name)){ o.opt = f.name;             // a per-option feature (e.g. "Bear") — shown only when chosen
-            const g = choosers.find(c => c.level === o.level); if(g) o.optGroup = g.name; }
-          return o; })
-        .sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
-      let featChoices = [];                             // pickers surfaced in the wizard; collapse same-option choosers into one (Totem Warrior's 3 levels → one Totem Spirit pick)
-      if(choosers.length){
-        const present = c => c.options.filter(n => rawFeats.some(f => f.name === n));   // only options whose feature actually loaded
-        const groups = {}; choosers.slice().sort((a,b)=>a.level-b.level).forEach(c => { const k = present(c).slice().sort().join("|"); (groups[k] = groups[k] || []).push(c); });
-        featChoices = Object.values(groups).map(g => ({label:g[0].name, options:present(g[0]), levels:g.map(c=>c.level)})).filter(g => g.options.length);
-      }
+      const {features, choosers} = buildFeatsChoosers(featsBySub[key] || []);
       const spells = [], expanded = [];               // always-prepared (domain/oath/…) vs. expanded (Warlock patron) options
       (s.additionalSpells||[]).forEach(blk => {
         const prep = blk.prepared || blk.known || blk.innate || {};
         for(const lv in prep){ const names = []; _collectSpellNames(prep[lv], names);   // prep[lv] may be an array, or a nested object (e.g. Sun Soul's {resource:{2:[...]}}) — walk either
-          names.forEach(nm => spells.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0})); }
+          names.forEach(nm => spells.push({n:_titlecase(_clean(nm)), l:parseInt(lv.replace(/^s/i,""),10)||0})); }
         const exp = blk.expanded || {};
         for(const lv in exp){ const names = []; _collectSpellNames(exp[lv], names);
-          names.forEach(nm => expanded.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0})); }
+          names.forEach(nm => expanded.push({n:_titlecase(_clean(nm)), l:parseInt(lv.replace(/^s/i,""),10)||0})); }
       });
-      arr.push({name:s.name, short, features, spells, expanded, featChoices});
+      const sub = {name:s.name, short, features, choosers, spells, expanded, featChoices:[]};
+      normalizeSubclass(sub);
+      arr.push(sub);
     });
+    // Cross-book augmentations: feature groups whose subclass isn't defined in THIS book → attach to the base at merge time.
+    for(const key in featsBySub){
+      if(definedHere.has(key)) continue;
+      const [className, short] = key.split(" ");
+      const {features, choosers} = buildFeatsChoosers(featsBySub[key]);
+      (subAug[className] = subAug[className] || {})[short] = {features, choosers};
+    }
     const classes = (data.class||[]).filter(c => c.source === SRC).map(c => {
       const sp = c.startingProficiencies || {};
       const {fixed:skFixed, choose:skChoose} = etSkills(sp.skills);
@@ -1967,11 +2100,15 @@
           const n = parseInt(String(f.classFeature).split("|")[3], 10); subLvl = isNaN(n) ? null : n; break;
         }
       }
+      const mc = c.multiclassing || {};                  // multiclass prerequisite + the limited proficiencies you gain when multiclassing in
+      const pg = mc.proficienciesGained || null;
+      const mcProf = pg ? etProfBlock({armorProficiencies:pg.armor, weaponProficiencies:pg.weapons, toolProficiencies:pg.tools, skillProficiencies:pg.skills}) : null;
       return {name:c.name, hd:(c.hd||{}).faces, saves:c.proficiency||[], skillChoose:skChoose, skillsFixed:skFixed, prof:clsProf,
         armor:etProfList(sp.armor), weapons:etProfList(sp.weapons), casterAbility:c.spellcastingAbility, casterProgression:c.casterProgression,
-        cantrips:c.cantripProgression||null, spellsKnown:c.spellsKnownProgression||null, equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl, subclasses:(subMap[c.name]||[])};
+        cantrips:c.cantripProgression||null, spellsKnown:c.spellsKnownProgression||null, equip, features, subclassTitle:c.subclassTitle||"", subclassLevel:subLvl,
+        mcReq:mc.requirements||null, mcProf, subclasses:(subMap[c.name]||[])};
     });
-    return {classes, subclasses: subMap};
+    return {classes, subclasses: subMap, subAug};
   }
   function etFeats(raw, SRC){ return (raw.feat||[]).filter(f => f.source === SRC).map(f => ({name:f.name, text:etText(f.entries||[]), ability:etFeatAbility(f.ability), saves:etFeatSaves(f.savingThrowProficiencies), prof:etProfBlock(f)})); }
   function etRange(r){ if(!r || typeof r !== "object") return String(r==null?"":r); const d = r.distance||{}; if(r.type === "point" && d) return ((d.amount||"")+" "+(d.type||"")).trim(); return r.type||""; }
@@ -2169,7 +2306,7 @@
     const bestiary = await J("bestiary/bestiary-"+srcCode.toLowerCase()+".json").catch(()=>({}));   // monsters (Monster Manual etc.)
     const fluff = await J("bestiary/fluff-bestiary-"+srcCode.toLowerCase()+".json").catch(()=>({})); // monster art (images)
     const monsters = etMonsters(bestiary,srcCode); etAttachMonsterImages(monsters, fluff, srcCode);
-    return {races:etRaces(races,srcCode), backgrounds:etBackgrounds(bg,srcCode), classes:cls.classes, subclasses:cls.subclasses,
+    return {races:etRaces(races,srcCode), backgrounds:etBackgrounds(bg,srcCode), classes:cls.classes, subclasses:cls.subclasses, subAug:cls.subAug,
       feats:etFeats(feats,srcCode), spells:etSpells(spellsData,srcCode), classSpells:etClassSpells(spellsData,sourcesForSrc,srcCode),
       monsters,
       acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
@@ -2190,21 +2327,42 @@
         else { idx.set(x.name, into[cat].length); into[cat].push(x); }
       });
     });
-    // classes: overwrite base fields but UNION subclasses, so a later book's subclasses aren't lost
-    const unionSubs = (target, extra) => {                           // append subclasses not already present (by short)
+    // classes: overwrite base fields but UNION subclasses. A later book either adds a NEW subclass or AUGMENTS an
+    // existing one (e.g. SCAG adds Elk/Tiger totem features to PHB's Totem Warrior) — so merge, don't just skip dupes.
+    const mergeSubInto = (target, src) => {                          // fold src subclass content into target (same short), then re-derive tags
+      const fkey = f => (f.name||"")+"@"+(f.level||1);
+      const fseen = new Set((target.features||[]).map(fkey));
+      (src.features||[]).forEach(f => { if(!fseen.has(fkey(f))){ (target.features = target.features||[]).push(f); fseen.add(fkey(f)); } });
+      const ckey = c => (c.name||"")+"@"+(c.level||1);
+      const cseen = new Set((target.choosers||[]).map(ckey));
+      (src.choosers||[]).forEach(c => { if(!cseen.has(ckey(c))){ (target.choosers = target.choosers||[]).push(c); cseen.add(ckey(c)); } });
+      const skey = sp => (sp.n||"")+"@"+(sp.l||0);
+      ["spells","expanded"].forEach(k => { const ss = new Set((target[k]||[]).map(skey)); (src[k]||[]).forEach(sp => { if(!ss.has(skey(sp))){ (target[k] = target[k]||[]).push(sp); ss.add(skey(sp)); } }); });
+      (target.features||[]).sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
+      normalizeSubclass(target);
+    };
+    const unionSubs = (target, extra) => {                           // add new subclasses; merge into existing ones by short
       target.subclasses = target.subclasses || [];
-      const shorts = new Set(target.subclasses.map(s => s.short));
-      (extra||[]).forEach(s => { if(!shorts.has(s.short)){ target.subclasses.push(s); shorts.add(s.short); } });
+      const byShort = new Map(target.subclasses.map(s => [s.short, s]));
+      (extra||[]).forEach(s => { const ex = byShort.get(s.short); if(ex) mergeSubInto(ex, s); else { target.subclasses.push(s); byShort.set(s.short, s); } });
     };
     into.classes = into.classes || [];
     { const idx = new Map(into.classes.map((x,i) => [x.name, i]));
       (add.classes||[]).forEach(x => {
         if(idx.has(x.name)){ const ex = into.classes[idx.get(x.name)]; const keep = ex.subclasses || [];
-          into.classes[idx.get(x.name)] = {...x}; unionSubs(into.classes[idx.get(x.name)], keep); unionSubs(into.classes[idx.get(x.name)], x.subclasses);
+          into.classes[idx.get(x.name)] = {...x, subclasses:[]}; unionSubs(into.classes[idx.get(x.name)], keep); unionSubs(into.classes[idx.get(x.name)], x.subclasses);
         } else { idx.set(x.name, into.classes.length); into.classes.push(x); }
       });
       // cross-book subclasses (e.g. TCE's Order of Scribes for the PHB Wizard) attach to the existing class
       for(const cn in (add.subclasses||{})){ const cls = into.classes.find(c => c.name === cn); if(cls) unionSubs(cls, add.subclasses[cn]); }
+      // cross-book AUGMENTATIONS (features added to a subclass defined in another book); stash + flush so load order doesn't matter
+      into._meta.pendingAug = into._meta.pendingAug || [];
+      for(const cn in (add.subAug||{})) for(const short in add.subAug[cn]) into._meta.pendingAug.push({cn, short, aug:add.subAug[cn][short]});
+      into._meta.pendingAug = into._meta.pendingAug.filter(p => {
+        const cls = into.classes.find(c => c.name === p.cn); if(!cls) return true;            // base class not loaded yet → keep waiting
+        const sub = (cls.subclasses||[]).find(s => s.short === p.short); if(!sub) return true;  // base subclass not loaded yet → keep waiting
+        mergeSubInto(sub, p.aug); return false;
+      });
     }
     { into.acItems = into.acItems || [];
       const idx = new Map(into.acItems.map((x,i) => [x.n, i]));
@@ -2236,6 +2394,7 @@
       if(into.toolCats[cat]) into.toolCats[cat].sort();
     });
     if(bookName && !into._meta.books.includes(bookName)) into._meta.books.push(bookName);
+    into._meta.dataVersion = DATA_VERSION;   // stamp the extractor version so stale localStorage data can be detected after an app update
   }
   const RULESET_2024 = new Set(["XPHB","XDMG","XMM"]);   // 2024 ("One D&D") core books
   function isBook2024(b){                                 // which ruleset a 5etools book belongs to
@@ -2250,7 +2409,7 @@
     const sel = $("book-select"); if(!sel) return;
     const rbtn = $("btn-reload-all");
     if(rbtn) rbtn.style.display = loadedBooks().length ? "" : "none";   // one-click reload-all, shown only when something is loaded
-    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    const base = serverBase();
     sel.innerHTML = '<option value="">Loading book list…</option>'; sel.disabled = true;
     const opt = b => `<option value="${esc(b.id||b.source)}" data-name="${esc(b.name||b.id)}">${esc(b.name||b.id)}</option>`;
     try{
@@ -2262,8 +2421,9 @@
       sel.disabled = !fresh.length;
     }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; }
   }
-  async function doLoadBook(srcCode, bookName, reloading, btn){   // shared by the load + reload pickers
-    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+  function finalizeSourceLoad(){ _spellIndex = null; bakeSourceData(); const ok = persistSources(); refreshAfterData(); return ok; }   // bake + persist + re-render once after a load
+  async function doLoadBook(srcCode, bookName, reloading, btn, defer){   // shared by the load + reload pickers; defer=true skips the (expensive) finalize so a batch can do it once
+    const base = serverBase();
     const orig = btn ? btn.textContent : "";
     if(btn){ btn.disabled = true; btn.textContent = reloading ? "Reloading…" : "Loading…"; }
     try{
@@ -2272,11 +2432,9 @@
       DATA._meta.raw = DATA._meta.raw || {}; DATA._meta.raw[bookName] = data;   // keep per-book copy so it can be filtered out later
       if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== bookName);   // an explicit load (re)enables the book
       mergeBook(DATA, data, bookName);
-      _spellIndex = null;
-      bakeSourceData();   // keep the in-document data block in sync so saves carry the books
-      if(persistSources() === false) flashStatus(bookName+" loaded (too large to save — stays this session)");
-      refreshAfterData();
-      flashStatus(bookName + (reloading ? " reloaded (data refreshed)" : " loaded — use “Save data file” to bake it into your sheet"));
+      if(defer) return;   // batch loader finalizes once at the end
+      if(finalizeSourceLoad() === false) flashStatus(bookName+" loaded (too large to save — stays this session)");
+      else flashStatus(bookName + (reloading ? " reloaded (data refreshed)" : " loaded — use “Save data file” to bake it into your sheet"));
     }catch(e){ flashStatus((reloading?"Reload":"Load")+" failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Load"; } }
   }
@@ -2288,7 +2446,7 @@
   }
   async function reloadAllBooks(silent){   // one click: re-fetch every loaded book to refresh its (per-book) data, then re-apply the filter
     const names = loadedBooks(); if(!names.length){ if(!silent) flashStatus("No loaded books to reload"); return false; }
-    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    const base = serverBase();
     const btn = $("btn-reload-all"), orig = btn ? btn.textContent : "";
     if(btn){ btn.disabled = true; btn.textContent = "Reloading…"; }
     try{
@@ -2307,7 +2465,7 @@
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Reload all loaded sources"; } }
   }
   async function loadAllBooks(){   // one click: import every available 2014 book not already loaded
-    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    const base = serverBase();
     const btn = $("btn-loadall"), orig = btn ? btn.textContent : "";
     if(btn){ btn.disabled = true; btn.textContent = "Loading…"; }
     try{
@@ -2318,9 +2476,10 @@
       let n = 0;
       for(const b of fresh){
         if(btn) btn.textContent = `Loading ${n+1}/${fresh.length}…`;
-        await doLoadBook(b.id||b.source, b.name||b.id, false, null);   // captures raw, merges, persists, refreshes each time
+        await doLoadBook(b.id||b.source, b.name||b.id, false, null, true);   // defer: merge only; finalize once below (avoids O(books²) re-bake/persist/render)
         n++;
       }
+      finalizeSourceLoad();   // single bake + persist + re-render for the whole batch
       flashStatus("Loaded " + n + " book" + (n===1?"":"s") + " — use “Save data file” to bake them into your sheet");
     }catch(e){ flashStatus("Load all failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Load all books"; } }
@@ -2480,11 +2639,34 @@
     const row = tbl[L]; if(!row) return {};      // caster, but no slots at this level yet
     const map = {}; row.forEach((c,i) => { if(c) map[i+1] = c; }); return map;
   }
+  function parseClassLevels(str){                // "Fighter 5 (Eldritch Knight), Wizard 3" → [{name,level,sub}]
+    const out = [];
+    String(str||"").split(",").forEach(seg => { const m = seg.match(/^\s*(.+?)\s+(\d+)\s*(?:\(([^)]+)\))?\s*$/);
+      if(m) out.push({name:m[1].trim(), level:parseInt(m[2],10), sub:(m[3]||"").trim()}); });
+    return out;
+  }
+  function multiclassCasterLevel(){              // PHB combined caster level (Warlock pact magic excluded — it's its own pool)
+    let lvl = 0;
+    parseClassLevels($("classlevel").value).forEach(c => {
+      if(["Bard","Cleric","Druid","Sorcerer","Wizard"].includes(c.name)) lvl += c.level;        // full casters
+      else if(["Paladin","Ranger"].includes(c.name)) lvl += Math.floor(c.level/2);              // half casters (round down)
+      else if(c.name === "Artificer") lvl += Math.ceil(c.level/2);                              // Artificer rounds up
+      else if(/eldritch knight|arcane trickster/i.test(c.sub)) lvl += Math.floor(c.level/3);    // one-third casters
+    });
+    return lvl;
+  }
+  function mcSlots(){                            // combined multiclass slot row from SLOTS_FULL, indexed by combined caster level
+    const L = Math.min(20, multiclassCasterLevel()); if(L < 1) return {};
+    const row = SLOTS_FULL[L] || []; const map = {}; row.forEach((c,i) => { if(c) map[i+1] = c; }); return map;
+  }
   function refreshSpellSlots(inst=0){            // auto-fill (and lock) the Total boxes for a known single-class caster
     const cls = sEl(inst,"spellclass").value;
-    // sheet 0 follows the character (multiclass → manual slots); an extra sheet is its own single-class progression at its chosen level
+    // sheet 0 follows the character; an extra sheet is its own single-class progression at its chosen level
     const multi = inst ? false : (((($("classlevel").value||"").match(/[A-Za-z'’][A-Za-z'’\- ]*?\s+\d+/g))||[]).length) > 1;
-    const map = multi ? null : autoSlots(cls, sheetLevel(inst));   // multiclass slots are manual (don't stack cleanly)
+    let map;
+    if(!multi) map = autoSlots(cls, sheetLevel(inst));
+    else if(cls === "Warlock"){ const wl = (parseClassLevels($("classlevel").value).find(x => x.name === "Warlock")||{}).level || 0; map = autoSlots("Warlock", wl); }  // pact magic pool
+    else map = mcSlots();                        // combined PHB multiclass spell slots
     for(let l=1;l<=9;l++){
       const tot = sEl(inst,"slot"+l); if(!tot) continue;
       if(map){ const c = map[l]; tot.value = (c != null) ? String(c) : ""; tot.readOnly = true; }
@@ -2684,6 +2866,8 @@
     if(!m) return null;
     return Math.min(20, Math.max(1, m.reduce((a,b)=>a+parseInt(b,10),0)));
   }
+  let _lastFeatSig = null, _lastLimSig = null;   // change-gates so compute() skips the heavy Feature-card / Limited-Features rebuilds when their inputs are unchanged
+  function equippedSig(){ let s = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(cb && cb.checked && nm && nm.value) s += nm.value + ","; } return s; }
   function compute(){
     // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
     const level = charLevel();
@@ -2711,7 +2895,8 @@
       $("sktot-"+k).textContent = sgn(t);
       if(k === "perception") perceptionTotal = t;
     });
-    $("passive").textContent = (perceptionTotal == null) ? "" : (10 + perceptionTotal);
+    const observant = asiChoices.some(s => (s.feat||"") === "Observant") || /observant/i.test($("senses").value||"");   // Observant: +5 passive Perception
+    $("passive").textContent = (perceptionTotal == null) ? "" : (10 + perceptionTotal + (observant ? 5 : 0));
 
     $("init").textContent = (mods.dex == null) ? "" : sgn(mods.dex + featInitBonus());   // + Alert etc.
 
@@ -2775,6 +2960,17 @@
       if(hitDieFaces != null){                 // Hit Dice box = one die + Con mod (the short-rest heal roll)
         const cm = mods.con;
         $("hitdice").value = "1d" + hitDieFaces + (cm ? (cm > 0 ? "+"+cm : ""+cm) : "");
+      }
+    }
+    // --- Max HP from the per-level records: sum of die rolls + Con per level (Con applied live so it stays correct) ---
+    {
+      const hm = $("hpmax");
+      if(hm){
+        if(hpRolls.length){
+          const con = (mods.con == null) ? 0 : mods.con, lvl = hpRolls.length;
+          hm.value = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*lvl;
+          hm.readOnly = true; hm.title = "Set from HP by level (Create/Edit Character → HP). Con is applied per level.";
+        } else { hm.readOnly = false; hm.removeAttribute("title"); }   // no records → manual entry
       }
     }
 
@@ -2877,14 +3073,22 @@
 
     updateGenStatus();
     updateStepStates();
+    updateSourcesFlag();
     updateAsiFlag();
+    updateDecisionsFlag();
     refreshAtkRows();        // recompute active-weapon attack rows (live with ability/level)
     refreshEquipToggles();   // show the Equipped box on weapon/armor/magic/attunement rows
     refreshEquippedPickers();// Armor + Attunement dropdowns reflect equipped inventory items
     renderAcItems();         // auto AC-bonus items (equipped + attuned) into the Armor card
+    { const hint = $("armor-hint");   // nudge: body armor sits in inventory but no armor is set, so AC is still unarmored
+      if(hint){ const sel = ($("armorsel").value||"").trim(); let found = null;
+        if(!sel) for(let i=0;i<NINV;i++){ const nm = $("invname-"+i), a = nm && armorByName(nm.value); if(a && ["LA","MA","HA"].includes(a.type)){ found = {name:nm.value, equip:!!($("invequip-"+i)||{}).checked}; break; } }
+        if(found){ hint.style.display = ""; hint.textContent = `You have ${found.name} in your inventory but no armor is set — ${found.equip?"":"check its Equipped box, then "}pick it under Armor to apply its AC.`; }
+        else hint.style.display = "none"; } }
     renderContainers();      // container carets, nesting, collapse
-    refreshLimitedFeatures();// auto-add limited-use features / feats / equipped items to the Limited Features card
-    renderFeatureCards();    // render each feature as its own card on the Features page
+    { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig();
+      if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
+    { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
   }
 
@@ -2915,6 +3119,9 @@
     data.hidePortrait = hidePortrait;
     data.variantEncumbrance = variantEncumbrance;
     data.hitDieFaces = hitDieFaces;
+    data.charClasses = charClasses;
+    data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses;   // remember generated content so Edit Character replaces it instead of duplicating
+    data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
     data.asiChoices = asiChoices;
     data.asiFeatsAdded = asiFeatsAdded;
@@ -2986,6 +3193,12 @@
     while(spellSheetKind.length < nSheets) spellSheetKind.push("manual");
     hitDieFaces = (data && typeof data.hitDieFaces === "number") ? data.hitDieFaces : null;
     if(hitDieFaces == null && data){ const m = String(data.hitdice||"").match(/d(\d+)/); if(m) hitDieFaces = +m[1]; }   // legacy "5d8" → 8
+    charClasses = (data && Array.isArray(data.charClasses)) ? data.charClasses : [];
+    genFeatures = (data && Array.isArray(data.genFeatures)) ? data.genFeatures : [];
+    genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
+    genDefenses = (data && Array.isArray(data.genDefenses)) ? data.genDefenses : [];
+    hpMode = (data && data.hpMode) || "manual";
+    hpRolls = (data && Array.isArray(data.hpRolls)) ? data.hpRolls : [];
     speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
     if(speedBase == null && data){ const m = String(data.speed||"").match(/\d+/); if(m) speedBase = +m[0]; }   // legacy "30 ft" → 30
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
@@ -3043,7 +3256,8 @@
   function save(){
     const d = collect();
     const portrait = d.portrait; delete d.portrait;          // keep the heavy image out of the main key
-    try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){}
+    try{ localStorage.setItem(KEY, JSON.stringify(d)); }
+    catch(e){ flashStatus("⚠ Out of browser storage — NOT autosaved. Use Save to download a copy and keep this character."); return; }
     try{
       if(portrait) localStorage.setItem(KEY+"_img", JSON.stringify(portrait));
       else localStorage.removeItem(KEY+"_img");
@@ -3117,8 +3331,11 @@
     if(t.classList.contains("ab-score"))      manualScores[t.dataset.ab] = t.value;
     else if(t.classList.contains("ab-base")){ baseVals[t.dataset.ab] = (t.value === "" ? null : num(t.value)); refreshArraySelects(); }
     else if(t.classList.contains("ab-bonus")) bonusVals[t.dataset.cat][t.dataset.ab] = num(t.value,0);
-    save(); compute();
+    queueSave(); compute();   // debounce the localStorage write off the keystroke path; compute() stays live for the UI
   }
+  let _saveTimer = null;
+  function queueSave(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(()=>{ _saveTimer = null; save(); }, 400); }
+  function flushSave(){ if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; save(); } }   // persist a pending debounced write immediately (tab hide/close)
   function autoGrow(ta){
     if(!ta) return;
     ta.style.height = "auto";                                             // grow to fit content on screen
@@ -3222,42 +3439,132 @@
     if(!DATA){ if(btn){ btn.disabled=true; btn.title="Import sourcebook data to enable character creation"; } return; }
     if(btn){ btn.disabled=false; btn.title=""; }
     $("wiz-race").innerHTML  = `<option value="">—</option>` + byName(DATA.races).map(r=>optTag(r.name,r.name)).join("");
-    $("wiz-class").innerHTML = `<option value="">—</option>` + byName(DATA.classes).map(c=>optTag(c.name,c.name)).join("");
     $("wiz-bg").innerHTML    = `<option value="">—</option>` + byName(DATA.backgrounds).map(b=>optTag(b.name,b.name)).join("");
-    populateSubclass("");
+    renderClassList();
   }
   function populateArmor(){
     refreshEquippedPickers();   // Armor + Attunement dropdowns come from equipped inventory items
     renderAcItems();            // AC-bonus items come from equipped inventory too
   }
-  function populateSubclass(clsName){
-    const sel=$("wiz-subclass"), wrap=$("wiz-subclass-wrap"); if(!sel || !DATA) return;
-    const cls=findBy(DATA.classes,clsName), subs=cls?cls.subclasses:[];
-    const subLvl = (cls && cls.subclassLevel) || 1;                       // level the class gains its subclass
-    const lvl = Math.min(20, Math.max(1, num($("wiz-level").value, 1)));
-    if(!subs.length || lvl < subLvl){                                     // no subclasses, or level too low → hide entirely
-      if(wrap) wrap.hidden = true;
-      sel.innerHTML = `<option value=""></option>`; sel.value = ""; sel.disabled = true;
-      return;
-    }
-    if(wrap) wrap.hidden = false;
-    sel.innerHTML = `<option value="">${esc(cls.subclassTitle||"Subclass")}</option>` + byName(subs).map(s=>optTag(s.name,s.name)).join("");
-    sel.disabled = false;
-    renderSubChoices();
+  // ===== Multiclass class builder (wizard step 2) =====
+  let wizClasses = [];          // [{name, level, sub, subOpts:{label:value}}] — [0] is the initial class
+  let wizFocus = "";            // class name currently shown in the detail panel
+  function buildClassLevelStr(list){ return (list||[]).map(c => `${c.name} ${c.level}${c.sub?` (${c.sub})`:""}`).join(", "); }
+  function reqStr(req){          // "Str 13", "Str 13 or Dex 13", "Str 13 and Cha 13"
+    if(!req) return "";
+    const one = o => Object.keys(o).filter(k => ABBR[k]).map(k => ABBR[k]+" "+o[k]).join(" and ");
+    return (req.or ? req.or.map(one) : [one(req)]).filter(Boolean).join(" or ");
   }
-  function renderSubChoices(){                          // pickers for subclass "choose one" sets (e.g. Totem Warrior → Totem Spirit)
-    const wrap = $("wiz-subchoice-wrap"); if(!wrap || !DATA) return;
-    const cls = findBy(DATA.classes, $("wiz-class").value), subName = $("wiz-subclass").value;
-    const sub = cls && subName ? (cls.subclasses||[]).find(x => x.name === subName) : null;
-    const lvl = Math.min(20, Math.max(1, num($("wiz-level").value, 1)));
-    const active = ((sub && sub.featChoices) || []).filter(c => lvl >= Math.min.apply(null, c.levels || [1]));
-    if(!active.length){ wrap.hidden = true; wrap.innerHTML = ""; return; }
-    wrap.hidden = false;
-    wrap.innerHTML = active.map((c,i) =>
-      `<label class="lbl" style="margin-top:10px">${esc(c.label)}</label>`+
-      `<select class="wiz-subchoice" data-group="${i}"><option value="">Choose ${esc(c.label)}…</option>`+
-      c.options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("")+`</select>`
-    ).join("");
+  function mcReqMet(req){        // does the wizard's current ability spread satisfy this multiclass prereq?
+    if(!req) return true;
+    const ok = o => Object.keys(o).filter(k => ABBR[k]).every(k => (finalScore(k) || 0) >= o[k]);
+    return req.or ? req.or.some(ok) : ok(req);
+  }
+  function syncBuildToSheet(){   // keep #classlevel live so the existing ASI engine + flag work while building
+    $("classlevel").value = buildClassLevelStr(wizClasses);
+    syncAsiSlots(); updateAsiFlag();
+  }
+  function renderBuilder(){ renderClassList(); renderClassDetail(wizFocus); renderChosenClasses(); renderHpPanel(); renderWizPending(); }
+  function renderHpPanel(){
+    const box = $("wiz-hp"); if(!box) return;
+    if(!wizClasses.length){ box.innerHTML = ""; return; }
+    syncHpToBuild();                                          // size records to the current build
+    const info = []; wizClasses.forEach(w => { const c = findBy(DATA.classes, w.name), die = (c && c.hd) || 8; for(let i=0;i<w.level;i++) info.push({die, cls:w.name}); });
+    const con = (finalScore("con") == null) ? 0 : modOf("con");
+    const modes = [["max","Max"],["average","Average"],["rolled","Rolled"],["manual","Manual"]];
+    const rows = info.map((x,i) => {
+      const v = hpRolls[i] != null ? hpRolls[i] : "";
+      const ro = (hpMode !== "manual" || i === 0) ? " readonly" : "";   // level 1 is fixed (max); computed modes are read-only
+      return `<div class="hp-row${i===0?" lvl1":""}"><span class="lv">Lvl ${i+1}</span><span class="die">d${x.die} ${esc(x.cls)}</span>`+
+        `<input type="number" class="hp-roll" data-i="${i}" min="1" max="${x.die}" value="${v}"${ro}> <span class="wiz-hint" style="margin:0">${con>=0?"+":""}${con} → ${(+v||0)+con}</span></div>`;
+    }).join("");
+    const total = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*hpRolls.length;
+    box.innerHTML = `<label class="lbl">Hit Points <span class="wiz-hint" style="font-weight:400; display:inline">— level 1 is max (first class); Con (${con>=0?"+":""}${con}) is added each level</span></label>`+
+      `<div class="hp-modes">`+modes.map(([m,lbl]) => `<button type="button" class="btn hp-mode${hpMode===m?" active":""}" data-mode="${m}">${lbl}</button>`).join("")+`</div>`+
+      (hpMode==="rolled" ? `<button type="button" class="btn hp-reroll" style="margin-bottom:6px">Re-roll levels 2+</button>` : "")+
+      `<div class="hp-rows">${rows}</div>`+
+      `<div class="hp-total">Max HP: ${total}</div>`;
+  }
+  function renderClassList(){
+    const box = $("wiz-class-list"); if(!box || !DATA) return;
+    box.innerHTML = byName(DATA.classes).map(c =>
+      `<button type="button" class="wiz-cls${c.name===wizFocus?' active':''}" data-cls="${esc(c.name)}">${esc(c.name)}</button>`).join("");
+  }
+  function renderClassDetail(name){
+    const box = $("wiz-class-detail"); if(!box) return;
+    const c = name && findBy(DATA.classes, name);
+    if(!c){ box.innerHTML = `<p class="wiz-hint">Pick a class on the left to see its full progression, then add it.</p>`; return; }
+    const isInitial = wizClasses.length === 0, already = wizClasses.some(w => w.name === name);
+    const lines = [];
+    if(c.skillChoose) lines.push(`Skills: choose ${c.skillChoose.count}${(c.skillChoose.from&&c.skillChoose.from.length)?" ("+c.skillChoose.from.map(_titlecase).join(", ")+")":" from any"}`);
+    if(c.prof){ if(c.prof.armor) lines.push("Armor: "+c.prof.armor.join(", ")); if(c.prof.weapons) lines.push("Weapons: "+c.prof.weapons.join(", ")); if(c.prof.tools) lines.push("Tools: "+c.prof.tools.join(", ")); }
+    if(c.casterAbility) lines.push(`Spellcasting: ${ABBR[c.casterAbility]||c.casterAbility} (${c.casterProgression||"?"})`);
+    if(c.mcReq) lines.push("Multiclass req: "+reqStr(c.mcReq));
+    const byLvl = {}; (c.features||[]).forEach(f => { (byLvl[f.level||1] = byLvl[f.level||1] || []).push(f); });
+    let table = "";
+    for(let L=1; L<=20; L++){ const fs = byLvl[L]; if(!fs) continue;
+      table += `<p class="wiz-cd-lvl"><b>Lvl ${L}</b><br>` + fs.map(f =>
+        `<span class="wiz-cd-feat">${esc(f.name)}<span class="t">${esc(f.text||"")}</span></span>`).join("") + `</p>`; }
+    const blocked = !isInitial && c.mcReq && !mcReqMet(c.mcReq);
+    const err = blocked ? `<p class="wiz-cd-err">Requires ${esc(reqStr(c.mcReq))} to multiclass into ${esc(c.name)}.</p>` : "";
+    const btn = already ? `<button class="btn" type="button" disabled>Already added</button>`
+      : `<button class="btn primary wiz-add-class" type="button" data-cls="${esc(c.name)}"${blocked?" disabled":""}>Add ${esc(c.name)}${isInitial?" (initial class)":""}</button>`;
+    box.innerHTML = `<div class="wiz-cd-head"><b>${esc(c.name)}</b> — Hit die d${esc(c.hd)} · Saves ${esc((c.saves||[]).map(s=>ABBR[s]||s).join(", "))}`+
+      (lines.length?"<br>"+lines.map(esc).join("<br>"):"")+`</div>${err}<div>${btn}</div>`+
+      `<div class="wiz-cd-table">${table||'<span class="wiz-hint">No features listed for the loaded sources.</span>'}</div>`;
+  }
+  function addClassToBuild(name){
+    const c = findBy(DATA.classes, name); if(!c) return;
+    if(wizClasses.some(w => w.name === name)) return;
+    if(wizClasses.length && c.mcReq && !mcReqMet(c.mcReq)){ renderClassDetail(name); return; }   // prereq not met → blocked (detail shows the error)
+    wizClasses.push({name, level:1, sub:"", subOpts:{}});
+    if(!hpRolls.length && hpMode === "manual") hpMode = "average";   // sensible HP default once a class exists (user can switch to Max/Rolled/Manual)
+    syncBuildToSheet(); renderBuilder();
+  }
+  function renderChosenClasses(){
+    const box = $("wiz-chosen"); if(!box) return;
+    if(!wizClasses.length){ box.innerHTML = `<p class="wiz-hint">No class added yet — your first class is your initial class.</p>`; return; }
+    box.innerHTML = `<label class="lbl">Your classes</label>` + wizClasses.map((w,i) =>
+      `<div class="wiz-chosen-row" data-i="${i}"><span class="nm">${esc(w.name)}</span>`+
+      (i===0?`<span class="badge">initial</span>`:"")+
+      `<span>Level</span><input type="number" class="wiz-cls-lvl" data-i="${i}" min="1" max="20" value="${w.level}">`+
+      `<button type="button" class="x wiz-cls-rm" data-i="${i}" title="Remove">✕</button></div>`).join("");
+  }
+  // ----- Pending decisions (subclass / subclass option / ASI / spells) -----
+  function pendingFor(list){    // structural decisions due across a class build (subclass + options); used by builder AND main-sheet flag
+    const out = [];
+    (list||[]).forEach((w,i) => {
+      const c = findBy(DATA.classes, w.name); if(!c) return;
+      const subLvl = c.subclassLevel || 1;
+      if((c.subclasses||[]).length && w.level >= subLvl && !w.sub)
+        out.push({kind:"subclass", i, label:`${w.name}: choose ${c.subclassTitle||"subclass"}`, cls:c});
+      if(w.sub){ const sub = (c.subclasses||[]).find(x => x.name === w.sub);
+        ((sub && sub.featChoices) || []).forEach(g => {
+          if(w.level >= Math.min.apply(null, g.levels||[1]) && !(w.subOpts||{})[g.label])
+            out.push({kind:"option", i, label:`${w.sub}: choose ${g.label}`, group:g}); }); }
+    });
+    return out;
+  }
+  function renderWizPending(){
+    const box = $("wiz-pending"); if(!box) return;
+    const rows = [];
+    pendingFor(wizClasses).forEach(p => {
+      if(p.kind === "subclass"){
+        rows.push(`<div class="wiz-pend-row"><p class="lbl2">${esc(p.label)}</p>`+
+          `<select class="wiz-pend-sub" data-i="${p.i}"><option value="">Choose…</option>`+
+          byName(p.cls.subclasses).map(s=>`<option value="${esc(s.name)}">${esc(s.name)}</option>`).join("")+`</select></div>`);
+      } else if(p.kind === "option"){
+        rows.push(`<div class="wiz-pend-row"><p class="lbl2">${esc(p.label)}</p>`+
+          `<select class="wiz-pend-opt" data-i="${p.i}" data-group="${esc(p.group.label)}"><option value="">Choose…</option>`+
+          p.group.options.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")+`</select></div>`);
+      }
+    });
+    const pendingAsi = asiChoices.filter(s => !asiSlotComplete(s)).length;
+    if(pendingAsi) rows.push(`<div class="wiz-pend-row"><p class="lbl2">${pendingAsi} Ability Score Improvement${pendingAsi>1?"s":""} / feat${pendingAsi>1?"s":""} due</p>`+
+      `<button type="button" class="btn wiz-pend-asi">Assign…</button></div>`);
+    wizClasses.forEach(w => { const c = findBy(DATA.classes, w.name);
+      if(c && c.casterAbility) rows.push(`<div class="wiz-pend-row"><p class="lbl2">${esc(w.name)}: select spells</p><span class="wiz-hint" style="margin:0">on the Spells page</span></div>`); });
+    box.innerHTML = rows.length ? `<p class="wiz-pend-head">Pending decisions (you can proceed without these)</p>` + rows.join("") : "";
   }
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
 
@@ -3375,7 +3682,8 @@
         if(opts.skill){ const b = $("skp-"+opts.skill); if(b) b.checked = true; }  // Custom Lineage: chose a skill proficiency
       }
       if(r.resist && r.resist.length){                // race damage resistances → Resistances/Immunities/Defenses box
-        const n = $("defnotes"); if(n){ const line = "Resistance: " + r.resist.join(", "); n.value = n.value.trim() ? n.value+"\n"+line : line; autoGrow(n); }
+        const n = $("defnotes"); if(n){ const line = "Resistance: " + r.resist.join(", ");
+          if(!n.value.includes(line)){ n.value = n.value.trim() ? n.value+"\n"+line : line; autoGrow(n); } }   // idempotent — don't duplicate on Edit
       }
       if(r.traits && r.traits.length && !$("features").value.trim())
         $("features").value = r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n");
@@ -3388,21 +3696,6 @@
       const fixed = ABKEYS.filter(k=>bonusVals.racial[k]).map(k=>ABBR[k]+" +"+bonusVals.racial[k]).join(", ");
       setNote(`Applied ability bonuses: ${fixed||"none fixed"}.` +
               (choose?`\nAlso choose +${choose.amount||1} to ${choose.count} ability score(s) — set under the hood (Racial column).`:""));
-    } else setNote("");
-  }
-  function applyClass(name){
-    populateSubclass(name);
-    const c = DATA && findBy(DATA.classes,name);
-    if(c){
-      const lvl = charLevel();
-      $("classlevel").value = name+" "+lvl;
-      ABKEYS.forEach(k=>{ const box=$("savep-"+k); if(box) box.checked = c.saves.includes(k); });
-      if(c.hd){ hitDieFaces = c.hd; $("hd-total").value = lvl; }   // Hit Dice box ("1dX+CON") is built in compute()
-      applyProficiencies(c.prof, name);                // class tools (Rogue thieves' tools), armor & weapon proficiencies
-      let n = `Saves: ${c.saves.map(s=>ABBR[s]).join(", ")} · Hit die d${c.hd}.`;
-      if(c.skillChoose) n += `\nClass skills: choose ${c.skillChoose.count} from ${c.skillChoose.from.join(", ")}.`;
-      if(c.casterAbility) n += `\nSpellcaster: ${ABBR[c.casterAbility]} (${c.casterProgression}).`;
-      setNote(n);
     } else setNote("");
   }
   function applyBackground(name){
@@ -3462,7 +3755,7 @@
   // Fetch a monster's art from the loaded 5etools server and set it as the companion's portrait (data URL).
   async function fetchMonsterPortrait(c, m){
     if(!m || !m.img) return;
-    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    const base = serverBase();
     const url = base.replace(/\/+$/,"") + "/img/" + m.img.split("/").map(encodeURIComponent).join("/");
     try{
       const r = await fetch(url); if(!r.ok) return;
@@ -3550,12 +3843,14 @@
     $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
     if(wizStep === 0) renderRaceChoices();
     if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial
+    if(wizStep === 2){ syncBuildToSheet(); renderBuilder(); }   // multiclass builder (also re-validates prereqs against the abilities just set)
     if(wizStep === 3) renderWizSkills();
     if(wizStep === 4) renderWizEquip();
     if(wizStep === 5) updateCustomBgVisibility();
+    wireLabels($("wizard"));   // associate any labels in the freshly-rendered step
   }
   function markCharacterCreated(){ const b = $("btn-create"); if(b) b.textContent = characterCreated ? "Edit Character" : "Create Character"; }
-  function wizClass(){ return DATA && findBy(DATA.classes, $("wiz-class").value); }
+  function wizClass(){ return (DATA && wizClasses[0]) ? findBy(DATA.classes, wizClasses[0].name) : null; }   // the initial class drives the Skills + Equipment steps
   function renderWizSkills(){
     const c = wizClass(), box = $("wiz-skills"), hint = $("wiz-skills-hint"), ch = c && c.skillChoose;
     if(!ch || !ch.count){ box.innerHTML = ""; hint.textContent = c ? "This class grants no skill choices." : "Pick a class first."; return; }
@@ -3582,7 +3877,7 @@
   function itemWeight(name){ const w = DATA && DATA.itemWeights; if(!w || !name) return null; const v = w[String(name).trim().toLowerCase()]; return (v == null) ? null : v; }
   // Inventory weight model: the Wt box shows the LINE TOTAL (per-item weight × quantity).
   // The per-item weight is the source of truth, kept in the input's dataset.unit.
-  function rowQty(i){ const qv = $("invqty-"+i).value; return qv === "" ? 1 : (num(qv,1) || 1); }
+  function rowQty(i){ const qv = $("invqty-"+i).value; return qv === "" ? 1 : Math.max(0, num(qv,1)); }   // blank → 1; explicit 0 stays 0 (no phantom weight)
   function rowUnit(i){ const el = $("invwt-"+i); if(!el) return null; const v = parseFloat(el.dataset.unit); return isNaN(v) ? null : v; }
   function setRowUnit(i, u){ const el = $("invwt-"+i); if(!el) return; if(u == null || isNaN(u)) delete el.dataset.unit; else el.dataset.unit = u; }
   function refreshRowWeight(i){                 // render the line total; never clobber the box while it's being typed in
@@ -3676,6 +3971,37 @@
     });
     res.addEventListener("mousedown", e => { const o = e.target.closest(".opt"); if(o && o.dataset.i != null){ e.preventDefault(); add(matches[+o.dataset.i]); } });   // mousedown beats input blur
     document.addEventListener("click", e => { if(!e.target.closest(".item-search-wrap")) res.hidden = true; });
+  }
+  // The same filtered dropdown as the search box, but on each inventory row's name input (fills THAT row; free text still allowed).
+  function setupInvAutocomplete(){
+    const pop = $("inv-ac"); if(!pop) return;
+    let cur = null, matches = [], sel = -1, suppress = false;
+    const isInv = el => el && el.classList && el.classList.contains("invname-ac");
+    const paint = () => { [...pop.querySelectorAll(".opt")].forEach((o,i) => o.classList.toggle("sel", i === sel)); const s = pop.querySelector(".opt.sel"); if(s) s.scrollIntoView({block:"nearest"}); };
+    const position = () => { if(!cur) return; const r = cur.getBoundingClientRect(); pop.style.left = r.left+"px"; pop.style.top = r.bottom+"px"; pop.style.width = Math.max(r.width, 180)+"px"; };
+    const close = () => { pop.hidden = true; pop.innerHTML = ""; matches = []; sel = -1; cur = null; };
+    function render(inp){
+      cur = inp; const q = (inp.value||"").trim().toLowerCase(); if(!q){ close(); return; }
+      const names = (DATA && DATA.itemNames) || [], starts = [], contains = [];
+      for(const n of names){ const i = n.toLowerCase().indexOf(q); if(i === 0) starts.push(n); else if(i > 0) contains.push(n); }
+      matches = starts.concat(contains).slice(0, 200); sel = matches.length ? 0 : -1;
+      if(!matches.length){ close(); cur = inp; return; }   // no match → hide list but keep the typed (free) text
+      pop.innerHTML = matches.map((n,i) => { const w = itemWeight(n); return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(n)}${w!=null?`<span class="w">${w} lb</span>`:''}</div>`; }).join("");
+      pop.hidden = false; position();
+    }
+    function accept(name){ if(cur && name){ const inp = cur; suppress = true; inp.value = name; inp.dispatchEvent(new Event("input",{bubbles:true})); suppress = false; } close(); }
+    document.addEventListener("input", e => { if(!suppress && isInv(e.target)) render(e.target); });
+    document.addEventListener("focusin", e => { if(isInv(e.target)){ if((e.target.value||"").trim()) render(e.target); } else if(!e.target.closest("#inv-ac")) close(); });
+    document.addEventListener("keydown", e => {
+      if(!cur || pop.hidden || e.target !== cur) return;
+      if(e.key === "ArrowDown"){ e.preventDefault(); sel = Math.min(sel+1, matches.length-1); paint(); }
+      else if(e.key === "ArrowUp"){ e.preventDefault(); sel = Math.max(sel-1, 0); paint(); }
+      else if(e.key === "Enter" && sel >= 0){ e.preventDefault(); accept(matches[sel]); }
+      else if(e.key === "Escape"){ close(); }
+    });
+    pop.addEventListener("mousedown", e => { const o = e.target.closest(".opt"); if(o && o.dataset.i != null){ e.preventDefault(); accept(matches[+o.dataset.i]); } });
+    document.addEventListener("focusout", e => { if(isInv(e.target)) setTimeout(() => { if(!pop.contains(document.activeElement)) close(); }, 120); });
+    window.addEventListener("scroll", () => { if(!pop.hidden) close(); }, true);
   }
   function containerSet(){ const s = new Set(); ((DATA && DATA.containers)||[]).forEach(n => s.add(String(n).toLowerCase())); return s; }
   function rowCont(i){ const el = $("invname-"+i); return (el && el.dataset.cont) || ""; }                    // which container this row is stored in
@@ -3777,6 +4103,26 @@
     if(w.range)     dmg += `, range ${w.range}`;
     return {bonus: sgn(m + pb), dmg: dmg.trim()};
   }
+  function unarmedStrike(){                   // auto Unarmed Strike row: Str (or Monk Dex) + PB; damage 1+mod, or a die from Monk Martial Arts / Tavern Brawler
+    const cls = ($("classlevel").value || "").toLowerCase();
+    const lvl = charLevel(), pb = (lvl == null) ? 0 : 2 + Math.floor((lvl-1)/4);
+    const isMonk = /\bmonk\b/.test(cls);
+    const ab = (isMonk && modOf("dex") > modOf("str")) ? "dex" : "str";   // Martial Arts may use Dex
+    const m = modOf(ab), md = s => s > 0 ? "+"+s : (s < 0 ? ""+s : "");
+    const hasTB = asiChoices.some(s => (s.feat||"") === "Tavern Brawler") || /\btavern brawler\b/i.test($("features").value || "");
+    let die = hasTB ? 4 : 0;                                              // Tavern Brawler: unarmed strikes deal 1d4
+    if(isMonk){ const mm = cls.match(/monk[^\d]*(\d+)/), ml = mm ? parseInt(mm[1],10) : (lvl||1);
+      die = Math.max(die, ml>=17?10 : ml>=11?8 : ml>=5?6 : 4); }          // Martial Arts die scales with monk level
+    const dmg = die ? `1d${die}${m?md(m):""} bludgeoning` : `${1+m} bludgeoning`;
+    return {bonus: sgn(m + pb), dmg};
+  }
+  function ensureUnarmedStrike(){             // every generated character gets Unarmed Strike as the first attack
+    for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(el && (el.dataset.unarmed === "1" || /^unarmed strike$/i.test((el.value||"").trim()))) return; }
+    let idx = ($("atkname-0") && !($("atkname-0").value||"").trim()) ? 0 : -1;
+    if(idx < 0) for(let i=0;i<NATTACKS;i++){ if(!($("atkname-"+i).value||"").trim()){ idx = i; break; } }
+    if(idx < 0) return;
+    $("atkname-"+idx).value = "Unarmed Strike"; $("atkname-"+idx).dataset.unarmed = "1";
+  }
   function setWeaponActive(name, on){        // add/remove this weapon's derived Attacks row (linked via dataset.weapon)
     const lc = String(name||"").trim().toLowerCase();
     let idx = -1;
@@ -3797,6 +4143,11 @@
     for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i);   // drop a derived row whose weapon is no longer equipped (e.g. the item was deleted)
       if(el && el.dataset.weapon && !equipped.has(el.dataset.weapon.toLowerCase())){ el.value = ""; delete el.dataset.weapon; const b=$("atkbonus-"+i), d=$("atkdmg-"+i); if(b) b.value=""; if(d) d.value=""; } }
     for(let i=0;i<NATTACKS;i++){ const nm = $("atkname-"+i); if(!nm) continue;
+      if(nm.dataset.unarmed === "1" || /^unarmed strike$/i.test((nm.value||"").trim())){   // auto Unarmed Strike (re-links by name after reload)
+        nm.dataset.unarmed = "1"; const r = unarmedStrike();
+        [nm, $("atkbonus-"+i), $("atkdmg-"+i)].forEach(el => { if(el) el.readOnly = true; });
+        $("atkbonus-"+i).value = r.bonus; $("atkdmg-"+i).value = r.dmg; continue;
+      }
       const linked = !!nm.dataset.weapon, w = linked ? weaponByName(nm.dataset.weapon) : null;
       [nm, $("atkbonus-"+i), $("atkdmg-"+i)].forEach(el => { if(el) el.readOnly = linked; });
       if(w){ const r = weaponAtkRow(w); $("atkbonus-"+i).value = r.bonus; $("atkdmg-"+i).value = r.dmg; }
@@ -3936,13 +4287,18 @@
   function openWizard(){
     if(!DATA){ alert("Character creation needs sourcebook data. Open Settings → Source books and load a book from your 5etools server (or import a source-data.json)."); return; }
     wizStep = 0; wizEquip = "equipment";
+    wizClasses = (characterCreated && Array.isArray(charClasses) && charClasses.length)   // editing → reload the saved build; fresh → empty
+      ? charClasses.map(c => ({name:c.name, level:c.level, sub:c.sub||"", subOpts:Object.assign({}, c.subOpts||{})}))
+      : [];
+    wizFocus = wizClasses[0] ? wizClasses[0].name : "";
+    if(!characterCreated){ asiChoices = []; asiFeatsAdded = {}; bonusVals.asi = zeroAb(); }   // fresh build starts with no ASI picks (kept across builder edits via live sync)
     $("wiz-cbg-skills").innerHTML = ""; $("wiz-custom-bg").hidden = true;      // fresh custom-bg fields
     document.querySelectorAll(".cbg-tl").forEach(s => s.innerHTML = "");
     $("wiz-cbg-featpick").innerHTML = "";
     ["wiz-cbg-featname","wiz-cbg-feattext"].forEach(id => { const el=$(id); if(el) el.value=""; });
-    renderWizStep(); $("wizard").classList.add("open");
+    renderWizStep(); $("wizard").classList.add("open"); focusModal($("wizard"));
   }
-  function closeWizard(){ $("wizard").classList.remove("open"); }
+  function closeWizard(){ $("wizard").classList.remove("open"); restoreFocus(); }
   function raceHint(){
     const r = DATA && findBy(DATA.races, $("wiz-race").value);
     if(!r){ $("wiz-race-hint").textContent = ""; return; }
@@ -4146,13 +4502,14 @@
     }
   }
   function createCharacter(){
-    const name=$("wiz-name").value.trim(), race=$("wiz-race").value, cls=$("wiz-class").value,
-          sub=$("wiz-subclass").value, lvl=Math.min(20,Math.max(1,num($("wiz-level").value,1))), bg=$("wiz-bg").value;
-    const chosenOpts = new Set();                                                // subclass "choose one" picks (e.g. Totem Spirit → Bear) — read NOW, before applyClass rebuilds the wizard selects
-    document.querySelectorAll(".wiz-subchoice").forEach(s => { if(s.value) chosenOpts.add(s.value); });
-    // proficiencies become authoritative for the new build
-    document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
-    asiChoices = []; asiFeatsAdded = {}; bonusVals.asi = zeroAb();   // new build → unassigned ASIs, flagged for the player
+    const name=$("wiz-name").value.trim(), race=$("wiz-race").value, bg=$("wiz-bg").value;
+    const list = wizClasses.slice();                                             // the multiclass build; list[0] is the initial class
+    if(!list.length){ wizStep = 2; renderWizStep(); flashStatus("Add at least one class to build a character (or close the wizard for a blank pen-and-paper sheet)."); return; }
+    const editing = characterCreated;                                            // Edit Character (re-apply) vs. a fresh build
+    if(editing){ _removeBlocks("features", genFeatures); _removeLines("proficiencies", genProf); _removeLines("defnotes", genDefenses); }   // drop last run's generated lines so we REPLACE them, never duplicate
+    const _profBefore = new Set($("proficiencies").value.split("\n"));           // baseline → capture exactly what this run appends to Proficiencies
+    // a fresh build is authoritative for saves/skills; on Edit, leave the player's skill choices intact (saves are re-derived explicitly below)
+    if(!editing) document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
     if(name) $("charname").value = name;
     if(race){
       const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean)};   // keep the Racial column the wizard's Under-the-Hood step already set (incl. the player's choose picks)
@@ -4162,50 +4519,66 @@
       }
       applyRace(race, opts);
     }
-    if(cls){
-      applyClass(cls);
-      const c = findBy(DATA.classes, cls);
-      $("classlevel").value = cls + " " + lvl + (sub ? ` (${sub})` : "");
-      if(c && c.hd){ hitDieFaces = c.hd; $("hd-total").value = lvl; }
-      const subKey = (cls && sub) ? `${cls} (${sub})` : null;                   // subclass casters keyed "Class (Subclass)" (e.g. Monk (Way of Shadow))
-      const spellKey = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[cls] ? cls : null);
-      if(spellKey){ $("spellclass").value = spellKey; renderSpellStyle(true, 0); }   // tailor the (primary) spell sheet
-      document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // chosen class skills
-      if(c && c.features && c.features.length){                                    // class features up to this level → Features page
-        const cf = c.features.filter(f => (f.level||1) <= lvl);
-        const lines = cf.map(f => `${f.name} (${cls} ${f.level}). ${f.text}`);
-        if(lines.length){ const t = $("features"); const block = lines.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
+    const _featBefore = new Set(_splitBlocks($("features").value));              // racial traits stay in the baseline (applyRace self-guards them); capture only class/subclass/bg feature blocks
+    if(list.length){
+      const c0 = findBy(DATA.classes, list[0].name), totalLevel = list.reduce((a,w)=>a+w.level, 0);
+      $("classlevel").value = buildClassLevelStr(list);
+      if(c0) ABKEYS.forEach(k=>{ const box=$("savep-"+k); if(box) box.checked = c0.saves.includes(k); });   // saving-throw profs come from the INITIAL class only
+      if(list.length === 1 && c0 && c0.hd){ hitDieFaces = c0.hd; $("hd-total").value = list[0].level; }     // single class → "1dX+CON" heal box
+      else { hitDieFaces = null; $("hd-total").value = totalLevel;                                          // multiclass → mixed pools as text (compute() leaves #hitdice alone when faces=null)
+        const pools = list.map(w => { const c=findBy(DATA.classes,w.name); return (c&&c.hd) ? `${w.level}d${c.hd}` : ""; }).filter(Boolean);
+        if(pools.length) $("hitdice").value = pools.join(", "); }
+      list.forEach((w,idx) => { const c=findBy(DATA.classes,w.name); if(c) applyProficiencies(idx===0 ? c.prof : c.mcProf, w.name); });   // initial = full; secondary = multiclass subset
+      document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // initial-class skill picks
+      const casterContrib = w => {                                                // spellcasting "weight" of a class (not raw level) → picks the real primary caster
+        if(["Bard","Cleric","Druid","Sorcerer","Wizard","Warlock"].includes(w.name)) return w.level;
+        if(["Paladin","Ranger"].includes(w.name)) return Math.floor(w.level/2);
+        if(w.name === "Artificer") return Math.ceil(w.level/2);
+        if(/eldritch knight|arcane trickster/i.test(w.sub||"")) return Math.floor(w.level/3);
+        return 0;
+      };
+      let primary=null, primaryScore=-1;                                          // primary spell sheet anchors the DC/attack ability + pre-filled list
+      list.forEach(w => { const subKey = w.sub ? `${w.name} (${w.sub})` : null; const key = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[w.name] ? w.name : null);
+        if(key && casterContrib(w) > primaryScore){ primary = key; primaryScore = casterContrib(w); } });
+      if(primary){ $("spellclass").value = primary; renderSpellStyle(true, 0); }
+      const sInfo = primary && CASTERS[primary], featLines = [];
+      list.forEach(w => {
+        const c = findBy(DATA.classes, w.name); if(!c) return;
+        const cf = (c.features||[]).filter(f => (f.level||1) <= w.level);
+        cf.forEach(f => featLines.push(`${f.name} (${w.name} ${f.level}). ${f.text}`));
         cf.forEach(f => { const s = FEATURE_SENSES[(f.name||"").toLowerCase()]; if(s) addSense(s); });   // e.g. Barbarian Danger Sense
-      }
-      const subObj = (c && sub) ? (c.subclasses||[]).find(x => x.name === sub) : null;   // chosen subclass → its features + always-prepared spells
-      if(subObj){
-        const subFeats = (subObj.features||[]).filter(f => (f.level||1) <= lvl && (!f.opt || chosenOpts.has(f.opt)));   // hide un-chosen option features (other totems)
-        const sfl = subFeats.map(f => `${f.opt ? (f.optGroup ? f.optGroup+": " : "")+f.name : f.name} (${sub} ${f.level}). ${f.text}`);
-        subFeats.forEach(f => { const s = FEATURE_SENSES[(f.name||"").toLowerCase()]; if(s) addSense(s); });
-        const sInfo = spellKey && CASTERS[spellKey];
-        if(subObj.spells && subObj.spells.length){
-          sfl.push(`${sub} spells (always prepared): ${subObj.spells.map(sp => sp.n).join(", ")}.`);
-          if(sInfo && sInfo.fullList) subObj.spells.forEach(sp => { preparedByInst[0][sp.n] = true; });        // tick the prep box on the pre-filled list
-          else if(sInfo) subObj.spells.forEach(sp => { const l = Math.min(9, Math.max(0, sp.l||0)), arr = (spellEntriesOf(0)[l] = spellEntriesOf(0)[l] || []);
-            if(!arr.some(r => (r.name||"").toLowerCase() === sp.n.toLowerCase())) arr.push({name:sp.n, prep:true}); });   // write-in caster → add as a prepared row
+        const subObj = w.sub ? (c.subclasses||[]).find(x => x.name === w.sub) : null;
+        if(subObj){
+          const opts = new Set(Object.values(w.subOpts||{}).filter(Boolean));     // chosen "choose one" options (e.g. Totem Spirit → Bear)
+          const sf = (subObj.features||[]).filter(f => (f.level||1) <= w.level && (!f.opt || opts.has(f.opt)));
+          sf.forEach(f => featLines.push(`${f.opt ? (f.optGroup ? f.optGroup+": " : "")+f.name : f.name} (${w.sub} ${f.level}). ${f.text}`));
+          sf.forEach(f => { const s = FEATURE_SENSES[(f.name||"").toLowerCase()]; if(s) addSense(s); });
+          if(subObj.spells && subObj.spells.length){
+            featLines.push(`${w.sub} spells (always prepared): ${subObj.spells.map(sp => sp.n).join(", ")}.`);
+            if(sInfo && sInfo.fullList) subObj.spells.forEach(sp => { preparedByInst[0][sp.n] = true; });
+            else if(sInfo) subObj.spells.forEach(sp => { const l = Math.min(9, Math.max(0, sp.l||0)), arr = (spellEntriesOf(0)[l] = spellEntriesOf(0)[l] || []);
+              if(!arr.some(r => (r.name||"").toLowerCase() === sp.n.toLowerCase())) arr.push({name:sp.n, prep:true}); });
+          }
+          if(subObj.expanded && subObj.expanded.length)
+            featLines.push(`${w.sub} expanded spells (added to your spell list): ${[...new Set(subObj.expanded.map(sp => sp.n))].join(", ")}.`);
         }
-        if(subObj.expanded && subObj.expanded.length)
-          sfl.push(`${sub} expanded spells (added to your spell list): ${[...new Set(subObj.expanded.map(sp => sp.n))].join(", ")}.`);
-        if(sfl.length){ const t = $("features"); const block = sfl.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
-        if(spellKey) renderSpellStyle(false, 0);   // reflect the always-prepared subclass spells on the Spells page
-      }
-      const featMap = {};                                                          // feature name → text, for limited-use tooltips
-      (c && c.features || []).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
-      (subObj && subObj.features || []).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
-      fillLimitedFeatures(cls, lvl, featMap);                                       // Ki / Sorcery Points / Rage / Channel Divinity → Limited Features card
-      const eq = (c && c.equip) || {};                                            // starting gold OR equipment
-      if(wizEquip === "gold"){ const g = goldAverage(eq.gold); if(g != null) $("gp").value = g; }
-      else (eq.items||[]).forEach((line,i) => {                                    // resolve each choice (weapons/packs) → Inventory rows
-        const p = parseEquipLine(line), lineEl = document.querySelector(`.equip-line[data-i="${i}"]`);
-        const pick = lineEl && lineEl.querySelector(".equip-pick");
-        const opt = p.fixed ? p.text : (pick ? pick.value : (p.options[0]||""));
-        resolveEquipOption(opt, lineEl).forEach(e => addInvItem(e.name, e.qty));
+        const featMap = {};                                                       // feature name → text, for limited-use tooltips
+        (c.features||[]).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
+        (subObj && subObj.features || []).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
+        fillLimitedFeatures(w.name, w.level, featMap);                            // Rage / Ki / Sorcery Points / Channel Divinity → Limited Features card
       });
+      if(featLines.length){ const t = $("features"); const block = featLines.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
+      if(primary) renderSpellStyle(false, 0);                                      // reflect always-prepared subclass spells on the Spells page
+      if(!editing){                                                               // starting gear/gold is a one-time level-1 grant — never re-add on Edit
+        const eq = (c0 && c0.equip) || {};                                        // comes from the INITIAL class only
+        if(wizEquip === "gold"){ const g = goldAverage(eq.gold); if(g != null) $("gp").value = g; }
+        else (eq.items||[]).forEach((line,i) => {
+          const p = parseEquipLine(line), lineEl = document.querySelector(`.equip-line[data-i="${i}"]`);
+          const pick = lineEl && lineEl.querySelector(".equip-pick");
+          const opt = p.fixed ? p.text : (pick ? pick.value : (p.options[0]||""));
+          resolveEquipOption(opt, lineEl).forEach(e => addInvItem(e.name, e.qty));
+        });
+      }
     }
     if(bg === "Custom Background"){                                             // built in the wizard's custom-bg panel
       $("background").value = "Custom Background";
@@ -4219,22 +4592,52 @@
       if(fn || ft){ const line = (fn ? fn+" (Background). " : "") + ft; const t = $("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t); }
     } else if(bg){
       applyBackground(bg);
-      const b = DATA && findBy(DATA.backgrounds, bg);                            // deposit background's provided items + gold
-      if(b && b.equip){
+      const b = DATA && findBy(DATA.backgrounds, bg);                            // deposit background's provided items + gold (one-time, fresh build only)
+      if(!editing && b && b.equip){
         (b.equip.items||[]).forEach(it => addInvItem(it.n, it.q||1));
         if(b.equip.gold) $("gp").value = num($("gp").value,0) + b.equip.gold;   // adds on top of any class starting gold
       }
     }
     if(genMode === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });   // genMode/scores were set in the wizard's Ability Scores step
+    charClasses = list.map(w => ({name:w.name, level:w.level, sub:w.sub||"", subOpts:Object.assign({}, w.subOpts||{})}));   // persist the build → drives the main-sheet decisions flag + Edit Character
+    if(hpRolls.length || hpMode !== "manual") regenHp(hpMode, list);   // size HP records to the final build
+    ensureUnarmedStrike();   // every character can punch — auto Unarmed Strike as the first attack
+    genFeatures = _splitBlocks($("features").value).filter(b => !_featBefore.has(b));   // remember what we generated, so the next Edit replaces (not duplicates) it
+    genProf = $("proficiencies").value.split("\n").filter(l => l.trim() && !/^\s*Languages:/i.test(l) && !_profBefore.has(l));
+    genDefenses = [...new Set(genFeatures.flatMap(b => scanDefenses(b)))];   // resistances/immunities stated in any generated class/subclass feature (e.g. Bear Totem)
+    { const present = new Set($("defnotes").value.split("\n").map(l => l.trim()));   // race resistances are added structurally by applyRace — don't double them
+      const add = genDefenses.filter(d => !present.has(d));
+      if(add.length){ const n = $("defnotes"); n.value = n.value.trim() ? n.value+"\n"+add.join("\n") : add.join("\n"); autoGrow(n); } }
+    applyAsiBonuses();   // reflect any ASIs/feats assigned inline in the builder
     characterCreated = true; markCharacterCreated();   // toolbar button now reads "Edit Character"
     renderHoodControls(); updateModeUI();
     document.querySelectorAll("textarea").forEach(autoGrow);
-    compute(); save(); closeWizard();
+    compute();
+    if(!editing && $("hpmax").value) $("hpcur").value = $("hpmax").value;   // new character starts at full HP (don't clobber a damaged character on Edit)
+    save(); closeWizard();
     resolveToolChoices();   // prompt for any unspecified artisan's tools / musical instrument the build granted
+    const pend = (DATA ? pendingFor(charClasses).length : 0) + asiChoices.filter(s => !asiSlotComplete(s)).length;
+    flashStatus(list.length ? `Created ${buildClassLevelStr(list)}${pend?` — ${pend} decision${pend>1?"s":""} still to make (see the banners).`:" ✓"}` : "Character updated.");
   }
 
+  let _autoLblId = 0;
+  function wireLabels(root){   // give each `.lbl` a programmatic association to its adjacent control (AT + native click-to-focus); idempotent
+    (root||document).querySelectorAll("label.lbl").forEach(lbl => {
+      if(lbl.htmlFor || lbl.querySelector("input,select,textarea")) return;
+      const el = lbl.nextElementSibling;
+      if(el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)){ if(!el.id) el.id = "lbl-auto-" + (_autoLblId++); lbl.htmlFor = el.id; }
+    });
+  }
+  let _modalReturn = null;
+  function focusModal(el){   // move focus into a just-opened modal; remember where to send it back
+    _modalReturn = document.activeElement;
+    const f = el && el.querySelector(".modal-body input, .modal-body select, .modal-body textarea, .modal-body button");
+    if(f){ try{ f.focus(); }catch(e){} }
+  }
+  function restoreFocus(){ const el = _modalReturn; _modalReturn = null; if(el && el.focus){ try{ el.focus(); }catch(e){} } }
   function init(){
     buildStatic();
+    wireLabels();
     let _stored = null, _baked = null;
     try{ const s = localStorage.getItem(SOURCES_KEY); if(s) _stored = JSON.parse(s); }catch(e){}            // books loaded from the server / imported
     try{ _baked = JSON.parse($("source-data").textContent); }catch(e){}                                        // baked default (DATA build)
@@ -4256,9 +4659,12 @@
     applyAll(data);
     updateSourcebookStatus();
     renderLoadedBookList();
+    if(sourcesAreStale()) flashStatus("Loaded sourcebooks are out of date — open Settings → Source books → “Reload all loaded sources” to enable new features (e.g. subclass choices).");
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
+    window.addEventListener("pagehide", flushSave);   // flush any debounced autosave before the tab is hidden/closed
+    document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidden") flushSave(); });
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
     document.addEventListener("click", e => { if(e.target.closest("[data-addoverflow]")){ appendOverflowPage(); applyLayout(); showPage("overflow-"+(overflowPages-1)); save(); compute(); } });
     document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
@@ -4266,6 +4672,7 @@
     document.addEventListener("click", e => { const b = e.target.closest(".sp-add"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l;   // add another blank spell row to this level
       const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l].push({name:"", prep:false}); renderSpellTable(inst); save(); } });
     setupItemSearch();
+    setupInvAutocomplete();
 
     // --- inventory drag-to-reorder (across both columns) ---
     let invDrag = null;
@@ -4316,12 +4723,21 @@
 
     // Ability Score Improvement flag + picker
     $("asi-flag").addEventListener("click", openAsiModal);
+    $("decisions-flag").addEventListener("click", ()=>{ openWizard(); wizStep = 2; renderWizStep(); });   // jump straight to the class builder's pending panel
+    $("sources-flag").addEventListener("click", ()=>{ $("btn-settings").click(); const t = document.querySelector('.set-tab[data-sec="advanced"]'); if(t) t.click(); });   // open Settings → Source books
     $("asi-close").addEventListener("click", ()=>{ $("asimodal").classList.remove("open"); resolveToolChoices(); });   // a chosen feat may grant a generic tool/instrument
     $("asi-done").addEventListener("click", ()=>{ $("asimodal").classList.remove("open"); resolveToolChoices(); });
     $("asimodal").addEventListener("click", e => { if(e.target.id === "asimodal"){ $("asimodal").classList.remove("open"); resolveToolChoices(); } });
     $("tool-close").addEventListener("click", ()=>{ toolPickMatches = []; $("toolmodal").classList.remove("open"); });   // leave generic text as-is
     $("tool-done").addEventListener("click", applyToolChoices);
     $("toolmodal").addEventListener("click", e => { if(e.target.id === "toolmodal"){ toolPickMatches = []; $("toolmodal").classList.remove("open"); } });
+    document.addEventListener("keydown", e => {   // Escape closes the topmost open modal/wizard
+      if(e.key !== "Escape") return;
+      const open = [...document.querySelectorAll(".modal.open")]; if(!open.length) return;
+      const m = open[open.length-1]; m.classList.remove("open"); restoreFocus();
+      if(m.id === "asimodal") resolveToolChoices();
+      if(m.id === "toolmodal") toolPickMatches = [];
+    });
     $("asi-list").addEventListener("change", e => {
       const t = e.target, i = +t.dataset.i;
       if(isNaN(i) || !asiChoices[i]) return;
@@ -4434,6 +4850,7 @@
       clone.querySelector("#embedded-data").textContent = JSON.stringify(collect());
       const st = clone.querySelector("#status"); if(st) st.textContent = "";
       download("<!DOCTYPE html>\n" + clone.outerHTML, charLabel()+".html", "text/html");
+      flashStatus("Downloaded “"+charLabel()+".html” — a self-contained copy with your character baked in.");
     });
 
     $("btn-new").addEventListener("click", ()=>{
@@ -4442,7 +4859,7 @@
     });
 
     $("btn-reset").addEventListener("click", ()=>{
-      if(!confirm("Are you sure? This will delete your character.")) return;
+      if(!confirm("Delete this character and reset the sheet to blank?\n\nThis can't be undone. If you might want it later, cancel and use “Save” first to download a copy.\n\n(Your loaded sourcebooks are kept.)")) return;
       localStorage.removeItem(KEY);                 // clear this slot's character
       localStorage.removeItem(KEY + "_img");        // and its portrait
       $("embedded-data").textContent = "null";      // ignore any baked-in character
@@ -4455,9 +4872,30 @@
     $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
     $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
     $("wiz-race").addEventListener("change", raceHint);
-    $("wiz-class").addEventListener("change", e=> populateSubclass(e.target.value));
-    $("wiz-level").addEventListener("input", ()=> populateSubclass($("wiz-class").value));   // level gates the subclass
-    $("wiz-subclass").addEventListener("change", renderSubChoices);   // a subclass with "choose one" sets (Totem Warrior) → show its pickers
+    // Multiclass builder (step 2): class list focus, add, level edit, remove, and inline pending-decision pickers
+    $("wiz-class-list").addEventListener("click", e => { const b = e.target.closest(".wiz-cls"); if(b){ wizFocus = b.dataset.cls; renderBuilder(); } });
+    $("wiz-class-detail").addEventListener("click", e => { const b = e.target.closest(".wiz-add-class"); if(b) addClassToBuild(b.dataset.cls); });
+    $("wiz-chosen").addEventListener("input", e => { const t = e.target.closest(".wiz-cls-lvl"); if(!t) return;
+      const i = +t.dataset.i; if(wizClasses[i]){ wizClasses[i].level = Math.min(20, Math.max(1, num(t.value, 1))); syncBuildToSheet(); renderHpPanel(); renderWizPending(); } });
+    $("wiz-hp").addEventListener("click", e => {
+      const m = e.target.closest(".hp-mode"); if(m){ const mode = m.dataset.mode, fresh = mode === "rolled" && hpMode !== "rolled"; hpMode = mode; regenHp(mode, wizClasses, fresh); renderHpPanel(); compute(); return; }
+      if(e.target.closest(".hp-reroll")){ regenHp("rolled", wizClasses, true); renderHpPanel(); compute(); }
+    });
+    $("wiz-hp").addEventListener("input", e => {   // manual per-level edit — update record + total + sheet without re-rendering (keep input focus)
+      const t = e.target.closest(".hp-roll"); if(!t) return;
+      const i = +t.dataset.i, die = +t.max || 99; hpRolls[i] = Math.max(1, Math.min(die, num(t.value, 1)));
+      const con = (finalScore("con") == null) ? 0 : modOf("con");
+      const tot = $("wiz-hp").querySelector(".hp-total"); if(tot) tot.textContent = "Max HP: " + (hpRolls.reduce((a,b)=>a+(+b||0),0) + con*hpRolls.length);
+      compute();
+    });
+    $("wiz-chosen").addEventListener("click", e => { const b = e.target.closest(".wiz-cls-rm"); if(!b) return;
+      wizClasses.splice(+b.dataset.i, 1); if(!wizClasses.some(w => w.name === wizFocus)) {} syncBuildToSheet(); renderBuilder(); });
+    $("wiz-pending").addEventListener("change", e => {
+      const sub = e.target.closest(".wiz-pend-sub"), opt = e.target.closest(".wiz-pend-opt");
+      if(sub){ const i = +sub.dataset.i; if(wizClasses[i]){ wizClasses[i].sub = sub.value; wizClasses[i].subOpts = {}; syncBuildToSheet(); renderBuilder(); } }
+      else if(opt){ const i = +opt.dataset.i; if(wizClasses[i]){ (wizClasses[i].subOpts = wizClasses[i].subOpts || {})[opt.dataset.group] = opt.value; renderWizPending(); } }
+    });
+    $("wiz-pending").addEventListener("click", e => { if(e.target.closest(".wiz-pend-asi")) openAsiModal(); });
     $("wiz-bg").addEventListener("change", updateCustomBgVisibility);
     $("wiz-cbg-skills").addEventListener("change", updateCustomBgLimit);
     $("wiz-cbg-featpick").addEventListener("change", e => {   // fill name/desc from a chosen existing feature

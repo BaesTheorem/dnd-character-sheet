@@ -71,15 +71,28 @@ computed values, just blank boxes — and the free-write areas are sized for han
 print a blank copy and fill it in by hand. Fill any value digitally and the math fills itself in.
 
 ## Toolbar
-- **Create Character** → guided wizard (Race → Class/Subclass/Level → **class skill choices** →
-  **starting equipment or gold** → Background → ability method → name) that fills the sheet from the
-  loaded sourcebook data: race ability bonuses / speed / senses / damage resistances / languages;
-  class saves, hit dice, and spellcasting; **all proficiencies** (skills checked, weapons/armor/tools/
-  languages listed); class **and** subclass **features**, plus a subclass's always-prepared spells;
-  **limited-use resources** (Rage, Ki, Sorcery Points, Channel Divinity, …) into the Limited Features
-  tracker with hover descriptions; and either the class's starting gear (resolved into Inventory, with
+- **Create Character** → guided wizard (Race → Ability Scores → **Class builder** → **class skill
+  choices** → **starting equipment or gold** → Background → name) that fills the sheet from the loaded
+  sourcebook data: race ability bonuses / speed / senses / damage resistances / languages; class saves,
+  hit dice, and spellcasting; **all proficiencies** (skills checked, weapons/armor/tools/languages
+  listed); class **and** subclass **features**, plus a subclass's always-prepared spells; **limited-use
+  resources** (Rage, Ki, Sorcery Points, Channel Divinity, …) into the Limited Features tracker with
+  hover descriptions; and either the class's starting gear (resolved into Inventory, with
   choice/category/pack prompts) or average starting gold. Backgrounds deposit their items + gold too.
   Needs sourcebook data loaded (baked into the build, or loaded via Settings).
+  - **Class builder (multiclass).** The Class step is a list of every class in your loaded sources;
+    click one to read its full level 1–20 progression (hit die, saves, proficiencies, spellcasting, and
+    every feature inline) and **Add** it. Your first class is your **initial class** (full proficiencies
+    + starting equipment); add more for **multiclassing**. A second class you don't meet the multiclass
+    **prerequisite** for (e.g. Wizard needs Int 13) can't be added, with the requirement shown. Multiclass
+    spell slots auto-fill from the **combined** caster level (full = level, half = ÷2, Artificer = ÷2 up,
+    Eldritch Knight / Arcane Trickster = ÷3; Warlock pact magic stays its own pool). Secondary classes
+    grant only the limited **multiclass proficiencies**, never extra saving throws.
+  - **Pending decisions.** The builder lists due/overdue choices — subclass, subclass options
+    (e.g. Totem Spirit), ASIs/feats, and spell selection — and lets you resolve subclass/option/ASI
+    right there. You can **proceed without** them; anything left unmade keeps alerting on the main sheet
+    (a class-decisions banner beside the ASI banner; spell selection points to the Spells page). Click
+    the banner to reopen the builder.
 - **Save** → downloads a self-contained copy of the sheet with your character (and portrait) baked
   in. Email / AirDrop / Drive it; opening that copy anywhere shows the character. This is the way to
   move a character between devices (auto-save is per-browser localStorage, not written to the file).
