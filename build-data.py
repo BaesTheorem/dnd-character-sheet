@@ -23,8 +23,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 16  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
-# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. Mirror HTML's DATA_VERSION.
+DATA_VERSION = 17  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -685,12 +685,18 @@ def build_item_names(items_base, items):   # every item name (base + magic) for 
         for it in coll.get(key, []):
             if is_src(it) and it.get("name"): names.add(it["name"])
     return sorted(names)
-def build_futuristic(items_base, items):   # futuristic-age item names (laser/antimatter/powered armor) → filtered out unless enabled
+def build_by_age(items_base, items, age):   # item names tagged with a given tech age → filtered out unless that age is enabled
     names = set()
     for coll, key in ((items_base, "baseitem"), (items, "item")):
         for it in coll.get(key, []):
-            if is_src(it) and it.get("name") and it.get("age") == "futuristic": names.add(it["name"])
+            if is_src(it) and it.get("name") and it.get("age") == age: names.add(it["name"])
     return sorted(names)
+
+def build_futuristic(items_base, items):   # laser/antimatter weapons, powered armor
+    return build_by_age(items_base, items, "futuristic")
+
+def build_modern(items_base, items):       # pistols/rifles/shotguns/dynamite
+    return build_by_age(items_base, items, "modern")
 
 LIMITED_SIGNAL = re.compile(r"\brest\b|\bdawn\b|\bcharges\b|\bper day\b|\bexpend", re.I)
 def build_item_text(items_base, items):   # descriptions of magic items that look like they have limited daily uses (Bag of Tricks, etc.)
@@ -808,6 +814,7 @@ def main():
     out["itemWeights"] = build_item_weights(items_base, items)
     out["itemNames"] = build_item_names(items_base, items)
     out["futuristic"] = build_futuristic(items_base, items)
+    out["modern"] = build_modern(items_base, items)
     out["containers"] = build_containers(items_base, items)
     out["attuneItems"] = build_attune_items(items_base, items)
     out["magicItems"] = build_magic_items(items_base, items)

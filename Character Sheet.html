@@ -184,6 +184,14 @@
   .asi-featdesc{font-size:12px; color:var(--muted); line-height:1.5; white-space:pre-line; max-height:160px; overflow:auto; margin-top:6px; padding:6px 8px; border:1px solid var(--line)}
   .sp-caster-head{font-size:13px; font-weight:700; color:var(--accent); margin:12px 0 2px; border-top:1px solid var(--line); padding-top:10px}
   .sp-caster-head:first-child{border-top:0; padding-top:0}
+  details.sp-caster{border-top:1px solid var(--line); margin-top:8px}
+  details.sp-caster:first-of-type{border-top:0; margin-top:0}
+  details.sp-caster > summary.sp-caster-head{cursor:pointer; list-style:none; user-select:none; border-top:0; padding-top:10px; margin:0}
+  details.sp-caster:first-of-type > summary.sp-caster-head{padding-top:2px}
+  details.sp-caster > summary.sp-caster-head::-webkit-details-marker{display:none}
+  details.sp-caster > summary.sp-caster-head::before{content:"▸ "; color:var(--muted)}
+  details.sp-caster[open] > summary.sp-caster-head::before{content:"▾ "}
+  .sp-caster-body{padding-bottom:8px}
   .asi-scores{display:flex; gap:6px; margin-bottom:12px}
   .asi-score{flex:1; text-align:center; border:1px solid var(--line); border-radius:8px; padding:5px 2px}
   .asi-score .ab{display:block; font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
@@ -351,6 +359,7 @@
   .pick-det > summary::-webkit-details-marker{display:none}
   .pick-det > summary::before{content:"▸ "; color:var(--muted); font-weight:700}
   .pick-det[open] > summary::before{content:"▾ "}
+  .sp-meta{font-size:11px; font-weight:600; color:var(--accent); line-height:1.5; padding:3px 0 0 14px}
   .pick-desc{font-size:11px; color:var(--muted); line-height:1.55; white-space:pre-line; padding:3px 0 4px 14px}
   .feat-list{border:1px solid var(--line); padding:4px 10px; max-height:300px; overflow:auto; margin-top:4px}
   #wiz-pending{margin-top:14px}
@@ -1184,6 +1193,8 @@
             <label class="lay-row"><input type="checkbox" id="set-variant-enc"> Use the variant Encumbrance rule</label>
             <p class="wiz-hint">Off by default. When on, the Carrying Capacity card adds the Encumbered (×5) and Heavily Encumbered (×10) thresholds and applies their speed penalties. When off, only your Max Carry (×15) and Push/Drag/Lift (×30) are shown.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Item filters</label>
+            <label class="lay-row"><input type="checkbox" id="set-modern"> Show modern items</label>
+            <p class="wiz-hint">Off by default. When off, modern gear (pistols, rifles, shotguns, dynamite, etc.) is hidden from the item search and the per-row item autocomplete.</p>
             <label class="lay-row"><input type="checkbox" id="set-futuristic"> Show futuristic items</label>
             <p class="wiz-hint">Off by default. When off, futuristic gear (laser/antimatter weapons, powered armor, etc.) is hidden from the item search and the per-row item autocomplete.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
@@ -1235,7 +1246,7 @@
   const BASE_KEY = "dnd-sheet-2014-v1";
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
-  const DATA_VERSION = 16;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged
+  const DATA_VERSION = 17;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
@@ -1757,11 +1768,17 @@
   function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
   let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
   let showFuturistic = false;                   // Settings → General: include futuristic items (laser/antimatter/powered armor) in the item pickers (off by default)
-  function availableItemNames(){                // item-autocomplete source, futuristic gear filtered out unless enabled
+  let showModern = false;                        // Settings → General: include modern items (pistols/rifles/shotguns/dynamite) in the item pickers (off by default)
+  function hiddenItemNames(){                    // names filtered out of the pickers given the current age toggles
+    const s = new Set();
+    if(!showFuturistic) ((DATA && DATA.futuristic) || []).forEach(n => s.add(n));
+    if(!showModern) ((DATA && DATA.modern) || []).forEach(n => s.add(n));
+    return s;
+  }
+  function availableItemNames(){                // item-autocomplete source, futuristic/modern gear filtered out unless enabled
     const names = (DATA && DATA.itemNames) || [];
-    if(showFuturistic) return names;
-    const fut = new Set((DATA && DATA.futuristic) || []);
-    return fut.size ? names.filter(n => !fut.has(n)) : names;
+    const hide = hiddenItemNames();
+    return hide.size ? names.filter(n => !hide.has(n)) : names;
   }
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
@@ -2272,11 +2289,13 @@
     [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { if(it.source === SRC && it.name) s.add(it.name); }));
     return [...s].sort();
   }
-  function etFuturistic(itemsBase, itemsData, SRC){   // names of futuristic-age items (laser/antimatter/powered armor) → filtered out unless enabled
+  function etByAge(itemsBase, itemsData, SRC, age){   // names of items tagged with a given tech age → filtered out unless that age is enabled
     const s = new Set();
-    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { if(it.source === SRC && it.name && it.age === "futuristic") s.add(it.name); }));
+    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { if(it.source === SRC && it.name && it.age === age) s.add(it.name); }));
     return [...s].sort();
   }
+  function etFuturistic(itemsBase, itemsData, SRC){ return etByAge(itemsBase, itemsData, SRC, "futuristic"); }   // laser/antimatter weapons, powered armor
+  function etModern(itemsBase, itemsData, SRC){ return etByAge(itemsBase, itemsData, SRC, "modern"); }          // pistols/rifles/shotguns/dynamite
   function etContainers(itemsBase, itemsData, SRC){   // weightless containers (Bag of Holding, Heward's Handy Haversack, ...)
     const s = new Set();
     [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { const cc = it.containerCapacity; if(it.source === SRC && it.name && cc && cc.weightless) s.add(it.name); }));
@@ -2364,7 +2383,7 @@
       acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
       languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), toolCats:etToolCats(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
       itemWeights:etItemWeights(itemsBase,itemsData,srcCode),
-      itemNames:etItemNames(itemsBase,itemsData,srcCode), futuristic:etFuturistic(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode),
+      itemNames:etItemNames(itemsBase,itemsData,srcCode), futuristic:etFuturistic(itemsBase,itemsData,srcCode), modern:etModern(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode),
       attuneItems:etAttuneItems(itemsBase,itemsData,srcCode), magicItems:etMagicItems(itemsBase,itemsData,srcCode),
       itemText:etItemText(itemsBase,itemsData,srcCode)};
   }
@@ -2427,7 +2446,7 @@
       add.classSpells[cn].forEach(x => { if(idx.has(x.n)) ex[idx.get(x.n)] = x; else { idx.set(x.n, ex.length); ex.push(x); } });
       ex.sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
     }
-    ["languages","tools","itemNames","futuristic","containers","attuneItems","magicItems"].forEach(cat => {   // plain string arrays
+    ["languages","tools","itemNames","futuristic","modern","containers","attuneItems","magicItems"].forEach(cat => {   // plain string arrays
       into[cat] = into[cat] || [];
       const seen = new Set(into[cat]);
       (add[cat]||[]).forEach(x => { if(!seen.has(x)){ into[cat].push(x); seen.add(x); } });
@@ -2760,6 +2779,26 @@
     if(d.material) t += (t ? "\n\n" : "") + "Material: " + d.material;
     if(d.higher)   t += (t ? "\n\n" : "") + "At Higher Levels. " + d.higher;
     return t;
+  }
+  function spellMetaLine(d){                       // "Level 2 Evocation · Cast: 1 action · Range: 120 ft · V,S,M · 1 minute · Concentration"
+    if(!d) return "";
+    const lvl = (d.level===0) ? (d.school ? d.school+" cantrip" : "Cantrip") : ("Level "+d.level+(d.school?" "+d.school:""));
+    const bits = [lvl];
+    if(d.time)       bits.push("Cast: "+d.time);
+    if(d.range)      bits.push("Range: "+d.range);
+    if(d.components) bits.push(d.components.split("").join(","));
+    if(d.duration)   bits.push(d.duration);
+    if(d.ritual)     bits.push("Ritual");
+    if(d.conc)       bits.push("Concentration");
+    return bits.join(" · ");
+  }
+  function spellPickInfo(name){                    // full spell readout for the creation-wizard picker: meta line + description + material + higher levels
+    const d = spellData(name);
+    if(!d) return `<div class="pick-desc">(no description loaded — load this spell's sourcebook)</div>`;
+    let body = d.text || "";
+    if(d.material) body += (body ? "\n\n" : "") + "Material: " + d.material;
+    if(d.higher)   body += (body ? "\n\n" : "") + "At Higher Levels. " + d.higher;
+    return `<div class="sp-meta">${esc(spellMetaLine(d))}</div><div class="pick-desc">${esc(body)}</div>`;
   }
   function propCells(d){                         // Comp / Cast Time / Range / Duration / School
     const comp = d ? esc(d.components||"") + (d.ritual ? ` <span class="sp-tag" title="Ritual">R</span>` : "") : "";
@@ -3187,6 +3226,7 @@
     data.hidePortrait = hidePortrait;
     data.variantEncumbrance = variantEncumbrance;
     data.showFuturistic = showFuturistic;
+    data.showModern = showModern;
     data.hitDieFaces = hitDieFaces;
     data.charClasses = charClasses;
     data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells;   // remember generated content so Edit Character replaces it instead of duplicating
@@ -3276,6 +3316,7 @@
     hidePortrait = !!(data && data.hidePortrait);   // default off
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     showFuturistic = !!(data && data.showFuturistic);   // default off
+    showModern = !!(data && data.showModern);           // default off
     if(data){                                                       // migrate old per-page include checkboxes
       if(data["spell-include"] === false) hiddenPages.spells = true;
       if(data["mini-include"] === false) hiddenPages.mini = true;
@@ -3581,13 +3622,11 @@
       `<div class="hp-rows">${rows}</div>`+
       `<div class="hp-total">Max HP: ${total}</div>`;
   }
-  function wizCasters(list){   // every caster class in the build (primary first), each a selectable spell list
+  function wizCasters(list){   // every caster class in the build, in the ORDER THEY WERE CHOSEN — the first spellcasting class picked is primary (anchors spell sheet 0) and is shown first everywhere
     const out = [];
     (list || wizClasses || []).forEach(w => { const subKey = w.sub ? `${w.name} (${w.sub})` : null, key = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[w.name] ? w.name : null);
       if(key && spellPlan(key, w.level)) out.push({key, level:w.level, contrib:casterContribOf(w)}); });
-    // Warlock sorts last so a NON-Warlock caster owns sheet 0 (its combined regular pool needs the multi-aware tracker); Warlock → its own Pact sheet
-    out.sort((a,b) => ((a.key==="Warlock")-(b.key==="Warlock")) || (b.contrib - a.contrib));
-    return out;
+    return out;   // selection order preserved; each caster picks only from its own class spell list
   }
   function findSheetForClass(key){ for(let i=1;i<spellSheets;i++){ if((sEl(i,"spellclass").value||"") === key) return i; } return -1; }
   function renderSpellPicker(){
@@ -3595,24 +3634,28 @@
     const casters = wizCasters(), keys = new Set(casters.map(c => c.key));
     Object.keys(wizSpells).forEach(k => { if(!keys.has(k)) delete wizSpells[k]; });   // drop picks for classes no longer in the build
     if(!casters.length){ box.innerHTML = ""; return; }
-    const cb = (key, kind, n, l, on, maxed) => { const tt = spellTitle(spellData(n));
+    const cb = (key, kind, n, l, on, maxed) => {
       return `<div class="pick-item${(maxed&&!on)?' maxed':''}"><input type="checkbox" class="sp-pick-cb" data-caster="${esc(key)}" data-kind="${kind}" data-l="${l}" value="${esc(n)}"${on?' checked':''}${(maxed&&!on)?' disabled':''}>`+
-        `<details class="pick-det"><summary>${esc(n)}</summary><div class="pick-desc">${tt?esc(tt):"(no description loaded — load this spell's sourcebook)"}</div></details></div>`; };
-    let html = `<label class="lbl">Spells <span class="wiz-hint" style="font-weight:400; display:inline">— click a spell to read its full description</span></label>`;
-    casters.forEach(c => {
+        `<details class="pick-det"><summary>${esc(n)}</summary>${spellPickInfo(n)}</details></div>`; };
+    let html = `<label class="lbl">Spells <span class="wiz-hint" style="font-weight:400; display:inline">— each class picks only from its own spell list; click a spell to read it. The first spellcasting class chosen is listed first.</span></label>`;
+    casters.forEach((c, idx) => {
       const plan = spellPlan(c.key, c.level); if(!plan) return;
       const picks = wizSpells[c.key] || (wizSpells[c.key] = {cantrips:[], spells:[]});
       const maxL = maxSpellLevel(c.key, c.level), cantripNames = classSpellNamesAt(c.key, 0) || [], leveled = [];
       for(let l=1;l<=maxL;l++){ const ns = classSpellNamesAt(c.key, l); if(ns && ns.length) leveled.push({l, names:ns}); }
-      html += `<div class="sp-caster-head">${esc(c.key)} <span class="wiz-hint" style="font-weight:400; display:inline">(${plan.ability.toUpperCase()})</span></div>`;
-      if(!cantripNames.length && !leveled.length){ html += `<p class="wiz-hint" style="margin:0">No spell list loaded for ${esc(c.key)} — load its spells sourcebook.</p>`; return; }
       const cset = new Set(picks.cantrips), sset = new Set(picks.spells), cMax = cset.size >= plan.nCantrips, sMax = sset.size >= plan.nSpells;
-      if(plan.nCantrips && cantripNames.length) html += `<p class="sp-pick-grp">Cantrips — <span class="sp-pick-count${cset.size>plan.nCantrips?' over':''}" data-caster="${esc(c.key)}" data-kind="cantrip">${cset.size}/${plan.nCantrips}</span></p>`+
-        `<div class="sp-pick-list">`+ cantripNames.map(n => cb(c.key, "cantrip", n, 0, cset.has(n), cMax)).join("") +`</div>`;
-      if(plan.nSpells && leveled.length){ const verb = plan.mode==="prepare" ? "Prepare" : plan.mode==="spellbook" ? "Spellbook" : "Spells known"; let inner = "";
-        leveled.forEach(g => { inner += `<div class="sp-lvl">Level ${g.l}</div>` + g.names.map(n => cb(c.key, "spell", n, g.l, sset.has(n), sMax)).join(""); });
-        html += `<p class="sp-pick-grp">${verb} — <span class="sp-pick-count${sset.size>plan.nSpells?' over':''}" data-caster="${esc(c.key)}" data-kind="spell">${sset.size}/${plan.nSpells}</span></p>`+
-          `<div class="sp-pick-list">${inner}</div>`; }
+      let body = "";
+      if(!cantripNames.length && !leveled.length){ body = `<p class="wiz-hint" style="margin:0">No spell list loaded for ${esc(c.key)} — load its spells sourcebook.</p>`; }
+      else {
+        if(plan.nCantrips && cantripNames.length) body += `<p class="sp-pick-grp">Cantrips — <span class="sp-pick-count${cset.size>plan.nCantrips?' over':''}" data-caster="${esc(c.key)}" data-kind="cantrip">${cset.size}/${plan.nCantrips}</span></p>`+
+          `<div class="sp-pick-list">`+ cantripNames.map(n => cb(c.key, "cantrip", n, 0, cset.has(n), cMax)).join("") +`</div>`;
+        if(plan.nSpells && leveled.length){ const verb = plan.mode==="prepare" ? "Prepare" : plan.mode==="spellbook" ? "Spellbook" : "Spells known"; let inner = "";
+          leveled.forEach(g => { inner += `<div class="sp-lvl">Level ${g.l}</div>` + g.names.map(n => cb(c.key, "spell", n, g.l, sset.has(n), sMax)).join(""); });
+          body += `<p class="sp-pick-grp">${verb} — <span class="sp-pick-count${sset.size>plan.nSpells?' over':''}" data-caster="${esc(c.key)}" data-kind="spell">${sset.size}/${plan.nSpells}</span></p>`+
+            `<div class="sp-pick-list">${inner}</div>`; }
+      }
+      const head = `${esc(c.key)} <span class="wiz-hint" style="font-weight:400; display:inline">(${plan.ability.toUpperCase()}${idx===0?" · primary — shown first":""})</span>`;
+      html += `<details class="sp-caster"${idx===0?" open":""}><summary class="sp-caster-head">${head}</summary><div class="sp-caster-body">${body}</div></details>`;   // collapsible per class so other classes don't clutter the view
     });
     box.innerHTML = html;
   }
@@ -4361,8 +4404,8 @@
     return slots;
   }
   function weaponsFor(slot){
-    const fut = showFuturistic ? null : new Set((DATA && DATA.futuristic) || []);   // hide laser/antimatter weapons from category pickers unless enabled
-    return ((DATA && DATA.weapons) || []).filter(w => w.cat === slot.cat && (!slot.melee || (slot.melee === "melee" ? w.melee : !w.melee)) && (!fut || !fut.has(w.name)));
+    const hide = hiddenItemNames();   // hide laser/antimatter (futuristic) and pistol/rifle (modern) weapons from category pickers unless enabled
+    return ((DATA && DATA.weapons) || []).filter(w => w.cat === slot.cat && (!slot.melee || (slot.melee === "melee" ? w.melee : !w.melee)) && !hide.has(w.name));
   }
   function renderEquipSub(lineEl, optText){     // weapon-category dropdowns under a chosen option
     const sub = lineEl.querySelector(".equip-sub"); if(!sub) return;
@@ -4926,7 +4969,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -4936,6 +4979,7 @@
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("set-futuristic").addEventListener("change", e => { showFuturistic = e.target.checked; save(); });   // item autocompletes read availableItemNames() live
+    $("set-modern").addEventListener("change", e => { showModern = e.target.checked; save(); });
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
