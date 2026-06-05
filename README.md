@@ -107,12 +107,18 @@ Beyond character creation, the sheet keeps these live as you edit:
 ## Source books (Settings)
 Open **Settings → Source books** to load D&D content. Two ways:
 - **From a local 5etools server** — pick any book (PHB, XGE, TCE, **Monster Manual**, …) and click
-  **Load**. The sheet fetches the raw 5etools JSON from your server (default `http://localhost:5050`,
-  editable) and processes it **in the browser** (a JS port of `build-data.py`). Loading the Monster
-  Manual brings in every monster stat block for the **Companions & Forms** page. Loading more books
-  **merges** them (dedup by name), so you can stack sources. Works fully offline as long as that local
-  server is running — nothing is fetched from the internet. Only 2014-ruleset books are listed (2024
-  books are filtered out); already-loaded books drop out of the picker.
+  **Load**, or click **Load all books** to import every available 2014-ruleset book in one pass. The
+  sheet fetches the raw 5etools JSON from your server (default `http://localhost:5050`, editable) and
+  processes it **in the browser** (a JS port of `build-data.py`). Loading the Monster Manual brings in
+  every monster stat block for the **Companions & Forms** page. Loading more books **merges** them
+  (dedup by name), so you can stack sources. Works fully offline as long as that local server is
+  running — nothing is fetched from the internet. Only 2014-ruleset books are listed (2024 books are
+  filtered out); already-loaded books drop out of the picker.
+- **Loaded sources (filter)** — every loaded book gets a checkbox under **Loaded sources**. Uncheck one
+  to **hide its content** (races, classes/subclasses, feats, spells, monsters, …) from the pickers and
+  the wizard without unloading it; re-check to bring it back. The sheet keeps each book's processed data
+  separately so toggling is instant (the first toggle after opening an older sheet re-fetches once from
+  your server to populate that per-book data).
 - **Import file…** — load a pre-built `source-data.json` (made by `build-data.py`) when you don't
   want to run a server.
 - **Save data file** — a browser can't overwrite the file it's opened from, so this **downloads an

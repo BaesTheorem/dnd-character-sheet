@@ -220,6 +220,20 @@ def _clean(s):           # strip 5eTools {@item ...|...} markup, the |source suf
     return render_tags(str(s)).split("|")[0].split("#")[0].strip()
 def _titlecase(s):
     return " ".join((w[:1].upper() + w[1:]) if w else w for w in str(s).split(" "))
+def _chooser_options(entries):   # names referenced inside an `options` block → this feature is a "choose one" chooser (e.g. Totem Spirit)
+    names = []
+    def walk(e):
+        if isinstance(e, list):
+            for x in e: walk(x)
+        elif isinstance(e, dict):
+            if e.get("type") == "options":
+                for o in e.get("entries", []) or []:
+                    if isinstance(o, dict):
+                        ref = o.get("subclassFeature") or o.get("optionalfeature")
+                        if ref: names.append(str(ref).split("|")[0].strip())
+            for x in e.get("entries", []) or []: walk(x)
+    walk(entries)
+    return names
 _ANY_LABELS = {"any": "of your choice", "anyStandard": "standard language of your choice",
     "anyExotic": "exotic language of your choice", "anyArtisansTool": "artisan's tools of your choice",
     "anyTool": "tools of your choice", "anyMusicalInstrument": "musical instrument of your choice",
@@ -342,11 +356,31 @@ def build_classes():
                 short = s.get("shortName", s["name"])
                 if short in seen: continue
                 seen.add(short)
-                sfeats = [{"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))}
-                          for f in data.get("subclassFeature", [])
+                raw_feats = [f for f in data.get("subclassFeature", [])
                           if is_src(f) and f.get("className")==c["name"] and f.get("subclassShortName")==short
                           and f.get("subclassSource", SRC_TAG)==SRC_TAG and f.get("name")]
+                choosers = []; option_names = set()           # features offering a "choose one" set (Totem Spirit, …)
+                for cf in raw_feats:
+                    opts = _chooser_options(cf.get("entries", []))
+                    if opts: choosers.append({"name": cf.get("name"), "level": cf.get("level",1), "options": opts}); option_names.update(opts)
+                sfeats = []
+                for f in raw_feats:
+                    o = {"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))}
+                    if f.get("name") in option_names:           # a per-option feature (e.g. "Bear") — shown only when chosen
+                        o["opt"] = f.get("name")
+                        g = next((c for c in choosers if c["level"] == o["level"]), None)
+                        if g: o["optGroup"] = g["name"]
+                    sfeats.append(o)
                 sfeats.sort(key=lambda x: (x["level"], x["name"]))
+                feat_choices = []                               # collapse same-option choosers into one picker (Totem Warrior's 3 levels → one pick)
+                if choosers:
+                    present = lambda ch: [n for n in ch["options"] if any(f.get("name")==n for f in raw_feats)]
+                    groups = {}
+                    for ch in sorted(choosers, key=lambda ch: ch["level"]):
+                        groups.setdefault("|".join(sorted(present(ch))), []).append(ch)
+                    for g in groups.values():
+                        opts = present(g[0])
+                        if opts: feat_choices.append({"label": g[0]["name"], "options": opts, "levels": [ch["level"] for ch in g]})
                 sspells = []; sexpanded = []
                 for blk in s.get("additionalSpells") or []:
                     prep = blk.get("prepared") or blk.get("known") or blk.get("innate") or {}
@@ -358,7 +392,7 @@ def build_classes():
                         names = []; _collect_spell_names(val, names)
                         for nm in names:
                             sexpanded.append({"n": _titlecase(_clean(nm)), "l": int(lv) if str(lv).isdigit() else 0})
-                subs.append({"name": s["name"], "short": short, "features": sfeats, "spells": sspells, "expanded": sexpanded})
+                subs.append({"name": s["name"], "short": short, "features": sfeats, "spells": sspells, "expanded": sexpanded, "featChoices": feat_choices})
             sub_lvl = None
             for f in c.get("classFeatures", []):
                 if isinstance(f, dict) and f.get("gainSubclassFeature") and f.get("classFeature"):

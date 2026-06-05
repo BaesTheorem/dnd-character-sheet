@@ -1018,6 +1018,7 @@
             <label class="lbl" style="margin-top:10px">Subclass</label>
             <select id="wiz-subclass"></select>
           </div>
+          <div id="wiz-subchoice-wrap" hidden></div>
         </div>
         <div class="wiz-step" data-step="3" hidden>
           <label class="lbl">Class Skill Proficiencies</label>
@@ -1138,7 +1139,9 @@
               <select id="book-select"><option value="">Open Settings to load…</option></select>
               <button class="btn" id="btn-loadbook" type="button">Load</button>
             </div>
+            <button class="btn primary" id="btn-loadall" type="button" style="margin-top:8px" title="Import every available 2014-ruleset book from your 5etools server in one click">Load all books</button>
             <button class="btn" id="btn-reload-all" type="button" style="display:none; margin-top:8px" title="Re-fetch every loaded book from your 5etools server to refresh its data">Reload all loaded sources</button>
+            <div id="loaded-books"></div>
             <label class="lbl" style="display:block; margin:10px 0 4px">5etools server</label>
             <input id="server-url" value="http://localhost:5050" spellcheck="false">
             <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
@@ -1168,6 +1171,7 @@
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
+  const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
 
   const ABILITIES = [
     ["str","Strength"],["dex","Dexterity"],["con","Constitution"],
@@ -1438,6 +1442,12 @@
     "Alert": "Alert (+5 initiative; can't be surprised while conscious; hidden attackers gain no advantage)" };
   // Feats that add a flat bonus to Initiative (5etools has no structured field for these — hardcode the known ones).
   const FEAT_INIT = { "Alert": 5 };
+  // Class / subclass features that belong in the Senses box (keyed by lowercased feature name).
+  const FEATURE_SENSES = {
+    "danger sense": "Danger Sense (advantage on Dex saves vs. effects you can see)",
+    "blindsense": "Blindsense 10 ft.",
+    "feral senses": "Feral Senses (blindsight 30 ft. vs. unseen attackers within range)",
+    "ear for deceit": "Ear for Deceit (Insight floor of 8)" };
   function featInitBonus(){ let b = 0; (asiChoices||[]).forEach(s => { if(s.type === "feat" && s.feat && FEAT_INIT[s.feat]) b += FEAT_INIT[s.feat]; }); return b; }
   // The attention flag: shown until every owed ASI / racial feat has a complete choice.
   function updateAsiFlag(){
@@ -1621,6 +1631,56 @@
       const n = loadedBooks().length;   // book names live in the Reload picker now; here just summarize the totals
       el.innerHTML = `<strong>${n} book${n===1?"":"s"} loaded</strong> — ${DATA.spells.length} spells, ${(DATA.classes||[]).length} classes, ${(DATA.races||[]).length} races.`;
     } else el.textContent = "No sourcebook loaded. Load one from your 5etools server below, or import a source-data.json file.";
+  }
+  function disabledBooks(){ return new Set((DATA && DATA._meta && DATA._meta.disabled) || []); }
+  function hasAllRaw(){                          // do we have per-book data for every loaded book? (needed to filter)
+    const m = DATA && DATA._meta; if(!m) return false; const raw = m.raw || {};
+    return (m.books || []).length > 0 && (m.books || []).every(nm => raw[nm]);
+  }
+  function rebuildFromRaw(){                      // rebuild the merged DATA from only the ENABLED per-book data
+    const m = DATA._meta, order = (m.books || []).slice(), off = disabledBooks();
+    const fresh = {_meta:{books:[], dataVersion:m.dataVersion}};
+    order.forEach(nm => { if(!off.has(nm) && m.raw && m.raw[nm]) mergeBook(fresh, m.raw[nm], nm); });
+    fresh._meta.books = order;                    // keep the full known-book list (incl. hidden) so the filter UI still lists them
+    fresh._meta.disabled = Array.from(off);
+    fresh._meta.raw = m.raw;
+    if(m.dataVersion != null) fresh._meta.dataVersion = m.dataVersion;
+    DATA = fresh; _spellIndex = null;
+  }
+  function persistSources(){                      // save merged DATA (lean) + per-book raw, separately so quota issues can't lose both
+    if(!DATA){ try{ localStorage.removeItem(SOURCES_KEY); localStorage.removeItem(SOURCES_RAW_KEY); }catch(e){} return; }
+    const raw = DATA._meta && DATA._meta.raw; if(raw) delete DATA._meta.raw;   // keep the merged copy lean
+    let ok = true;
+    try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }catch(e){ ok = false; }
+    finally{ if(raw) DATA._meta.raw = raw; }
+    if(raw){ try{ localStorage.setItem(SOURCES_RAW_KEY, JSON.stringify(raw)); }catch(e){} }
+    return ok;
+  }
+  function refreshAfterData(){                     // one call to re-render everything that reads DATA
+    populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false);
+    updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); renderLoadedBookList(); compute();
+  }
+  function renderLoadedBookList(){
+    const el = $("loaded-books"); if(!el) return;
+    const names = loadedBooks(); const off = disabledBooks();
+    if(!names.length){ el.innerHTML = ""; return; }
+    el.innerHTML = `<label class="lbl" style="display:block; margin:14px 0 4px">Loaded sources <span class="wiz-hint" style="font-weight:400; display:inline">— uncheck to hide a book's content</span></label>` +
+      names.slice().sort((a,b)=>String(a).localeCompare(String(b))).map(nm =>
+        `<label class="lay-row"><input type="checkbox" class="book-toggle" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label>`
+      ).join("");
+  }
+  async function toggleBook(name, enabled){
+    if(!DATA || !DATA._meta) return;
+    const prev = (DATA._meta.disabled || []).slice();
+    const set = new Set(prev); if(enabled) set.delete(name); else set.add(name);
+    DATA._meta.disabled = Array.from(set);
+    if(hasAllRaw()){ rebuildFromRaw(); bakeSourceData(); refreshAfterData(); persistSources();
+      flashStatus(enabled ? name+" shown" : name+" hidden"); return;
+    }
+    flashStatus("Fetching source data to enable filtering…");
+    const ok = await reloadAllBooks(true);        // re-fetch all books to populate per-book data, then re-applies the filter
+    if(!ok){ DATA._meta.disabled = prev; renderLoadedBookList(); }   // server unreachable — revert the toggle
+    else flashStatus(enabled ? name+" shown" : name+" hidden");
   }
 
   // ===== In-browser 5etools data processing (port of build-data.py) =====
@@ -1837,6 +1897,23 @@
     }));
     return [...set];
   }
+  function _chooserOptions(entries){     // names referenced inside an `options` block → this feature is a "choose one" chooser (e.g. Totem Spirit)
+    const names = [];
+    const walk = e => {
+      if(Array.isArray(e)) return e.forEach(walk);
+      if(e && typeof e === "object"){
+        if(e.type === "options" && Array.isArray(e.entries)){
+          e.entries.forEach(o => {
+            if(o && o.type === "refSubclassFeature" && o.subclassFeature) names.push(String(o.subclassFeature).split("|")[0].trim());
+            else if(o && o.type === "refOptionalfeature" && o.optionalfeature) names.push(String(o.optionalfeature).split("|")[0].trim());
+          });
+        }
+        if(Array.isArray(e.entries)) e.entries.forEach(walk);
+      }
+    };
+    walk(entries);
+    return names;
+  }
   function etClasses(data, SRC){
     // All subclasses from THIS book, grouped by base-class name — even when the base class lives in another
     // book (e.g. TCE's Order of Scribes belongs to the PHB Wizard). mergeBook attaches these to the class.
@@ -1846,10 +1923,23 @@
       const short = s.shortName||s.name;
       const arr = subMap[s.className] = subMap[s.className] || [];
       if(arr.some(x => x.short === short)) return;
-      const features = (data.subclassFeature||[])
-        .filter(f => f.source === SRC && f.className === s.className && f.subclassShortName === short && (f.subclassSource||SRC) === SRC && f.name)
-        .map(f => ({name:f.name||"", level:f.level||1, text:etText(f.entries||[])}))
+      const rawFeats = (data.subclassFeature||[])
+        .filter(f => f.source === SRC && f.className === s.className && f.subclassShortName === short && (f.subclassSource||SRC) === SRC && f.name);
+      const choosers = [];                              // features that offer a "choose one" set (Totem Spirit, Aspect of the Beast, …)
+      const optionNames = new Set();
+      rawFeats.forEach(f => { const opts = _chooserOptions(f.entries||[]); if(opts.length){ choosers.push({name:f.name, level:f.level||1, options:opts}); opts.forEach(n => optionNames.add(n)); } });
+      const features = rawFeats
+        .map(f => { const o = {name:f.name||"", level:f.level||1, text:etText(f.entries||[])};
+          if(optionNames.has(f.name)){ o.opt = f.name;             // a per-option feature (e.g. "Bear") — shown only when chosen
+            const g = choosers.find(c => c.level === o.level); if(g) o.optGroup = g.name; }
+          return o; })
         .sort((a,b) => a.level-b.level || a.name.localeCompare(b.name));
+      let featChoices = [];                             // pickers surfaced in the wizard; collapse same-option choosers into one (Totem Warrior's 3 levels → one Totem Spirit pick)
+      if(choosers.length){
+        const present = c => c.options.filter(n => rawFeats.some(f => f.name === n));   // only options whose feature actually loaded
+        const groups = {}; choosers.slice().sort((a,b)=>a.level-b.level).forEach(c => { const k = present(c).slice().sort().join("|"); (groups[k] = groups[k] || []).push(c); });
+        featChoices = Object.values(groups).map(g => ({label:g[0].name, options:present(g[0]), levels:g.map(c=>c.level)})).filter(g => g.options.length);
+      }
       const spells = [], expanded = [];               // always-prepared (domain/oath/…) vs. expanded (Warlock patron) options
       (s.additionalSpells||[]).forEach(blk => {
         const prep = blk.prepared || blk.known || blk.innate || {};
@@ -1859,7 +1949,7 @@
         for(const lv in exp){ const names = []; _collectSpellNames(exp[lv], names);
           names.forEach(nm => expanded.push({n:_titlecase(_clean(nm)), l:parseInt(lv,10)||0})); }
       });
-      arr.push({name:s.name, short, features, spells, expanded});
+      arr.push({name:s.name, short, features, spells, expanded, featChoices});
     });
     const classes = (data.class||[]).filter(c => c.source === SRC).map(c => {
       const sp = c.startingProficiencies || {};
@@ -2179,13 +2269,13 @@
     try{
       const data = await fetch5etoolsBook(base, srcCode);
       if(!DATA) DATA = {_meta:{books:[]}};
+      DATA._meta.raw = DATA._meta.raw || {}; DATA._meta.raw[bookName] = data;   // keep per-book copy so it can be filtered out later
+      if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== bookName);   // an explicit load (re)enables the book
       mergeBook(DATA, data, bookName);
       _spellIndex = null;
       bakeSourceData();   // keep the in-document data block in sync so saves carry the books
-      try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }
-      catch(e){ flashStatus(bookName+" loaded (too large to save — stays this session)"); }
-      populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false); updateSourcebookStatus(); populateMonsterList(); compute();
-      populateBookSelect();   // move the just-loaded book over to the reload picker
+      if(persistSources() === false) flashStatus(bookName+" loaded (too large to save — stays this session)");
+      refreshAfterData();
       flashStatus(bookName + (reloading ? " reloaded (data refreshed)" : " loaded — use “Save data file” to bake it into your sheet"));
     }catch(e){ flashStatus((reloading?"Reload":"Load")+" failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Load"; } }
@@ -2196,25 +2286,44 @@
     if(!b || !b.code){ flashStatus("Pick a book first"); return; }
     doLoadBook(b.code, b.name, false, $("btn-loadbook"));
   }
-  async function reloadAllBooks(){   // one click: re-fetch every loaded book to refresh its data
-    const names = loadedBooks(); if(!names.length){ flashStatus("No loaded books to reload"); return; }
+  async function reloadAllBooks(silent){   // one click: re-fetch every loaded book to refresh its (per-book) data, then re-apply the filter
+    const names = loadedBooks(); if(!names.length){ if(!silent) flashStatus("No loaded books to reload"); return false; }
     const base = ($("server-url").value || "").trim() || "http://localhost:5050";
     const btn = $("btn-reload-all"), orig = btn ? btn.textContent : "";
     if(btn){ btn.disabled = true; btn.textContent = "Reloading…"; }
     try{
       const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
       const codeOf = {}; (bj.book||[]).forEach(b => { codeOf[String(b.name||b.id||"").toLowerCase()] = b.id||b.source; });
+      DATA._meta.raw = DATA._meta.raw || {};
       let n = 0, missed = 0;
       for(const nm of names){ const code = codeOf[String(nm).toLowerCase()];
-        if(!code){ missed++; continue; }
-        mergeBook(DATA, await fetch5etoolsBook(base, code), nm); n++;
+        if(!code){ missed++; continue; }                              // not on this server — keep any prior per-book copy
+        DATA._meta.raw[nm] = await fetch5etoolsBook(base, code); n++;
       }
-      _spellIndex = null; bakeSourceData();
-      try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }catch(e){}
-      populateWizard(); populateArmor(); renderAllSpellSheets(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
-      flashStatus("Reloaded " + n + " source" + (n===1?"":"s") + (missed?" ("+missed+" not on server)":"") + " — data refreshed");
-    }catch(e){ flashStatus("Reload failed — is your 5etools server running at "+base+"?"); }
+      rebuildFromRaw(); bakeSourceData(); persistSources(); refreshAfterData();
+      if(!silent) flashStatus("Reloaded " + n + " source" + (n===1?"":"s") + (missed?" ("+missed+" not on server)":"") + " — data refreshed");
+      return true;
+    }catch(e){ flashStatus("Reload failed — is your 5etools server running at "+base+"?"); return false; }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Reload all loaded sources"; } }
+  }
+  async function loadAllBooks(){   // one click: import every available 2014 book not already loaded
+    const base = ($("server-url").value || "").trim() || "http://localhost:5050";
+    const btn = $("btn-loadall"), orig = btn ? btn.textContent : "";
+    if(btn){ btn.disabled = true; btn.textContent = "Loading…"; }
+    try{
+      const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
+      const loaded = new Set(loadedBooks().map(n => String(n).toLowerCase()));
+      const fresh = (bj.book||[]).filter(b => !isBook2024(b) && !loaded.has(String(b.name||b.id||"").toLowerCase()));
+      if(!fresh.length){ flashStatus("All available books are already loaded"); return; }
+      let n = 0;
+      for(const b of fresh){
+        if(btn) btn.textContent = `Loading ${n+1}/${fresh.length}…`;
+        await doLoadBook(b.id||b.source, b.name||b.id, false, null);   // captures raw, merges, persists, refreshes each time
+        n++;
+      }
+      flashStatus("Loaded " + n + " book" + (n===1?"":"s") + " — use “Save data file” to bake them into your sheet");
+    }catch(e){ flashStatus("Load all failed — is your 5etools server running at "+base+"?"); }
+    finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Load all books"; } }
   }
   function bakeSourceData(){ const pd = $("source-data"); if(pd) pd.textContent = JSON.stringify(DATA || null); }
   function saveDataFile(){               // download a copy of the sheet with all loaded books baked into the file
@@ -2226,12 +2335,13 @@
   }
   function clearLoadedBooks(){           // forget books loaded in this browser; revert to the data baked into the file
     if(!confirm("Forget all sourcebooks loaded in this browser and revert to the data baked into this file?\n\n(Your character isn't affected.)")) return;
-    try{ localStorage.removeItem(SOURCES_KEY); }catch(e){}
+    try{ localStorage.removeItem(SOURCES_KEY); localStorage.removeItem(SOURCES_RAW_KEY); }catch(e){}
     let baked = null; try{ baked = JSON.parse($("source-data").textContent); }catch(e){}
     DATA = baked || null;
+    if(DATA && DATA._meta){ delete DATA._meta.raw; delete DATA._meta.disabled; }
     _spellIndex = null;
     bakeSourceData();   // keep the in-document block consistent with the reverted data
-    populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false); updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); compute();
+    refreshAfterData();
     flashStatus(DATA ? "Reverted to the data baked into this file — reload books as needed." : "Loaded books cleared.");
   }
   function applyLayout(){
@@ -3133,6 +3243,21 @@
     if(wrap) wrap.hidden = false;
     sel.innerHTML = `<option value="">${esc(cls.subclassTitle||"Subclass")}</option>` + byName(subs).map(s=>optTag(s.name,s.name)).join("");
     sel.disabled = false;
+    renderSubChoices();
+  }
+  function renderSubChoices(){                          // pickers for subclass "choose one" sets (e.g. Totem Warrior → Totem Spirit)
+    const wrap = $("wiz-subchoice-wrap"); if(!wrap || !DATA) return;
+    const cls = findBy(DATA.classes, $("wiz-class").value), subName = $("wiz-subclass").value;
+    const sub = cls && subName ? (cls.subclasses||[]).find(x => x.name === subName) : null;
+    const lvl = Math.min(20, Math.max(1, num($("wiz-level").value, 1)));
+    const active = ((sub && sub.featChoices) || []).filter(c => lvl >= Math.min.apply(null, c.levels || [1]));
+    if(!active.length){ wrap.hidden = true; wrap.innerHTML = ""; return; }
+    wrap.hidden = false;
+    wrap.innerHTML = active.map((c,i) =>
+      `<label class="lbl" style="margin-top:10px">${esc(c.label)}</label>`+
+      `<select class="wiz-subchoice" data-group="${i}"><option value="">Choose ${esc(c.label)}…</option>`+
+      c.options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join("")+`</select>`
+    ).join("");
   }
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
 
@@ -4023,6 +4148,8 @@
   function createCharacter(){
     const name=$("wiz-name").value.trim(), race=$("wiz-race").value, cls=$("wiz-class").value,
           sub=$("wiz-subclass").value, lvl=Math.min(20,Math.max(1,num($("wiz-level").value,1))), bg=$("wiz-bg").value;
+    const chosenOpts = new Set();                                                // subclass "choose one" picks (e.g. Totem Spirit → Bear) — read NOW, before applyClass rebuilds the wizard selects
+    document.querySelectorAll(".wiz-subchoice").forEach(s => { if(s.value) chosenOpts.add(s.value); });
     // proficiencies become authoritative for the new build
     document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
     asiChoices = []; asiFeatsAdded = {}; bonusVals.asi = zeroAb();   // new build → unassigned ASIs, flagged for the player
@@ -4045,12 +4172,16 @@
       if(spellKey){ $("spellclass").value = spellKey; renderSpellStyle(true, 0); }   // tailor the (primary) spell sheet
       document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // chosen class skills
       if(c && c.features && c.features.length){                                    // class features up to this level → Features page
-        const lines = c.features.filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${cls} ${f.level}). ${f.text}`);
+        const cf = c.features.filter(f => (f.level||1) <= lvl);
+        const lines = cf.map(f => `${f.name} (${cls} ${f.level}). ${f.text}`);
         if(lines.length){ const t = $("features"); const block = lines.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
+        cf.forEach(f => { const s = FEATURE_SENSES[(f.name||"").toLowerCase()]; if(s) addSense(s); });   // e.g. Barbarian Danger Sense
       }
       const subObj = (c && sub) ? (c.subclasses||[]).find(x => x.name === sub) : null;   // chosen subclass → its features + always-prepared spells
       if(subObj){
-        const sfl = (subObj.features||[]).filter(f => (f.level||1) <= lvl).map(f => `${f.name} (${sub} ${f.level}). ${f.text}`);
+        const subFeats = (subObj.features||[]).filter(f => (f.level||1) <= lvl && (!f.opt || chosenOpts.has(f.opt)));   // hide un-chosen option features (other totems)
+        const sfl = subFeats.map(f => `${f.opt ? (f.optGroup ? f.optGroup+": " : "")+f.name : f.name} (${sub} ${f.level}). ${f.text}`);
+        subFeats.forEach(f => { const s = FEATURE_SENSES[(f.name||"").toLowerCase()]; if(s) addSense(s); });
         const sInfo = spellKey && CASTERS[spellKey];
         if(subObj.spells && subObj.spells.length){
           sfl.push(`${sub} spells (always prepared): ${subObj.spells.map(sp => sp.n).join(", ")}.`);
@@ -4111,6 +4242,9 @@
     const verOf = d => (d && d._meta && d._meta.dataVersion) || 0;
     const sameVer = verOf(_stored) === verOf(_baked);   // discard stored data built by an OLDER app/data shape
     DATA = (srcComplete(_stored) && (sameVer || !_baked)) ? _stored : (_baked || _stored || null);
+    if(DATA && DATA._meta && DATA === _stored){   // restore per-book data (kept in a separate key so quota can't lose the merged copy)
+      try{ const r = localStorage.getItem(SOURCES_RAW_KEY); if(r) DATA._meta.raw = JSON.parse(r); }catch(e){}
+    }
     try{ const sv = localStorage.getItem(SERVER_KEY); if(sv) $("server-url").value = sv; }catch(e){}
     let data = null;
     try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
@@ -4121,6 +4255,7 @@
     populateMonsterList();
     applyAll(data);
     updateSourcebookStatus();
+    renderLoadedBookList();
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
@@ -4198,7 +4333,7 @@
       renderAsiList(); renderHoodControls(); save(); compute();
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -4208,7 +4343,9 @@
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
-    $("btn-reload-all").addEventListener("click", reloadAllBooks);
+    $("btn-loadall").addEventListener("click", loadAllBooks);
+    $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
+    $("loaded-books").addEventListener("change", e => { const t = e.target.closest(".book-toggle"); if(t) toggleBook(t.dataset.book, t.checked); });
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
     $("settings-done").addEventListener("click", ()=> $("settings").classList.remove("open"));
@@ -4281,14 +4418,11 @@
           $("file-input").value=""; return;
         }
         DATA = d; _spellIndex = null;
+        if(DATA._meta){ delete DATA._meta.raw; delete DATA._meta.disabled; }   // imported file is merged-only; per-book filtering needs a reload
+        try{ localStorage.removeItem(SOURCES_RAW_KEY); }catch(e){}
         bakeSourceData();
-        try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(d)); }
-        catch(e){ flashStatus("Sourcebook loaded (too large to persist locally)"); }
-        populateWizard();
-        populateArmor(); populateItemList();
-        renderAllSpellSheets(false);
-        updateSourcebookStatus();
-        compute();
+        if(persistSources() === false) flashStatus("Sourcebook loaded (too large to persist locally)");
+        refreshAfterData();
         flashStatus("Sourcebook loaded — Create is ready");
         $("file-input").value = "";
       };
@@ -4323,6 +4457,7 @@
     $("wiz-race").addEventListener("change", raceHint);
     $("wiz-class").addEventListener("change", e=> populateSubclass(e.target.value));
     $("wiz-level").addEventListener("input", ()=> populateSubclass($("wiz-class").value));   // level gates the subclass
+    $("wiz-subclass").addEventListener("change", renderSubChoices);   // a subclass with "choose one" sets (Totem Warrior) → show its pickers
     $("wiz-bg").addEventListener("change", updateCustomBgVisibility);
     $("wiz-cbg-skills").addEventListener("change", updateCustomBgLimit);
     $("wiz-cbg-featpick").addEventListener("change", e => {   // fill name/desc from a chosen existing feature
