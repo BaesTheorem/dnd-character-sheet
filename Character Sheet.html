@@ -2143,9 +2143,10 @@
   }
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
+    const hasCompanion = (companions||[]).length > 0;
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
-      const excluded = userHidden || (key === "mini" && !hasPortrait);
+      const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "companion" && !hasCompanion);
       const tab = document.querySelector('.ptab[data-page="'+key+'"]');
       if(tab){ tab.style.display = userHidden ? "none" : ""; tab.classList.toggle("muted", excluded && !userHidden); }
       const page = $("page-"+key);
@@ -3983,7 +3984,7 @@
     });
 
     // Companions & Forms
-    $("add-companion").addEventListener("click", ()=>{ companions.push(blankCompanion()); renderCompanions(); save(); });
+    $("add-companion").addEventListener("click", ()=>{ companions.push(blankCompanion()); renderCompanions(); applyLayout(); save(); });
     const compList = $("companion-list");
     compList.addEventListener("input", e => {
       const t = e.target, ci = +t.dataset.ci, f = t.dataset.f;
@@ -4005,7 +4006,7 @@
       }
     });
     compList.addEventListener("click", e => {
-      const rm = e.target.closest(".comp-rm"); if(rm){ companions.splice(+rm.dataset.ci, 1); renderCompanions(); save(); return; }
+      const rm = e.target.closest(".comp-rm"); if(rm){ companions.splice(+rm.dataset.ci, 1); renderCompanions(); applyLayout(); save(); return; }
       const port = e.target.closest(".comp-portrait"); if(port){ compPortraitUpload(+port.dataset.ci); }
     });
 
