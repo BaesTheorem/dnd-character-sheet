@@ -2411,16 +2411,17 @@
     }
     sEl(inst,"spells").innerHTML = body;
   }
-  // How many cantrips the class knows at the given level (drives the number of cantrip rows). Default count if no level set.
+  // Cantrips the class knows: the exact count at the given level, or — class chosen but no level — the class's MAXIMUM.
   function cantripCount(cls, lvl){
     if(lvl === undefined) lvl = charLevel();
-    if(lvl == null) return CANTRIP_COUNT;                                   // no level denoted → leave the default count
-    if(SUB_CANTRIPS[cls]) return SUB_CANTRIPS[cls][Math.min(Math.max(lvl,1),20)-1] || 0;   // subclass casters (EK/AT)
     const c = DATA && DATA.classes && findBy(DATA.classes, cls);
-    const prog = c && c.cantrips;
-    if(prog && prog.length) return prog[Math.min(Math.max(lvl,1),20)-1] || 0;
+    const prog = SUB_CANTRIPS[cls] || (c && c.cantrips);                    // SUB_CANTRIPS covers subclass casters (EK/AT)
+    if(prog && prog.length){
+      if(lvl == null) return Math.max.apply(null, prog);                    // class known, no level → cap at its maximum
+      return prog[Math.min(Math.max(lvl,1),20)-1] || 0;                     // class + level → exact count for that level
+    }
     if(c) return 0;                                                         // known class with no cantrips (Paladin/Ranger)
-    return CANTRIP_COUNT;                                                   // unknown class ("Other"/blank) → default
+    return CANTRIP_COUNT;                                                   // unknown class ("Other"/blank) → generic default
   }
   function resizeCantrips(n, inst=0){            // grow/shrink the cantrip rows to n; never drop a filled cantrip
     const e = spellEntriesOf(inst), arr = e[0] || (e[0] = []);
