@@ -205,8 +205,8 @@
   /* rows of save/skill */
   .row{display:flex; align-items:center; gap:9px; padding:5px 0; border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:none}
-  .row .total{width:34px; height:34px; flex:none; display:flex; align-items:center; justify-content:center;
-    font-weight:700; font-size:15px; background:var(--accent-soft); color:var(--accent); border-radius:7px}
+  .row .total{width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:19px; background:var(--accent-soft); color:var(--accent); border-radius:8px}
   .row .rname{flex:1; font-size:13px}
   .row .rname .ab{color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em}
   .marks{display:flex; gap:6px; align-items:center}
@@ -215,8 +215,8 @@
   input[type=checkbox]{width:16px; height:16px; accent-color:var(--accent); cursor:pointer; flex:none}
 
   .passive{display:flex; align-items:center; gap:12px; margin-bottom:12px}
-  .passive .v{flex:none; width:34px; height:34px; display:flex; align-items:center; justify-content:center;
-    font-size:15px; font-weight:700; color:var(--accent); background:#fff; border:2px solid var(--accent)}
+  .passive .v{flex:none; width:40px; height:40px; display:flex; align-items:center; justify-content:center;
+    font-size:19px; font-weight:700; color:var(--accent); background:#fff; border:2px solid var(--accent)}
   .passive .k{font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
     color:var(--ink); line-height:1.3}
 
@@ -453,8 +453,10 @@
   .spelltable .col-lvl input{text-align:center; font-weight:400; color:var(--ink)}
   .spelltable .col-prep{text-align:center}
   .spelltable.hide-prep .col-prep{display:none}
-  .spelltable .col-comp, .spelltable .col-time, .spelltable .col-range,
-  .spelltable .col-dur, .spelltable .col-school{font-size:11px; color:var(--muted); text-align:center}
+  .spelltable td.col-comp, .spelltable td.col-time, .spelltable td.col-range,
+  .spelltable td.col-dur, .spelltable td.col-school{font-size:11px; color:var(--muted); text-align:center}   /* values stay small + muted */
+  .spelltable th.col-comp, .spelltable th.col-time, .spelltable th.col-range,
+  .spelltable th.col-dur, .spelltable th.col-school{text-align:center}   /* headers use the global th font/size/style (centered over their values) */
   .spelltable .col-name[title]{cursor:help}
   .spelltable .sp-section td{background:var(--field); font-weight:800; font-size:10px; letter-spacing:.07em;
     text-transform:uppercase; color:var(--accent); padding:6px 8px; border-top:2px solid var(--line2)}
