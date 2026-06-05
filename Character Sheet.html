@@ -2258,7 +2258,7 @@
     if(spellSheetKind[inst] === "manual"){ const el = sEl(inst,"spelllevel"), v = el && el.value; if(v) return Math.min(20, Math.max(1, parseInt(v,10))); }
     return charLevel();
   }
-  const CANTRIP_COUNT = 5, PER_LEVEL = 10;      // default blank entries per section
+  const CANTRIP_COUNT = 6, PER_LEVEL = 10;      // default blank cantrip rows = the universal max (Sorcerer's 6); used when no class is chosen
   function mkSpellRows(n){ return Array.from({length:n}, ()=>({name:"",prep:false})); }
   function defaultSpellEntries(){ const o = {0:mkSpellRows(CANTRIP_COUNT)}; for(let l=1;l<=9;l++) o[l]=mkSpellRows(PER_LEVEL); return o; }
   function classSpellList(cls){
