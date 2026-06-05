@@ -100,6 +100,7 @@
   .portrait.has-img{background:transparent}
   .portrait img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain}  /* fit whole image to height, no crop */
   .portrait img[hidden]{display:none}
+  .sheet.hide-portrait #portrait{display:none !important}   /* Settings → General: hide the portrait box on screen and in print */
   .portrait-empty{display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center; padding:0 6px}
   .pe-main{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
   .pe-sub{font-size:9px; color:var(--muted)}
@@ -1125,7 +1126,10 @@
         </nav>
         <div class="settings-content">
           <section class="set-sec active" data-sec="general">
-            <label class="lbl" style="display:block; margin-bottom:6px">Reset</label>
+            <label class="lbl" style="display:block; margin-bottom:6px">Portrait</label>
+            <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
+            <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
             <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
             <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
           </section>
@@ -1578,6 +1582,8 @@
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
   let showAddSpell = false;                     // Settings → Advanced: show the "+ Add spell sheet" button (off by default; created sheets are unaffected)
   function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
+  let hidePortrait = false;                     // Settings → General: hide the character portrait box (screen + print)
+  function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
       `<label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="${key}" ${hiddenPages[key] ? "" : "checked"}> ${label}</label>`
@@ -2728,6 +2734,7 @@
     data.preparedSpells = preparedByInst[0];
     data.hiddenPages = hiddenPages;
     data.showAddSpell = showAddSpell;
+    data.hidePortrait = hidePortrait;
     data.hitDieFaces = hitDieFaces;
     data.speedBase = speedBase;
     data.asiChoices = asiChoices;
@@ -2802,6 +2809,7 @@
     if(speedBase == null && data){ const m = String(data.speed||"").match(/\d+/); if(m) speedBase = +m[0]; }   // legacy "30 ft" → 30
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
+    hidePortrait = !!(data && data.hidePortrait);   // default off
     if(data){                                                       // migrate old per-page include checkboxes
       if(data["spell-include"] === false) hiddenPages.spells = true;
       if(data["mini-include"] === false) hiddenPages.mini = true;
@@ -2842,6 +2850,7 @@
     renderLayoutToggles();
     applyLayout();
     applyAddSpellSetting();
+    applyPortraitSetting();
     compute();
   }
   let saveTimer = null;
@@ -4045,13 +4054,14 @@
       renderAsiList(); renderHoodControls(); save(); compute();
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("set-addspell").checked = showAddSpell; $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
       document.querySelectorAll("#settings .set-sec").forEach(s => s.classList.toggle("active", s.dataset.sec === b.dataset.sec));
     });
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
+    $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
     $("btn-reload-all").addEventListener("click", reloadAllBooks);
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
