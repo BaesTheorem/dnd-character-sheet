@@ -2406,7 +2406,7 @@
                                   : `<input class="sp-name" data-inst="${inst}" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
           body += `<tr>${prepCell}<td class="col-name"${titleAttr}>${nameField}</td>`+ propCells(d) +`</tr>`;
         });
-        body += `<tr class="sp-addrow noprint"><td colspan="7"><button type="button" class="sp-add" data-inst="${inst}" data-l="${l}">+ add blank row</button></td></tr>`;   // grow this level on demand
+        if(l>0) body += `<tr class="sp-addrow noprint"><td colspan="7"><button type="button" class="sp-add" data-inst="${inst}" data-l="${l}">+ add blank row</button></td></tr>`;   // grow this level on demand (cantrips are a fixed count, so no add-row there)
       }
     }
     sEl(inst,"spells").innerHTML = body;
