@@ -99,6 +99,26 @@ def _speed(r):
     sp = r.get("speed")
     return sp if isinstance(sp, int) else (sp or {}).get("walk", 30)
 
+def _speed_extra(r):     # non-walk movement modes (fly/swim/climb/burrow); True = equal to walking speed
+    sp = r.get("speed")
+    if not isinstance(sp, dict): return ""
+    walk, out = sp.get("walk", 30), []
+    for mode in ("fly", "swim", "climb", "burrow"):
+        v = sp.get(mode)
+        if v is None or v is False: continue
+        out.append(f"{mode} {walk if v is True else v} ft.")
+    return ", ".join(out)
+
+def _race_spell_names(r):   # concrete cantrip/innate spell names a race grants (for the Racial Spells reminder)
+    names = []
+    for blk in r.get("additionalSpells") or []:
+        for k in ("known", "innate", "prepared"):
+            if blk.get(k): _collect_spell_names(blk[k], names)
+    seen, out = set(), []
+    for n in (_titlecase(_clean(x)) for x in names):
+        if n and n not in seen: seen.add(n); out.append(n)
+    return out
+
 def race_langs(r):
     out = []
     for blk in r.get("languageProficiencies") or []:
@@ -144,12 +164,13 @@ def build_races(raw):
         ab = list(r.get("ability") or [])
         fg = feat_grants(r); pf = prof_block(r); rs = damage_resist(r)
         dv, lc = r.get("darkvision") or 0, lang_choose(r)
-        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc}
+        rsp = _race_spell_names(r); rsx = _speed_extra(r)
+        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp}
         base_idx[r["name"]] = len(out)
         out.append({"name": r["name"], "ability": ab,
                     "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
-                    "speed": _speed(r), "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs,
-                    "darkvision": dv, "langChoose": lc})
+                    "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs,
+                    "darkvision": dv, "langChoose": lc, "spells": rsp})
     for s in raw.get("subrace", []):
         if not is_src(s): continue
         parent = s.get("raceName")
@@ -164,17 +185,20 @@ def build_races(raw):
                 out[i]["resist"]  = (out[i].get("resist") or []) + damage_resist(s)
                 out[i]["darkvision"] = max(out[i].get("darkvision") or 0, sdv)
                 out[i]["langChoose"] = (out[i].get("langChoose") or 0) + slc
+                out[i]["spells"] = (out[i].get("spells") or []) + _race_spell_names(s)
             continue
         base = bases.get(parent, {})               # named subrace -> "Race (Subrace)", base + subrace
         out.append({"name": f"{parent} ({s['name']})",
                     "ability": (base.get("ability") or []) + (s.get("ability") or []),
                     "size": "", "speed": _speed(s) if s.get("speed") is not None else base.get("speed", 30),
+                    "speedExtra": _speed_extra(s) if s.get("speed") is not None else base.get("speedExtra", ""),
                     "subraceOf": parent,
                     "traits": (base.get("traits") or []) + _traits(s.get("entries", [])),
                     "featGrants": (base.get("featGrants") or 0) + feat_grants(s),
                     "prof": _merge_prof(base.get("prof"), prof_block(s)),
                     "resist": (base.get("resist") or []) + damage_resist(s),
-                    "darkvision": max(base.get("darkvision") or 0, sdv), "langChoose": (base.get("langChoose") or 0) + slc})
+                    "darkvision": max(base.get("darkvision") or 0, sdv), "langChoose": (base.get("langChoose") or 0) + slc,
+                    "spells": (base.get("spells") or []) + _race_spell_names(s)})
     for o in out:
         if "custom lineage" in o["name"].lower(): o["variableSkillDarkvision"] = True   # TCE: skill OR darkvision
     return out
@@ -192,8 +216,8 @@ def skills_from(spo):
     return fixed, choose
 
 # ---- Shared proficiency normalization (races / backgrounds / feats / classes) ----
-def _clean(s):           # strip 5eTools {@item ...|...} markup and the |source suffix
-    return render_tags(str(s)).split("|")[0].strip()
+def _clean(s):           # strip 5eTools {@item ...|...} markup, the |source suffix, and #level tags
+    return render_tags(str(s)).split("|")[0].split("#")[0].strip()
 def _titlecase(s):
     return " ".join((w[:1].upper() + w[1:]) if w else w for w in str(s).split(" "))
 _ANY_LABELS = {"any": "of your choice", "anyStandard": "standard language of your choice",
@@ -323,14 +347,18 @@ def build_classes():
                           if is_src(f) and f.get("className")==c["name"] and f.get("subclassShortName")==short
                           and f.get("subclassSource", SRC_TAG)==SRC_TAG and f.get("name")]
                 sfeats.sort(key=lambda x: (x["level"], x["name"]))
-                sspells = []
+                sspells = []; sexpanded = []
                 for blk in s.get("additionalSpells") or []:
                     prep = blk.get("prepared") or blk.get("known") or blk.get("innate") or {}
                     for lv, val in prep.items():
                         names = []; _collect_spell_names(val, names)   # val may be array or nested object (e.g. Sun Soul resource:{2:[...]})
                         for nm in names:
                             sspells.append({"n": _titlecase(_clean(nm)), "l": int(lv) if str(lv).isdigit() else 0})
-                subs.append({"name": s["name"], "short": short, "features": sfeats, "spells": sspells})
+                    for lv, val in (blk.get("expanded") or {}).items():   # Warlock patron expanded lists
+                        names = []; _collect_spell_names(val, names)
+                        for nm in names:
+                            sexpanded.append({"n": _titlecase(_clean(nm)), "l": int(lv) if str(lv).isdigit() else 0})
+                subs.append({"name": s["name"], "short": short, "features": sfeats, "spells": sspells, "expanded": sexpanded})
             sub_lvl = None
             for f in c.get("classFeatures", []):
                 if isinstance(f, dict) and f.get("gainSubclassFeature") and f.get("classFeature"):
@@ -584,8 +612,8 @@ def build_class_spells():
         lv = levels.get(name)
         if lv is None: continue                       # leveled book spells (cantrips included)
         for c in info.get("class", []):
-            if c.get("source") == SRC_TAG:
-                out.setdefault(c["name"], []).append({"n": name, "l": lv})
+            # c["source"] is the book that GRANTED access, not the spell's book — don't filter on it (e.g. TCE grants PHB spells to Artificer)
+            out.setdefault(c["name"], []).append({"n": name, "l": lv})
         # classVariant = this book adds an existing-class spell (e.g. XGE adds Toll the Dead to Cleric/Wizard/Warlock)
         for c in info.get("classVariant", []):
             out.setdefault(c["name"], []).append({"n": name, "l": lv})
