@@ -1157,6 +1157,9 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Encumbrance</label>
             <label class="lay-row"><input type="checkbox" id="set-variant-enc"> Use the variant Encumbrance rule</label>
             <p class="wiz-hint">Off by default. When on, the Carrying Capacity card adds the Encumbered (×5) and Heavily Encumbered (×10) thresholds and applies their speed penalties. When off, only your Max Carry (×15) and Push/Drag/Lift (×30) are shown.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Item filters</label>
+            <label class="lay-row"><input type="checkbox" id="set-futuristic"> Show futuristic items</label>
+            <p class="wiz-hint">Off by default. When off, futuristic gear (laser/antimatter weapons, powered armor, etc.) is hidden from the item search and the per-row item autocomplete.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
             <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
             <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
@@ -1206,7 +1209,7 @@
   const BASE_KEY = "dnd-sheet-2014-v1";
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
-  const DATA_VERSION = 14;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged
+  const DATA_VERSION = 15;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
@@ -1722,6 +1725,13 @@
   let hidePortrait = false;                     // Settings → General: hide the character portrait box (screen + print)
   function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
   let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
+  let showFuturistic = false;                   // Settings → General: include futuristic items (laser/antimatter/powered armor) in the item pickers (off by default)
+  function availableItemNames(){                // item-autocomplete source, futuristic gear filtered out unless enabled
+    const names = (DATA && DATA.itemNames) || [];
+    if(showFuturistic) return names;
+    const fut = new Set((DATA && DATA.futuristic) || []);
+    return fut.size ? names.filter(n => !fut.has(n)) : names;
+  }
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
       `<label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="${key}" ${hiddenPages[key] ? "" : "checked"}> ${label}</label>`
@@ -2231,6 +2241,11 @@
     [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { if(it.source === SRC && it.name) s.add(it.name); }));
     return [...s].sort();
   }
+  function etFuturistic(itemsBase, itemsData, SRC){   // names of futuristic-age items (laser/antimatter/powered armor) → filtered out unless enabled
+    const s = new Set();
+    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { if(it.source === SRC && it.name && it.age === "futuristic") s.add(it.name); }));
+    return [...s].sort();
+  }
   function etContainers(itemsBase, itemsData, SRC){   // weightless containers (Bag of Holding, Heward's Handy Haversack, ...)
     const s = new Set();
     [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => { const cc = it.containerCapacity; if(it.source === SRC && it.name && cc && cc.weightless) s.add(it.name); }));
@@ -2312,7 +2327,7 @@
       acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
       languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), toolCats:etToolCats(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
       itemWeights:etItemWeights(itemsBase,itemsData,srcCode),
-      itemNames:etItemNames(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode),
+      itemNames:etItemNames(itemsBase,itemsData,srcCode), futuristic:etFuturistic(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode),
       attuneItems:etAttuneItems(itemsBase,itemsData,srcCode), magicItems:etMagicItems(itemsBase,itemsData,srcCode),
       itemText:etItemText(itemsBase,itemsData,srcCode)};
   }
@@ -2375,7 +2390,7 @@
       add.classSpells[cn].forEach(x => { if(idx.has(x.n)) ex[idx.get(x.n)] = x; else { idx.set(x.n, ex.length); ex.push(x); } });
       ex.sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
     }
-    ["languages","tools","itemNames","containers","attuneItems","magicItems"].forEach(cat => {   // plain string arrays
+    ["languages","tools","itemNames","futuristic","containers","attuneItems","magicItems"].forEach(cat => {   // plain string arrays
       into[cat] = into[cat] || [];
       const seen = new Set(into[cat]);
       (add[cat]||[]).forEach(x => { if(!seen.has(x)){ into[cat].push(x); seen.add(x); } });
@@ -3118,6 +3133,7 @@
     data.showAddSpell = showAddSpell;
     data.hidePortrait = hidePortrait;
     data.variantEncumbrance = variantEncumbrance;
+    data.showFuturistic = showFuturistic;
     data.hitDieFaces = hitDieFaces;
     data.charClasses = charClasses;
     data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses;   // remember generated content so Edit Character replaces it instead of duplicating
@@ -3205,6 +3221,7 @@
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
+    showFuturistic = !!(data && data.showFuturistic);   // default off
     if(data){                                                       // migrate old per-page include checkboxes
       if(data["spell-include"] === false) hiddenPages.spells = true;
       if(data["mini-include"] === false) hiddenPages.mini = true;
@@ -3949,7 +3966,7 @@
     function render(){
       const q = inp.value.trim().toLowerCase();
       if(!q){ res.hidden = true; res.innerHTML = ""; matches = []; sel = -1; return; }
-      const names = (DATA && DATA.itemNames) || [];
+      const names = availableItemNames();
       const starts = [], contains = [];   // rank name-starts-with-query above contains, so relevant items aren't cut off
       for(const n of names){ const i = n.toLowerCase().indexOf(q); if(i === 0) starts.push(n); else if(i > 0) contains.push(n); }
       matches = starts.concat(contains).slice(0, 200);   // list scrolls (max-height); no alphabetical truncation
@@ -3982,7 +3999,7 @@
     const close = () => { pop.hidden = true; pop.innerHTML = ""; matches = []; sel = -1; cur = null; };
     function render(inp){
       cur = inp; const q = (inp.value||"").trim().toLowerCase(); if(!q){ close(); return; }
-      const names = (DATA && DATA.itemNames) || [], starts = [], contains = [];
+      const names = availableItemNames(), starts = [], contains = [];
       for(const n of names){ const i = n.toLowerCase().indexOf(q); if(i === 0) starts.push(n); else if(i > 0) contains.push(n); }
       matches = starts.concat(contains).slice(0, 200); sel = matches.length ? 0 : -1;
       if(!matches.length){ close(); cur = inp; return; }   // no match → hide list but keep the typed (free) text
@@ -4749,7 +4766,7 @@
       renderAsiList(); renderHoodControls(); save(); compute();
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -4758,6 +4775,7 @@
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
+    $("set-futuristic").addEventListener("change", e => { showFuturistic = e.target.checked; save(); });   // item autocompletes read availableItemNames() live
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
