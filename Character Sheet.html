@@ -181,6 +181,9 @@
   .asi-body{display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:12px}
   .asi-body label{font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
   .asi-body select{width:auto; min-width:120px}
+  .asi-featdesc{font-size:12px; color:var(--muted); line-height:1.5; white-space:pre-line; max-height:160px; overflow:auto; margin-top:6px; padding:6px 8px; border:1px solid var(--line)}
+  .sp-caster-head{font-size:13px; font-weight:700; color:var(--accent); margin:12px 0 2px; border-top:1px solid var(--line); padding-top:10px}
+  .sp-caster-head:first-child{border-top:0; padding-top:0}
   .asi-scores{display:flex; gap:6px; margin-bottom:12px}
   .asi-score{flex:1; text-align:center; border:1px solid var(--line); border-radius:8px; padding:5px 2px}
   .asi-score .ab{display:block; font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
@@ -259,8 +262,13 @@
     align-items:flex-start; justify-content:center; padding:48px 16px; overflow:auto}
   .modal.open{display:flex}
   .modal-panel{background:#fff; border:1px solid var(--line2); width:100%; max-width:460px}
-  #wizard .modal-panel{max-width:720px}   /* the class builder's list + 1–20 detail needs room */
-  @media (max-width:620px){ #wizard .modal-panel{max-width:460px} .wiz-build{grid-template-columns:1fr} #wiz-class-list{max-height:200px} }
+  #wizard .modal-panel{max-width:960px}   /* roomy: class list + 1–20 detail + spell/feat pickers */
+  #wizard.modal{padding:24px 16px}
+  #wizard .modal-body{min-height:420px}
+  #wizard .wiz-build{grid-template-columns:220px 1fr}
+  #wizard #wiz-class-list{max-height:440px}
+  #wizard .wiz-cd-table{max-height:380px}
+  @media (max-width:680px){ #wizard .modal-panel{max-width:460px} #wizard .wiz-build{grid-template-columns:1fr} #wizard #wiz-class-list{max-height:200px} }
   .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line)}
   .modal-head h2{margin:0; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
   .modal-body{padding:18px; min-height:120px}
@@ -328,6 +336,13 @@
   .hp-row input{width:52px}
   .hp-row.lvl1 .die::after{content:" · max"; color:var(--accent)}
   #wiz-hp .hp-total{font-weight:700; margin-top:8px; font-size:14px}
+  #wiz-spells{margin-top:14px}
+  .sp-pick-grp{font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:10px 0 4px}
+  .sp-pick-list{display:grid; grid-template-columns:1fr 1fr; gap:0 14px; border:1px solid var(--line); padding:8px 10px; max-height:220px; overflow:auto}
+  @media (max-width:560px){ .sp-pick-list{grid-template-columns:1fr} }
+  .sp-pick{display:flex; align-items:center; gap:7px; padding:3px 0; font-size:13px; cursor:pointer}
+  .sp-pick.maxed input:not(:checked){opacity:.35} .sp-pick.maxed input:not(:checked){cursor:default}
+  .sp-pick-count{font-weight:700} .sp-pick-count.over{color:#b45309}
   #wiz-pending{margin-top:14px}
   .wiz-pend-head{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9a3412; margin:0 0 6px}
   .wiz-pend-row{display:flex; align-items:center; gap:8px; padding:6px 8px; border:1px solid #fed7aa; background:#fff7ed; margin:5px 0; font-size:13px}
@@ -1055,6 +1070,7 @@
           </div>
           <div id="wiz-chosen"></div>
           <div id="wiz-hp"></div>
+          <div id="wiz-spells"></div>
           <div id="wiz-pending"></div>
         </div>
         <div class="wiz-step" data-step="3" hidden>
@@ -1293,6 +1309,7 @@
   // ---- Generator state (managed in JS, not via data-save attributes) ----
   let charClasses = [];                                     // saved multiclass build [{name,level,sub,subOpts}] — drives the main-sheet decisions flag
   let genFeatures = [], genProf = [], genDefenses = [];     // exact Feature blocks + Proficiency lines + Defense notes the wizard last generated, so "Edit Character" replaces them instead of duplicating
+  let genSpells = {};      // per-caster record of spell picks the wizard last wrote (so Edit replaces, not piles up): {casterKey:{cantrips,rows,prepared}}
   function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
   function scanDefenses(text){   // pull "you have/gain resistance/immunity to X" out of feature prose → concise Resistances/Immunities lines (with any "while …" qualifier)
     const out = [];
@@ -1595,10 +1612,12 @@
     let classIdx = 0, raceIdx = 0;
     const slotsHtml = asiChoices.map((s,i) => {
       const done = asiSlotComplete(s);
+      const featObj = (DATA && DATA.feats) ? DATA.feats.find(x => x.name === s.feat) : null;
       const featBody =
         `<div class="asi-body"><label>Feat</label><select class="asi-featsel" data-i="${i}">${featOptions(s.feat)}</select>`+
         (((DATA&&DATA.feats)||[]).length ? "" : `<span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span>`)+`</div>`+
-        featAbilPicker(s, i);
+        featAbilPicker(s, i)+
+        ((featObj && featObj.text) ? `<div class="asi-featdesc">${esc(featObj.text)}</div>` : "");   // full feat description
       if(s.source === "race"){                       // racial feat — feat only, no ASI option
         raceIdx++;
         return `<div class="asi-slot${done?" done":""}">`+
@@ -2473,7 +2492,9 @@
         if(!code){ missed++; continue; }                              // not on this server — keep any prior per-book copy
         DATA._meta.raw[nm] = await fetch5etoolsBook(base, code); n++;
       }
-      rebuildFromRaw(); bakeSourceData(); persistSources(); refreshAfterData();
+      rebuildFromRaw();
+      if(missed === 0) DATA._meta.dataVersion = DATA_VERSION;   // every book was re-extracted with the current code → no longer stale (clears the reload banner)
+      bakeSourceData(); persistSources(); refreshAfterData();
       if(!silent) flashStatus("Reloaded " + n + " source" + (n===1?"":"s") + (missed?" ("+missed+" not on server)":"") + " — data refreshed");
       return true;
     }catch(e){ flashStatus("Reload failed — is your 5etools server running at "+base+"?"); return false; }
@@ -3136,7 +3157,7 @@
     data.showFuturistic = showFuturistic;
     data.hitDieFaces = hitDieFaces;
     data.charClasses = charClasses;
-    data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses;   // remember generated content so Edit Character replaces it instead of duplicating
+    data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells;   // remember generated content so Edit Character replaces it instead of duplicating
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
     data.asiChoices = asiChoices;
@@ -3213,6 +3234,7 @@
     genFeatures = (data && Array.isArray(data.genFeatures)) ? data.genFeatures : [];
     genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
     genDefenses = (data && Array.isArray(data.genDefenses)) ? data.genDefenses : [];
+    genSpells = (data && data.genSpells && typeof data.genSpells === "object" && !Array.isArray(data.genSpells) && !data.genSpells.cantrips) ? data.genSpells : {};   // keyed by caster (old single-record saves reset to {})
     hpMode = (data && data.hpMode) || "manual";
     hpRolls = (data && Array.isArray(data.hpRolls)) ? data.hpRolls : [];
     speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
@@ -3466,6 +3488,34 @@
   // ===== Multiclass class builder (wizard step 2) =====
   let wizClasses = [];          // [{name, level, sub, subOpts:{label:value}}] — [0] is the initial class
   let wizFocus = "";            // class name currently shown in the detail panel
+  let wizSpells = {};   // spell picks made in the builder, keyed by caster class → {cantrips:[], spells:[]}; applied to the Spells page(s) on Create
+  const SUB_KNOWN = {           // spells-known per level for subclass casters (mirror of SUB_CANTRIPS; class data has none for these)
+    "Fighter (Eldritch Knight)":[0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13],
+    "Rogue (Arcane Trickster)":[0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13] };
+  function casterContribOf(w){   // spellcasting "weight" of a class level (picks the real primary caster)
+    if(["Bard","Cleric","Druid","Sorcerer","Wizard","Warlock"].includes(w.name)) return w.level;
+    if(["Paladin","Ranger"].includes(w.name)) return Math.floor(w.level/2);
+    if(w.name === "Artificer") return Math.ceil(w.level/2);
+    if(/eldritch knight|arcane trickster/i.test(w.sub||"")) return Math.floor(w.level/3);
+    return 0;
+  }
+  function primaryCasterOf(list){   // → {key, level} for the build's main caster (the one anchored to spell sheet 0), or null
+    let best = null, score = -1;
+    (list||[]).forEach(w => { const subKey = w.sub ? `${w.name} (${w.sub})` : null, key = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[w.name] ? w.name : null);
+      if(key && casterContribOf(w) > score){ score = casterContribOf(w); best = {key, level:w.level}; } });
+    return best;
+  }
+  function spellPlan(cls, lvl){   // {ability, nCantrips, nSpells, mode:"prepare"|"known"|"spellbook", listFrom} for a caster class at a level; null if not a (selectable) caster
+    const info = CASTERS[cls]; if(!info || info.fixed) return null;
+    const L = Math.min(20, Math.max(1, lvl||1)), m = modOf(info.ability);
+    const nCantrips = cantripCount(cls, L);
+    let nSpells, mode;
+    if(info.fullList && info.prepares){ mode = "prepare"; const half = ["Paladin","Artificer"].includes(cls); nSpells = Math.max(1, m + (half ? Math.floor(L/2) : L)); }
+    else if(info.prepares){ mode = "spellbook"; nSpells = 6 + 2*(L-1); }            // Wizard spellbook
+    else { mode = "known"; const c = DATA && findBy(DATA.classes, cls), prog = (c && c.spellsKnown) || SUB_KNOWN[cls];
+           nSpells = (prog && prog.length) ? (prog[L-1]||0) : 0; }
+    return {ability:info.ability, nCantrips, nSpells, mode, listFrom:SPELL_LIST_FROM[cls] || cls};
+  }
   function buildClassLevelStr(list){ return (list||[]).map(c => `${c.name} ${c.level}${c.sub?` (${c.sub})`:""}`).join(", "); }
   function reqStr(req){          // "Str 13", "Str 13 or Dex 13", "Str 13 and Cha 13"
     if(!req) return "";
@@ -3481,7 +3531,7 @@
     $("classlevel").value = buildClassLevelStr(wizClasses);
     syncAsiSlots(); updateAsiFlag();
   }
-  function renderBuilder(){ renderClassList(); renderClassDetail(wizFocus); renderChosenClasses(); renderHpPanel(); renderWizPending(); }
+  function renderBuilder(){ renderClassList(); renderClassDetail(wizFocus); renderChosenClasses(); renderHpPanel(); renderSpellPicker(); renderWizPending(); }
   function renderHpPanel(){
     const box = $("wiz-hp"); if(!box) return;
     if(!wizClasses.length){ box.innerHTML = ""; return; }
@@ -3501,6 +3551,82 @@
       (hpMode==="rolled" ? `<button type="button" class="btn hp-reroll" style="margin-bottom:6px">Re-roll levels 2+</button>` : "")+
       `<div class="hp-rows">${rows}</div>`+
       `<div class="hp-total">Max HP: ${total}</div>`;
+  }
+  function wizCasters(){   // every caster class in the build (primary first), each a selectable spell list
+    const out = [];
+    (wizClasses||[]).forEach(w => { const subKey = w.sub ? `${w.name} (${w.sub})` : null, key = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[w.name] ? w.name : null);
+      if(key && spellPlan(key, w.level)) out.push({key, level:w.level, contrib:casterContribOf(w)}); });
+    out.sort((a,b) => b.contrib - a.contrib);
+    return out;
+  }
+  function findSheetForClass(key){ for(let i=1;i<spellSheets;i++){ if((sEl(i,"spellclass").value||"") === key) return i; } return -1; }
+  function renderSpellPicker(){
+    const box = $("wiz-spells"); if(!box) return;
+    const casters = wizCasters(), keys = new Set(casters.map(c => c.key));
+    Object.keys(wizSpells).forEach(k => { if(!keys.has(k)) delete wizSpells[k]; });   // drop picks for classes no longer in the build
+    if(!casters.length){ box.innerHTML = ""; return; }
+    const cb = (key, kind, n, l, on, maxed) => { const tt = spellTitle(spellData(n));
+      return `<label class="sp-pick${(maxed&&!on)?' maxed':''}"${tt?` title="${esc(tt)}"`:''}><input type="checkbox" class="sp-pick-cb" data-caster="${esc(key)}" data-kind="${kind}" data-l="${l}" value="${esc(n)}"${on?' checked':''}${(maxed&&!on)?' disabled':''}> ${esc(n)}</label>`; };
+    let html = `<label class="lbl">Spells <span class="wiz-hint" style="font-weight:400; display:inline">— hover a spell for its full description</span></label>`;
+    casters.forEach(c => {
+      const plan = spellPlan(c.key, c.level); if(!plan) return;
+      const picks = wizSpells[c.key] || (wizSpells[c.key] = {cantrips:[], spells:[]});
+      const maxL = maxSpellLevel(c.key, c.level), cantripNames = classSpellNamesAt(c.key, 0) || [], leveled = [];
+      for(let l=1;l<=maxL;l++){ const ns = classSpellNamesAt(c.key, l); if(ns && ns.length) leveled.push({l, names:ns}); }
+      html += `<div class="sp-caster-head">${esc(c.key)} <span class="wiz-hint" style="font-weight:400; display:inline">(${plan.ability.toUpperCase()})</span></div>`;
+      if(!cantripNames.length && !leveled.length){ html += `<p class="wiz-hint" style="margin:0">No spell list loaded for ${esc(c.key)} — load its spells sourcebook.</p>`; return; }
+      const cset = new Set(picks.cantrips), sset = new Set(picks.spells), cMax = cset.size >= plan.nCantrips, sMax = sset.size >= plan.nSpells;
+      if(plan.nCantrips && cantripNames.length) html += `<p class="sp-pick-grp">Cantrips — <span class="sp-pick-count${cset.size>plan.nCantrips?' over':''}" data-caster="${esc(c.key)}" data-kind="cantrip">${cset.size}/${plan.nCantrips}</span></p>`+
+        `<div class="sp-pick-list">`+ cantripNames.map(n => cb(c.key, "cantrip", n, 0, cset.has(n), cMax)).join("") +`</div>`;
+      if(plan.nSpells && leveled.length){ const verb = plan.mode==="prepare" ? "Prepare" : plan.mode==="spellbook" ? "Spellbook" : "Spells known"; let inner = "";
+        leveled.forEach(g => { inner += `<div class="sp-pick" style="grid-column:1/-1; font-weight:700; color:var(--accent); cursor:default">Level ${g.l}</div>` + g.names.map(n => cb(c.key, "spell", n, g.l, sset.has(n), sMax)).join(""); });
+        html += `<p class="sp-pick-grp">${verb} — <span class="sp-pick-count${sset.size>plan.nSpells?' over':''}" data-caster="${esc(c.key)}" data-kind="spell">${sset.size}/${plan.nSpells}</span></p>`+
+          `<div class="sp-pick-list">${inner}</div>`; }
+    });
+    box.innerHTML = html;
+  }
+  function updateSpellPickCounts(){   // in-place per-caster count + maxed-state update (no full re-render)
+    const box = $("wiz-spells"); if(!box) return;
+    wizCasters().forEach(c => { const plan = spellPlan(c.key, c.level); if(!plan) return; const picks = wizSpells[c.key] || {cantrips:[], spells:[]};
+      [["cantrip", picks.cantrips, plan.nCantrips], ["spell", picks.spells, plan.nSpells]].forEach(([kind, arr, cap]) => {
+        const sel = `[data-caster="${c.key}"][data-kind="${kind}"]`;
+        const span = box.querySelector(`.sp-pick-count${sel}`); if(span){ span.textContent = arr.length+"/"+cap; span.classList.toggle("over", arr.length>cap); }
+        const maxed = arr.length >= cap;
+        box.querySelectorAll(`.sp-pick-cb${sel}`).forEach(el => { const on = el.checked; el.disabled = maxed && !on; const lab = el.closest(".sp-pick"); if(lab) lab.classList.toggle("maxed", maxed && !on); });
+      });
+    });
+  }
+  function applyPicksToSheet(inst, plan, picks, prev){   // write one caster's picks to a spell sheet (idempotent; removes its prior writes)
+    const ce = spellEntriesOf(inst), prepared = preparedOf(inst); prev = prev || {cantrips:[], rows:[], prepared:[]};
+    if((prev.cantrips||[]).length && ce[0]) ce[0].forEach(r => { if(prev.cantrips.includes(r.name)) r.name = ""; });
+    (prev.rows||[]).forEach(p => { const a = ce[p.l]; if(a){ const i = a.findIndex(r => (r.name||"") === p.name); if(i>=0) a[i].name = ""; } });
+    (prev.prepared||[]).forEach(n => { delete prepared[n]; });
+    const lvlOf = {}; ((DATA.classSpells && DATA.classSpells[plan.listFrom])||[]).forEach(sp => { lvlOf[(sp.n||"").toLowerCase()] = sp.l; });
+    const rec = {cantrips:[], rows:[], prepared:[]};
+    (picks.cantrips||[]).forEach(n => { ce[0] = ce[0] || []; let slot = ce[0].find(r => !(r.name||"").trim()); if(!slot){ slot = {name:"", prep:false}; ce[0].push(slot); } slot.name = n; rec.cantrips.push(n); });
+    (picks.spells||[]).forEach(n => {
+      if(plan.mode === "prepare"){ prepared[n] = true; rec.prepared.push(n); }
+      else { const l = lvlOf[n.toLowerCase()] || 1, a = (ce[l] = ce[l] || []);
+        if(!a.some(r => (r.name||"").toLowerCase() === n.toLowerCase())) a.push({name:n, prep:false}); rec.rows.push({l, name:n}); }
+    });
+    return rec;
+  }
+  function applyWizSpells(){   // write each caster's picks: primary → Spells sheet 0, each secondary → its own (auto-created) spell sheet
+    const casters = wizCasters(); if(!casters.length) return;
+    const newGen = {};
+    casters.forEach((c, idx) => {
+      const plan = spellPlan(c.key, c.level); if(!plan) return;
+      let inst;
+      if(idx === 0) inst = 0;                                              // sheet 0 follows the primary caster (set up in createCharacter)
+      else { inst = findSheetForClass(c.key);
+        if(inst < 0){ appendSpellSheet("manual"); inst = spellSheets - 1;   // a dedicated sheet for this secondary caster, anchored to its class level
+          sEl(inst,"spellclass").value = c.key; sEl(inst,"spellability").value = plan.ability; const lv = sEl(inst,"spelllevel"); if(lv) lv.value = String(c.level); }
+        renderSpellStyle(true, inst);
+      }
+      newGen[c.key] = applyPicksToSheet(inst, plan, wizSpells[c.key] || {cantrips:[], spells:[]}, genSpells[c.key]);
+    });
+    genSpells = newGen;
+    renderAllSpellSheets(false);
   }
   function renderClassList(){
     const box = $("wiz-class-list"); if(!box || !DATA) return;
@@ -3579,8 +3705,7 @@
     const pendingAsi = asiChoices.filter(s => !asiSlotComplete(s)).length;
     if(pendingAsi) rows.push(`<div class="wiz-pend-row"><p class="lbl2">${pendingAsi} Ability Score Improvement${pendingAsi>1?"s":""} / feat${pendingAsi>1?"s":""} due</p>`+
       `<button type="button" class="btn wiz-pend-asi">Assign…</button></div>`);
-    wizClasses.forEach(w => { const c = findBy(DATA.classes, w.name);
-      if(c && c.casterAbility) rows.push(`<div class="wiz-pend-row"><p class="lbl2">${esc(w.name)}: select spells</p><span class="wiz-hint" style="margin:0">on the Spells page</span></div>`); });
+    // (spell selection is handled by the Spells picker above; secondary multiclass casters can still be filled on the Spells page)
     box.innerHTML = rows.length ? `<p class="wiz-pend-head">Pending decisions (you can proceed without these)</p>` + rows.join("") : "";
   }
   function setNote(s){ const el=$("wiz-note"); if(el) el.textContent = s||""; }
@@ -4308,6 +4433,17 @@
       ? charClasses.map(c => ({name:c.name, level:c.level, sub:c.sub||"", subOpts:Object.assign({}, c.subOpts||{})}))
       : [];
     wizFocus = wizClasses[0] ? wizClasses[0].name : "";
+    wizSpells = {};
+    if(characterCreated){   // editing → preload each caster's picker from its spell sheet (primary = sheet 0; secondaries = their own sheets)
+      wizCasters().forEach((c, idx) => { const pl = spellPlan(c.key, c.level); if(!pl) return;
+        const inst = idx === 0 ? 0 : findSheetForClass(c.key); if(inst < 0) return;
+        const picks = {cantrips:[], spells:[]};
+        ((spellEntriesByInst[inst]||{})[0]||[]).forEach(r => { if((r.name||"").trim()) picks.cantrips.push(r.name); });
+        if(pl.mode === "prepare") Object.keys(preparedByInst[inst]||{}).forEach(n => { if(preparedByInst[inst][n]) picks.spells.push(n); });
+        else for(let l=1;l<=9;l++) ((spellEntriesByInst[inst]||{})[l]||[]).forEach(r => { if((r.name||"").trim()) picks.spells.push(r.name); });
+        wizSpells[c.key] = picks;
+      });
+    }
     if(!characterCreated){ asiChoices = []; asiFeatsAdded = {}; bonusVals.asi = zeroAb(); }   // fresh build starts with no ASI picks (kept across builder edits via live sync)
     $("wiz-cbg-skills").innerHTML = ""; $("wiz-custom-bg").hidden = true;      // fresh custom-bg fields
     document.querySelectorAll(".cbg-tl").forEach(s => s.innerHTML = "");
@@ -4585,7 +4721,7 @@
         fillLimitedFeatures(w.name, w.level, featMap);                            // Rage / Ki / Sorcery Points / Channel Divinity → Limited Features card
       });
       if(featLines.length){ const t = $("features"); const block = featLines.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
-      if(primary) renderSpellStyle(false, 0);                                      // reflect always-prepared subclass spells on the Spells page
+      if(primary){ applyWizSpells(); renderSpellStyle(false, 0); }                  // write the builder's spell picks + reflect always-prepared subclass spells
       if(!editing){                                                               // starting gear/gold is a one-time level-1 grant — never re-add on Edit
         const eq = (c0 && c0.equip) || {};                                        // comes from the INITIAL class only
         if(wizEquip === "gold"){ const g = goldAverage(eq.gold); if(g != null) $("gp").value = g; }
@@ -4764,6 +4900,7 @@
       else if(t.classList.contains("asi-featabil")){ asiChoices[i].featAbil = t.value; }
       applyAsiBonuses();
       renderAsiList(); renderHoodControls(); save(); compute();
+      if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
     $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("settings").classList.add("open"); });
@@ -4894,7 +5031,12 @@
     $("wiz-class-list").addEventListener("click", e => { const b = e.target.closest(".wiz-cls"); if(b){ wizFocus = b.dataset.cls; renderBuilder(); } });
     $("wiz-class-detail").addEventListener("click", e => { const b = e.target.closest(".wiz-add-class"); if(b) addClassToBuild(b.dataset.cls); });
     $("wiz-chosen").addEventListener("input", e => { const t = e.target.closest(".wiz-cls-lvl"); if(!t) return;
-      const i = +t.dataset.i; if(wizClasses[i]){ wizClasses[i].level = Math.min(20, Math.max(1, num(t.value, 1))); syncBuildToSheet(); renderHpPanel(); renderWizPending(); } });
+      const i = +t.dataset.i; if(wizClasses[i]){ wizClasses[i].level = Math.min(20, Math.max(1, num(t.value, 1))); syncBuildToSheet(); renderHpPanel(); renderSpellPicker(); renderWizPending(); } });
+    $("wiz-spells").addEventListener("change", e => { const cb = e.target.closest(".sp-pick-cb"); if(!cb) return;
+      const picks = wizSpells[cb.dataset.caster] || (wizSpells[cb.dataset.caster] = {cantrips:[], spells:[]});
+      const arr = cb.dataset.kind === "cantrip" ? picks.cantrips : picks.spells, n = cb.value, i = arr.indexOf(n);
+      if(cb.checked){ if(i < 0) arr.push(n); } else if(i >= 0) arr.splice(i, 1);
+      updateSpellPickCounts(); });   // update counts/limits in place — don't rebuild the list
     $("wiz-hp").addEventListener("click", e => {
       const m = e.target.closest(".hp-mode"); if(m){ const mode = m.dataset.mode, fresh = mode === "rolled" && hpMode !== "rolled"; hpMode = mode; regenHp(mode, wizClasses, fresh); renderHpPanel(); compute(); return; }
       if(e.target.closest(".hp-reroll")){ regenHp("rolled", wizClasses, true); renderHpPanel(); compute(); }
