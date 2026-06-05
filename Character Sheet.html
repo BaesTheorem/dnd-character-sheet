@@ -993,6 +993,7 @@
           <div class="modes" id="modes">
             <button class="mode-btn" data-mode="manual" type="button">Manual</button>
             <button class="mode-btn" data-mode="array" type="button">Standard Array</button>
+            <button class="mode-btn" data-mode="rolled" type="button">Rolled</button>
             <button class="mode-btn" data-mode="pointbuy" type="button">Point Buy</button>
           </div>
           <div class="gen-status" id="gen-status"></div>
@@ -1234,9 +1235,22 @@
   const num = (v, d=0) => { const n = parseInt(v,10); return isNaN(n) ? d : n; };
 
   // ---- Generator state (managed in JS, not via data-save attributes) ----
-  let genMode = "manual";                                   // manual | array | pointbuy
+  let genMode = "manual";                                   // manual | array | rolled | pointbuy
   let manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
-  let baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null}; // array/pointbuy base
+  let baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null}; // array/rolled/pointbuy base
+  let rolledArray = null;                                   // the six 4d6-drop-lowest values for "Rolled" mode (null until rolled)
+  // 4d6 drop lowest, six times, sorted high→low.
+  function rollAbilityScores(){
+    const set = [];
+    for(let i=0;i<6;i++){ const d = [1,2,3,4].map(() => 1 + Math.floor(Math.random()*6)).sort((a,b)=>a-b); set.push(d[1]+d[2]+d[3]); }
+    return set.sort((a,b)=>b-a);
+  }
+  function abilityPool(){ return genMode === "rolled" ? (rolledArray || []) : STANDARD_ARRAY; }
+  function rerollAbilities(){                               // fresh roll → clear assignments so they're picked from the new set
+    rolledArray = rollAbilityScores();
+    ABILITIES.forEach(([k]) => baseVals[k] = null);
+    renderHoodControls(); updateModeUI(); save(); compute();
+  }
   const BONUS_CATS = [["asi","ASI"],["racial","Racial"],["magical","Magical"],["misc","Misc"]];
   const zeroAb = () => ({str:0,dex:0,con:0,int:0,wis:0,cha:0});
   let bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};  // per-category ability bonuses
@@ -1488,7 +1502,7 @@
       let base;
       if(genMode === "manual")
         base = `<input class="ab-score" data-ab="${k}" type="number" id="score-${k}" value="${manualScores[k]}">`;
-      else if(genMode === "array")
+      else if(genMode === "array" || genMode === "rolled")
         base = `<select class="ab-base" data-ab="${k}" id="basesel-${k}"></select>`;
       else
         base = `<span class="stepper">`+
@@ -1499,17 +1513,20 @@
         `<input class="ab-bonus" data-ab="${k}" data-cat="${c}" type="number" value="${bonusVals[c][k] || ''}">`).join("");
       return `<div class="hood-row"><span class="hname">${name}</span>${base}${bonuses}</div>`;
     }).join("");
-    if(genMode === "array") refreshArraySelects();
+    if(genMode === "array" || genMode === "rolled") refreshArraySelects();
   }
-  function refreshArraySelects(){
-    const used = {};
-    ABILITIES.forEach(([k]) => { if(baseVals[k] != null) used[baseVals[k]] = k; });
+  function refreshArraySelects(){   // assign-from-a-pool dropdowns (Standard Array or Rolled); count-based so duplicate rolled values both stay assignable
+    const pool = abilityPool();
+    const avail = {}; pool.forEach(v => avail[v] = (avail[v]||0) + 1);                         // how many of each value the pool offers
+    const usedCount = {}; ABILITIES.forEach(([k]) => { const v = baseVals[k]; if(v != null) usedCount[v] = (usedCount[v]||0) + 1; });
     ABILITIES.forEach(([k]) => {
       const sel = $("basesel-"+k); if(!sel) return;
       let opts = `<option value="">—</option>`;
-      STANDARD_ARRAY.forEach(v => {
-        const takenBy = used[v];
-        const disabled = (takenBy && takenBy !== k) ? "disabled" : "";
+      const seen = new Set();
+      pool.forEach(v => {
+        if(seen.has(v)) return; seen.add(v);                                                   // one <option> per distinct value
+        const usedByOthers = (usedCount[v]||0) - (baseVals[k] === v ? 1 : 0);
+        const disabled = usedByOthers >= (avail[v]||0) ? "disabled" : "";
         const selected = (baseVals[k] === v) ? "selected" : "";
         opts += `<option value="${v}" ${disabled} ${selected}>${v}</option>`;
       });
@@ -1520,10 +1537,14 @@
   // ---- Status line + point-buy stepper states ----
   function updateGenStatus(){
     const el = $("gen-status");
-    if(genMode === "array"){
-      const used = new Set(ABILITIES.map(([k]) => baseVals[k]).filter(v => v != null));
-      el.innerHTML = "Standard Array — assign each once: " +
-        STANDARD_ARRAY.map(v => `<span class="chip-val ${used.has(v)?'used':''}">${v}</span>`).join("");
+    if(genMode === "array" || genMode === "rolled"){
+      const pool = abilityPool();
+      const usedCount = {}; ABILITIES.forEach(([k]) => { const v = baseVals[k]; if(v != null) usedCount[v] = (usedCount[v]||0) + 1; });
+      const shown = {};
+      const chips = pool.map(v => { const u = (shown[v]||0) < (usedCount[v]||0); if(u) shown[v] = (shown[v]||0) + 1; return `<span class="chip-val ${u?'used':''}">${v}</span>`; }).join("");
+      el.innerHTML = (genMode === "rolled"
+          ? `Rolled (4d6 drop lowest) — assign each once: ${chips} <button class="btn reroll-btn" type="button" style="font-size:11px; padding:2px 8px; margin-left:8px">Re-roll</button>`
+          : `Standard Array — assign each once: ${chips}`);
     } else if(genMode === "pointbuy"){
       const spent = pbSpent(baseVals);
       el.innerHTML = `Point Buy — <span class="${spent>POINTBUY_BUDGET?'over':''}">${spent} / ${POINTBUY_BUDGET}</span> points used · scores 8–15`;
@@ -2702,6 +2723,7 @@
     });
     data.inspiration = inspState;
     data.genMode = genMode;
+    data.rolledArray = rolledArray;
     data.created = characterCreated;
     data.manualScores = manualScores;
     data.baseVals = baseVals;
@@ -2743,6 +2765,7 @@
   }
   function applyAll(data){                     // full restore (generator + fields), then render
     genMode = (data && data.genMode) || "manual";
+    rolledArray = (data && Array.isArray(data.rolledArray)) ? data.rolledArray.slice() : null;
     characterCreated = !!(data && data.created); markCharacterCreated();   // toolbar button label reflects whether a character exists
     manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
     baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
@@ -2869,6 +2892,7 @@
     if(m === "pointbuy"){
       ABILITIES.forEach(([k]) => { const b = baseVals[k]; if(b == null || b < 8 || b > 15) baseVals[k] = 8; });
     }
+    if(m === "rolled" && !rolledArray){ rolledArray = rollAbilityScores(); ABILITIES.forEach(([k]) => baseVals[k] = null); }   // first time → roll a fresh set to assign
     renderHoodControls(); updateModeUI(); save(); compute();
   }
 
@@ -4021,6 +4045,7 @@
     $("speed").addEventListener("blur", compute);                                                            // restore modified value
     $("pagetabs").addEventListener("click", e => { const b = e.target.closest(".ptab"); if(b) showPage(b.dataset.page); });
     $("modes").addEventListener("click", e => { const b = e.target.closest(".mode-btn"); if(b) setMode(b.dataset.mode); });
+    document.addEventListener("click", e => { if(e.target.closest(".reroll-btn")) rerollAbilities(); });   // Rolled mode: re-roll the 4d6 set
     $("hood-abilities").addEventListener("click", e => {
       const btn = e.target.closest(".step"); if(btn) stepPointBuy(btn.dataset.ab, parseInt(btn.dataset.dir,10));
     });
