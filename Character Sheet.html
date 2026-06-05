@@ -335,6 +335,7 @@
   .ac-items-auto .aci .b{font-weight:700; color:var(--accent)}
   .ac-items-auto .aci.pending{opacity:.55} .ac-items-auto .aci.pending .b{color:var(--muted)}
   .ac-items-auto .none{color:var(--muted); font-size:12px}
+  .ac-items-write{display:none}   /* print-only blank write-in box (see @media print) */
   .invdrag:active{cursor:grabbing}
   .invtable tr.drop-target td{box-shadow:inset 0 2px 0 var(--accent)}
   .invtable tr.drop-into td{box-shadow:inset 0 0 0 2px var(--accent); background:var(--accent-soft)}   /* dropping onto a container */
@@ -558,6 +559,8 @@
     .rowtotal{margin-top:5px; padding:3px 7px}
     .rowtotal .v{font-size:12px}
     #equipment + .ta-print{min-height:46px}
+    #ac-items-auto{display:none !important}   /* Armor → Items (add to AC): print a blank write-in field instead of the auto list */
+    .ac-items-write{display:block; border:1px solid #999; min-height:46px; margin-top:4px}
     .stat{padding:3px}
     .stat .k{font-size:6px}
     .stat input{font-size:11px; padding:0}
@@ -801,6 +804,7 @@
             <p class="help" id="armor-note" style="margin:4px 0 0; display:none"></p></div>
           <label class="lbl" style="margin-top:10px">Items (add to AC)</label>
           <div id="ac-items-auto" class="ac-items-auto"></div>
+          <div class="ac-items-write"></div>
           <p class="help noprint">Auto-filled from equipped items that boost AC (Shield, Ring/Cloak of Protection, …). Attunement items only count once attuned.</p>
         </div>
         <div class="card"><h2>Attuned Items</h2>
