@@ -338,11 +338,21 @@
   #wiz-hp .hp-total{font-weight:700; margin-top:8px; font-size:14px}
   #wiz-spells{margin-top:14px}
   .sp-pick-grp{font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:10px 0 4px}
-  .sp-pick-list{display:grid; grid-template-columns:1fr 1fr; gap:0 14px; border:1px solid var(--line); padding:8px 10px; max-height:220px; overflow:auto}
-  @media (max-width:560px){ .sp-pick-list{grid-template-columns:1fr} }
-  .sp-pick{display:flex; align-items:center; gap:7px; padding:3px 0; font-size:13px; cursor:pointer}
-  .sp-pick.maxed input:not(:checked){opacity:.35} .sp-pick.maxed input:not(:checked){cursor:default}
+  .sp-pick-list{border:1px solid var(--line); padding:4px 10px; max-height:300px; overflow:auto}
+  .sp-pick-list .sp-lvl{font-weight:700; color:var(--accent); font-size:12px; padding:6px 0 2px}
   .sp-pick-count{font-weight:700} .sp-pick-count.over{color:#b45309}
+  /* shared list of selectable items with a collapsible full description (feats + spells) */
+  .pick-item{display:flex; align-items:flex-start; gap:7px; padding:4px 0; border-bottom:1px solid var(--line)}
+  .pick-item:last-child{border-bottom:0}
+  .pick-item.maxed input:not(:checked){opacity:.35}
+  .pick-item > input{margin-top:3px; flex:none}
+  .pick-det{flex:1; min-width:0}
+  .pick-det > summary{cursor:pointer; font-size:13px; font-weight:600; list-style:none; user-select:none; padding:1px 0}
+  .pick-det > summary::-webkit-details-marker{display:none}
+  .pick-det > summary::before{content:"▸ "; color:var(--muted); font-weight:700}
+  .pick-det[open] > summary::before{content:"▾ "}
+  .pick-desc{font-size:11px; color:var(--muted); line-height:1.55; white-space:pre-line; padding:3px 0 4px 14px}
+  .feat-list{border:1px solid var(--line); padding:4px 10px; max-height:300px; overflow:auto; margin-top:4px}
   #wiz-pending{margin-top:14px}
   .wiz-pend-head{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#9a3412; margin:0 0 6px}
   .wiz-pend-row{display:flex; align-items:center; gap:8px; padding:6px 8px; border:1px solid #fed7aa; background:#fff7ed; margin:5px 0; font-size:13px}
@@ -1225,7 +1235,7 @@
   const BASE_KEY = "dnd-sheet-2014-v1";
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
-  const DATA_VERSION = 15;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged
+  const DATA_VERSION = 16;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
@@ -1612,12 +1622,14 @@
     let classIdx = 0, raceIdx = 0;
     const slotsHtml = asiChoices.map((s,i) => {
       const done = asiSlotComplete(s);
-      const featObj = (DATA && DATA.feats) ? DATA.feats.find(x => x.name === s.feat) : null;
-      const featBody =
-        `<div class="asi-body"><label>Feat</label><select class="asi-featsel" data-i="${i}">${featOptions(s.feat)}</select>`+
-        (((DATA&&DATA.feats)||[]).length ? "" : `<span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span>`)+`</div>`+
-        featAbilPicker(s, i)+
-        ((featObj && featObj.text) ? `<div class="asi-featdesc">${esc(featObj.text)}</div>` : "");   // full feat description
+      const feats = (DATA && DATA.feats) ? DATA.feats.slice().sort((a,b) => a.name.localeCompare(b.name)) : [];
+      const featBody = feats.length   // browsable list: each feat selectable + a collapsible full description
+        ? `<div class="asi-body" style="display:block"><label>Feat — pick one (click a name to read it)</label>`+
+          `<div class="feat-list">`+ feats.map(f =>
+            `<div class="pick-item"><input type="radio" name="asi-feat-${i}" class="asi-feat-radio" data-i="${i}" value="${esc(f.name)}"${s.feat===f.name?" checked":""}>`+
+            `<details class="pick-det"${s.feat===f.name?" open":""}><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("") +`</div></div>`+
+          featAbilPicker(s, i)
+        : `<div class="asi-body"><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
       if(s.source === "race"){                       // racial feat — feat only, no ASI option
         raceIdx++;
         return `<div class="asi-slot${done?" done":""}">`+
@@ -2305,17 +2317,23 @@
     });
     return out;
   }
+  // A mundane tool/instrument you can be proficient with — NOT a magic item (laser/+N/wondrous/attunement) that merely shares a tool type.
+  function isMundaneTool(it){
+    if(!it.name || it.wondrous || it.reqAttune || ET_MAGIC_RARITY.has(it.rarity) || it.bonusWeapon || it.bonusAc || it.bonusSpellAttack) return false;
+    if(/^\+\d/.test(it.name)) return false;   // "+1 Rhythm-Maker's Drum"
+    return true;
+  }
   function etTools(itemsBase, itemsData, SRC){   // AT/INS in items-base; GS/T (thieves' tools, kits, gaming sets) in items.json
     const set = new Set();
-    (itemsBase.baseitem||[]).forEach(it => { if(it.source === SRC && ET_TOOL_TYPES.includes((it.type||"").split("|")[0])) set.add(it.name); });
-    (itemsData.item||[]).forEach(it => { if(it.source === SRC && ET_TOOL_TYPES.includes((it.type||"").split("|")[0])) set.add(it.name); });
+    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => {
+      if(it.source === SRC && ET_TOOL_TYPES.includes((it.type||"").split("|")[0]) && isMundaneTool(it)) set.add(it.name); }));
     return [...set].sort();
   }
   // Tools split by category (AT = artisan's tools, INS = musical instruments) so a generic "artisan's tools of
   // your choice" / "musical instrument of your choice" grant can offer the right concrete options to pick from.
   function etToolCats(itemsBase, itemsData, SRC){
     const cats = {artisan:new Set(), instrument:new Set()};
-    const add = it => { if(it.source !== SRC) return; const t = (it.type||"").split("|")[0];
+    const add = it => { if(it.source !== SRC || !isMundaneTool(it)) return; const t = (it.type||"").split("|")[0];
       if(t === "AT") cats.artisan.add(it.name); else if(t === "INS") cats.instrument.add(it.name); };
     (itemsBase.baseitem||[]).forEach(add); (itemsData.item||[]).forEach(add);
     return {artisan:[...cats.artisan].sort(), instrument:[...cats.instrument].sort()};
@@ -2613,6 +2631,16 @@
     if(spellSheetKind[inst] === "manual"){ const el = sEl(inst,"spelllevel"), v = el && el.value; if(v) return Math.min(20, Math.max(1, parseInt(v,10))); }
     return charLevel();
   }
+  // The level that governs THIS sheet's caster CLASS — cantrips known, spells known, and how high you can prepare/know.
+  // (Spell SLOTS use the combined multiclass caster level; those are separate. For a single class this equals the character level.)
+  function casterClassLevel(inst){
+    const cls = sEl(inst,"spellclass").value;
+    if(inst === 0 && cls){
+      const parsed = parseClassLevels($("classlevel").value);
+      if(parsed.length > 1){ const hit = parsed.find(c => c.name === cls || (c.sub && `${c.name} (${c.sub})` === cls)); if(hit) return hit.level; }
+    }
+    return sheetLevel(inst);
+  }
   const CANTRIP_COUNT = 6, PER_LEVEL = 10;      // default blank cantrip rows = the universal max (Sorcerer's 6); used when no class is chosen
   function mkSpellRows(n){ return Array.from({length:n}, ()=>({name:"",prep:false})); }
   function defaultSpellEntries(){ const o = {0:mkSpellRows(CANTRIP_COUNT)}; for(let l=1;l<=9;l++) o[l]=mkSpellRows(PER_LEVEL); return o; }
@@ -2709,10 +2737,14 @@
       else if(tot.readOnly){ tot.value = ""; tot.readOnly = false; }   // reverting to manual: clear the stale auto value, unlock
     }
   }
-  function applySlotFilter(inst=0){              // show only slot levels the build can use (matches the spell list)
-    const info = CASTERS[sEl(inst,"spellclass").value];
+  function applySlotFilter(inst=0){              // show slot levels the build can use; for multiclass the slot pool can reach higher than the prepare sections
+    const cls = sEl(inst,"spellclass").value, info = CASTERS[cls];
     const card = sEl(inst,"slots-card"); if(card) card.style.display = (info && info.noSlots) ? "none" : "";   // ki casters (Shadow Monk) use no slots
-    for(let l=1;l<=9;l++){ const c = sEl(inst,"slotcell"+l); if(c) c.style.display = (l <= spellMaxByInst[inst]) ? "" : "none"; }
+    let slotMax = spellMaxByInst[inst];
+    const multi = inst === 0 && (((($("classlevel").value||"").match(/[A-Za-z'’][A-Za-z'’\- ]*?\s+\d+/g))||[]).length) > 1;
+    if(multi){ const map = (cls === "Warlock") ? autoSlots("Warlock", (parseClassLevels($("classlevel").value).find(x=>x.name==="Warlock")||{}).level||0) : mcSlots();
+      const lvls = Object.keys(map||{}).map(Number); if(lvls.length) slotMax = Math.max(slotMax, Math.max.apply(null, lvls)); }   // higher combined slots still show
+    for(let l=1;l<=9;l++){ const c = sEl(inst,"slotcell"+l); if(c) c.style.display = (l <= slotMax) ? "" : "none"; }
     refreshSpellSlots(inst);
   }
   // spell-data lookup by name (components / time / range / duration / school / full text)
@@ -2810,9 +2842,9 @@
     const cls = sEl(inst,"spellclass").value, info = CASTERS[cls];
     sEl(inst,"cast-note").textContent = info ? info.note : "Flexible layout — fill in as needed. Pick a class to tailor it.";
     if(info && setAbility && info.ability) sEl(inst,"spellability").value = info.ability;
-    const L = sheetLevel(inst);                                            // extra sheets may override the level used for spell math
-    spellMaxByInst[inst] = (cls && CASTERS[cls]) ? maxSpellLevel(cls, L) : 9;   // shrink/grow sections to the build
-    if(!(info && info.fixed)) resizeCantrips(cantripCount(cls, L), inst);      // cantrip rows = cantrips known at this level
+    const L = casterClassLevel(inst);                                      // cantrips/known/prep sections use THIS class's level (not the combined multiclass level)
+    spellMaxByInst[inst] = (cls && CASTERS[cls]) ? maxSpellLevel(cls, L) : 9;   // highest level you can KNOW/PREPARE (slot display can go higher — see applySlotFilter)
+    if(!(info && info.fixed)) resizeCantrips(cantripCount(cls, L), inst);      // cantrip rows = cantrips known at this class level
     renderSpellTable(inst);
     applySlotFilter(inst);
   }
@@ -3094,12 +3126,12 @@
         const cls = DATA && findBy(DATA.classes, spName), prog = cls && cls.spellsKnown;
         if(prog && prog.length){
           sEl(inst,"prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Spells Known";
-          const slvl = sheetLevel(inst);
+          const slvl = casterClassLevel(inst);   // known/prepared counts scale with THIS class's level, not the combined multiclass level
           sEl(inst,"prepcount").textContent = (slvl != null) ? (prog[Math.min(Math.max(slvl,1),20)-1] || "") : "";
         } else sEl(inst,"prep-stat").style.display = "none";
       } else {                                        // prepared caster OR no class selected → "Can Prepare" (writable)
         sEl(inst,"prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Can Prepare";
-        const slvl = sheetLevel(inst);
+        const slvl = casterClassLevel(inst);   // prepared count scales with THIS class's level, not the combined multiclass level
         if(spInfo && spInfo.prepares && sa && slvl != null && mods[sa] != null){
           const half = ["Paladin","Artificer"].includes(spName);
           sEl(inst,"prepcount").textContent = Math.max(1, mods[sa] + (half ? Math.floor(slvl/2) : slvl));
@@ -3500,10 +3532,7 @@
     return 0;
   }
   function primaryCasterOf(list){   // → {key, level} for the build's main caster (the one anchored to spell sheet 0), or null
-    let best = null, score = -1;
-    (list||[]).forEach(w => { const subKey = w.sub ? `${w.name} (${w.sub})` : null, key = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[w.name] ? w.name : null);
-      if(key && casterContribOf(w) > score){ score = casterContribOf(w); best = {key, level:w.level}; } });
-    return best;
+    const cs = wizCasters(list); return cs.length ? {key:cs[0].key, level:cs[0].level} : null;
   }
   function spellPlan(cls, lvl){   // {ability, nCantrips, nSpells, mode:"prepare"|"known"|"spellbook", listFrom} for a caster class at a level; null if not a (selectable) caster
     const info = CASTERS[cls]; if(!info || info.fixed) return null;
@@ -3552,11 +3581,12 @@
       `<div class="hp-rows">${rows}</div>`+
       `<div class="hp-total">Max HP: ${total}</div>`;
   }
-  function wizCasters(){   // every caster class in the build (primary first), each a selectable spell list
+  function wizCasters(list){   // every caster class in the build (primary first), each a selectable spell list
     const out = [];
-    (wizClasses||[]).forEach(w => { const subKey = w.sub ? `${w.name} (${w.sub})` : null, key = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[w.name] ? w.name : null);
+    (list || wizClasses || []).forEach(w => { const subKey = w.sub ? `${w.name} (${w.sub})` : null, key = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[w.name] ? w.name : null);
       if(key && spellPlan(key, w.level)) out.push({key, level:w.level, contrib:casterContribOf(w)}); });
-    out.sort((a,b) => b.contrib - a.contrib);
+    // Warlock sorts last so a NON-Warlock caster owns sheet 0 (its combined regular pool needs the multi-aware tracker); Warlock → its own Pact sheet
+    out.sort((a,b) => ((a.key==="Warlock")-(b.key==="Warlock")) || (b.contrib - a.contrib));
     return out;
   }
   function findSheetForClass(key){ for(let i=1;i<spellSheets;i++){ if((sEl(i,"spellclass").value||"") === key) return i; } return -1; }
@@ -3566,8 +3596,9 @@
     Object.keys(wizSpells).forEach(k => { if(!keys.has(k)) delete wizSpells[k]; });   // drop picks for classes no longer in the build
     if(!casters.length){ box.innerHTML = ""; return; }
     const cb = (key, kind, n, l, on, maxed) => { const tt = spellTitle(spellData(n));
-      return `<label class="sp-pick${(maxed&&!on)?' maxed':''}"${tt?` title="${esc(tt)}"`:''}><input type="checkbox" class="sp-pick-cb" data-caster="${esc(key)}" data-kind="${kind}" data-l="${l}" value="${esc(n)}"${on?' checked':''}${(maxed&&!on)?' disabled':''}> ${esc(n)}</label>`; };
-    let html = `<label class="lbl">Spells <span class="wiz-hint" style="font-weight:400; display:inline">— hover a spell for its full description</span></label>`;
+      return `<div class="pick-item${(maxed&&!on)?' maxed':''}"><input type="checkbox" class="sp-pick-cb" data-caster="${esc(key)}" data-kind="${kind}" data-l="${l}" value="${esc(n)}"${on?' checked':''}${(maxed&&!on)?' disabled':''}>`+
+        `<details class="pick-det"><summary>${esc(n)}</summary><div class="pick-desc">${tt?esc(tt):"(no description loaded — load this spell's sourcebook)"}</div></details></div>`; };
+    let html = `<label class="lbl">Spells <span class="wiz-hint" style="font-weight:400; display:inline">— click a spell to read its full description</span></label>`;
     casters.forEach(c => {
       const plan = spellPlan(c.key, c.level); if(!plan) return;
       const picks = wizSpells[c.key] || (wizSpells[c.key] = {cantrips:[], spells:[]});
@@ -3579,7 +3610,7 @@
       if(plan.nCantrips && cantripNames.length) html += `<p class="sp-pick-grp">Cantrips — <span class="sp-pick-count${cset.size>plan.nCantrips?' over':''}" data-caster="${esc(c.key)}" data-kind="cantrip">${cset.size}/${plan.nCantrips}</span></p>`+
         `<div class="sp-pick-list">`+ cantripNames.map(n => cb(c.key, "cantrip", n, 0, cset.has(n), cMax)).join("") +`</div>`;
       if(plan.nSpells && leveled.length){ const verb = plan.mode==="prepare" ? "Prepare" : plan.mode==="spellbook" ? "Spellbook" : "Spells known"; let inner = "";
-        leveled.forEach(g => { inner += `<div class="sp-pick" style="grid-column:1/-1; font-weight:700; color:var(--accent); cursor:default">Level ${g.l}</div>` + g.names.map(n => cb(c.key, "spell", n, g.l, sset.has(n), sMax)).join(""); });
+        leveled.forEach(g => { inner += `<div class="sp-lvl">Level ${g.l}</div>` + g.names.map(n => cb(c.key, "spell", n, g.l, sset.has(n), sMax)).join(""); });
         html += `<p class="sp-pick-grp">${verb} — <span class="sp-pick-count${sset.size>plan.nSpells?' over':''}" data-caster="${esc(c.key)}" data-kind="spell">${sset.size}/${plan.nSpells}</span></p>`+
           `<div class="sp-pick-list">${inner}</div>`; }
     });
@@ -3592,7 +3623,7 @@
         const sel = `[data-caster="${c.key}"][data-kind="${kind}"]`;
         const span = box.querySelector(`.sp-pick-count${sel}`); if(span){ span.textContent = arr.length+"/"+cap; span.classList.toggle("over", arr.length>cap); }
         const maxed = arr.length >= cap;
-        box.querySelectorAll(`.sp-pick-cb${sel}`).forEach(el => { const on = el.checked; el.disabled = maxed && !on; const lab = el.closest(".sp-pick"); if(lab) lab.classList.toggle("maxed", maxed && !on); });
+        box.querySelectorAll(`.sp-pick-cb${sel}`).forEach(el => { const on = el.checked; el.disabled = maxed && !on; const lab = el.closest(".pick-item"); if(lab) lab.classList.toggle("maxed", maxed && !on); });
       });
     });
   }
@@ -4683,16 +4714,7 @@
         if(pools.length) $("hitdice").value = pools.join(", "); }
       list.forEach((w,idx) => { const c=findBy(DATA.classes,w.name); if(c) applyProficiencies(idx===0 ? c.prof : c.mcProf, w.name); });   // initial = full; secondary = multiclass subset
       document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // initial-class skill picks
-      const casterContrib = w => {                                                // spellcasting "weight" of a class (not raw level) → picks the real primary caster
-        if(["Bard","Cleric","Druid","Sorcerer","Wizard","Warlock"].includes(w.name)) return w.level;
-        if(["Paladin","Ranger"].includes(w.name)) return Math.floor(w.level/2);
-        if(w.name === "Artificer") return Math.ceil(w.level/2);
-        if(/eldritch knight|arcane trickster/i.test(w.sub||"")) return Math.floor(w.level/3);
-        return 0;
-      };
-      let primary=null, primaryScore=-1;                                          // primary spell sheet anchors the DC/attack ability + pre-filled list
-      list.forEach(w => { const subKey = w.sub ? `${w.name} (${w.sub})` : null; const key = (subKey && CASTERS[subKey]) ? subKey : (CASTERS[w.name] ? w.name : null);
-        if(key && casterContrib(w) > primaryScore){ primary = key; primaryScore = casterContrib(w); } });
+      const primary = (primaryCasterOf(list)||{}).key || null;                    // primary spell sheet anchors the DC/attack ability + pre-filled list (non-Warlock preferred)
       if(primary){ $("spellclass").value = primary; renderSpellStyle(true, 0); }
       const sInfo = primary && CASTERS[primary], featLines = [];
       list.forEach(w => {
@@ -4896,7 +4918,7 @@
       if(isNaN(i) || !asiChoices[i]) return;
       if(t.classList.contains("asi-type-r")){ asiChoices[i].type = t.value; }
       else if(t.classList.contains("asi-ab")){ asiChoices[i][t.dataset.which] = t.value; }
-      else if(t.classList.contains("asi-featsel")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; }   // new feat → reset its ability pick
+      else if(t.classList.contains("asi-feat-radio")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; }   // new feat → reset its ability pick
       else if(t.classList.contains("asi-featabil")){ asiChoices[i].featAbil = t.value; }
       applyAsiBonuses();
       renderAsiList(); renderHoodControls(); save(); compute();

@@ -23,8 +23,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 15  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
-# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` item-name list. Mirror HTML's DATA_VERSION.
+DATA_VERSION = 16  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -747,18 +747,22 @@ def build_languages():
     except Exception: return []
     return sorted({l["name"] for l in raw.get("language", []) if is_src(l) and l.get("name")})
 
+def is_mundane_tool(it):   # a real tool/instrument you can be proficient with — not a magic item (+N/wondrous/attunement) sharing a tool type
+    nm = it.get("name", "")
+    if not nm or it.get("wondrous") or it.get("reqAttune") or it.get("rarity") in MAGIC_RARITY or it.get("bonusWeapon") or it.get("bonusAc") or it.get("bonusSpellAttack"): return False
+    if re.match(r"^\+\d", nm): return False   # "+1 Rhythm-Maker's Drum"
+    return True
+
 def build_tools(items_base, items):   # AT/INS live in items-base.json; GS/T (thieves' tools, kits, gaming sets) live in items.json
     out = set()
-    for it in items_base.get("baseitem", []):
-        if is_src(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
-    for it in items.get("item", []):
-        if is_src(it) and it.get("type", "").split("|")[0] in TOOL_TYPES: out.add(it["name"])
+    for it in list(items_base.get("baseitem", [])) + list(items.get("item", [])):
+        if is_src(it) and it.get("type", "").split("|")[0] in TOOL_TYPES and is_mundane_tool(it): out.add(it["name"])
     return sorted(out)
 
 def build_tool_cats(items_base, items):   # tools split by category so a generic "of your choice" grant can offer concrete picks
     artisan, instrument = set(), set()
     for it in list(items_base.get("baseitem", [])) + list(items.get("item", [])):
-        if not is_src(it): continue
+        if not is_src(it) or not is_mundane_tool(it): continue
         t = it.get("type", "").split("|")[0]
         if t == "AT": artisan.add(it["name"])
         elif t == "INS": instrument.add(it["name"])
