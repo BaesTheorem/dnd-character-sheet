@@ -374,11 +374,12 @@
   .rowtotal .k{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
   .rowtotal .v{font-size:20px; font-weight:700; color:var(--accent)}
   .encgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  .encgrid.enc-4col{grid-template-columns:repeat(4,1fr)}   /* variant Encumbrance off → 4 boxes on one row */
   .encgrid .stat .calc{min-height:30px; display:flex; align-items:center; justify-content:center}
   .attune{display:grid; grid-template-columns:1fr; gap:8px}   /* attuned items stacked vertically */
   .armor-attune{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start}
   .armor-attune > .card{margin-bottom:16px}
-  @media (max-width:560px){ .coins{grid-template-columns:repeat(3,1fr)} .encgrid{grid-template-columns:repeat(2,1fr)} .armor-attune{grid-template-columns:1fr} }
+  @media (max-width:560px){ .coins{grid-template-columns:repeat(3,1fr)} .encgrid, .encgrid.enc-4col{grid-template-columns:repeat(2,1fr)} .armor-attune{grid-template-columns:1fr} }
 
   /* ---- spell sheet ---- */
   .incl{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600}
@@ -2657,6 +2658,8 @@
     const e5 = $("enc5") && $("enc5").closest(".stat"), e10 = $("enc10") && $("enc10").closest(".stat");   // variant-only threshold boxes
     if(e5) e5.style.display = variantEncumbrance ? "" : "none";
     if(e10) e10.style.display = variantEncumbrance ? "" : "none";
+    const encgrid = $("enc5") && $("enc5").closest(".encgrid");   // off → 4 remaining boxes on one row
+    if(encgrid) encgrid.classList.toggle("enc-4col", !variantEncumbrance);
     if(strScore == null){
       ["enc5","enc10","carry","pushdrag","encstatus"].forEach(id => $(id).textContent = "");
       $("encnote").textContent = variantEncumbrance ? VARIANT_NOTE : BASE_NOTE;
