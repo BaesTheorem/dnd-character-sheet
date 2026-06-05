@@ -1113,8 +1113,7 @@
         <nav class="settings-nav" id="settings-nav">
           <button class="set-tab active" data-sec="general" type="button">General</button>
           <button class="set-tab" data-sec="pages" type="button">Pages</button>
-          <button class="set-tab" data-sec="spells" type="button">Spells</button>
-          <button class="set-tab" data-sec="books" type="button">Source books</button>
+          <button class="set-tab" data-sec="advanced" type="button">Advanced</button>
         </nav>
         <div class="settings-content">
           <section class="set-sec active" data-sec="general">
@@ -1127,12 +1126,11 @@
             <div id="layout-toggles"></div>
             <p class="wiz-hint">Unchecked pages are removed from the tab bar and won't print. (The Mini page also needs a portrait.)</p>
           </section>
-          <section class="set-sec" data-sec="spells">
+          <section class="set-sec" data-sec="advanced">
             <label class="lbl" style="display:block; margin-bottom:6px">Spell sheets</label>
-            <label class="lay-row"><input type="checkbox" id="set-addspell" checked> Show the "+ Add spell sheet" button</label>
+            <label class="lay-row"><input type="checkbox" id="set-addspell"> Show the "+ Add spell sheet" button</label>
             <p class="wiz-hint">The button (on every Spells page) creates extra, independent spell sheets — handy for another class's spell list. Turning this off only hides the button; any spell sheets you've already created stay exactly as they are.</p>
-          </section>
-          <section class="set-sec" data-sec="books">
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Source books</label>
             <p class="wiz-hint" id="sourcebook-status" style="margin:0 0 8px"></p>
             <div class="srcbook-load">
               <select id="book-select"><option value="">Open Settings to load…</option></select>
@@ -1570,7 +1568,7 @@
   const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["spells","Spells"],
                  ["companion","Companions"],["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
-  let showAddSpell = true;                      // Settings → Spells: show the "+ Add spell sheet" button (created sheets are unaffected)
+  let showAddSpell = false;                     // Settings → Advanced: show the "+ Add spell sheet" button (off by default; created sheets are unaffected)
   function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
@@ -2793,7 +2791,7 @@
     speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
     if(speedBase == null && data){ const m = String(data.speed||"").match(/\d+/); if(m) speedBase = +m[0]; }   // legacy "30 ft" → 30
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
-    showAddSpell = !(data && data.showAddSpell === false);   // default on; only an explicit false disables it
+    showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     if(data){                                                       // migrate old per-page include checkboxes
       if(data["spell-include"] === false) hiddenPages.spells = true;
       if(data["mini-include"] === false) hiddenPages.mini = true;
