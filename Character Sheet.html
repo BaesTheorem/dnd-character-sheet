@@ -402,9 +402,10 @@
   .mini-hidden-note{display:none; color:var(--muted)}
   /* Companions & Forms */
   .comp-head{display:flex; gap:12px; align-items:flex-start; margin-bottom:10px}
-  .comp-portrait{width:70px; height:70px; flex:none; border:1px solid var(--line2); background:var(--field);
-    cursor:pointer; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:8px; color:var(--muted); text-align:center}
-  .comp-portrait img{width:100%; height:100%; object-fit:cover}
+  .comp-portrait{width:128px; height:160px; flex:none; border:1px solid var(--line2); background:var(--field);
+    cursor:pointer; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--muted); text-align:center}
+  .comp-portrait.has-img{background:transparent}
+  .comp-portrait img{width:100%; height:100%; object-fit:contain}   /* fit the whole image, no crop */
   .comp-pickrow{display:flex; gap:8px; margin-top:6px; align-items:center}
   .comp-pickrow input{flex:1}
   .comp-pickrow select{width:auto; min-width:150px}
@@ -494,6 +495,8 @@
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
     #page-inv{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards */
     #page-spells:not(.excluded), .page.spell-extra:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), .page[data-page^="overflow-"]:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
+    .comp-portrait{display:flex !important; width:112px; height:140px}   /* companion art prints (was screen-only); fit-to-size */
+    .comp-portrait:not(.has-img){display:none !important}               /* but don't print an empty placeholder box */
     #page-inv .card.grow, .page[data-page^="overflow-"] .card.grow{flex:1 1 auto}   /* Equipment Notes / overflow Inventory takes the remaining height */
     #page-inv .invtable td input{padding:3px 2px}                                  /* inventory rows tall enough to write in */
     /* Background page: fill one sheet and let the six text cards share the height so the whole tab fits on a single page */
@@ -3181,10 +3184,10 @@
       `<div class="comp-line"><span class="k">${lbl}</span><input data-ci="${i}" data-f="${f}" value="${esc(c[f]||"")}"></div>`).join("");
     const tmpl = COMP_TEMPLATES.map(([v,l]) => `<option value="${v}"${c.template===v?" selected":""}>${esc(l)}</option>`).join("");
     const note = COMP_TEMPLATE_NOTES[c.template] ? `<p class="comp-tmpl-note">${esc(COMP_TEMPLATE_NOTES[c.template])}</p>` : "";
-    const port = c.portrait ? `<img src="${c.portrait}" alt="">` : "Portrait<br>(click)";
+    const port = c.portrait ? `<img src="${c.portrait}" alt="">` : `<span class="noprint">Portrait<br>(click)</span>`;
     return `<div class="card comp-block" data-ci="${i}">
       <div class="comp-head">
-        <div class="comp-portrait noprint" data-ci="${i}" title="Click to upload a portrait">${port}</div>
+        <div class="comp-portrait${c.portrait ? ' has-img' : ''}" data-ci="${i}" title="Click to upload a portrait">${port}</div>
         <div style="flex:1">
           <input class="charname-sm" data-ci="${i}" data-f="name" value="${esc(c.name||"")}" placeholder="Creature name" style="font-size:16px; font-weight:700; width:100%">
           <div class="comp-pickrow noprint">
