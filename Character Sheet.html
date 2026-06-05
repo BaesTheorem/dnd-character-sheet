@@ -559,8 +559,9 @@
     .rowtotal{margin-top:5px; padding:3px 7px}
     .rowtotal .v{font-size:12px}
     #equipment + .ta-print{min-height:46px}
-    #ac-items-auto{display:none !important}   /* Armor → Items (add to AC): print a blank write-in field instead of the auto list */
-    .ac-items-write{display:block; border:1px solid #999; min-height:46px; margin-top:4px}
+    #ac-items-auto{display:none !important}   /* Armor → Items/Shields: print 3 blank write-in rows instead of the auto list */
+    .ac-items-write{display:flex; flex-direction:column; gap:3px; margin-top:4px}
+    .ac-items-write > span{display:block; border:1px solid #999; min-height:15px}
     .stat{padding:3px}
     .stat .k{font-size:6px}
     .stat input{font-size:11px; padding:0}
@@ -802,9 +803,9 @@
                 <option value="+3">+3 (magic armor)</option>
               </select></div>
             <p class="help" id="armor-note" style="margin:4px 0 0; display:none"></p></div>
-          <label class="lbl" style="margin-top:10px">Items (add to AC)</label>
+          <label class="lbl" style="margin-top:10px">Items/Shields</label>
           <div id="ac-items-auto" class="ac-items-auto"></div>
-          <div class="ac-items-write"></div>
+          <div class="ac-items-write"><span></span><span></span><span></span></div>
           <p class="help noprint">Auto-filled from equipped items that boost AC (Shield, Ring/Cloak of Protection, …). Attunement items only count once attuned.</p>
         </div>
         <div class="card"><h2>Attuned Items</h2>
