@@ -3391,12 +3391,13 @@
   function wizClass(){ return DATA && findBy(DATA.classes, $("wiz-class").value); }
   function renderWizSkills(){
     const c = wizClass(), box = $("wiz-skills"), hint = $("wiz-skills-hint"), ch = c && c.skillChoose;
-    if(!ch || !ch.from || !ch.from.length){ box.innerHTML = ""; hint.textContent = c ? "This class grants no skill choices." : "Pick a class first."; return; }
-    box.innerHTML = ch.from.map(s => {
-      const key = SKILL_KEY[s] || s, label = s.replace(/\b\w/g, m => m.toUpperCase());
-      return `<label class="wiz-skill"><input type="checkbox" class="wiz-skill-cb" value="${esc(key)}"> <span>${esc(label)}</span></label>`;
-    }).join("");
-    hint.textContent = `Choose ${ch.count}.`;
+    if(!ch || !ch.count){ box.innerHTML = ""; hint.textContent = c ? "This class grants no skill choices." : "Pick a class first."; return; }
+    const list = (ch.from && ch.from.length)
+      ? ch.from.map(s => ({key: SKILL_KEY[s] || s, label: s.replace(/\b\w/g, m => m.toUpperCase())}))
+      : SKILLS.map(([k,label]) => ({key:k, label}));   // "any N skills" (Bard, some races/backgrounds) → choose from all 18
+    box.innerHTML = list.map(o =>
+      `<label class="wiz-skill"><input type="checkbox" class="wiz-skill-cb" value="${esc(o.key)}"> <span>${esc(o.label)}</span></label>`).join("");
+    hint.textContent = `Choose ${ch.count}${(ch.from && ch.from.length) ? "" : " from any skill"}.`;
     updateWizSkillLimit();
   }
   function updateWizSkillLimit(){
