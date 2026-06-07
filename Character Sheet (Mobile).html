@@ -386,6 +386,16 @@
   .ptab{position:relative}   /* anchor the content dot */
   /* P1: a small square marks a tab whose page holds user content (see updateContentDots) */
   .ptab.has-content::after{content:""; position:absolute; top:6px; right:6px; width:5px; height:5px; background:var(--accent)}
+  /* P1 durability nudge banner (hidden until maybeShowBackupBanner reveals it) */
+  .backup-banner{display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    margin:0 0 12px; padding:10px 12px; border:1px solid var(--line2); border-left:3px solid var(--accent);
+    background:var(--accent-soft); font-size:13px; color:var(--ink)}
+  .backup-banner[hidden]{display:none}            /* re-assert: .backup-banner{display:flex} would beat the UA [hidden] rule */
+  .backup-banner .bb-text{flex:1 1 220px; min-width:0}
+  .backup-banner .bb-actions{display:flex; gap:6px; align-items:center; flex:0 0 auto}
+  .backup-banner .bb-save{min-height:34px}
+  .backup-banner .bb-dismiss{border:none; background:transparent; color:var(--muted); font-size:20px; line-height:1; cursor:pointer; padding:2px 6px}
+  .backup-banner .bb-dismiss:hover{color:var(--ink)}
   .page{display:none}
   .page.active{display:block}
 
@@ -784,6 +794,14 @@
           onclick="document.getElementById('btn-savecopy').click()">Save</button>
 
   <div class="sheet">
+    <!-- P1 durability: nudges a backup-to-file when local data may be stale (see maybeShowBackupBanner) -->
+    <div class="backup-banner noprint" id="backup-banner" hidden>
+      <span class="bb-text">No recent backup. Browsers can clear local data, so download a copy to keep this character safe.</span>
+      <span class="bb-actions">
+        <button type="button" class="btn primary bb-save" id="bb-save">Save backup</button>
+        <button type="button" class="bb-dismiss" id="bb-dismiss" title="Dismiss" aria-label="Dismiss">&times;</button>
+      </span>
+    </div>
     <nav class="pagetabs noprint" id="pagetabs">
       <button class="ptab active" data-page="core" type="button">Core</button>
       <button class="ptab" data-page="inv" type="button">Inventory</button>
@@ -2720,6 +2738,28 @@
     PAGES.forEach(([key]) => { const t = document.querySelector('.ptab[data-page="'+key+'"]'); if(t) t.classList.toggle("has-content", has(key)); });
     for(let k=0;k<overflowPages;k++){ const t = document.querySelector('.ptab[data-page="overflow-'+k+'"]'); if(t) t.classList.toggle("has-content", overflowPageUsed(k)); }
     for(let i=1;i<spellSheets;i++){ const t = document.querySelector('.ptab[data-page="'+sx(i,'spells')+'"]'); if(t) t.classList.toggle("has-content", spellSheetUsed(i)); }
+  }
+
+  // P1 durability: nudge a backup-to-file when local data may be stale. localStorage can be wiped by the
+  // browser (iOS Safari clears it after ~7 days of no use), and the exported HTML file is the only durable
+  // store. We track the last time THIS character was downloaded; if it's been too long (or never), and the
+  // sheet actually holds something, we surface a dismissible banner on load.
+  const BACKUP_KEY = KEY + "_exported";
+  const BACKUP_THRESHOLD_MS = 3 * 24*60*60*1000;   // 3 days — well inside the iOS 7-day eviction window
+  function characterHasContent(){
+    const filled = sel => { const e = document.querySelector(sel); return !!(e && (e.value||"").trim()); };
+    if(filled("#charname") || filled("#classlevel")) return true;
+    if((companions||[]).length) return true;
+    return !!document.querySelector(".ptab.has-content");
+  }
+  function stampBackup(){ try{ localStorage.setItem(BACKUP_KEY, String(Date.now())); }catch(e){} }
+  function hideBackupBanner(){ const b = $("backup-banner"); if(b) b.hidden = true; }
+  function maybeShowBackupBanner(){
+    const b = $("backup-banner"); if(!b) return;
+    if(sessionStorage.getItem(BACKUP_KEY + "_dismissed")){ b.hidden = true; return; }   // dismissed this session
+    if(!characterHasContent()){ b.hidden = true; return; }                              // nothing worth backing up
+    let ts = 0; try{ ts = +localStorage.getItem(BACKUP_KEY) || 0; }catch(e){}
+    b.hidden = !(Date.now() - ts > BACKUP_THRESHOLD_MS);                                // stale or never exported → show
   }
   const round1 = n => (Math.round(n*10)/10).toString();
 
@@ -4997,6 +5037,7 @@
     applyAll(data);
     updateSourcebookStatus();
     renderLoadedBookList();
+    maybeShowBackupBanner();   // P1: surface the backup nudge on load if this character is stale/never-exported
     if(sourcesAreStale()) flashStatus("Loaded sourcebooks are out of date — open Settings → Source books → “Reload all loaded sources” to enable new features (e.g. subclass choices).");
 
     document.addEventListener("input", onChange);
@@ -5191,6 +5232,7 @@
       clone.querySelector("#embedded-data").textContent = JSON.stringify(collect());
       const st = clone.querySelector("#status"); if(st) st.textContent = "";
       download("<!DOCTYPE html>\n" + clone.outerHTML, charLabel()+".html", "text/html");
+      stampBackup(); hideBackupBanner();   // P1: a fresh file backup clears the staleness nudge
       flashStatus("Downloaded “"+charLabel()+".html” — a self-contained copy with your character baked in.");
     });
 
@@ -5198,6 +5240,10 @@
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
       window.open(location.href.split("#")[0] + "#slot=" + id, "_blank");   // fresh blank sheet, current one untouched
     });
+
+    // P1 durability banner: "Save backup" reuses the Save path (which stamps + hides); dismiss is per-session
+    { const bs = $("bb-save"); if(bs) bs.addEventListener("click", ()=> $("btn-savecopy").click()); }
+    { const bd = $("bb-dismiss"); if(bd) bd.addEventListener("click", ()=>{ hideBackupBanner(); try{ sessionStorage.setItem(BACKUP_KEY + "_dismissed", "1"); }catch(e){} }); }
 
     $("btn-reset").addEventListener("click", ()=>{
       if(!confirm("Delete this character and reset the sheet to blank?\n\nThis can't be undone. If you might want it later, cancel and use “Save” first to download a copy.\n\n(Your loaded sourcebooks are kept.)")) return;
