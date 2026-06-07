@@ -1421,6 +1421,7 @@
   // ---- Generator state (managed in JS, not via data-save attributes) ----
   let charClasses = [];                                     // saved multiclass build [{name,level,sub,subOpts}] — drives the main-sheet decisions flag
   let charCustomBg = null;                                  // saved Custom Background build {skills,tl,featName,featText} so "Edit Character" can re-apply it without re-entry
+  let charRaceChoices = null;                               // saved race sub-choices {languages,skillDv,skill} so the Race step shows them on Edit (ability picks are re-derived from the Racial column)
   let genFeatures = [], genProf = [], genDefenses = [];     // exact Feature blocks + Proficiency lines + Defense notes the wizard last generated, so "Edit Character" replaces them instead of duplicating
   let genSpells = {};      // per-caster record of spell picks the wizard last wrote (so Edit replaces, not piles up): {casterKey:{cantrips,rows,prepared}}
   function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
@@ -3322,6 +3323,7 @@
     data.hitDieFaces = hitDieFaces;
     data.charClasses = charClasses;
     data.charCustomBg = charCustomBg;
+    data.charRaceChoices = charRaceChoices;
     data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells;   // remember generated content so Edit Character replaces it instead of duplicating
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
@@ -3397,6 +3399,7 @@
     if(hitDieFaces == null && data){ const m = String(data.hitdice||"").match(/d(\d+)/); if(m) hitDieFaces = +m[1]; }   // legacy "5d8" → 8
     charClasses = (data && Array.isArray(data.charClasses)) ? data.charClasses : [];
     charCustomBg = (data && data.charCustomBg && typeof data.charCustomBg === "object") ? data.charCustomBg : null;
+    charRaceChoices = (data && data.charRaceChoices && typeof data.charRaceChoices === "object") ? data.charRaceChoices : null;
     genFeatures = (data && Array.isArray(data.genFeatures)) ? data.genFeatures : [];
     genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
     genDefenses = (data && Array.isArray(data.genDefenses)) ? data.genDefenses : [];
@@ -4154,7 +4157,7 @@
     $("wiz-next").textContent = wizStep === WIZ_LAST ? (characterCreated ? "Save" : "Create") : "Next";
     $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
     if(wizStep === 0) renderRaceChoices();
-    if(wizStep === 1){ const race = $("wiz-race").value; if(race && !(characterCreated && race === wizOrigRace)) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial (skip when editing an unchanged race — keeps the player's "choose" picks)
+    if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial (the Race step restores the player's "choose" picks on Edit, so this re-derives the column faithfully)
     if(wizStep === 2){ syncBuildToSheet(); renderBuilder(); }   // multiclass builder (also re-validates prereqs against the abilities just set)
     if(wizStep === 3) renderWizSkills();
     if(wizStep === 4) renderWizEquip();
@@ -4694,6 +4697,23 @@
     box.innerHTML = html;
     const sk = $("rc-skill");
     if(sk) box.querySelectorAll('input[name="rc-skilldv"]').forEach(radio => radio.addEventListener("change", () => { sk.disabled = box.querySelector('input[name="rc-skilldv"][value="darkvision"]').checked; }));
+    if(characterCreated && $("wiz-race").value === wizOrigRace){          // editing the character's existing race → re-show the "your choice" picks it was built with
+      // Ability-bonus picks: derive from the saved Racial column (total − the race's fixed bonuses), then fill the selects, matching each pick to a slot of the same amount.
+      const fixed = zeroAb();
+      (r.ability || []).forEach(blk => Object.entries(blk).forEach(([k,v]) => { if(ABKEYS.includes(k) && typeof v === "number") fixed[k] += v; }));
+      const picks = ABKEYS.map(k => ({k, amt:(bonusVals.racial[k]||0) - (fixed[k]||0)})).filter(p => p.amt > 0);
+      box.querySelectorAll(".rc-abil").forEach(seln => { const amt = parseInt(seln.dataset.amt,10)||1; const i = picks.findIndex(p => p.amt === amt); if(i >= 0){ seln.value = picks[i].k; picks.splice(i,1); } });
+      // Chosen language(s) + Custom-Lineage skill/darkvision: from the saved snapshot.
+      if(charRaceChoices){
+        const langs = charRaceChoices.languages || [];
+        [...box.querySelectorAll(".rc-lang")].forEach((seln,i) => { if(langs[i] != null) seln.value = langs[i]; });
+        if(charRaceChoices.skillDv){
+          const radio = box.querySelector('input[name="rc-skilldv"][value="'+charRaceChoices.skillDv+'"]');
+          if(radio){ radio.checked = true; if(sk) sk.disabled = (charRaceChoices.skillDv === "darkvision"); }
+          if(charRaceChoices.skill && sk) sk.value = charRaceChoices.skill;
+        }
+      }
+    }
   }
   // Limited-use class resources → the Limited Features card. count(level, abilityMods)→number; rec = recovery; min = first level.
   const LIMITED_RESOURCES = {
@@ -4865,6 +4885,9 @@
         if(useDv) opts.darkvision = rObj.darkvision || 60; else opts.skill = ($("rc-skill")||{}).value || "";
       }
       applyRace(race, opts);
+      charRaceChoices = { languages: opts.languages.slice(),                       // remember the race's "your choice" sub-picks so Edit can show them again
+        skillDv: (rObj && rObj.variableSkillDarkvision) ? ((document.querySelector('input[name="rc-skilldv"]:checked')||{}).value || "skill") : null,
+        skill: opts.skill || "" };
     }
     const _featBefore = new Set(_splitBlocks($("features").value));              // racial traits stay in the baseline (applyRace self-guards them); capture only class/subclass/bg feature blocks
     if(list.length){
