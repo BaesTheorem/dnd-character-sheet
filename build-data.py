@@ -23,8 +23,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 17  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
-# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. Mirror HTML's DATA_VERSION.
+DATA_VERSION = 18  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -158,20 +158,47 @@ def _merge_prof(a, b):   # union two prof blocks (base race + subrace), preservi
     if ch: out["skillChoose"] = ch
     return out
 
+def _race_fluff(entries):
+    """Flatten a race's fluff lore into [{name,text}] sections (loose intro paragraphs collapse into one leading "" section)."""
+    out, intro = [], []
+    def walk(lst):
+        for e in (lst if isinstance(lst, list) else [lst]):
+            if isinstance(e, str):
+                t = render_tags(e)
+                if t: intro.append(t)
+            elif isinstance(e, dict):
+                if e.get("type") == "quote": continue
+                if e.get("name") and e.get("entries"):
+                    t = entries_to_text(e["entries"])
+                    if t: out.append({"name": e["name"], "text": t})
+                elif e.get("entries"):
+                    walk(e["entries"])
+    walk(entries)
+    if intro: out.insert(0, {"name": "", "text": "\n\n".join(intro)})
+    return out
+
+def _race_flavor_map():
+    """name -> [{name,text}] flavor sections, from the book's fluff-races file (if present)."""
+    try: fl = load("fluff-races.json")
+    except Exception: return {}
+    return {f["name"]: _race_fluff(f.get("entries", []))
+            for f in fl.get("raceFluff", []) if f.get("source") == SRC_TAG and f.get("entries")}
+
 def build_races(raw):
     out, bases, base_idx = [], {}, {}
+    flavor = _race_flavor_map()
     for r in raw.get("race", []):
         if not is_src(r): continue
         ab = list(r.get("ability") or [])
         fg = feat_grants(r); pf = prof_block(r); rs = damage_resist(r)
         dv, lc = r.get("darkvision") or 0, lang_choose(r)
-        rsp = _race_spell_names(r); rsx = _speed_extra(r)
-        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp}
+        rsp = _race_spell_names(r); rsx = _speed_extra(r); fl = flavor.get(r["name"], [])
+        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl}
         base_idx[r["name"]] = len(out)
         out.append({"name": r["name"], "ability": ab,
                     "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
                     "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs,
-                    "darkvision": dv, "langChoose": lc, "spells": rsp})
+                    "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl})
     for s in raw.get("subrace", []):
         if not is_src(s): continue
         parent = s.get("raceName")
@@ -199,7 +226,8 @@ def build_races(raw):
                     "prof": _merge_prof(base.get("prof"), prof_block(s)),
                     "resist": (base.get("resist") or []) + damage_resist(s),
                     "darkvision": max(base.get("darkvision") or 0, sdv), "langChoose": (base.get("langChoose") or 0) + slc,
-                    "spells": (base.get("spells") or []) + _race_spell_names(s)})
+                    "spells": (base.get("spells") or []) + _race_spell_names(s),
+                    "flavor": flavor.get(f"{parent} ({s['name']})", base.get("flavor", []))})
     for o in out:
         if "custom lineage" in o["name"].lower(): o["variableSkillDarkvision"] = True   # TCE: skill OR darkvision
     return out
