@@ -302,6 +302,7 @@
   .wiz-methods .btn{flex:1}
   .btn.wiz-equip.active{background:var(--accent); color:#fff; border-color:var(--accent)}
   .wiz-racechoice{margin-top:10px; padding-top:10px; border-top:1px solid var(--line)}
+  #wiz-race-detail:not(:empty){margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
   .wiz-racechoice .wiz-radio{display:block; font-size:14px; font-weight:600; margin:4px 0; cursor:pointer}
   .wiz-racechoice select{margin:2px 0}
   .wiz-skill{display:flex; align-items:center; gap:8px; padding:5px 2px; font-size:14px; font-weight:600; cursor:pointer}
@@ -1148,8 +1149,8 @@
         <div class="wiz-step" data-step="0">
           <label class="lbl">Race</label>
           <select id="wiz-race"></select>
-          <p class="wiz-hint" id="wiz-race-hint"></p>
           <div id="wiz-race-choices"></div>
+          <div id="wiz-race-detail"></div>
         </div>
         <div class="wiz-step" data-step="1" hidden>
           <label class="lbl">Ability Scores</label>
@@ -4156,7 +4157,7 @@
     $("wiz-back").style.visibility = wizStep === 0 ? "hidden" : "visible";
     $("wiz-next").textContent = wizStep === WIZ_LAST ? (characterCreated ? "Save" : "Create") : "Next";
     $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
-    if(wizStep === 0) renderRaceChoices();
+    if(wizStep === 0) raceHint();   // refresh the full race run-down + choice pickers on entry
     if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial (the Race step restores the player's "choose" picks on Edit, so this re-derives the column faithfully)
     if(wizStep === 2){ syncBuildToSheet(); renderBuilder(); }   // multiclass builder (also re-validates prereqs against the abilities just set)
     if(wizStep === 3) renderWizSkills();
@@ -4649,16 +4650,40 @@
     renderWizStep(); $("wizard").classList.add("open"); focusModal($("wizard"));
   }
   function closeWizard(){ $("wizard").classList.remove("open"); restoreFocus(); }
-  function raceHint(){
-    const r = DATA && findBy(DATA.races, $("wiz-race").value);
-    if(!r){ $("wiz-race-hint").textContent = ""; return; }
-    const parts = [];
-    (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
-      if(ABKEYS.includes(k)) parts.push(ABBR[k]+" +"+v);
-      else if(k==="choose") parts.push(`+${v.amount||1} to ${v.count} of choice`);
-    }));
-    $("wiz-race-hint").textContent = (parts.length ? `Ability: ${parts.join(", ")}. ` : "") + (r.speed ? `Speed ${r.speed} ft.` : "");
+  function raceHint(){   // refresh the race run-down + choice pickers for the current selection
+    renderRaceDetail();
     renderRaceChoices();
+  }
+  // Full run-down of what the selected race grants (mirrors the class step's progression detail): a summary of
+  // mechanical grants + every racial trait with its description.
+  function renderRaceDetail(){
+    const box = $("wiz-race-detail"); if(!box) return;
+    const r = DATA && findBy(DATA.races, $("wiz-race").value);
+    if(!r){ box.innerHTML = ""; return; }
+    const grants = [];
+    const ab = [];
+    (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
+      if(ABKEYS.includes(k)) ab.push(ABBR[k]+" +"+v);
+      else if(k==="choose") ab.push(`+${v.amount||1} to ${v.count} of your choice`);
+    }));
+    if(ab.length) grants.push("Ability Score Increase: " + ab.join(", "));
+    grants.push("Size: " + (r.size || "Medium") + " · Speed: " + (r.speed || 30) + " ft." + (r.speedExtra ? " (" + r.speedExtra + ")" : ""));
+    if(r.darkvision) grants.push("Darkvision: " + r.darkvision + " ft.");
+    const p = r.prof || {};
+    if(p.skills && p.skills.length) grants.push("Skill proficiencies: " + p.skills.map(_titlecase).join(", "));
+    if(p.skillChoose && p.skillChoose.count) grants.push("Skill proficiencies: choose " + p.skillChoose.count + ((p.skillChoose.from && p.skillChoose.from.length) ? " (" + p.skillChoose.from.map(_titlecase).join(", ") + ")" : " from any"));
+    if(p.weapons && p.weapons.length) grants.push("Weapon proficiencies: " + p.weapons.join(", "));
+    if(p.armor && p.armor.length) grants.push("Armor proficiencies: " + p.armor.join(", "));
+    if(p.tools && p.tools.length) grants.push("Tool proficiencies: " + p.tools.map(_titlecase).join(", "));
+    if(p.languages && p.languages.length) grants.push("Languages: " + p.languages.join(", "));
+    if(r.langChoose) grants.push((r.langChoose > 1 ? r.langChoose + " extra languages" : "1 extra language") + " of your choice");
+    if(r.resist && r.resist.length) grants.push("Damage resistance: " + r.resist.join(", "));
+    if(r.spells && r.spells.length) grants.push("Racial spells: " + r.spells.join(", "));
+    if(r.featGrants) grants.push("Grants " + (r.featGrants > 1 ? r.featGrants + " feats" : "a feat") + " of your choice");
+    const traits = (r.traits || []).map(t =>
+      `<span class="wiz-cd-feat">${esc(t.name)}<span class="t">${esc(t.text||"")}</span></span>`).join("");
+    box.innerHTML = `<div class="wiz-cd-head">${grants.map(esc).join("<br>")}</div>`
+      + `<div class="wiz-cd-table">${traits || '<span class="wiz-hint">No traits listed for the loaded sources.</span>'}</div>`;
   }
   function renderRaceChoices(){   // skill-or-darkvision (Custom Lineage) + language-of-your-choice pickers on the Race step
     const box = $("wiz-race-choices"); if(!box) return;
