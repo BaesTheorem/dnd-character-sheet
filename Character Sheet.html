@@ -1420,6 +1420,7 @@
 
   // ---- Generator state (managed in JS, not via data-save attributes) ----
   let charClasses = [];                                     // saved multiclass build [{name,level,sub,subOpts}] — drives the main-sheet decisions flag
+  let charCustomBg = null;                                  // saved Custom Background build {skills,tl,featName,featText} so "Edit Character" can re-apply it without re-entry
   let genFeatures = [], genProf = [], genDefenses = [];     // exact Feature blocks + Proficiency lines + Defense notes the wizard last generated, so "Edit Character" replaces them instead of duplicating
   let genSpells = {};      // per-caster record of spell picks the wizard last wrote (so Edit replaces, not piles up): {casterKey:{cantrips,rows,prepared}}
   function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
@@ -3320,6 +3321,7 @@
     data.showModern = showModern;
     data.hitDieFaces = hitDieFaces;
     data.charClasses = charClasses;
+    data.charCustomBg = charCustomBg;
     data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells;   // remember generated content so Edit Character replaces it instead of duplicating
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
@@ -3394,6 +3396,7 @@
     hitDieFaces = (data && typeof data.hitDieFaces === "number") ? data.hitDieFaces : null;
     if(hitDieFaces == null && data){ const m = String(data.hitdice||"").match(/d(\d+)/); if(m) hitDieFaces = +m[1]; }   // legacy "5d8" → 8
     charClasses = (data && Array.isArray(data.charClasses)) ? data.charClasses : [];
+    charCustomBg = (data && data.charCustomBg && typeof data.charCustomBg === "object") ? data.charCustomBg : null;
     genFeatures = (data && Array.isArray(data.genFeatures)) ? data.genFeatures : [];
     genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
     genDefenses = (data && Array.isArray(data.genDefenses)) ? data.genDefenses : [];
@@ -3653,6 +3656,8 @@
   let wizClasses = [];          // [{name, level, sub, subOpts:{label:value}}] — [0] is the initial class
   let wizFocus = "";            // class name currently shown in the detail panel
   let wizSpells = {};   // spell picks made in the builder, keyed by caster class → {cantrips:[], spells:[]}; applied to the Spells page(s) on Create
+  let wizOrigRace = "", wizOrigBg = "";   // on Edit, the race/background the character already had — so we don't re-apply (and wipe sub-choices) when they're left unchanged
+  let wizCbgRestore = false;              // one-shot: restore the Custom Background panel from the saved snapshot the first time the BG step renders on an Edit
   const SUB_KNOWN = {           // spells-known per level for subclass casters (mirror of SUB_CANTRIPS; class data has none for these)
     "Fighter (Eldritch Knight)":[0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13],
     "Rogue (Arcane Trickster)":[0,0,3,4,4,4,5,6,6,7,8,8,9,10,10,11,11,11,12,13] };
@@ -4149,7 +4154,7 @@
     $("wiz-next").textContent = wizStep === WIZ_LAST ? (characterCreated ? "Save" : "Create") : "Next";
     $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
     if(wizStep === 0) renderRaceChoices();
-    if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial
+    if(wizStep === 1){ const race = $("wiz-race").value; if(race && !(characterCreated && race === wizOrigRace)) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial (skip when editing an unchanged race — keeps the player's "choose" picks)
     if(wizStep === 2){ syncBuildToSheet(); renderBuilder(); }   // multiclass builder (also re-validates prereqs against the abilities just set)
     if(wizStep === 3) renderWizSkills();
     if(wizStep === 4) renderWizEquip();
@@ -4166,6 +4171,8 @@
       : SKILLS.map(([k,label]) => ({key:k, label}));   // "any N skills" (Bard, some races/backgrounds) → choose from all 18
     box.innerHTML = list.map(o =>
       `<label class="wiz-skill"><input type="checkbox" class="wiz-skill-cb" value="${esc(o.key)}"> <span>${esc(o.label)}</span></label>`).join("");
+    if(characterCreated)                                   // editing → re-check the skills this character already has, so they're preserved (not rebuilt)
+      box.querySelectorAll(".wiz-skill-cb").forEach(cb => { const b = $("skp-"+cb.value); if(b && b.checked) cb.checked = true; });
     hint.textContent = `Choose ${ch.count}${(ch.from && ch.from.length) ? "" : " from any skill"}.`;
     updateWizSkillLimit();
   }
@@ -4577,6 +4584,15 @@
         `<label class="wiz-skill"><input type="checkbox" class="cbg-skill-cb" value="${esc(key)}"> <span>${esc(name)}</span></label>`).join("");
     populateCustomBgTL();
     populateCustomBgFeatures();
+    if(wizCbgRestore && charCustomBg){                                   // editing → repopulate the panel from the saved custom build (one-shot, so later toggles aren't clobbered)
+      wizCbgRestore = false;
+      const sk = new Set(charCustomBg.skills || []);
+      document.querySelectorAll(".cbg-skill-cb").forEach(cb => { cb.checked = sk.has(cb.value); });
+      const tl = (charCustomBg.tl || []).slice();
+      [...document.querySelectorAll(".cbg-tl")].forEach((s, i) => { if(tl[i] != null) s.value = tl[i]; });
+      $("wiz-cbg-featname").value = charCustomBg.featName || "";
+      $("wiz-cbg-feattext").value = charCustomBg.featText || "";
+    }
     updateCustomBgLimit();
   }
   function updateCustomBgLimit(){
@@ -4611,10 +4627,22 @@
       });
     }
     if(!characterCreated){ asiChoices = []; asiFeatsAdded = {}; bonusVals.asi = zeroAb(); }   // fresh build starts with no ASI picks (kept across builder edits via live sync)
+    if(characterCreated){                       // editing → preload Race / Background / Name from the current sheet so nothing has to be re-picked
+      wizOrigRace = ($("race").value || "");
+      wizOrigBg = ($("background").value || "");
+      $("wiz-race").value = wizOrigRace;        // selects only stick if the option exists (same DATA loaded); otherwise fall back to blank
+      $("wiz-bg").value = wizOrigBg;
+      $("wiz-name").value = ($("charname").value || "");
+      wizCbgRestore = (wizOrigBg === "Custom Background" && !!charCustomBg);
+    } else {
+      wizOrigRace = ""; wizOrigBg = ""; wizCbgRestore = false;
+      $("wiz-race").value = ""; $("wiz-bg").value = ""; $("wiz-name").value = "";
+    }
     $("wiz-cbg-skills").innerHTML = ""; $("wiz-custom-bg").hidden = true;      // fresh custom-bg fields
     document.querySelectorAll(".cbg-tl").forEach(s => s.innerHTML = "");
     $("wiz-cbg-featpick").innerHTML = "";
     ["wiz-cbg-featname","wiz-cbg-feattext"].forEach(id => { const el=$(id); if(el) el.value=""; });
+    const h = $("wizard").querySelector(".modal-head h2"); if(h) h.textContent = characterCreated ? "Edit Character" : "Create a Character";
     renderWizStep(); $("wizard").classList.add("open"); focusModal($("wizard"));
   }
   function closeWizard(){ $("wizard").classList.remove("open"); restoreFocus(); }
@@ -4831,7 +4859,7 @@
     if(!editing) document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
     if(name) $("charname").value = name;
     if(race){
-      const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean)};   // keep the Racial column the wizard's Under-the-Hood step already set (incl. the player's choose picks)
+      const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean)};   // keep the Racial column the wizard's Under-the-Hood step already set (incl. the player's choose picks); on Edit, keepRacial + the persisted Languages line mean an unchanged race re-applies losslessly
       if(rObj && rObj.variableSkillDarkvision){
         const useDv = (document.querySelector('input[name="rc-skilldv"]:checked')||{}).value === "darkvision";
         if(useDv) opts.darkvision = rObj.darkvision || 60; else opts.skill = ($("rc-skill")||{}).value || "";
@@ -4892,15 +4920,22 @@
     }
     if(bg === "Custom Background"){                                             // built in the wizard's custom-bg panel
       $("background").value = "Custom Background";
-      document.querySelectorAll(".cbg-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });
-      const tl = [...new Set([...document.querySelectorAll(".cbg-tl")].map(s => s.value).filter(Boolean))];
+      // Read the panel if it was rendered/edited; otherwise (editing without visiting the BG step) fall back to the saved snapshot so the custom background re-applies faithfully instead of being wiped.
+      const havePanel = !!document.querySelector(".cbg-skill-cb");
+      const cbg = havePanel
+        ? { skills: [...document.querySelectorAll(".cbg-skill-cb:checked")].map(cb => cb.value),
+            tl: [...new Set([...document.querySelectorAll(".cbg-tl")].map(s => s.value).filter(Boolean))],
+            featName: $("wiz-cbg-featname").value.trim(), featText: $("wiz-cbg-feattext").value.trim() }
+        : (charCustomBg || { skills:[], tl:[], featName:"", featText:"" });
+      cbg.skills.forEach(k => { const box = $("skp-"+k); if(box) box.checked = true; });
       const langSet = new Set(((DATA && DATA.languages)||[]).map(l => l.toLowerCase()));
-      const bgLangs = tl.filter(v => langSet.has(v.toLowerCase())), bgTools = tl.filter(v => !langSet.has(v.toLowerCase()));
+      const bgLangs = cbg.tl.filter(v => langSet.has(v.toLowerCase())), bgTools = cbg.tl.filter(v => !langSet.has(v.toLowerCase()));
       addLanguages(bgLangs);                                                     // background languages join the race's Languages line
       if(bgTools.length){ const p = $("proficiencies"); const line = "Tools: " + bgTools.join(", ") + " (Background)"; p.value = p.value.trim() ? p.value+"\n"+line : line; autoGrow(p); }
-      const fn = $("wiz-cbg-featname").value.trim(), ft = $("wiz-cbg-feattext").value.trim();
-      if(fn || ft){ const line = (fn ? fn+" (Background). " : "") + ft; const t = $("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t); }
+      if(cbg.featName || cbg.featText){ const line = (cbg.featName ? cbg.featName+" (Background). " : "") + cbg.featText; const t = $("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t); }
+      charCustomBg = cbg;                                                        // persist the custom build so a later Edit can re-apply it without re-entry
     } else if(bg){
+      charCustomBg = null;
       applyBackground(bg);
       const b = DATA && findBy(DATA.backgrounds, bg);                            // deposit background's provided items + gold (one-time, fresh build only)
       if(!editing && b && b.equip){
