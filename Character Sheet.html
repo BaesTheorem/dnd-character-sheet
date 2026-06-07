@@ -274,9 +274,9 @@
   #wizard.modal{padding:24px 16px}
   #wizard .modal-body{min-height:420px}
   #wizard .wiz-build{grid-template-columns:220px 1fr}
-  #wizard #wiz-class-list{max-height:440px}
+  #wizard #wiz-class-list, #wizard #wiz-race-list{max-height:440px}
   #wizard .wiz-cd-table{max-height:380px}
-  @media (max-width:680px){ #wizard .modal-panel{max-width:460px} #wizard .wiz-build{grid-template-columns:1fr} #wizard #wiz-class-list{max-height:200px} }
+  @media (max-width:680px){ #wizard .modal-panel{max-width:460px} #wizard .wiz-build{grid-template-columns:1fr} #wizard #wiz-class-list, #wizard #wiz-race-list{max-height:200px} }
   .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line)}
   .modal-head h2{margin:0; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
   .modal-body{padding:18px; min-height:120px}
@@ -302,7 +302,6 @@
   .wiz-methods .btn{flex:1}
   .btn.wiz-equip.active{background:var(--accent); color:#fff; border-color:var(--accent)}
   .wiz-racechoice{margin-top:10px; padding-top:10px; border-top:1px solid var(--line)}
-  #wiz-race-detail:not(:empty){margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
   .wiz-race-lore{margin-top:10px}
   .wiz-race-lore > summary{cursor:pointer; font-size:12px; font-weight:700; color:var(--muted); list-style:none; user-select:none}
   .wiz-race-lore > summary::-webkit-details-marker{display:none}
@@ -317,12 +316,12 @@
   /* Multiclass class builder (step 2) */
   .wiz-build{display:grid; grid-template-columns:170px 1fr; gap:12px; align-items:start}
   .wiz-build-list{display:flex; flex-direction:column}
-  #wiz-class-list{display:flex; flex-direction:column; border:1px solid var(--line); max-height:340px; overflow:auto}
-  .wiz-cls{display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line);
+  #wiz-class-list, #wiz-race-list{display:flex; flex-direction:column; border:1px solid var(--line); max-height:340px; overflow:auto}
+  .wiz-cls, .wiz-rce{display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line);
     padding:8px 10px; font-size:13px; font-weight:600; cursor:pointer; color:var(--ink)}
-  .wiz-cls:last-child{border-bottom:0}
-  .wiz-cls:hover{background:var(--panel)}
-  .wiz-cls.active{background:var(--accent); color:#fff}
+  .wiz-cls:last-child, .wiz-rce:last-child{border-bottom:0}
+  .wiz-cls:hover, .wiz-rce:hover{background:var(--panel)}
+  .wiz-cls.active, .wiz-rce.active{background:var(--accent); color:#fff}
   .wiz-build-detail{min-height:120px}
   .wiz-cd-head{font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:8px}
   .wiz-cd-err{color:#b91c1c; font-weight:700; font-size:12px; margin:8px 0}
@@ -1152,10 +1151,17 @@
       </div>
       <div class="modal-body">
         <div class="wiz-step" data-step="0">
-          <label class="lbl">Race</label>
-          <select id="wiz-race"></select>
+          <div class="wiz-build">
+            <div class="wiz-build-list">
+              <label class="lbl">Race</label>
+              <div id="wiz-race-list"></div>
+            </div>
+            <div class="wiz-build-detail">
+              <div id="wiz-race-detail"><p class="wiz-hint">Pick a race on the left to see its traits and lore.</p></div>
+            </div>
+          </div>
+          <select id="wiz-race" hidden></select>
           <div id="wiz-race-choices"></div>
-          <div id="wiz-race-detail"></div>
         </div>
         <div class="wiz-step" data-step="1" hidden>
           <label class="lbl">Ability Scores</label>
@@ -4176,7 +4182,7 @@
     $("wiz-back").style.visibility = wizStep === 0 ? "hidden" : "visible";
     $("wiz-next").textContent = wizStep === WIZ_LAST ? (characterCreated ? "Save" : "Create") : "Next";
     $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
-    if(wizStep === 0) raceHint();   // refresh the full race run-down + choice pickers on entry
+    if(wizStep === 0){ renderRaceList(); raceHint(); }   // build the race list + refresh the run-down / choice pickers on entry
     if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial (the Race step restores the player's "choose" picks on Edit, so this re-derives the column faithfully)
     if(wizStep === 2){ syncBuildToSheet(); renderBuilder(); }   // multiclass builder (also re-validates prereqs against the abilities just set)
     if(wizStep === 3) renderWizSkills();
@@ -4669,7 +4675,15 @@
     renderWizStep(); $("wizard").classList.add("open"); focusModal($("wizard"));
   }
   function closeWizard(){ $("wizard").classList.remove("open"); restoreFocus(); }
-  function raceHint(){   // refresh the race run-down + choice pickers for the current selection
+  function renderRaceList(){   // left-hand race picker (mirrors the class step's wiz-class-list)
+    const box = $("wiz-race-list"); if(!box || !DATA) return;
+    const cur = $("wiz-race").value;
+    box.innerHTML = byName(DATA.races).map(r =>
+      `<button type="button" class="wiz-rce${r.name===cur?" active":""}" data-race="${esc(r.name)}">${esc(r.name)}</button>`).join("");
+  }
+  function raceHint(){   // refresh active highlight + run-down + choice pickers for the current selection
+    const cur = $("wiz-race").value, lst = $("wiz-race-list");
+    if(lst) lst.querySelectorAll(".wiz-rce").forEach(b => b.classList.toggle("active", b.dataset.race === cur));
     renderRaceDetail();
     renderRaceChoices();
   }
@@ -4678,7 +4692,7 @@
   function renderRaceDetail(){
     const box = $("wiz-race-detail"); if(!box) return;
     const r = DATA && findBy(DATA.races, $("wiz-race").value);
-    if(!r){ box.innerHTML = ""; return; }
+    if(!r){ box.innerHTML = `<p class="wiz-hint">Pick a race on the left to see its traits and lore.</p>`; return; }
     const grants = [];
     const ab = [];
     (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
@@ -4745,6 +4759,11 @@
       for(let i=0;i<nLang;i++) lh += `<select class="rc-lang" data-i="${i}">${opts}</select> `;
       html += `<div class="wiz-racechoice">${lh}</div>`;
     }
+    if(r.featGrants){   // Variant Human / Custom Lineage grant a feat — pick it right here (applied to the race's feat slot on Create)
+      let fh = `<label class="lbl">Feat${r.featGrants>1?"s":""} — your choice</label>`;
+      for(let i=0;i<r.featGrants;i++) fh += `<select class="rc-feat" data-i="${i}">${featOptions("")}</select> `;
+      html += `<div class="wiz-racechoice">${fh}<p class="wiz-hint" style="margin:4px 0 0">Read each feat's full text in the Features step's “Ability Score Improvements &amp; Feats” wizard.</p></div>`;
+    }
     box.innerHTML = html;
     const sk = $("rc-skill");
     if(sk) box.querySelectorAll('input[name="rc-skilldv"]').forEach(radio => radio.addEventListener("change", () => { sk.disabled = box.querySelector('input[name="rc-skilldv"][value="darkvision"]').checked; }));
@@ -4764,6 +4783,9 @@
           if(charRaceChoices.skill && sk) sk.value = charRaceChoices.skill;
         }
       }
+      // Racial feat picks: from the live race-feat slots already on the character.
+      const raceFeatSlots = asiChoices.filter(s => s.source === "race");
+      [...box.querySelectorAll(".rc-feat")].forEach((seln,i) => { if(raceFeatSlots[i] && raceFeatSlots[i].feat) seln.value = raceFeatSlots[i].feat; });
     }
   }
   // Limited-use class resources → the Limited Features card. count(level, abilityMods)→number; rec = recovery; min = first level.
@@ -4939,6 +4961,9 @@
       charRaceChoices = { languages: opts.languages.slice(),                       // remember the race's "your choice" sub-picks so Edit can show them again
         skillDv: (rObj && rObj.variableSkillDarkvision) ? ((document.querySelector('input[name="rc-skilldv"]:checked')||{}).value || "skill") : null,
         skill: opts.skill || "" };
+      syncAsiSlots();                                                              // race feats become ASI slots now that the race is on the sheet
+      const rcFeats = [...document.querySelectorAll(".rc-feat")].map(s => s.value);   // apply the Race step's feat picks to those slots
+      let _rfi = 0; asiChoices.forEach(s => { if(s.source === "race"){ const v = rcFeats[_rfi++]; if(v) s.feat = v; } });
     }
     const _featBefore = new Set(_splitBlocks($("features").value));              // racial traits stay in the baseline (applyRace self-guards them); capture only class/subclass/bg feature blocks
     if(list.length){
@@ -5295,6 +5320,7 @@
     $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
     $("wiz-race").addEventListener("change", raceHint);
     // Multiclass builder (step 2): class list focus, add, level edit, remove, and inline pending-decision pickers
+    $("wiz-race-list").addEventListener("click", e => { const b = e.target.closest(".wiz-rce"); if(b){ $("wiz-race").value = b.dataset.race; $("wiz-race").dispatchEvent(new Event("change", {bubbles:true})); } });   // race buttons mirror the class list
     $("wiz-class-list").addEventListener("click", e => { const b = e.target.closest(".wiz-cls"); if(b){ wizFocus = b.dataset.cls; renderBuilder(); } });
     $("wiz-class-detail").addEventListener("click", e => { const b = e.target.closest(".wiz-add-class"); if(b) addClassToBuild(b.dataset.cls); });
     $("wiz-chosen").addEventListener("input", e => { const t = e.target.closest(".wiz-cls-lvl"); if(!t) return;
