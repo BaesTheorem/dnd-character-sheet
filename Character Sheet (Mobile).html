@@ -383,6 +383,9 @@
   .ptab:hover{color:var(--ink)}
   .ptab.active{background:#fff; color:var(--accent); border-bottom:1px solid #fff}
   .ptab.muted{opacity:.45}
+  .ptab{position:relative}   /* anchor the content dot */
+  /* P1: a small square marks a tab whose page holds user content (see updateContentDots) */
+  .ptab.has-content::after{content:""; position:absolute; top:6px; right:6px; width:5px; height:5px; background:var(--accent)}
   .page{display:none}
   .page.active{display:block}
 
@@ -2700,6 +2703,23 @@
       const firstKey = PAGES.map(p=>p[0]).find(k => { const pg=$("page-"+k); return pg && !pg.classList.contains("excluded"); });
       if(firstKey) showPage(firstKey);
     }
+    updateContentDots();
+  }
+  // P1: mark each tab whose page holds user content (binder-divider "thickness" at a glance).
+  // Read-only, adds no data-save; runs from compute() (live edits) and applyLayout() (restore/structural).
+  function updateContentDots(){
+    const has = key => {
+      if(key === "core" || key === "mini") return false;            // landing tab + print-standee helper never dot
+      if(key === "companion") return (companions||[]).length > 0;
+      if(key === "spells") return spellSheetUsed(0);                // main sheet: class set, any spell named, or anything prepared
+      if(key === "inv"){ for(let i=0;i<INV_MAIN;i++){ const e=$("invname-"+i); if(e && (e.value||"").trim()) return true; } return false; }
+      const pg = $("page-"+key);                                    // feat / bg / story / notes → any non-empty text field
+      if(!pg) return false;
+      return Array.prototype.some.call(pg.querySelectorAll("textarea, input[type=text]"), e => (e.value||"").trim());
+    };
+    PAGES.forEach(([key]) => { const t = document.querySelector('.ptab[data-page="'+key+'"]'); if(t) t.classList.toggle("has-content", has(key)); });
+    for(let k=0;k<overflowPages;k++){ const t = document.querySelector('.ptab[data-page="overflow-'+k+'"]'); if(t) t.classList.toggle("has-content", overflowPageUsed(k)); }
+    for(let i=1;i<spellSheets;i++){ const t = document.querySelector('.ptab[data-page="'+sx(i,'spells')+'"]'); if(t) t.classList.toggle("has-content", spellSheetUsed(i)); }
   }
   const round1 = n => (Math.round(n*10)/10).toString();
 
@@ -3295,6 +3315,7 @@
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
+    updateContentDots();   // P1: keep tab content-dots live on every edit
   }
 
   // ---- Persistence ----
