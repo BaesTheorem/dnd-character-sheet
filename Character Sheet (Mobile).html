@@ -16,8 +16,8 @@
     --accent:#3b4a63;
     --accent-soft:#eef1f6;
     --field:#f7f8fa;
-    --radius:12px;
-    --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.05);
+    --radius:0px;          /* flat/sharp: square corners (was 12px) */
+    --shadow:none;         /* flat/sharp: no shadows (was a 2-layer drop shadow) */
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji",sans-serif;
   }
   *{box-sizing:border-box}
@@ -558,6 +558,7 @@
       -webkit-print-color-adjust:exact; print-color-adjust:exact}
     /* hide builder/interaction chrome — print character data only */
     .toolbar,.noprint,.gen-status{display:none !important}
+    .modal,.modal-panel,.settings-panel{display:none !important}  /* never print an open wizard/settings modal */
     .sheet{margin:0; max-width:none; padding:0}
     .pagetabs{display:none !important}
     .page{display:block !important}                 /* print every page... */
@@ -680,17 +681,33 @@
      "Character Sheet.html" as a built-in Mobile View.
      See MOBILE-VIEW-PLAN.md for the fold-in plan.
      ============================================================ */
+  /* P0: floating Save is hidden on desktop (the toolbar Save is always visible there) */
+  .mobile-save{ display:none; }
   @media (max-width:820px){
     /* iOS zooms a field on focus when its text is < 16px — pin to 16 */
     input, select, textarea{ font-size:16px; }
     /* breathing room above the home-bar / gesture area */
     body{ padding-bottom:calc(40px + env(safe-area-inset-bottom,0px)); }
 
+    /* P0: kill the legacy ~300ms double-tap delay on every tap target (keeps pinch-zoom + scroll) */
+    *, *::before, *::after{ touch-action:manipulation; }
+    /* P0 flat/sharp: square any hard-coded radii that bypass --radius (dropdowns, pills, etc.) */
+    *, *::before, *::after{ border-radius:0 !important; }
+
     /* --- Toolbar: hand the pinned top spot to the page tabs --- */
     .toolbar{ position:static; gap:6px; padding:8px 10px; }
     .toolbar .brand{ width:100%; margin:0 0 4px; font-size:13px; }
     .toolbar .btn{ flex:1 1 auto; min-height:42px; padding:9px 10px; }
     .toolbar .status{ width:100%; order:5; min-width:0; text-align:center; }
+
+    /* P0 durability: a Save affordance that's always reachable. On mobile the toolbar is
+       static and scrolls off the top, hiding the one control that writes your backup file. */
+    .mobile-save{
+      display:inline-flex; align-items:center; justify-content:center;
+      position:fixed; right:12px; bottom:calc(12px + env(safe-area-inset-bottom,0px));
+      z-index:40; min-height:46px; padding:0 18px; font-size:14px; font-weight:600;
+      border:1px solid var(--accent);
+    }
 
     /* --- Page tabs: a single pinned, swipeable row --- */
     .sheet{ margin:0 auto 16px; padding:0 10px; }
@@ -699,6 +716,7 @@
       margin:0 -10px 14px; padding:8px 10px 0;
       gap:4px; flex-wrap:nowrap; overflow-x:auto;
       -webkit-overflow-scrolling:touch; scrollbar-width:none;
+      overscroll-behavior-x:contain;   /* P0: stop swipe past the end rubber-banding the page */
       background:var(--bg);
     }
     .pagetabs::-webkit-scrollbar{ display:none; }
@@ -725,8 +743,15 @@
     .modal-panel,
     #wizard .modal-panel,
     .settings-panel{ max-width:none; min-height:100%; border:0; }
+    /* P0: use the small-viewport unit so the modal footer never clips behind the iOS address bar.
+       svh (static) over dvh so a full-screen modal doesn't resize as the bar hides/shows. */
+    @supports (height:1svh){
+      .modal-panel,
+      #wizard .modal-panel,
+      .settings-panel{ min-height:100svh; }
+    }
     #wizard.modal{ padding:0; }
-    .modal-body{ padding:14px; }
+    .modal-body{ padding:14px; overscroll-behavior:contain; }   /* P0: contain modal scroll */
     .modal-head{ position:sticky; top:0; z-index:2; background:#fff; }
     .modal-foot{ position:sticky; bottom:0; z-index:2; background:#fff; }
 
@@ -750,6 +775,10 @@
     <button class="btn ghost" id="btn-new" title="Open a new blank character in another tab">New</button>
     <input type="file" id="file-input" accept="application/json,.json" style="display:none">
   </div>
+
+  <!-- P0: always-reachable Save on mobile (the toolbar Save scrolls off-screen) -->
+  <button class="btn primary mobile-save noprint" type="button" title="Save character to a file"
+          onclick="document.getElementById('btn-savecopy').click()">Save</button>
 
   <div class="sheet">
     <nav class="pagetabs noprint" id="pagetabs">
@@ -5206,6 +5235,41 @@
   }
 
   document.addEventListener("DOMContentLoaded", init);
+  </script>
+
+  <!-- ============================================================
+       MOBILE VIEW — numeric keypad. type="number" alone is unreliable
+       on iOS (it often renders a punctuation keyboard, not the numpad);
+       inputmode is the lever that summons the real numeric keypad.
+       Purely additive (keyboard only, no validation/spinner change).
+       The MutationObserver covers fields built after load (inventory
+       rows, spell slots). decimal for item weights, numeric otherwise.
+       ============================================================ -->
+  <script>
+  (function(){
+    function tag(el){
+      if(el.getAttribute("inputmode")) return;
+      el.setAttribute("inputmode", /^invwt-/.test(el.id) ? "decimal" : "numeric");
+      if(!el.getAttribute("enterkeyhint")) el.setAttribute("enterkeyhint","done");
+    }
+    function sweep(root){
+      if(root && root.querySelectorAll)
+        root.querySelectorAll('input[type="number"]').forEach(tag);
+    }
+    document.addEventListener("DOMContentLoaded", function(){
+      sweep(document);
+      if(!("MutationObserver" in window) || !document.body) return;
+      new MutationObserver(function(muts){
+        muts.forEach(function(m){
+          m.addedNodes.forEach(function(n){
+            if(n.nodeType !== 1) return;
+            if(n.matches && n.matches('input[type="number"]')) tag(n);
+            sweep(n);
+          });
+        });
+      }).observe(document.body, {childList:true, subtree:true});
+    });
+  })();
   </script>
 
   <!-- ============================================================
