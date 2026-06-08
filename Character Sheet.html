@@ -3032,6 +3032,10 @@
     if(info && setAbility && info.ability) sEl(inst,"spellability").value = info.ability;
     const L = casterClassLevel(inst);                                      // cantrips/known/prep sections use THIS class's level (not the combined multiclass level)
     spellMaxByInst[inst] = (cls && CASTERS[cls]) ? maxSpellLevel(cls, L) : 9;   // highest level you can KNOW/PREPARE (slot display can go higher — see applySlotFilter)
+    if(setAbility && cls){   // a class was just (re)selected → drop the default blank spell-level rows; add rows with "+ add blank row" as you learn spells
+      const e = spellEntriesOf(inst);
+      for(let l=1; l<=9; l++) if(Array.isArray(e[l])) e[l] = e[l].filter(r => (r.name||"").trim());
+    }
     if(!(info && info.fixed)) resizeCantrips(cantripCount(cls, L), inst);      // cantrip rows = cantrips known at this class level
     renderSpellTable(inst);
     applySlotFilter(inst);
@@ -4864,6 +4868,15 @@
       + `<div class="wiz-cd-table">${traits || '<span class="wiz-hint">No traits listed for the loaded sources.</span>'}</div>`
       + flavor;
   }
+  function renderRcFeatAbil(i){   // half-feat ability picker for the race feat (mirrors the ASI wizard's featAbilPicker)
+    const box = document.querySelector('.rc-feat-abil[data-i="'+i+'"]'); if(!box) return;
+    const checked = document.querySelector('input[name="rc-feat-'+i+'"]:checked');
+    const f = checked && DATA && DATA.feats && DATA.feats.find(x => x.name === checked.value);
+    if(!f || !f.ability || !f.ability.choose){ box.innerHTML = ""; return; }
+    const opts = `<option value=""></option>` + (f.ability.choose.from||[]).map(k => `<option value="${k}">${esc(ABBR[k]||k)}</option>`).join("");
+    const lbl = (f.saves && f.saves.choose) ? "+1 &amp; save in" : "+1 to";
+    box.innerHTML = `<label class="lbl" style="margin-top:6px">${lbl}</label><select class="rc-featabil" data-i="${i}">${opts}</select>`;
+  }
   function renderRaceChoices(){   // skill-or-darkvision (Custom Lineage) + language-of-your-choice pickers on the Race step
     const box = $("wiz-race-choices"); if(!box) return;
     const r = DATA && findBy(DATA.races, $("wiz-race").value);
@@ -4912,10 +4925,19 @@
       for(let i=0;i<(r.langChoose||0);i++) lh += `<select class="rc-lang" data-i="${swapLangs.length+i}">${langOpt("")}</select> `;
       html += `<div class="wiz-racechoice">${lh}</div>`;
     }
-    if(r.featGrants){   // Variant Human / Custom Lineage grant a feat — pick it right here (applied to the race's feat slot on Create)
-      let fh = `<label class="lbl">Feat${r.featGrants>1?"s":""} — your choice</label>`;
-      for(let i=0;i<r.featGrants;i++) fh += `<select class="rc-feat" data-i="${i}">${featOptions("")}</select> `;
-      html += `<div class="wiz-racechoice">${fh}<p class="wiz-hint" style="margin:4px 0 0">Read each feat's full text in the Features step's “Ability Score Improvements &amp; Feats” wizard.</p></div>`;
+    if(r.featGrants){   // Variant Human / Custom Lineage grant a feat — same browsable picker as the ASI & Feats wizard
+      const feats = (DATA && DATA.feats) ? DATA.feats.slice().sort((a,b)=>a.name.localeCompare(b.name)) : [];
+      for(let i=0;i<r.featGrants;i++){
+        if(feats.length){
+          html += `<div class="wiz-racechoice"><label>Feat${r.featGrants>1?` #${i+1}`:""} — pick one (click a name to read it)</label>`
+            + `<div class="feat-list">` + feats.map(f =>
+              `<div class="pick-item"><input type="radio" name="rc-feat-${i}" class="rc-feat-radio" data-i="${i}" value="${esc(f.name)}">`
+              + `<details class="pick-det"><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("")
+            + `</div><div class="rc-feat-abil" data-i="${i}"></div></div>`;
+        } else {
+          html += `<div class="wiz-racechoice"><label class="lbl">Feat — your choice</label><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
+        }
+      }
     }
     box.innerHTML = html;
     const sk = $("rc-skill");
@@ -4939,8 +4961,12 @@
         }
       }
       // Racial feat picks: from the live race-feat slots already on the character.
-      const raceFeatSlots = asiChoices.filter(s => s.source === "race");
-      [...box.querySelectorAll(".rc-feat")].forEach((seln,i) => { if(raceFeatSlots[i] && raceFeatSlots[i].feat) seln.value = raceFeatSlots[i].feat; });
+      asiChoices.filter(s => s.source === "race").forEach((slot,i) => {
+        if(slot.feat){ const radio = [...box.querySelectorAll('input[name="rc-feat-'+i+'"]')].find(r => r.value === slot.feat);
+          if(radio){ radio.checked = true; const d = radio.nextElementSibling; if(d && d.tagName === "DETAILS") d.open = true; } }
+        renderRcFeatAbil(i);
+        const sel = box.querySelector('.rc-featabil[data-i="'+i+'"]'); if(sel && slot.featAbil) sel.value = slot.featAbil;
+      });
     }
   }
   // Limited-use class resources → the Limited Features card. count(level, abilityMods)→number; rec = recovery; min = first level.
@@ -5222,8 +5248,10 @@
         skillDv: (rObj && rObj.variableSkillDarkvision) ? ((document.querySelector('input[name="rc-skilldv"]:checked')||{}).value || "skill") : null,
         skill: opts.skill || "" };
       syncAsiSlots();                                                              // race feats become ASI slots now that the race is on the sheet
-      const rcFeats = [...document.querySelectorAll(".rc-feat")].map(s => s.value);   // apply the Race step's feat picks to those slots
-      let _rfi = 0; asiChoices.forEach(s => { if(s.source === "race"){ const v = rcFeats[_rfi++]; if(v) s.feat = v; } });
+      const rcFeatPicks = []; document.querySelectorAll(".rc-feat-abil").forEach(ab => { const i = +ab.dataset.i;   // apply the Race step's feat picks (feat + any half-feat ability) to those slots
+        rcFeatPicks[i] = { feat: (document.querySelector('input[name="rc-feat-'+i+'"]:checked')||{}).value || "",
+          featAbil: (document.querySelector('.rc-featabil[data-i="'+i+'"]')||{}).value || "" }; });
+      let _rfi = 0; asiChoices.forEach(s => { if(s.source === "race"){ const p = rcFeatPicks[_rfi++]; if(p){ if(p.feat) s.feat = p.feat; s.featAbil = p.featAbil; } } });
     }
     const _featBefore = new Set(_splitBlocks($("features").value));              // racial traits stay in the baseline (applyRace self-guards them); capture only class/subclass/bg feature blocks
     if(list.length){
@@ -5596,6 +5624,10 @@
     $("wiz-race").addEventListener("change", raceHint);
     // Multiclass builder (step 2): class list focus, add, level edit, remove, and inline pending-decision pickers
     $("wiz-race-list").addEventListener("click", e => { const b = e.target.closest(".wiz-rce"); if(b){ $("wiz-race").value = b.dataset.race; $("wiz-race").dispatchEvent(new Event("change", {bubbles:true})); } });   // race buttons mirror the class list
+    $("wiz-race-choices").addEventListener("change", e => { const r = e.target.closest(".rc-feat-radio"); if(!r) return;   // race feat picked → open its description (close the rest) and show any half-feat ability picker, like the ASI wizard
+      const i = +r.dataset.i;
+      document.querySelectorAll('.rc-feat-radio[data-i="'+i+'"]').forEach(rr => { const d = rr.nextElementSibling; if(d && d.tagName === "DETAILS") d.open = (rr === r); });
+      renderRcFeatAbil(i); });
     $("wiz-class-list").addEventListener("click", e => { const b = e.target.closest(".wiz-cls"); if(b){ wizFocus = b.dataset.cls; renderBuilder(); } });
     $("wiz-class-detail").addEventListener("click", e => { const b = e.target.closest(".wiz-add-class"); if(b) addClassToBuild(b.dataset.cls); });
     $("wiz-chosen").addEventListener("input", e => { const t = e.target.closest(".wiz-cls-lvl"); if(!t) return;
