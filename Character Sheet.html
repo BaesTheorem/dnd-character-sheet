@@ -110,9 +110,11 @@
     border:1px solid var(--line2); background:#fff; color:var(--ink); padding:6px 8px}
   .portrait-menu button:hover{background:var(--accent-soft); border-color:var(--accent)}
   .meta-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px 14px; margin-top:14px}
-  .xp-wrap{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
-  .xp-wrap > input{flex:1; min-width:60px}
-  .xp-status{font-size:11px; color:var(--muted); white-space:nowrap}
+  .xp-wrap{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+  .xp-wrap > #xp{flex:1; min-width:64px}
+  .xp-add{width:74px}
+  .btn#btn-addxp{font-size:11px; padding:3px 10px}
+  .xp-status{font-size:11px; color:var(--muted); flex-basis:100%}
   .wiz-leveltarget-banner{background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:8px 12px; font-size:13px; font-weight:600; margin-bottom:12px}
   .btn.xp-levelup{font-size:11px; padding:3px 10px; background:var(--accent); color:#fff; border-color:var(--accent)}
   @media (max-width:560px){ .meta-grid{grid-template-columns:repeat(2,1fr)} }
@@ -821,7 +823,7 @@
             <div><label class="lbl">Alignment</label><input data-save id="alignment"></div>
             <div><label class="lbl">Player</label><input data-save id="player"></div>
             <div><label class="lbl">Experience</label>
-              <div class="xp-wrap"><input data-save id="xp" inputmode="numeric"><span class="xp-status" id="xp-status"></span><button class="btn xp-levelup" id="btn-levelup" type="button" hidden>Level Up</button></div>
+              <div class="xp-wrap"><input data-save id="xp" inputmode="numeric" title="Total XP"><input id="xp-add" class="xp-add" inputmode="numeric" placeholder="+ gained" title="XP gained — click Add XP to add it to your total"><button class="btn" id="btn-addxp" type="button">Add XP</button><button class="btn xp-levelup" id="btn-levelup" type="button" hidden>Level Up</button><span class="xp-status" id="xp-status"></span></div>
             </div>
           </div>
         </div>
@@ -3117,18 +3119,26 @@
   const XP_THRESH = [0,0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];   // total XP to BE level L (index 1..20)
   function xpToLevel(xp){ let l = 1; for(let L=2; L<=20; L++){ if(xp >= XP_THRESH[L]) l = L; else break; } return l; }
   function renderXpTracker(){   // keep the Experience field in sync with the leveling method + current level (lightweight: no input rebuild, so typing isn't interrupted)
-    const inp = $("xp"), stat = $("xp-status"), btn = $("btn-levelup"); if(!inp || !stat || !btn) return;
-    const lvl = charLevel() || 1, atMax = lvl >= 20;
-    if(levelMethod === "milestone"){
-      inp.style.display = "none"; stat.style.display = "";
-      stat.textContent = "Level " + lvl + (atMax ? " · max" : "");
-      btn.hidden = false; btn.disabled = atMax;
-    } else {
-      inp.style.display = ""; stat.style.display = "";
+    const inp = $("xp"), stat = $("xp-status"), btn = $("btn-levelup"), addInp = $("xp-add"), addBtn = $("btn-addxp"); if(!inp || !stat || !btn) return;
+    const lvl = charLevel() || 1, atMax = lvl >= 20, xpMode = levelMethod !== "milestone";
+    inp.style.display = xpMode ? "" : "none";
+    if(addInp) addInp.style.display = xpMode ? "" : "none";
+    if(addBtn) addBtn.style.display = xpMode ? "" : "none";
+    if(xpMode){
       const xp = Math.max(0, num(inp.value, 0)), need = atMax ? null : XP_THRESH[lvl + 1];
       stat.textContent = "Level " + lvl + (need != null ? " · " + xp.toLocaleString() + " / " + need.toLocaleString() + " XP to " + (lvl + 1) : " · max XP");
       btn.hidden = !(need != null && xp >= need); btn.disabled = false;
+    } else {
+      stat.textContent = "Level " + lvl + (atMax ? " · max" : "");
+      btn.hidden = false; btn.disabled = atMax;
     }
+  }
+  function addXp(){   // add the "gained" amount to the XP total so players don't have to do the arithmetic
+    const add = Math.round(num($("xp-add").value, 0)); if(!add){ $("xp-add").value = ""; return; }
+    $("xp").value = String(Math.max(0, Math.round(num($("xp").value, 0)) + add));
+    $("xp-add").value = "";
+    save(); renderXpTracker();
+    flashStatus((add >= 0 ? "Added " : "Removed ") + Math.abs(add).toLocaleString() + " XP — total " + Math.round(num($("xp").value,0)).toLocaleString() + ".");
   }
   // Level up: open the class builder with N levels to assign, so you can advance a class or multiclass.
   function levelUp(){
@@ -5569,6 +5579,8 @@
     $("btn-create").addEventListener("click", openWizard);
     $("btn-levelup").addEventListener("click", levelUp);
     $("xp").addEventListener("input", renderXpTracker);   // live XP → level/eligibility readout
+    $("btn-addxp").addEventListener("click", addXp);
+    $("xp-add").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); addXp(); } });
     $("wiz-levelmethod").addEventListener("change", e => { const r = e.target.closest('input[name="wiz-lvlmethod"]'); if(r){ levelMethod = r.value; save(); renderXpTracker(); } });
     $("wiz-close").addEventListener("click", closeWizard);
     $("wizard").addEventListener("click", e=>{ if(e.target.id === "wizard") closeWizard(); });
