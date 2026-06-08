@@ -110,6 +110,10 @@
     border:1px solid var(--line2); background:#fff; color:var(--ink); padding:6px 8px}
   .portrait-menu button:hover{background:var(--accent-soft); border-color:var(--accent)}
   .meta-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px 14px; margin-top:14px}
+  .xp-wrap{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .xp-wrap > input{flex:1; min-width:60px}
+  .xp-status{font-size:11px; color:var(--muted); white-space:nowrap}
+  .btn.xp-levelup{font-size:11px; padding:3px 10px; background:var(--accent); color:#fff; border-color:var(--accent)}
   @media (max-width:560px){ .meta-grid{grid-template-columns:repeat(2,1fr)} }
 
   /* Source-data build pickers */
@@ -815,7 +819,9 @@
             <div><label class="lbl">Race</label><input data-save id="race"></div>
             <div><label class="lbl">Alignment</label><input data-save id="alignment"></div>
             <div><label class="lbl">Player</label><input data-save id="player"></div>
-            <div><label class="lbl">Experience</label><input data-save id="xp"></div>
+            <div><label class="lbl">Experience</label>
+              <div class="xp-wrap"><input data-save id="xp" inputmode="numeric"><span class="xp-status" id="xp-status"></span><button class="btn xp-levelup" id="btn-levelup" type="button" hidden>Level Up</button></div>
+            </div>
           </div>
         </div>
       </div>
@@ -1192,6 +1198,7 @@
           </div>
           <div id="wiz-chosen"></div>
           <div id="wiz-hp"></div>
+          <div id="wiz-levelmethod"></div>
           <div id="wiz-spells"></div>
           <div id="wiz-pending"></div>
         </div>
@@ -1465,6 +1472,7 @@
   function _removeLines(id, lines){ const el = $(id); if(!el || !lines || !lines.length) return; const drop = new Set(lines);
     el.value = el.value.split("\n").filter(l => !drop.has(l)).join("\n"); autoGrow(el); }
   // ===== Hit points by level (records) =====
+  let levelMethod = "xp";   // "xp" | "milestone" — how the character levels up (chosen at creation)
   let hpMode = "manual";    // "max" | "average" | "rolled" | "manual" — how the per-level hit-die rolls are produced
   let hpRolls = [];         // per character level: the hit-die contribution BEFORE Con (index 0 = level 1). Con is added live in compute().
   function levelDiceFor(list){   // hit-die faces per character level, first-class-first (level 1 = the initial class's die)
@@ -3103,6 +3111,40 @@
     if(!m) return null;
     return Math.min(20, Math.max(1, m.reduce((a,b)=>a+parseInt(b,10),0)));
   }
+  // ---- Experience points + leveling ----
+  const XP_THRESH = [0,0,300,900,2700,6500,14000,23000,34000,48000,64000,85000,100000,120000,140000,165000,195000,225000,265000,305000,355000];   // total XP to BE level L (index 1..20)
+  function xpToLevel(xp){ let l = 1; for(let L=2; L<=20; L++){ if(xp >= XP_THRESH[L]) l = L; else break; } return l; }
+  function renderXpTracker(){   // keep the Experience field in sync with the leveling method + current level (lightweight: no input rebuild, so typing isn't interrupted)
+    const inp = $("xp"), stat = $("xp-status"), btn = $("btn-levelup"); if(!inp || !stat || !btn) return;
+    const lvl = charLevel() || 1, atMax = lvl >= 20;
+    if(levelMethod === "milestone"){
+      inp.style.display = "none"; stat.style.display = "";
+      stat.textContent = "Level " + lvl + (atMax ? " · max" : "");
+      btn.hidden = false; btn.disabled = atMax;
+    } else {
+      inp.style.display = ""; stat.style.display = "";
+      const xp = Math.max(0, num(inp.value, 0)), need = atMax ? null : XP_THRESH[lvl + 1];
+      stat.textContent = "Level " + lvl + (need != null ? " · " + xp.toLocaleString() + " / " + need.toLocaleString() + " XP to " + (lvl + 1) : " · max XP");
+      btn.hidden = !(need != null && xp >= need); btn.disabled = false;
+    }
+  }
+  // Level up: bump a class by one level and re-apply the build (new features, HP, slots, ASI/subclass prompts).
+  function levelUp(){
+    if(!characterCreated || !charClasses.length){ flashStatus("Create a character first (Create Character)."); return; }
+    if(!DATA){ alert("Leveling up needs sourcebook data loaded."); return; }
+    if(charClasses.reduce((a,c)=>a+(c.level||0),0) >= 20){ flashStatus("Already at the level cap (20)."); return; }
+    if(charClasses.length > 1){   // multiclass: let the player pick which class to advance, in the builder
+      openWizard(); wizStep = 2; renderWizStep();
+      flashStatus("Multiclass — raise the level of the class you want, then Save.");
+      return;
+    }
+    openWizard();                                   // pre-fills the wizard from the character (race, choices, skills, bg, spells)
+    $("wizard").classList.remove("open");           // headless — re-apply without showing the wizard
+    if(wizClasses[0]) wizClasses[0].level = Math.min(20, (wizClasses[0].level || 1) + 1);
+    for(let s = 0; s <= WIZ_LAST; s++){ wizStep = s; renderWizStep(); }   // populate every step's DOM so createCharacter re-applies the character's choices at the new level
+    createCharacter();                              // re-applies + closes the wizard
+    flashStatus("Leveled up to " + ($("classlevel").value || "") + ". Check the banners for any new subclass / ASI choices.");
+  }
   let _lastFeatSig = null, _lastLimSig = null;   // change-gates so compute() skips the heavy Feature-card / Limited-Features rebuilds when their inputs are unchanged
   function equippedSig(){ let s = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(cb && cb.checked && nm && nm.value) s += nm.value + ","; } return s; }
   function compute(){
@@ -3313,6 +3355,7 @@
     updateSourcesFlag();
     updateAsiFlag();
     updateDecisionsFlag();
+    renderXpTracker();
     refreshAtkRows();        // recompute active-weapon attack rows (live with ability/level)
     refreshEquipToggles();   // show the Equipped box on weapon/armor/magic/attunement rows
     refreshEquippedPickers();// Armor + Attunement dropdowns reflect equipped inventory items
@@ -3364,6 +3407,7 @@
     data.charRaceChoices = charRaceChoices;
     data.tceOff = tceOff; data.genTce = genTce; data.genTceRemoved = genTceRemoved;   // Tasha's optional-rule prefs + the feature blocks they added/replaced
     data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells;   // remember generated content so Edit Character replaces it instead of duplicating
+    data.levelMethod = levelMethod;
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
     data.asiChoices = asiChoices;
@@ -3447,6 +3491,7 @@
     genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
     genDefenses = (data && Array.isArray(data.genDefenses)) ? data.genDefenses : [];
     genSpells = (data && data.genSpells && typeof data.genSpells === "object" && !Array.isArray(data.genSpells) && !data.genSpells.cantrips) ? data.genSpells : {};   // keyed by caster (old single-record saves reset to {})
+    levelMethod = (data && data.levelMethod === "milestone") ? "milestone" : "xp";
     hpMode = (data && data.hpMode) || "manual";
     hpRolls = (data && Array.isArray(data.hpRolls)) ? data.hpRolls : [];
     speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
@@ -3743,7 +3788,14 @@
     $("classlevel").value = buildClassLevelStr(wizClasses);
     syncAsiSlots(); updateAsiFlag();
   }
-  function renderBuilder(){ renderClassList(); renderClassDetail(wizFocus); renderChosenClasses(); renderHpPanel(); renderSpellPicker(); renderWizPending(); }
+  function renderBuilder(){ renderClassList(); renderClassDetail(wizFocus); renderChosenClasses(); renderHpPanel(); renderWizLevelMethod(); renderSpellPicker(); renderWizPending(); }
+  function renderWizLevelMethod(){   // ask XP vs Milestone leveling during creation
+    const box = $("wiz-levelmethod"); if(!box) return;
+    if(!wizClasses.length){ box.innerHTML = ""; return; }
+    box.innerHTML = `<label class="lbl" style="margin-top:6px">Leveling</label>`
+      + `<label class="wiz-radio"><input type="radio" name="wiz-lvlmethod" value="xp"${levelMethod==="xp"?" checked":""}> Experience points — track XP; a Level Up button appears at each threshold</label>`
+      + `<label class="wiz-radio"><input type="radio" name="wiz-lvlmethod" value="milestone"${levelMethod==="milestone"?" checked":""}> Milestone — no XP; the Experience field becomes a Level Up button</label>`;
+  }
   function renderHpPanel(){
     const box = $("wiz-hp"); if(!box) return;
     if(!wizClasses.length){ box.innerHTML = ""; return; }
@@ -5503,6 +5555,9 @@
     });
 
     $("btn-create").addEventListener("click", openWizard);
+    $("btn-levelup").addEventListener("click", levelUp);
+    $("xp").addEventListener("input", renderXpTracker);   // live XP → level/eligibility readout
+    $("wiz-levelmethod").addEventListener("change", e => { const r = e.target.closest('input[name="wiz-lvlmethod"]'); if(r){ levelMethod = r.value; save(); renderXpTracker(); } });
     $("wiz-close").addEventListener("click", closeWizard);
     $("wizard").addEventListener("click", e=>{ if(e.target.id === "wizard") closeWizard(); });
     $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
