@@ -113,6 +113,7 @@
   .xp-wrap{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
   .xp-wrap > input{flex:1; min-width:60px}
   .xp-status{font-size:11px; color:var(--muted); white-space:nowrap}
+  .wiz-leveltarget-banner{background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:8px 12px; font-size:13px; font-weight:600; margin-bottom:12px}
   .btn.xp-levelup{font-size:11px; padding:3px 10px; background:var(--accent); color:#fff; border-color:var(--accent)}
   @media (max-width:560px){ .meta-grid{grid-template-columns:repeat(2,1fr)} }
 
@@ -1187,6 +1188,7 @@
           <p class="wiz-hint">Final score = Base + ASI + Racial + Magical + Misc. Your race's bonuses are pre-filled in Racial.</p>
         </div>
         <div class="wiz-step" data-step="2" hidden>
+          <div id="wiz-leveltarget"></div>
           <div class="wiz-build">
             <div class="wiz-build-list">
               <label class="lbl">Classes</label>
@@ -3128,22 +3130,20 @@
       btn.hidden = !(need != null && xp >= need); btn.disabled = false;
     }
   }
-  // Level up: bump a class by one level and re-apply the build (new features, HP, slots, ASI/subclass prompts).
+  // Level up: open the class builder with N levels to assign, so you can advance a class or multiclass.
   function levelUp(){
     if(!characterCreated || !charClasses.length){ flashStatus("Create a character first (Create Character)."); return; }
     if(!DATA){ alert("Leveling up needs sourcebook data loaded."); return; }
-    if(charClasses.reduce((a,c)=>a+(c.level||0),0) >= 20){ flashStatus("Already at the level cap (20)."); return; }
-    if(charClasses.length > 1){   // multiclass: let the player pick which class to advance, in the builder
-      openWizard(); wizStep = 2; renderWizStep();
-      flashStatus("Multiclass — raise the level of the class you want, then Save.");
-      return;
-    }
-    openWizard();                                   // pre-fills the wizard from the character (race, choices, skills, bg, spells)
-    $("wizard").classList.remove("open");           // headless — re-apply without showing the wizard
-    if(wizClasses[0]) wizClasses[0].level = Math.min(20, (wizClasses[0].level || 1) + 1);
-    for(let s = 0; s <= WIZ_LAST; s++){ wizStep = s; renderWizStep(); }   // populate every step's DOM so createCharacter re-applies the character's choices at the new level
-    createCharacter();                              // re-applies + closes the wizard
-    flashStatus("Leveled up to " + ($("classlevel").value || "") + ". Check the banners for any new subclass / ASI choices.");
+    const cur = charClasses.reduce((a,c)=>a+(c.level||0),0);
+    if(cur >= 20){ flashStatus("Already at the level cap (20)."); return; }
+    let target = cur + 1;
+    if(levelMethod === "xp") target = Math.max(cur + 1, xpToLevel(Math.max(0, num($("xp").value, 0))));   // assign up to the level your XP has earned (at least one)
+    target = Math.min(20, target);
+    openWizard();                                   // pre-fills the wizard from the character, then jump to the class builder
+    wizLevelTarget = target;
+    const h = $("wizard").querySelector(".modal-head h2"); if(h) h.textContent = "Level Up";
+    wizStep = 2; renderWizStep();
+    flashStatus("Level up — assign " + (target - cur) + " level" + (target - cur === 1 ? "" : "s") + ": raise a class or add a new one, then Save.");
   }
   let _lastFeatSig = null, _lastLimSig = null;   // change-gates so compute() skips the heavy Feature-card / Limited-Features rebuilds when their inputs are unchanged
   function equippedSig(){ let s = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(cb && cb.checked && nm && nm.value) s += nm.value + ","; } return s; }
@@ -3963,7 +3963,17 @@
     });
     return out;
   }
+  function renderWizLevelTarget(){   // the "assign N levels" banner shown when leveling up
+    const box = $("wiz-leveltarget"); if(!box) return;
+    if(wizLevelTarget == null || !wizClasses.length){ box.innerHTML = ""; return; }
+    const cur = wizClasses.reduce((a,w)=>a+(w.level||0),0), remaining = wizLevelTarget - cur;
+    const msg = remaining > 0 ? `Assign <b>${remaining}</b> more level${remaining===1?"":"s"} — raise a class below, or add a class to multiclass.`
+      : remaining === 0 ? `All levels assigned ✓ — review HP and any new choices, then Save.`
+      : `You're <b>${-remaining}</b> level${-remaining===1?"":"s"} above the target.`;
+    box.innerHTML = `<div class="wiz-leveltarget-banner">Leveling to <b>${wizLevelTarget}</b>. ${msg}</div>`;
+  }
   function renderWizPending(){
+    renderWizLevelTarget();
     const box = $("wiz-pending"); if(!box) return;
     const rows = [];
     pendingFor(wizClasses).forEach(p => {
@@ -4263,6 +4273,7 @@
   }
   // ---- Guided character creation wizard ----
   let wizStep = 0, wizEquip = "equipment", characterCreated = false;
+  let wizLevelTarget = null;   // when leveling up: the total level to reach (drives the "assign N levels" banner); null on a normal Edit
   const WIZ_LAST = 6;
   // Step order: 0 Race · 1 Ability Scores · 2 Class · 3 Skills · 4 Equipment · 5 Background · 6 Name
   function renderWizStep(){
@@ -4746,6 +4757,7 @@
     const h = $("wiz-cbg-skills-hint"); if(h) h.textContent = `(${checked}/2 chosen)`;
   }
   function openWizard(){
+    wizLevelTarget = null;   // normal open; levelUp() sets a target after calling this
     if(!DATA){ alert("Character creation needs sourcebook data. Open Settings → Source books and load a book from your 5etools server (or import a source-data.json)."); return; }
     wizStep = 0; wizEquip = "equipment";
     wizClasses = (characterCreated && Array.isArray(charClasses) && charClasses.length)   // editing → reload the saved build; fresh → empty
@@ -4783,7 +4795,7 @@
     renderWizStep(); $("wizard").classList.add("open"); focusModal($("wizard"));
     scrollListToActive($("wiz-race-list"));   // now that the modal is laid out, reveal the current race (step 0 rendered before it was visible)
   }
-  function closeWizard(){ $("wizard").classList.remove("open"); restoreFocus(); }
+  function closeWizard(){ $("wizard").classList.remove("open"); wizLevelTarget = null; restoreFocus(); }
   function renderRaceList(){   // left-hand race picker (mirrors the class step's wiz-class-list)
     const box = $("wiz-race-list"); if(!box || !DATA) return;
     const cur = $("wiz-race").value;
