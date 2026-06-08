@@ -766,7 +766,7 @@
     <div class="brand">⬢ Character Sheet <span>· 5e</span></div>
     <span class="status" id="status"></span>
     <button class="btn primary" id="btn-create">Create Character</button>
-    <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file">Save</button>
+    <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file (your character plus all loaded sourcebooks baked in — works offline, no localStorage needed)">Save</button>
     <button class="btn" onclick="window.print()">Print / PDF</button>
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
@@ -5481,10 +5481,12 @@
 
     $("btn-savecopy").addEventListener("click", ()=>{
       const clone = document.documentElement.cloneNode(true);
-      clone.querySelector("#embedded-data").textContent = JSON.stringify(collect());
+      clone.querySelector("#embedded-data").textContent = JSON.stringify(collect());               // your character
+      const sd = clone.querySelector("#source-data"); if(sd) sd.textContent = JSON.stringify(DATA || null);   // + every loaded sourcebook, so the copy needs no localStorage or server
       const st = clone.querySelector("#status"); if(st) st.textContent = "";
       download("<!DOCTYPE html>\n" + clone.outerHTML, charLabel()+".html", "text/html");
-      flashStatus("Downloaded “"+charLabel()+".html” — a self-contained copy with your character baked in.");
+      const books = (DATA && DATA._meta && (DATA._meta.books||[]).length) ? " and "+DATA._meta.books.length+" sourcebook"+(DATA._meta.books.length===1?"":"s") : "";
+      flashStatus("Downloaded “"+charLabel()+".html” — self-contained, with your character"+books+" baked in.");
     });
 
     $("btn-new").addEventListener("click", ()=>{
