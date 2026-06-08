@@ -3827,10 +3827,17 @@
     genSpells = newGen;
     renderAllSpellSheets(false);
   }
+  function scrollListToActive(box){   // reveal the highlighted button within its own scroll box only (never the page/modal); no-op if already visible
+    const a = box && box.querySelector(".active"); if(!a) return;
+    const lr = box.getBoundingClientRect(), ar = a.getBoundingClientRect();
+    if(ar.top < lr.top) box.scrollTop -= (lr.top - ar.top);
+    else if(ar.bottom > lr.bottom) box.scrollTop += (ar.bottom - lr.bottom);
+  }
   function renderClassList(){
     const box = $("wiz-class-list"); if(!box || !DATA) return;
     box.innerHTML = byName(DATA.classes).map(c =>
       `<button type="button" class="wiz-cls${c.name===wizFocus?' active':''}" data-cls="${esc(c.name)}">${esc(c.name)}</button>`).join("");
+    scrollListToActive(box);
   }
   function renderClassDetail(name){
     const box = $("wiz-class-detail"); if(!box) return;
@@ -4673,6 +4680,7 @@
     ["wiz-cbg-featname","wiz-cbg-feattext"].forEach(id => { const el=$(id); if(el) el.value=""; });
     const h = $("wizard").querySelector(".modal-head h2"); if(h) h.textContent = characterCreated ? "Edit Character" : "Create a Character";
     renderWizStep(); $("wizard").classList.add("open"); focusModal($("wizard"));
+    scrollListToActive($("wiz-race-list"));   // now that the modal is laid out, reveal the current race (step 0 rendered before it was visible)
   }
   function closeWizard(){ $("wizard").classList.remove("open"); restoreFocus(); }
   function renderRaceList(){   // left-hand race picker (mirrors the class step's wiz-class-list)
@@ -4680,6 +4688,7 @@
     const cur = $("wiz-race").value;
     box.innerHTML = byName(DATA.races).map(r =>
       `<button type="button" class="wiz-rce${r.name===cur?" active":""}" data-race="${esc(r.name)}">${esc(r.name)}</button>`).join("");
+    scrollListToActive(box);
   }
   function raceHint(){   // refresh active highlight + run-down + choice pickers for the current selection
     const cur = $("wiz-race").value, lst = $("wiz-race-list");
