@@ -1212,6 +1212,7 @@
         <div class="wiz-step" data-step="5" hidden>
           <label class="lbl">Background</label>
           <select id="wiz-bg"></select>
+          <div id="wiz-bg-lang"></div>
           <div id="wiz-custom-bg" hidden>
             <p class="wiz-hint">Build your custom background (PHB customization rules):</p>
             <label class="lbl" style="margin-top:8px">Skill proficiencies — choose 2 <span class="wiz-hint" id="wiz-cbg-skills-hint" style="margin:0"></span></label>
@@ -1434,6 +1435,7 @@
   let charClasses = [];                                     // saved multiclass build [{name,level,sub,subOpts}] — drives the main-sheet decisions flag
   let charCustomBg = null;                                  // saved Custom Background build {skills,tl,featName,featText} so "Edit Character" can re-apply it without re-entry
   let charRaceChoices = null;                               // saved race sub-choices {languages,skillDv,skill} so the Race step shows them on Edit (ability picks are re-derived from the Racial column)
+  let charBgChoices = null;                                 // saved standard-background "languages of your choice" picks {languages} so the Background step shows them on Edit
   let genFeatures = [], genProf = [], genDefenses = [];     // exact Feature blocks + Proficiency lines + Defense notes the wizard last generated, so "Edit Character" replaces them instead of duplicating
   let genSpells = {};      // per-caster record of spell picks the wizard last wrote (so Edit replaces, not piles up): {casterKey:{cantrips,rows,prepared}}
   function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
@@ -3349,6 +3351,7 @@
     data.hitDieFaces = hitDieFaces;
     data.charClasses = charClasses;
     data.charCustomBg = charCustomBg;
+    data.charBgChoices = charBgChoices;
     data.charRaceChoices = charRaceChoices;
     data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells;   // remember generated content so Edit Character replaces it instead of duplicating
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
@@ -3425,6 +3428,7 @@
     if(hitDieFaces == null && data){ const m = String(data.hitdice||"").match(/d(\d+)/); if(m) hitDieFaces = +m[1]; }   // legacy "5d8" → 8
     charClasses = (data && Array.isArray(data.charClasses)) ? data.charClasses : [];
     charCustomBg = (data && data.charCustomBg && typeof data.charCustomBg === "object") ? data.charCustomBg : null;
+    charBgChoices = (data && data.charBgChoices && typeof data.charBgChoices === "object") ? data.charBgChoices : null;
     charRaceChoices = (data && data.charRaceChoices && typeof data.charRaceChoices === "object") ? data.charRaceChoices : null;
     genFeatures = (data && Array.isArray(data.genFeatures)) ? data.genFeatures : [];
     genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
@@ -4046,11 +4050,21 @@
               (choose?`\nAlso choose +${choose.amount||1} to ${choose.count} ability score(s) — set under the hood (Racial column).`:""));
     } else setNote("");
   }
-  function applyBackground(name){
+  function applyBackground(name, opts){
     const b = DATA && findBy(DATA.backgrounds,name);
     if(b){
       $("background").value = name;
-      applyProficiencies(b.prof, name);                // skills (checkboxes) + tools & languages → Proficiencies box
+      let prof = b.prof;
+      if(opts && prof && Array.isArray(prof.languages)){   // swap "N languages of your choice" placeholders for the picked languages
+        prof = Object.assign({}, b.prof);
+        prof.languages = prof.languages.filter(s => !/of your choice/i.test(s)).concat(opts.languages || []);
+      }
+      applyProficiencies(prof, name);                // skills (checkboxes) + tools & languages → Proficiencies box
+      if(opts){                                       // drop any leftover "… of your choice" placeholder from the Languages line (incl. legacy saves)
+        const pe = $("proficiencies"), lines = pe ? pe.value.split("\n") : [], idx = lines.findIndex(l => /^\s*Languages:/i.test(l));
+        if(idx >= 0){ const langs = lines[idx].replace(/^\s*Languages:\s*/i,"").split(",").map(s => s.trim()).filter(s => s && !/of your choice/i.test(s));
+          lines[idx] = "Languages: " + langs.join(", "); pe.value = lines.join("\n"); autoGrow(pe); }
+      }
       if(b.feature && b.feature.name){
         const line = `${b.feature.name} (${name}). ${b.feature.text}`;
         const t=$("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t);
@@ -4611,7 +4625,27 @@
     const bgs = byName(((DATA && DATA.backgrounds) || []).filter(b => b.feature && b.feature.name));
     sel.innerHTML = `<option value="">— write your own —</option>` + bgs.map(b => optTag(b.name, `${b.feature.name} (${b.name})`)).join("");
   }
+  function bgLangChoose(b){   // how many "languages of your choice" a standard background grants
+    let n = 0;
+    ((b && b.prof && b.prof.languages) || []).forEach(s => { if(/of your choice/i.test(s)){ const m = String(s).match(/(\d+)/); n += m ? +m[1] : 1; } });
+    return n;
+  }
+  function renderBgLangChoices(){   // language pickers for a standard background's "N languages of your choice" (Sage, Acolyte, …)
+    const box = $("wiz-bg-lang"); if(!box) return;
+    const b = DATA && findBy(DATA.backgrounds, $("wiz-bg").value);
+    const n = (b && !isCustomBg()) ? bgLangChoose(b) : 0;   // Custom Background handles its own tools+languages panel
+    if(!n){ box.innerHTML = ""; return; }
+    const opts = `<option value=""></option>` + (DATA.languages||[]).map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
+    let h = `<label class="lbl">Language${n>1?"s":""} of your choice</label>`;
+    for(let i=0;i<n;i++) h += `<select class="bg-lang" data-i="${i}">${opts}</select> `;
+    box.innerHTML = `<div class="wiz-racechoice">${h}</div>`;
+    if(characterCreated && $("wiz-bg").value === wizOrigBg && charBgChoices){   // editing the same background → re-show the chosen languages
+      const langs = charBgChoices.languages || [];
+      [...box.querySelectorAll(".bg-lang")].forEach((s,i) => { if(langs[i] != null) s.value = langs[i]; });
+    }
+  }
   function updateCustomBgVisibility(){
+    renderBgLangChoices();
     const custom = isCustomBg();
     $("wiz-custom-bg").hidden = !custom;
     if(!custom) return;
@@ -5041,10 +5075,12 @@
       addLanguages(bgLangs);                                                     // background languages join the race's Languages line
       if(bgTools.length){ const p = $("proficiencies"); const line = "Tools: " + bgTools.join(", ") + " (Background)"; p.value = p.value.trim() ? p.value+"\n"+line : line; autoGrow(p); }
       if(cbg.featName || cbg.featText){ const line = (cbg.featName ? cbg.featName+" (Background). " : "") + cbg.featText; const t = $("features"); t.value = t.value.trim() ? t.value+"\n\n"+line : line; autoGrow(t); }
-      charCustomBg = cbg;                                                        // persist the custom build so a later Edit can re-apply it without re-entry
+      charCustomBg = cbg; charBgChoices = null;                                  // persist the custom build (its own tools+languages panel) so a later Edit can re-apply it without re-entry
     } else if(bg){
       charCustomBg = null;
-      applyBackground(bg);
+      const bgLangs = [...document.querySelectorAll(".bg-lang")].map(s => s.value).filter(Boolean);   // the Background step's "languages of your choice" picks
+      applyBackground(bg, {languages: bgLangs});
+      charBgChoices = bgLangs.length ? {languages: bgLangs} : null;             // remember them so Edit can re-show them
       const b = DATA && findBy(DATA.backgrounds, bg);                            // deposit background's provided items + gold (one-time, fresh build only)
       if(!editing && b && b.equip){
         (b.equip.items||[]).forEach(it => addInvItem(it.n, it.q||1));
