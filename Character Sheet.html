@@ -1286,6 +1286,7 @@
         <nav class="settings-nav" id="settings-nav">
           <button class="set-tab active" data-sec="general" type="button">General</button>
           <button class="set-tab" data-sec="pages" type="button">Pages</button>
+          <button class="set-tab" data-sec="tce" type="button">Tasha's</button>
           <button class="set-tab" data-sec="advanced" type="button">Advanced</button>
         </nav>
         <div class="settings-content">
@@ -1309,6 +1310,12 @@
             <label class="lbl" style="display:block; margin-bottom:6px">Visible pages</label>
             <div id="layout-toggles"></div>
             <p class="wiz-hint">Unchecked pages are removed from the tab bar and won't print. (The Mini page also needs a portrait.)</p>
+          </section>
+          <section class="set-sec" data-sec="tce">
+            <label class="lbl" style="display:block; margin-bottom:6px">Tasha's Cauldron of Everything — optional rules</label>
+            <p class="wiz-hint" style="margin-top:0">Every optional rule is on by default. The origin rules change what the creation wizard lets you customize; the class-feature rules add the feature to a character that has the class (limited-use ones get a tracker, and a few replace a base feature). Changes apply when you next create or edit a character.</p>
+            <div style="margin:6px 0 10px"><button class="btn" id="tce-all-on" type="button" style="font-size:11px; padding:3px 9px">Enable all</button> <button class="btn" id="tce-all-off" type="button" style="font-size:11px; padding:3px 9px">Disable all</button></div>
+            <div id="tce-toggles"></div>
           </section>
           <section class="set-sec" data-sec="advanced">
             <label class="lbl" style="display:block; margin-bottom:6px">Spell sheets</label>
@@ -1436,6 +1443,8 @@
   let charCustomBg = null;                                  // saved Custom Background build {skills,tl,featName,featText} so "Edit Character" can re-apply it without re-entry
   let charRaceChoices = null;                               // saved race sub-choices {languages,skillDv,skill} so the Race step shows them on Edit (ability picks are re-derived from the Racial column)
   let charBgChoices = null;                                 // saved standard-background "languages of your choice" picks {languages} so the Background step shows them on Edit
+  let tceOff = {};                                          // Tasha's optional rules that are DISABLED (every rule is on by default; absence here = enabled)
+  let genTce = [], genTceRemoved = [];                      // TCE class-feature blocks this build added / the base feature blocks it replaced — so toggling a rule (or Edit) can cleanly undo them
   let genFeatures = [], genProf = [], genDefenses = [];     // exact Feature blocks + Proficiency lines + Defense notes the wizard last generated, so "Edit Character" replaces them instead of duplicating
   let genSpells = {};      // per-caster record of spell picks the wizard last wrote (so Edit replaces, not piles up): {casterKey:{cantrips,rows,prepared}}
   function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
@@ -3353,6 +3362,7 @@
     data.charCustomBg = charCustomBg;
     data.charBgChoices = charBgChoices;
     data.charRaceChoices = charRaceChoices;
+    data.tceOff = tceOff; data.genTce = genTce; data.genTceRemoved = genTceRemoved;   // Tasha's optional-rule prefs + the feature blocks they added/replaced
     data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells;   // remember generated content so Edit Character replaces it instead of duplicating
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
@@ -3430,6 +3440,9 @@
     charCustomBg = (data && data.charCustomBg && typeof data.charCustomBg === "object") ? data.charCustomBg : null;
     charBgChoices = (data && data.charBgChoices && typeof data.charBgChoices === "object") ? data.charBgChoices : null;
     charRaceChoices = (data && data.charRaceChoices && typeof data.charRaceChoices === "object") ? data.charRaceChoices : null;
+    tceOff = (data && data.tceOff && typeof data.tceOff === "object") ? data.tceOff : {};
+    genTce = (data && Array.isArray(data.genTce)) ? data.genTce : [];
+    genTceRemoved = (data && Array.isArray(data.genTceRemoved)) ? data.genTceRemoved : [];
     genFeatures = (data && Array.isArray(data.genFeatures)) ? data.genFeatures : [];
     genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
     genDefenses = (data && Array.isArray(data.genDefenses)) ? data.genDefenses : [];
@@ -3998,7 +4011,7 @@
   function applyRaceAbilityOnly(name){
     bonusVals.racial = zeroAb();
     const r = DATA && findBy(DATA.races, name);
-    if(r) (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{ if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; }));
+    if(r && !tceOn("origin-asi")) (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{ if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; }));   // Tasha's custom origin replaces the race's fixed boosts entirely with the picks below
     document.querySelectorAll(".rc-abil").forEach(sel => { const k = sel.value, amt = parseInt(sel.dataset.amt,10)||1; if(k && ABKEYS.includes(k)) bonusVals.racial[k] += amt; });   // + the Race step's "your choice" ability picks
   }
   function applyRace(name, opts){
@@ -4025,8 +4038,10 @@
       if(opts){
         if(r.variableSkillDarkvision) delete prof.skillChoose;          // resolved by the skill-or-darkvision pick
         if(Array.isArray(prof.languages)){                              // swap "choose a language" placeholders for the picked ones
-          prof.languages = prof.languages.filter(s => !/choose|of your choice/i.test(s)).concat(opts.languages||[]);
+          // Tasha's custom languages: also drop the race's fixed non-Common languages (the picks replace them).
+          prof.languages = prof.languages.filter(s => !/choose|of your choice/i.test(s) && !(opts.customLang && !/^common$/i.test(s))).concat(opts.languages||[]);
         }
+        if(opts.customProf && Array.isArray(opts.profSkills)) prof.skills = opts.profSkills.filter(Boolean);   // Tasha's custom proficiencies: the chosen skills replace the race's fixed ones
       }
       applyProficiencies(prof, name);
       if(opts){
@@ -4773,19 +4788,20 @@
     const r = DATA && findBy(DATA.races, $("wiz-race").value);
     if(!r){ box.innerHTML = ""; return; }
     let html = "";
-    // Ability-bonus choices: explicit "choose" blocks (Half-Elf, Variant Human, Custom Lineage, …) or a free assign for races with no ability block (Tasha/MPMM)
-    const chooseBlocks = (r.ability || []).filter(b => b && b.choose);
+    const customAsi = tceOn("origin-asi");   // Tasha's: assign your race's ability boosts to any scores
+    // Ability-bonus choices: explicit "choose" blocks (Half-Elf, Variant Human, Custom Lineage, …) or a free assign — and, with Tasha's custom origin on, EVERY race assigns freely.
+    const chooseBlocks = customAsi ? [] : (r.ability || []).filter(b => b && b.choose);
     const abilOpt = ks => `<option value=""></option>` + ks.map(k => `<option value="${k}">${esc(ABBR[k]||k)}</option>`).join("");
     if(chooseBlocks.length){
       let ah = `<label class="lbl">Ability bonus — your choice</label>`;
       chooseBlocks.forEach(b => { const amt = b.choose.amount || 1, cnt = b.choose.count || 1, from = (b.choose.from && b.choose.from.length) ? b.choose.from : ABKEYS;
         for(let i=0;i<cnt;i++) ah += `<select class="rc-abil" data-amt="${amt}">${abilOpt(from)}</select> +${amt} `; });
       html += `<div class="wiz-racechoice">${ah}</div>`;
-    } else if((r.ability || []).length === 0){
-      html += `<div class="wiz-racechoice"><label class="lbl">Ability bonuses — assign (this race uses the free-assign rule)</label>`
+    } else if(customAsi || (r.ability || []).length === 0){
+      html += `<div class="wiz-racechoice"><label class="lbl">${customAsi ? "Ability scores — Tasha's custom origin (assign to any)" : "Ability bonuses — assign (this race uses the free-assign rule)"}</label>`
         + `<select class="rc-abil" data-amt="2">${abilOpt(ABKEYS)}</select> +2 &nbsp; `
         + `<select class="rc-abil" data-amt="1">${abilOpt(ABKEYS)}</select> +1`
-        + `<p class="wiz-hint" style="margin:4px 0 0">(Or take three +1s instead — set them in the Ability Scores step's Racial column.)</p></div>`;
+        + `<p class="wiz-hint" style="margin:4px 0 0">Assign these to any abilities. (Or take three +1s instead — set them in the Ability Scores step's Racial column.)</p></div>`;
     }
     if(r.variableSkillDarkvision){
       const dv = r.darkvision || 60;
@@ -4795,11 +4811,24 @@
         + `<select id="rc-skill">${skillOpts}</select>`
         + `<label class="wiz-radio"><input type="radio" name="rc-skilldv" value="darkvision"> Darkvision ${dv} ft.</label></div>`;
     }
-    const nLang = r.langChoose || 0;
+    // Tasha's custom proficiencies: each fixed racial skill becomes a picker, defaulting to the original (blank = drop it).
+    const customProf = tceOn("origin-prof");
+    const fixedSkills = (r.prof && r.prof.skills) || [];
+    if(customProf && fixedSkills.length){
+      const skillOpt = sel => `<option value=""></option>` + SKILLS.map(s => `<option value="${s[0]}"${(SKILL_KEY[sel]||sel)===s[0]?" selected":""}>${esc(s[1])}</option>`).join("");
+      let ph = `<label class="lbl">Skill proficienc${fixedSkills.length>1?"ies":"y"} — Tasha's custom (swap if you like)</label>`;
+      fixedSkills.forEach((s,i) => ph += `<select class="rc-prof" data-i="${i}">${skillOpt(s)}</select> `);
+      html += `<div class="wiz-racechoice">${ph}</div>`;
+    }
+    // Tasha's custom languages: the race's fixed non-Common languages also become pickers, defaulting to the original (blank = drop it).
+    const customLang = tceOn("origin-lang");
+    const swapLangs = customLang ? ((r.prof && r.prof.languages) || []).filter(l => !/choose|of your choice/i.test(l) && !/^common$/i.test(l)) : [];
+    const nLang = (r.langChoose || 0) + swapLangs.length;
     if(nLang){
-      const opts = `<option value=""></option>` + (DATA.languages||[]).map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join("");
-      let lh = `<label class="lbl">Language${nLang>1?"s":""} of your choice</label>`;
-      for(let i=0;i<nLang;i++) lh += `<select class="rc-lang" data-i="${i}">${opts}</select> `;
+      const langOpt = sel => `<option value=""></option>` + (DATA.languages||[]).map(l => `<option value="${esc(l)}"${l===sel?" selected":""}>${esc(l)}</option>`).join("");
+      let lh = `<label class="lbl">Language${nLang>1?"s":""} of your choice${swapLangs.length?" (Tasha's — swap your racial languages)":""}</label>`;
+      swapLangs.forEach((orig,i) => lh += `<select class="rc-lang" data-i="${i}">${langOpt(orig)}</select> `);   // swap slots default to the original language
+      for(let i=0;i<(r.langChoose||0);i++) lh += `<select class="rc-lang" data-i="${swapLangs.length+i}">${langOpt("")}</select> `;
       html += `<div class="wiz-racechoice">${lh}</div>`;
     }
     if(r.featGrants){   // Variant Human / Custom Lineage grant a feat — pick it right here (applied to the race's feat slot on Create)
@@ -4811,15 +4840,17 @@
     const sk = $("rc-skill");
     if(sk) box.querySelectorAll('input[name="rc-skilldv"]').forEach(radio => radio.addEventListener("change", () => { sk.disabled = box.querySelector('input[name="rc-skilldv"][value="darkvision"]').checked; }));
     if(characterCreated && $("wiz-race").value === wizOrigRace){          // editing the character's existing race → re-show the "your choice" picks it was built with
-      // Ability-bonus picks: derive from the saved Racial column (total − the race's fixed bonuses), then fill the selects, matching each pick to a slot of the same amount.
+      // Ability-bonus picks: derive from the saved Racial column (total − the race's fixed bonuses), then fill the selects, matching each pick to a slot of the same amount. Tasha's custom origin contributes no fixed bonuses.
       const fixed = zeroAb();
-      (r.ability || []).forEach(blk => Object.entries(blk).forEach(([k,v]) => { if(ABKEYS.includes(k) && typeof v === "number") fixed[k] += v; }));
+      if(!tceOn("origin-asi")) (r.ability || []).forEach(blk => Object.entries(blk).forEach(([k,v]) => { if(ABKEYS.includes(k) && typeof v === "number") fixed[k] += v; }));
       const picks = ABKEYS.map(k => ({k, amt:(bonusVals.racial[k]||0) - (fixed[k]||0)})).filter(p => p.amt > 0);
       box.querySelectorAll(".rc-abil").forEach(seln => { const amt = parseInt(seln.dataset.amt,10)||1; const i = picks.findIndex(p => p.amt === amt); if(i >= 0){ seln.value = picks[i].k; picks.splice(i,1); } });
-      // Chosen language(s) + Custom-Lineage skill/darkvision: from the saved snapshot.
+      // Chosen language(s), custom-proficiency skills, Custom-Lineage skill/darkvision: from the saved snapshot.
       if(charRaceChoices){
         const langs = charRaceChoices.languages || [];
         [...box.querySelectorAll(".rc-lang")].forEach((seln,i) => { if(langs[i] != null) seln.value = langs[i]; });
+        const profs = charRaceChoices.profSkills || [];
+        [...box.querySelectorAll(".rc-prof")].forEach((seln,i) => { if(profs[i] != null) seln.value = profs[i]; });
         if(charRaceChoices.skillDv){
           const radio = box.querySelector('input[name="rc-skilldv"][value="'+charRaceChoices.skillDv+'"]');
           if(radio){ radio.checked = true; if(sk) sk.disabled = (charRaceChoices.skillDv === "darkvision"); }
@@ -4848,6 +4879,108 @@
     Artificer:[{name:"Flash of Genius", rec:"LR", feat:"Flash of Genius", min:7, count:(l,m) => Math.max(1, m.int||0)},
                {name:"Spell-Storing Item", rec:"LR", feat:"Spell-Storing Item", min:11, count:(l,m) => 2*Math.max(1, m.int||0)}],
   };
+  // ===== Tasha's Cauldron of Everything — optional rules (every rule on by default; toggled in Settings) =====
+  // Origin rules change character-creation logic; class rules add a Features reminder and, where they
+  // have persistent math, a Limited Features row (lim) and/or replace a base feature (replaces).
+  // Descriptions are short mechanical paraphrases, not the book's text.
+  const TCE_RULES = [
+    {id:"origin-asi",  group:"Customizing Your Origin", label:"Custom ability scores",
+      desc:"Ignore your race's ability score increases and instead raise one score by 2 and a different score by 1, or three different scores by 1."},
+    {id:"origin-lang", group:"Customizing Your Origin", label:"Custom languages",
+      desc:"Replace the languages your race grants (other than Common) with standard languages of your choice."},
+    {id:"origin-prof", group:"Customizing Your Origin", label:"Custom proficiencies",
+      desc:"Swap a skill proficiency your race grants for a different skill of your choice."},
+    {id:"barb-primal-knowledge", group:"Barbarian", cls:"Barbarian", lvl:3, label:"Primal Knowledge",
+      desc:"Gain proficiency in another barbarian skill; while raging you can use Strength for Acrobatics, Sleight of Hand, and Stealth checks."},
+    {id:"barb-instinctive-pounce", group:"Barbarian", cls:"Barbarian", lvl:7, label:"Instinctive Pounce",
+      desc:"When you enter your rage as a bonus action, you can move up to half your speed as part of that bonus action."},
+    {id:"bard-magical-inspiration", group:"Bard", cls:"Bard", lvl:1, label:"Magical Inspiration",
+      desc:"A creature can expend your Bardic Inspiration die to add it to a spell's damage or healing roll."},
+    {id:"bard-versatility", group:"Bard", cls:"Bard", lvl:4, label:"Bardic Versatility",
+      desc:"At each ability-score-improvement level you can swap one Expertise skill or one known cantrip."},
+    {id:"cleric-harness-divine", group:"Cleric", cls:"Cleric", lvl:2, label:"Harness Divine Power",
+      desc:"Bonus action: expend a use of Channel Divinity to regain one spell slot (level up to half your proficiency bonus). Uses scale with level.",
+      lim:{label:"Harness Divine Power", max:"1", rec:"LR"}},
+    {id:"cleric-cantrip-versatility", group:"Cleric", cls:"Cleric", lvl:4, label:"Cantrip Versatility (Cleric)",
+      desc:"At each ability-score-improvement level you can replace one cleric cantrip with another."},
+    {id:"cleric-blessed-strikes", group:"Cleric", cls:"Cleric", lvl:8, label:"Blessed Strikes", replaces:["Divine Strike","Potent Spellcasting"],
+      desc:"Once per turn, add 1d8 radiant damage when you hit with a weapon attack or a cantrip. Replaces Divine Strike or Potent Spellcasting."},
+    {id:"druid-wild-companion", group:"Druid", cls:"Druid", lvl:2, label:"Wild Companion",
+      desc:"Expend a use of Wild Shape to cast find familiar without material components; the familiar is a fey and lasts half your druid level in hours."},
+    {id:"druid-cantrip-versatility", group:"Druid", cls:"Druid", lvl:4, label:"Cantrip Versatility (Druid)",
+      desc:"At each ability-score-improvement level you can replace one druid cantrip with another."},
+    {id:"fighter-martial-versatility", group:"Fighter", cls:"Fighter", lvl:4, label:"Martial Versatility",
+      desc:"At each ability-score-improvement level you can swap a Fighting Style (or, for a Battle Master, a known maneuver)."},
+    {id:"monk-dedicated-weapon", group:"Monk", cls:"Monk", lvl:2, label:"Dedicated Weapon",
+      desc:"After a rest you can treat one simple or martial weapon (no Heavy or Special property) as a monk weapon."},
+    {id:"monk-ki-fueled", group:"Monk", cls:"Monk", lvl:3, label:"Ki-Fueled Attack",
+      desc:"If you spent ki on an action this turn, make one monk-weapon or unarmed strike as a bonus action."},
+    {id:"monk-quickened-healing", group:"Monk", cls:"Monk", lvl:4, label:"Quickened Healing",
+      desc:"Action: spend 2 ki and roll a Martial Arts die to regain hit points equal to the roll plus your proficiency bonus."},
+    {id:"monk-focused-aim", group:"Monk", cls:"Monk", lvl:5, label:"Focused Aim",
+      desc:"When you miss with an attack, spend 1 to 3 ki to add +2 to the roll per ki spent."},
+    {id:"paladin-harness-divine", group:"Paladin", cls:"Paladin", lvl:3, label:"Harness Divine Power (Paladin)",
+      desc:"Bonus action: expend a use of Channel Divinity to regain one spell slot. Uses scale with level.",
+      lim:{label:"Harness Divine Power", max:"1", rec:"LR"}},
+    {id:"paladin-martial-versatility", group:"Paladin", cls:"Paladin", lvl:4, label:"Martial Versatility (Paladin)",
+      desc:"At each ability-score-improvement level you can swap a Fighting Style."},
+    {id:"ranger-deft-explorer", group:"Ranger", cls:"Ranger", lvl:1, label:"Deft Explorer", replaces:["Natural Explorer"],
+      desc:"Canny (1st): Expertise in one skill and learn two languages. Roving (6th): +5 ft speed and climb/swim speeds. Tireless (10th): action for 1d8+Wis temp HP, proficiency-bonus uses per long rest. Replaces Natural Explorer."},
+    {id:"ranger-favored-foe", group:"Ranger", cls:"Ranger", lvl:1, label:"Favored Foe", replaces:["Favored Enemy"],
+      desc:"When you hit a creature you can mark it (concentration, up to 1 min) for +1d4 damage once per turn (1d6 at 6th, 1d8 at 14th). Uses equal your proficiency bonus per long rest. Replaces Favored Enemy.",
+      lim:{label:"Favored Foe", max:"PB", rec:"LR"}},
+    {id:"ranger-primal-awareness", group:"Ranger", cls:"Ranger", lvl:3, label:"Primal Awareness", replaces:["Primeval Awareness"],
+      desc:"Gain always-prepared spells (speak with animals, beast sense, and more) you can cast once each per long rest without a slot. Replaces Primeval Awareness."},
+    {id:"ranger-spellcasting-focus", group:"Ranger", cls:"Ranger", lvl:2, label:"Spellcasting Focus (Ranger)",
+      desc:"You can use a druidic focus as a spellcasting focus for your ranger spells."},
+    {id:"ranger-martial-versatility", group:"Ranger", cls:"Ranger", lvl:4, label:"Martial Versatility (Ranger)",
+      desc:"At each ability-score-improvement level you can swap a Fighting Style."},
+    {id:"ranger-spell-versatility", group:"Ranger", cls:"Ranger", lvl:4, label:"Spell Versatility",
+      desc:"At each ability-score-improvement level you can replace one ranger spell you know with another."},
+    {id:"ranger-natures-veil", group:"Ranger", cls:"Ranger", lvl:10, label:"Nature's Veil", replaces:["Hide in Plain Sight"],
+      desc:"Bonus action: become invisible until the start of your next turn. Uses equal your proficiency bonus per long rest. Replaces Hide in Plain Sight.",
+      lim:{label:"Nature's Veil", max:"PB", rec:"LR"}},
+    {id:"rogue-steady-aim", group:"Rogue", cls:"Rogue", lvl:3, label:"Steady Aim",
+      desc:"Bonus action (if you haven't moved this turn): gain advantage on your next attack this turn; your speed becomes 0 until end of turn."},
+    {id:"sorc-versatility", group:"Sorcerer", cls:"Sorcerer", lvl:4, label:"Sorcerous Versatility",
+      desc:"At each ability-score-improvement level you can swap a Metamagic option or a known cantrip."},
+    {id:"sorc-magical-guidance", group:"Sorcerer", cls:"Sorcerer", lvl:5, label:"Magical Guidance",
+      desc:"When you fail an ability check, spend 1 sorcery point to reroll it (you must use the new roll)."},
+    {id:"warlock-eldritch-versatility", group:"Warlock", cls:"Warlock", lvl:4, label:"Eldritch Versatility",
+      desc:"At each ability-score-improvement level you can swap an Eldritch Invocation, your Pact Boon, a cantrip, or (12th+) a Mystic Arcanum spell."},
+    {id:"wizard-cantrip-formulas", group:"Wizard", cls:"Wizard", lvl:3, label:"Cantrip Formulas",
+      desc:"After a long rest you can replace one wizard cantrip you know with another from the wizard spell list."},
+  ];
+  const TCE_BY_ID = {}; TCE_RULES.forEach(r => TCE_BY_ID[r.id] = r);
+  function tceOn(id){ return !tceOff[id]; }                  // every rule defaults on
+  function classLevelOf(name){ const w = (charClasses||[]).find(c => c.name === name); return w ? w.level : 0; }
+  function _blockName(b){ const s = String(b).trim().replace(/^Feat:\s*/i, ""); const cuts = [s.indexOf(" ("), s.indexOf(". ")].filter(x => x >= 0); return cuts.length ? s.slice(0, Math.min(...cuts)).trim() : s.split("\n")[0].trim(); }
+  // Apply the enabled TCE class-feature rules — run late in createCharacter, after the base class features
+  // are generated. For each enabled rule whose class is present at the needed level: if it replaces a base
+  // feature, drop that block; then add a Features reminder. Limited-use rows are auto-picked up by
+  // refreshLimitedFeatures via LIMITED_OVERRIDES. (Re-runs every Create/Edit, so it always reflects the toggles.)
+  function applyTceClassFeatures(){
+    const t = $("features"); if(!t) return;
+    genTce = []; genTceRemoved = [];
+    TCE_RULES.forEach(r => {
+      if(!r.cls || !tceOn(r.id) || classLevelOf(r.cls) < (r.lvl||1)) return;
+      if(r.replaces){ const removed = _splitBlocks(t.value).filter(b => r.replaces.some(n => _blockName(b).toLowerCase() === n.toLowerCase()));
+        if(removed.length){ _removeBlocks("features", removed); genTceRemoved.push(...removed); } }
+      const block = `${r.label} (TCE, ${r.cls} ${r.lvl}). ${r.desc}`;
+      if(!t.value.includes(block)){ t.value = t.value.trim() ? t.value + "\n\n" + block : block; genTce.push(block); }
+    });
+    autoGrow(t);
+  }
+  function renderTceToggles(){   // Settings → Tasha's: one checkbox per optional rule, grouped
+    const box = $("tce-toggles"); if(!box) return;
+    let html = "", group = "";
+    TCE_RULES.forEach(r => {
+      if(r.group !== group){ group = r.group; html += `<div class="lbl" style="margin:14px 0 4px; border-top:1px solid var(--line); padding-top:10px">${esc(group)}</div>`; }
+      html += `<label class="lay-row"><input type="checkbox" class="tce-cb" data-id="${r.id}"${tceOn(r.id)?" checked":""}> ${esc(r.label)}</label>`+
+              `<p class="wiz-hint" style="margin:2px 0 6px">${esc(r.desc)}</p>`;
+    });
+    box.innerHTML = html;
+  }
   function fillLimitedFeatures(cls, lvl, featMap){
     const list = LIMITED_RESOURCES[cls]; if(!list || lvl == null) return;
     const mods = {}; ABILITIES.forEach(([k]) => mods[k] = modOf(k));
@@ -4879,6 +5012,7 @@
     "master scrivener":[{label:"Master Scrivener", max:"1", rec:"LR"}],
     "one with the word":[{label:"One With the Word", max:"1", rec:"LR"}]
   };
+  TCE_RULES.forEach(r => { if(r.lim){ LIMITED_OVERRIDES[r.label.toLowerCase().split(" (")[0]] = [r.lim]; } });   // Tasha's limited-use features (Favored Foe, Nature's Veil, Harness Divine Power)
   function pbValue(){ const lv = charLevel(); return (lv == null) ? null : 2 + Math.floor((lv - 1) / 4); }
   function resolveLimMax(max){
     if(max === "PB"){ const pb = pbValue(); return pb == null ? "" : String(pb); }
@@ -4995,13 +5129,15 @@
     if(!editing) document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
     if(name) $("charname").value = name;
     if(race){
-      const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean)};   // keep the Racial column the wizard's Under-the-Hood step already set (incl. the player's choose picks); on Edit, keepRacial + the persisted Languages line mean an unchanged race re-applies losslessly
+      const profSkills = [...document.querySelectorAll(".rc-prof")].map(s => s.value).filter(Boolean);   // Tasha's custom proficiencies
+      const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean),
+        customLang:tceOn("origin-lang"), customProf:tceOn("origin-prof"), profSkills};   // keep the Racial column the wizard already set; pass the Tasha custom-origin picks
       if(rObj && rObj.variableSkillDarkvision){
         const useDv = (document.querySelector('input[name="rc-skilldv"]:checked')||{}).value === "darkvision";
         if(useDv) opts.darkvision = rObj.darkvision || 60; else opts.skill = ($("rc-skill")||{}).value || "";
       }
       applyRace(race, opts);
-      charRaceChoices = { languages: opts.languages.slice(),                       // remember the race's "your choice" sub-picks so Edit can show them again
+      charRaceChoices = { languages: opts.languages.slice(), profSkills: profSkills.slice(),               // remember the race's "your choice" sub-picks so Edit can show them again
         skillDv: (rObj && rObj.variableSkillDarkvision) ? ((document.querySelector('input[name="rc-skilldv"]:checked')||{}).value || "skill") : null,
         skill: opts.skill || "" };
       syncAsiSlots();                                                              // race feats become ASI slots now that the race is on the sheet
@@ -5089,6 +5225,7 @@
     }
     if(genMode === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });   // genMode/scores were set in the wizard's Ability Scores step
     charClasses = list.map(w => ({name:w.name, level:w.level, sub:w.sub||"", subOpts:Object.assign({}, w.subOpts||{})}));   // persist the build → drives the main-sheet decisions flag + Edit Character
+    applyTceClassFeatures();   // Tasha's optional class features (reminders / replacements) for the enabled rules — before the genFeatures diff so they're tracked
     if(hpRolls.length || hpMode !== "manual") regenHp(hpMode, list);   // size HP records to the final build
     ensureUnarmedStrike();   // every character can punch — auto Unarmed Strike as the first attack
     genFeatures = _splitBlocks($("features").value).filter(b => !_featBefore.has(b));   // remember what we generated, so the next Edit replaces (not duplicates) it
@@ -5239,7 +5376,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -5250,6 +5387,11 @@
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("set-futuristic").addEventListener("change", e => { showFuturistic = e.target.checked; save(); });   // item autocompletes read availableItemNames() live
     $("set-modern").addEventListener("change", e => { showModern = e.target.checked; save(); });
+    $("tce-toggles").addEventListener("change", e => { const cb = e.target.closest(".tce-cb"); if(!cb) return;
+      if(cb.checked) delete tceOff[cb.dataset.id]; else tceOff[cb.dataset.id] = true; save();
+      flashStatus(characterCreated ? "Saved — re-open Edit Character to apply" : "Saved"); });
+    $("tce-all-on").addEventListener("click", ()=>{ tceOff = {}; save(); renderTceToggles(); flashStatus(characterCreated ? "All Tasha's rules on — re-open Edit Character to apply" : "All Tasha's rules on"); });
+    $("tce-all-off").addEventListener("click", ()=>{ TCE_RULES.forEach(r => tceOff[r.id] = true); save(); renderTceToggles(); flashStatus(characterCreated ? "All Tasha's rules off — re-open Edit Character to apply" : "All Tasha's rules off"); });
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
