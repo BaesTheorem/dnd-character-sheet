@@ -5075,19 +5075,38 @@
     if(!r){ box.innerHTML = ""; return; }
     let html = "";
     const customAsi = tceOn("origin-asi");   // Tasha's: assign your race's ability boosts to any scores
-    // Ability-bonus choices: explicit "choose" blocks (Half-Elf, Variant Human, Custom Lineage, …) or a free assign — and, with Tasha's custom origin on, EVERY race assigns freely.
-    const chooseBlocks = customAsi ? [] : (r.ability || []).filter(b => b && b.choose);
     const abilOpt = ks => `<option value=""></option>` + ks.map(k => `<option value="${k}">${esc(ABBR[k]||k)}</option>`).join("");
-    if(chooseBlocks.length){
-      let ah = `<label class="lbl">Ability bonus — your choice</label>`;
-      chooseBlocks.forEach(b => { const amt = b.choose.amount || 1, cnt = b.choose.count || 1, from = (b.choose.from && b.choose.from.length) ? b.choose.from : ABKEYS;
-        for(let i=0;i<cnt;i++) ah += `<select class="rc-abil" data-amt="${amt}">${abilOpt(from)}</select> +${amt} `; });
-      html += `<div class="wiz-racechoice">${ah}</div>`;
-    } else if(customAsi || (r.ability || []).length === 0){
-      html += `<div class="wiz-racechoice"><label class="lbl">${customAsi ? "Ability scores — Tasha's custom origin (assign to any)" : "Ability bonuses — assign (this race uses the free-assign rule)"}</label>`
-        + `<select class="rc-abil" data-amt="2">${abilOpt(ABKEYS)}</select> +2 &nbsp; `
-        + `<select class="rc-abil" data-amt="1">${abilOpt(ABKEYS)}</select> +1`
-        + `<p class="wiz-hint" style="margin:4px 0 0">Assign these to any abilities. (Or take three +1s instead — set them in the Ability Scores step's Racial column.)</p></div>`;
+    if(customAsi){
+      // Tasha's "Customizing Your Origin": keep the race's ability score increases (whatever their sizes) but assign each to any ability.
+      const amts = [];
+      (r.ability || []).forEach(b => { if(!b) return; Object.entries(b).forEach(([k,v]) => {
+        if(k === "choose"){ const cnt = (v && v.count) || 1, amt = (v && v.amount) || 1; for(let i=0;i<cnt;i++) amts.push(amt); }
+        else if(ABKEYS.includes(k) && typeof v === "number" && v > 0){ amts.push(v); }
+      }); });
+      amts.sort((a,b) => b - a);   // bigger boosts first
+      let ah, hint;
+      if(amts.length){
+        ah = amts.map(a => `<select class="rc-abil" data-amt="${a}">${abilOpt(ABKEYS)}</select> +${a}`).join(" &nbsp; ");
+        hint = "Assign your race's ability score increases to any abilities you like.";
+      } else {
+        ah = `<select class="rc-abil" data-amt="2">${abilOpt(ABKEYS)}</select> +2 &nbsp; <select class="rc-abil" data-amt="1">${abilOpt(ABKEYS)}</select> +1`;
+        hint = "This race grants no fixed increases; assign a +2 and a +1 to any abilities.";
+      }
+      html += `<div class="wiz-racechoice"><label class="lbl">Ability scores — Tasha's custom origin (assign to any)</label>${ah}<p class="wiz-hint" style="margin:4px 0 0">${hint}</p></div>`;
+    } else {
+      // Standard rules: explicit "choose" blocks (Half-Elf, Variant Human, Custom Lineage, …), or a free +2/+1 assign for races with no ability data.
+      const chooseBlocks = (r.ability || []).filter(b => b && b.choose);
+      if(chooseBlocks.length){
+        let ah = `<label class="lbl">Ability bonus — your choice</label>`;
+        chooseBlocks.forEach(b => { const amt = b.choose.amount || 1, cnt = b.choose.count || 1, from = (b.choose.from && b.choose.from.length) ? b.choose.from : ABKEYS;
+          for(let i=0;i<cnt;i++) ah += `<select class="rc-abil" data-amt="${amt}">${abilOpt(from)}</select> +${amt} `; });
+        html += `<div class="wiz-racechoice">${ah}</div>`;
+      } else if((r.ability || []).length === 0){
+        html += `<div class="wiz-racechoice"><label class="lbl">Ability bonuses — assign (this race uses the free-assign rule)</label>`
+          + `<select class="rc-abil" data-amt="2">${abilOpt(ABKEYS)}</select> +2 &nbsp; `
+          + `<select class="rc-abil" data-amt="1">${abilOpt(ABKEYS)}</select> +1`
+          + `<p class="wiz-hint" style="margin:4px 0 0">Assign these to any abilities. (Or take three +1s instead — set them in the Ability Scores step's Racial column.)</p></div>`;
+      }
     }
     if(r.variableSkillDarkvision){
       const dv = r.darkvision || 60;
