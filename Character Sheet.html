@@ -4519,8 +4519,16 @@
   }
   function updateWizSkillLimit(){
     const c = wizClass(), n = (c && c.skillChoose) ? c.skillChoose.count : 0;
-    const cbs = [...document.querySelectorAll(".wiz-skill-cb")], checked = cbs.filter(x => x.checked).length;
-    cbs.forEach(x => { const atMax = checked >= n && !x.checked; x.closest(".wiz-skill").classList.toggle("maxed", atMax); x.disabled = atMax; });
+    const taken = raceChosenSkills();                              // skills already gained from the race can't be re-picked here
+    const cbs = [...document.querySelectorAll(".wiz-skill-cb")];
+    cbs.forEach(x => { if(taken.has(x.value)) x.checked = false; });
+    const checked = cbs.filter(x => x.checked).length;
+    cbs.forEach(x => {
+      const isTaken = taken.has(x.value), atMax = checked >= n && !x.checked, off = isTaken || atMax;
+      const row = x.closest(".wiz-skill");
+      x.disabled = off; row.classList.toggle("maxed", atMax); row.classList.toggle("taken", isTaken);
+      row.title = isTaken ? "Already gained from your race" : "";
+    });
   }
   function goldAverage(f){
     if(!f) return null;
@@ -4904,6 +4912,19 @@
     const c = wizClass(); if(c && c.skillsFixed) c.skillsFixed.forEach(k => s.add(SKILL_KEY[k] || k));
     return s;
   }
+  function raceChosenSkills(){   // skills the race already grants (fixed, Tasha's-swapped, or a Custom-Lineage pick) → can't re-pick for class/background
+    const s = new Set();
+    const r = DATA && findBy(DATA.races, $("wiz-race").value); if(!r) return s;
+    const box = $("wiz-race-choices"), fixed = (r.prof && r.prof.skills) || [];
+    if(tceOn("origin-prof") && fixed.length && box)            // Tasha's custom proficiencies → the rc-prof selects hold the (possibly swapped) skills
+      box.querySelectorAll(".rc-prof").forEach(sel => { if(sel.value) s.add(SKILL_KEY[sel.value] || sel.value); });
+    else fixed.forEach(k => s.add(SKILL_KEY[k] || k));
+    if(box){                                                   // Custom Lineage / variable skill-or-darkvision: a chosen skill proficiency
+      const skSel = $("rc-skill"), dvSkill = box.querySelector('input[name="rc-skilldv"][value="skill"]');
+      if(skSel && skSel.value && (!dvSkill || dvSkill.checked)) s.add(SKILL_KEY[skSel.value] || skSel.value);
+    }
+    return s;
+  }
   function populateCustomBgTL(){
     const langs = (DATA && DATA.languages) || [], tools = (DATA && DATA.tools) || [];
     const opts = `<option value=""></option>`
@@ -4957,15 +4978,15 @@
     updateCustomBgLimit();
   }
   function updateCustomBgLimit(){
-    const taken = classChosenSkills();
+    const classTaken = classChosenSkills(), raceTaken = raceChosenSkills();
     const cbs = [...document.querySelectorAll(".cbg-skill-cb")];
-    cbs.forEach(x => { if(taken.has(x.value)) x.checked = false; });   // can't keep a class-granted skill checked here
+    cbs.forEach(x => { if(classTaken.has(x.value) || raceTaken.has(x.value)) x.checked = false; });   // can't keep a class- or race-granted skill checked here
     const checked = cbs.filter(x => x.checked).length;
     cbs.forEach(x => {
-      const isTaken = taken.has(x.value), atMax = checked >= 2 && !x.checked, off = isTaken || atMax;
+      const fromRace = raceTaken.has(x.value), fromClass = classTaken.has(x.value), isTaken = fromRace || fromClass, atMax = checked >= 2 && !x.checked, off = isTaken || atMax;
       const row = x.closest(".wiz-skill");
       x.disabled = off; row.classList.toggle("maxed", off); row.classList.toggle("taken", isTaken);
-      row.title = isTaken ? "Already gained from your class" : "";
+      row.title = fromRace ? "Already gained from your race" : (fromClass ? "Already gained from your class" : "");
     });
     const h = $("wiz-cbg-skills-hint"); if(h) h.textContent = `(${checked}/2 chosen)`;
   }
