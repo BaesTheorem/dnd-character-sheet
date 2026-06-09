@@ -5179,6 +5179,12 @@
         const sel = box.querySelector('.rc-featabil[data-i="'+i+'"]'); if(sel && slot.featAbil) sel.value = slot.featAbil;
       });
     }
+    // Each racial ability increase must land on a different score — you customize where they go, but can't pool them onto one. Disable an option once another picker has taken it.
+    const abilSelects = [...box.querySelectorAll(".rc-abil")];
+    const syncAbilDupes = () => { const taken = abilSelects.map(s => s.value).filter(Boolean);
+      abilSelects.forEach(s => [...s.options].forEach(o => { o.disabled = !!o.value && o.value !== s.value && taken.includes(o.value); })); };
+    abilSelects.forEach(s => s.addEventListener("change", syncAbilDupes));
+    syncAbilDupes();
   }
   // Limited-use class resources → the Limited Features card. count(level, abilityMods)→number; rec = recovery; min = first level.
   const LIMITED_RESOURCES = {
