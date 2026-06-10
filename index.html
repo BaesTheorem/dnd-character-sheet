@@ -768,7 +768,7 @@
   html.mobile .stepper .step{ width:30px; height:38px; font-size:18px; }
 
   /* --- Modals: near full-screen, with their own internal scroll --- */
-  html.mobile .modal{ padding:0; align-items:stretch; }
+  html.mobile .modal{ padding:0; align-items:flex-start; }   /* flex-start (not stretch): a stretched panel gets a fixed viewport-height box, so tall wizard content overflows past the white background. min-height:100svh below still fills the screen for short content. */
   html.mobile .modal-panel,
   html.mobile #wizard .modal-panel,
   html.mobile .settings-panel{ max-width:none; min-height:100%; border:0; }
