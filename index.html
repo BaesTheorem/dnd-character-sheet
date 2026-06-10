@@ -338,6 +338,8 @@
   .install-hint-msg{flex:1}
   .install-hint .btn{flex:none}
   .install-hint-x{flex:none; background:none; border:none; font-size:16px; line-height:1; color:var(--muted); cursor:pointer; padding:4px 6px}
+  /* On a phone the floating Save button owns the bottom-right, so the hint sits inline at the top instead of as a fixed bottom bar (no overlap). */
+  html.mobile .install-hint{position:static; padding-bottom:10px; border-top:none; border-bottom:1px solid var(--line2)}
   @media print{ .install-hint{display:none} }
   /* Multiclass class builder (step 2) */
   .wiz-build{display:grid; grid-template-columns:170px 1fr; gap:12px; align-items:start}
@@ -715,7 +717,7 @@
 
   @media screen {
   html.mobile input, html.mobile select, html.mobile textarea{ font-size:16px; }   /* iOS won't zoom a focused field at >=16px */
-  html.mobile body{ padding-bottom:calc(40px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar / gesture area */
+  html.mobile body{ padding-bottom:calc(78px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar AND the floating Save button so neither covers the last card */
 
   /* kill the legacy ~300ms double-tap delay on tap targets (keeps pinch-zoom + scroll) */
   html.mobile *, html.mobile *::before, html.mobile *::after{ touch-action:manipulation; }
@@ -5646,7 +5648,8 @@
     const x = document.createElement("button"); x.className = "install-hint-x"; x.type = "button"; x.setAttribute("aria-label","Dismiss"); x.textContent = "✕";
     x.addEventListener("click", ()=>{ bar.remove(); try{ localStorage.setItem("installHintDismissed","1"); }catch(e){} });
     bar.appendChild(x);
-    document.body.appendChild(bar);
+    const tb = document.querySelector(".toolbar");          // insert after the toolbar so on mobile (static) it sits at the top; on desktop it's position:fixed so DOM order doesn't matter
+    if(tb && tb.parentNode) tb.parentNode.insertBefore(bar, tb.nextSibling); else document.body.appendChild(bar);
   }
   function init(){
     buildStatic();
@@ -5966,21 +5969,30 @@
     var MV_KEY = "dnd_sheet_mobileview";              // "on" | "off"; absent = auto (width-based)
     var mq = window.matchMedia("(max-width:820px)");
     function pref(){ try{ return localStorage.getItem(MV_KEY); }catch(e){ return null; } }
-    function effective(){ var p = pref(); if(p === "on") return true; if(p === "off") return false; return mq.matches; }
+    function phoneWidth(){   // a true phone-sized screen. Use screen.width (physical) because innerWidth balloons to content width when the desktop layout overflows, which would defeat the check.
+      var sw = (window.screen && window.screen.width) || window.innerWidth;
+      return sw <= 600 || window.innerWidth <= 600;
+    }
+    function effective(){ if(phoneWidth()) return true;   // never strand a phone in the cramped desktop layout, whatever the stored preference
+      var p = pref(); if(p === "on") return true; if(p === "off") return false; return mq.matches; }
     function apply(){
       var on = effective();
       document.documentElement.classList.toggle("mobile", on);
       var btn = document.getElementById("btn-mobile");
-      if(btn){ btn.setAttribute("aria-pressed", on ? "true" : "false"); btn.classList.toggle("primary", on); }
+      if(btn){ btn.setAttribute("aria-pressed", on ? "true" : "false"); btn.classList.toggle("primary", on);
+        btn.style.display = phoneWidth() ? "none" : "";   // the toggle is a no-op on a phone (mobile is forced) — hide it
+      }
     }
     var btn = document.getElementById("btn-mobile");
     if(btn) btn.addEventListener("click", function(){
       try{ localStorage.setItem(MV_KEY, effective() ? "off" : "on"); }catch(e){}   // flip relative to what's showing now
       apply();
     });
-    // track width only while the user hasn't pinned an explicit preference
-    var onMq = function(){ if(pref() === null) apply(); };
+    // re-apply on width changes: respects an explicit preference above phone width, but the phoneWidth() force always wins below it
+    var onMq = function(){ apply(); };
     if(mq.addEventListener) mq.addEventListener("change", onMq); else if(mq.addListener) mq.addListener(onMq);
+    window.addEventListener("resize", onMq);
+    window.addEventListener("orientationchange", onMq);
     var tabs = document.getElementById("pagetabs");
     if(tabs) tabs.addEventListener("click", function(e){
       var b = e.target.closest(".ptab");
