@@ -599,7 +599,7 @@
     #page-core{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}   /* fill the printed sheet; even gaps between cards */
     #page-core .columns{flex:1 1 auto; grid-template-rows:1fr}                     /* row fills the page; stacks stretch into it */
     .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:stretch}
-    .stack{display:flex; flex-direction:column; gap:8px}
+    .stack{display:flex; flex-direction:column; gap:5px}   /* tighter inter-card gaps buy Core a few mm of headroom so a filled character still fits one page */
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
     #page-inv{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards */
     #page-spells:not(.excluded), .page.spell-extra:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), .page[data-page^="overflow-"]:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
@@ -621,7 +621,7 @@
     #page-story,#page-notes{display:block !important}
     #page-story .card.grow,#page-notes .card.grow{display:block; break-inside:auto}
     #page-story .ta-print,#page-notes .ta-print{min-height:247mm; break-inside:auto}
-    .card{padding:5px 7px; margin:0; border-color:#999; break-inside:avoid}
+    .card{padding:4px 7px; margin:0; border-color:#999; break-inside:avoid}
     .card>h2, .atk-top h2{margin:0 0 3px; font-size:8px; letter-spacing:.07em}   /* Attacks h2 is inside .atk-top, not a direct card child — include it for header parity */
     input,select,textarea{background:#fff !important; padding:1px 3px}
     select{-webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:none}  /* no dropdown arrows in print */
