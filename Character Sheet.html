@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3b4a63">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Character Sheet">
 <title>Character Sheet</title>
 <style>
   /* ---- Clean minimal modern, fully self-contained (no external assets) ---- */
@@ -326,6 +331,14 @@
   .wiz-skill input:disabled + span{opacity:.4}
   .wiz-skill.maxed input:not(:checked){opacity:.35; cursor:default}
   .wiz-skill.taken{opacity:.45} .wiz-skill.taken span{text-decoration:line-through}
+  /* Install / save-a-copy hint bar (Add to Home Screen on iOS; Save a local copy elsewhere) */
+  .install-hint{position:fixed; left:0; right:0; bottom:0; z-index:9000; display:flex; align-items:center; gap:12px;
+    padding:10px 14px; padding-bottom:calc(10px + env(safe-area-inset-bottom)); background:var(--card);
+    border-top:1px solid var(--line2); font-size:14px; line-height:1.35; color:var(--ink)}
+  .install-hint-msg{flex:1}
+  .install-hint .btn{flex:none}
+  .install-hint-x{flex:none; background:none; border:none; font-size:16px; line-height:1; color:var(--muted); cursor:pointer; padding:4px 6px}
+  @media print{ .install-hint{display:none} }
   /* Multiclass class builder (step 2) */
   .wiz-build{display:grid; grid-template-columns:170px 1fr; gap:12px; align-items:start}
   .wiz-build-list{display:flex; flex-direction:column}
@@ -5608,6 +5621,30 @@
     if(f){ try{ f.focus(); }catch(e){} }
   }
   function restoreFocus(){ const el = _modalReturn; _modalReturn = null; if(el && el.focus){ try{ el.focus(); }catch(e){} } }
+  function setupInstallHelper(){   // hosted → register the offline service worker + manifest; then nudge the user to keep an offline copy (Add to Home Screen on iOS, Save a copy elsewhere)
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    const ua = navigator.userAgent || "";
+    const isIOS = (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) && !window.MSStream;
+    const hosted = /^https?:$/.test(location.protocol);
+    if(hosted && "serviceWorker" in navigator){   // PWA wiring matters only when served; a locally-opened file stays fully self-contained (no external refs)
+      const mani = document.createElement("link"); mani.rel = "manifest"; mani.href = "manifest.webmanifest"; document.head.appendChild(mani);
+      const icon = document.createElement("link"); icon.rel = "apple-touch-icon"; icon.href = "icon-180.png"; document.head.appendChild(icon);
+      navigator.serviceWorker.register("sw.js").catch(()=>{});   // offline cache; harmless if sw.js isn't deployed alongside
+    }
+    if(isStandalone) return;   // already added to the Home Screen — nothing to nag
+    try{ if(localStorage.getItem("installHintDismissed") === "1") return; }catch(e){}
+    let msg, action = null;
+    if(isIOS) msg = "To use this offline, add it to your Home Screen: tap Share, then “Add to Home Screen.”";
+    else if(hosted){ msg = "Tip: press Save to download your own copy of this sheet, so you can open it offline anytime."; action = ()=> $("btn-savecopy").click(); }
+    else return;   // opened as a local file already — they have their copy
+    const bar = document.createElement("div"); bar.className = "install-hint noprint";
+    const span = document.createElement("span"); span.className = "install-hint-msg"; span.textContent = msg; bar.appendChild(span);
+    if(action){ const b = document.createElement("button"); b.className = "btn primary"; b.type = "button"; b.textContent = "Save copy"; b.addEventListener("click", action); bar.appendChild(b); }
+    const x = document.createElement("button"); x.className = "install-hint-x"; x.type = "button"; x.setAttribute("aria-label","Dismiss"); x.textContent = "✕";
+    x.addEventListener("click", ()=>{ bar.remove(); try{ localStorage.setItem("installHintDismissed","1"); }catch(e){} });
+    bar.appendChild(x);
+    document.body.appendChild(bar);
+  }
   function init(){
     buildStatic();
     wireLabels();
@@ -5905,6 +5942,7 @@
     $("wiz-equip-choices").addEventListener("change", e => {   // changing an option re-renders its weapon sub-pickers
       if(e.target.classList.contains("equip-pick")){ const lineEl = e.target.closest(".equip-line"); renderEquipSub(lineEl, e.target.value); }
     });
+    setupInstallHelper();
   }
 
   document.addEventListener("DOMContentLoaded", init);
