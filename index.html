@@ -703,15 +703,17 @@
   /* ============================================================
      MOBILE VIEW  —  folded in from "Character Sheet (Mobile).html".
      ------------------------------------------------------------
-     Every rule is scoped under html.mobile (NOT an @media query) so
-     the view can be forced on at any width via the toolbar "Mobile"
-     button. A boot-time matchMedia check (see the script before
-     </body>) also adds html.mobile automatically below 820px wide.
-     With no .mobile class the sheet renders exactly like before, and
-     nothing here touches the data model, autosave, or @media print.
+     Every rule is scoped under html.mobile (class-based, not a width
+     media query) so the view can be forced on at any width via the
+     toolbar "Mobile" button. A boot-time matchMedia check (see the
+     script before </body>) also adds html.mobile automatically below
+     820px wide. The whole block is ALSO wrapped in @media screen so it
+     never reaches print — the printed sheet is identical on phone and
+     desktop. With no .mobile class the sheet renders exactly like before.
      ============================================================ */
   .mobile-save{ display:none; }   /* floating Save: hidden unless mobile view is on */
 
+  @media screen {
   html.mobile input, html.mobile select, html.mobile textarea{ font-size:16px; }   /* iOS won't zoom a focused field at >=16px */
   html.mobile body{ padding-bottom:calc(40px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar / gesture area */
 
@@ -785,6 +787,7 @@
     border-bottom:1px solid var(--line); overflow-x:auto; }
   html.mobile .settings-nav .set-tab{ border-left:none; border-bottom:2px solid transparent; white-space:nowrap; }
   html.mobile .settings-nav .set-tab.active{ border-bottom-color:var(--accent); }
+  }   /* end @media screen — mobile rules never apply to print */
 </style>
 </head>
 <body>
