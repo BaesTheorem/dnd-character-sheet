@@ -34,6 +34,9 @@
     -webkit-font-smoothing:antialiased;
     padding-bottom:60px;
   }
+  /* Scroll lock: while any blocking overlay (modal, wizard, intro guide, etc.) is up,
+     freeze the page behind it so only the overlay scrolls. Toggled by syncOverlayScrollLock(). */
+  html.overlay-open, html.overlay-open body{ overflow:hidden; }
 
   /* ---- Toolbar ---- */
   .toolbar{
@@ -285,7 +288,7 @@
 
   /* guided creation modal */
   .modal{position:fixed; inset:0; z-index:50; display:none; background:rgba(26,29,35,.45);
-    align-items:flex-start; justify-content:center; padding:48px 16px; overflow:auto}
+    align-items:flex-start; justify-content:center; padding:48px 16px; overflow:auto; overscroll-behavior:contain}
   .modal.open{display:flex}
   .modal-panel{background:#fff; border:1px solid var(--line2); width:100%; max-width:460px}
   #wizard .modal-panel{max-width:960px}   /* roomy: class list + 1–20 detail + spell/feat pickers */
@@ -368,7 +371,7 @@
   @media print{ .install-hint{display:none} }
   /* First-load intro overlay (shown once per browser) */
   .intro-overlay{position:fixed; inset:0; z-index:11000; display:flex; align-items:center; justify-content:center;
-    padding:24px; background:rgba(26,29,35,.55); overflow:auto}
+    padding:24px; background:rgba(26,29,35,.55); overflow:auto; overscroll-behavior:contain}
   .intro-card{background:var(--card); border:1px solid var(--line2); max-width:640px; width:100%;
     padding:28px 30px; color:var(--ink); font-size:15px; line-height:1.5}
   .intro-card h2{margin:0; font-size:20px; letter-spacing:.04em; color:var(--accent)}
@@ -6206,7 +6209,22 @@
       if(e.target.classList.contains("equip-pick")){ const lineEl = e.target.closest(".equip-line"); renderEquipSub(lineEl, e.target.value); }
     });
     setupInstallHelper();
+    setupOverlayScrollLock();
     maybeShowIntro();
+  }
+
+  // ===== Overlay scroll lock =====
+  // Any blocking overlay (modals shown via .open, the intro/guide overlay shown via [hidden])
+  // should freeze the page behind it so only the overlay scrolls. Rather than touching every
+  // open/close call site, we observe attribute changes and recompute a single html.overlay-open flag.
+  function syncOverlayScrollLock(){
+    const anyOpen = !!document.querySelector(".modal.open, .intro-overlay:not([hidden])");
+    document.documentElement.classList.toggle("overlay-open", anyOpen);
+  }
+  function setupOverlayScrollLock(){
+    const obs = new MutationObserver(syncOverlayScrollLock);
+    obs.observe(document.body, { subtree:true, attributes:true, attributeFilter:["class","hidden"] });
+    syncOverlayScrollLock();
   }
 
   // Short welcome guide. Shown once per browser automatically (introSeen flag); also re-runnable from
