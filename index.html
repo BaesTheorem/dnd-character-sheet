@@ -5073,6 +5073,34 @@
     const bgs = byName(((DATA && DATA.backgrounds) || []).filter(b => b.feature && b.feature.name));
     sel.innerHTML = `<option value="">— write your own —</option>` + bgs.map(b => optTag(b.name, `${b.feature.name} (${b.name})`)).join("");
   }
+  // Languages the character already knows — so language pickers grey them out, the way skill pickers grey already-gained skills.
+  // Sources: the sheet's "Languages:" line (fixed race/background/feat langs + prior picks), the selected race's fixed
+  // languages (not written to the sheet until create), and every OTHER language picker's current pick (no picking one twice).
+  function langSet(){ const s = new Set(); ((DATA && DATA.languages) || []).forEach(l => s.add(String(l).toLowerCase())); return s; }
+  function knownLanguages(exceptSel){
+    const known = new Set(), LS = langSet();
+    const pe = $("proficiencies");
+    if(pe){ const line = pe.value.split("\n").find(l => /^\s*Languages:/i.test(l));
+      if(line) line.replace(/^\s*Languages:\s*/i,"").split(",").forEach(x => { x = x.trim(); if(x && !/of your choice|choose/i.test(x)) known.add(x.toLowerCase()); }); }
+    const r = DATA && findBy(DATA.races, $("wiz-race").value);
+    if(r && r.prof && Array.isArray(r.prof.languages))
+      r.prof.languages.forEach(l => { const v = String(l).toLowerCase(); if(LS.has(v)) known.add(v); });
+    document.querySelectorAll(".rc-lang, .bg-lang, .cbg-tl").forEach(s => {   // a language already chosen in another slot
+      if(s !== exceptSel && s.value && LS.has(s.value.toLowerCase())) known.add(s.value.toLowerCase()); });
+    return known;
+  }
+  function refreshLangPickers(){   // disable already-known language options across every language picker (keeps each select's own pick selectable)
+    const LS = langSet();
+    document.querySelectorAll(".rc-lang, .bg-lang, .cbg-tl").forEach(sel => {
+      const known = knownLanguages(sel);
+      [...sel.options].forEach(o => {
+        if(!o.value || !LS.has(o.value.toLowerCase())){ o.disabled = false; return; }   // blank + tool options (in .cbg-tl) stay enabled
+        const dis = o.value !== sel.value && known.has(o.value.toLowerCase());
+        o.disabled = dis;
+        o.textContent = o.value + (dis ? " (already known)" : "");
+      });
+    });
+  }
   function bgLangChoose(b){   // how many "languages of your choice" a standard background grants
     let n = 0;
     ((b && b.prof && b.prof.languages) || []).forEach(s => { if(/of your choice/i.test(s)){ const m = String(s).match(/(\d+)/); n += m ? +m[1] : 1; } });
@@ -5091,6 +5119,7 @@
       const langs = charBgChoices.languages || [];
       [...box.querySelectorAll(".bg-lang")].forEach((s,i) => { if(langs[i] != null) s.value = langs[i]; });
     }
+    refreshLangPickers();
   }
   function updateCustomBgVisibility(){
     renderBgLangChoices();
@@ -5112,6 +5141,7 @@
       $("wiz-cbg-feattext").value = charCustomBg.featText || "";
     }
     updateCustomBgLimit();
+    refreshLangPickers();
   }
   function updateCustomBgLimit(){
     const classTaken = classChosenSkills(), raceTaken = raceChosenSkills();
@@ -5342,6 +5372,7 @@
       abilSelects.forEach(s => [...s.options].forEach(o => { o.disabled = !!o.value && o.value !== s.value && taken.includes(o.value); })); };
     abilSelects.forEach(s => s.addEventListener("change", syncAbilDupes));
     syncAbilDupes();
+    refreshLangPickers();
   }
   // Limited-use class resources → the Limited Features card. count(level, abilityMods)→number; rec = recovery; min = first level.
   const LIMITED_RESOURCES = {
@@ -6033,6 +6064,7 @@
     $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
     $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
     $("wiz-dots").addEventListener("click", e=>{ const b = e.target.closest(".wiz-dot"); if(b){ wizStep = +b.dataset.goto; renderWizStep(); } });   // jump straight to any section
+    $("wizard").addEventListener("change", e=>{ if(e.target.matches(".rc-lang, .bg-lang, .cbg-tl")) refreshLangPickers(); });   // picking a language greys it in the other pickers
     $("wiz-race").addEventListener("change", raceHint);
     // Multiclass builder (step 2): class list focus, add, level edit, remove, and inline pending-decision pickers
     $("wiz-race-list").addEventListener("click", e => { const b = e.target.closest(".wiz-rce"); if(b){ $("wiz-race").value = b.dataset.race; $("wiz-race").dispatchEvent(new Event("change", {bubbles:true})); } });   // race buttons mirror the class list
