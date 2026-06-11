@@ -1734,7 +1734,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v173 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v174 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3733,7 +3733,9 @@
         else if(modVal === "mithral" && !armNote.textContent){ armNote.textContent = "Mithral: no Stealth disadvantage or Strength requirement."; armNote.style.display = ""; }
       }
       const warforged = /warforged/.test(($("race").value || "").toLowerCase()) ? 1 : 0;   // Integrated Protection: +1 AC in any configuration
-      $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus + warforged);
+      const armorWorn = sel && sel !== "Unarmored" && sel !== "Mage Armor";       // Defense fighting style: +1 AC only while wearing actual armor
+      const fsDefense = (armorWorn && hasFightingStyle("Defense")) ? 1 : 0;
+      $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus + warforged + fsDefense);
     }
 
     // --- hit dice available = total - used ---
@@ -4592,6 +4594,12 @@
         ((sub && sub.featChoices) || []).forEach(g => {
           if(w.level >= Math.min.apply(null, g.levels||[1]) && !(w.subOpts||{})[g.label])
             out.push({kind:"option", i, label:`${w.sub}: choose ${g.label}`, group:g}); }); }
+      const fsDue = fsPicksDue(w), fsHave = (w.fightingStyles||[]).filter(Boolean).length;   // Fighting Style picks still owed
+      for(let k = fsHave; k < fsDue; k++)
+        out.push({kind:"fstyle", i, slot:k, label:`${w.name}: choose Fighting Style`, cls:c});
+      rangerChoicesFor(w).forEach(ch => {                                                     // Favored Enemy / terrain / Deft Explorer skill
+        if(w.level >= ch.level && !(w.classChoices||{})[ch.id])
+          out.push({kind:"classChoice", i, label:`${w.name}: ${ch.prompt}`, choice:ch}); });
     });
     return out;
   }
@@ -4617,6 +4625,14 @@
         rows.push(`<div class="wiz-pend-row"><p class="lbl2">${esc(p.label)}</p>`+
           `<select class="wiz-pend-opt" data-i="${p.i}" data-group="${esc(p.group.label)}"><option value="">Choose…</option>`+
           p.group.options.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")+`</select></div>`);
+      } else if(p.kind === "fstyle"){
+        rows.push(`<div class="wiz-pend-row"><p class="lbl2">${esc(p.label)}</p>`+
+          `<select class="wiz-pend-fs" data-i="${p.i}" data-slot="${p.slot}"><option value="">Choose…</option>`+
+          fsOptionsFor(p.cls.name).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")+`</select></div>`);
+      } else if(p.kind === "classChoice"){
+        rows.push(`<div class="wiz-pend-row"><p class="lbl2">${esc(p.label)}</p>`+
+          `<select class="wiz-pend-cc" data-i="${p.i}" data-id="${esc(p.choice.id)}"><option value="">Choose…</option>`+
+          p.choice.options.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")+`</select></div>`);
       }
     });
     // (spell selection is handled by the Spells picker above; secondary multiclass casters can still be filled on the Spells page)
@@ -4810,7 +4826,21 @@
   const COMP_LINES = [["save","Saving Throws"],["skill","Skills"],["senses","Senses"],["languages","Languages"],
     ["resist","Resistances"],["immune","Immunities"],["vuln","Vulnerabilities"],["condimmune","Condition Imm."]];
   const COMP_TEMPLATES = [["","— no template —"],["familiar","Familiar (Find Familiar)"],["chain","Pact of the Chain familiar"],
-    ["companion","Animal Companion (Beast Master)"],["wildshape","Wild Shape"],["summon","Summon / Polymorph"]];
+    ["companion","Animal Companion (Beast Master)"],
+    ["primal-land","Primal Companion — Beast of the Land (TCE)"],["primal-sea","Primal Companion — Beast of the Sea (TCE)"],["primal-sky","Primal Companion — Beast of the Sky (TCE)"],
+    ["wildshape","Wild Shape"],["summon","Summon / Polymorph"]];
+  // Tasha's Primal Companion (revised Beast Master). A spirit beast whose stats scale with ranger level; no bestiary
+  // pick needed. AC = 13 + PB; it adds PB to damage and to checks/saves it's proficient in; attacks use your spell
+  // attack modifier. Damage flat = the beast's better physical modifier + PB.
+  const PRIMAL_BEASTS = {
+    "primal-land":{label:"Land", speed:"40 ft., climb 40 ft.", str:14,dex:14,con:15,int:8,wis:14,cha:11, hp:l=>5+5*l, atk:"Maul", dmg:"1d8", dtype:"slashing",
+      extra:"Charge. If the beast moves at least 20 ft. straight toward a target and then hits it with a Maul attack on the same turn, the target takes an extra 1d6 damage, and the beast can knock it prone (Strength save, DC = 8 + your proficiency bonus + the beast's Strength modifier)."},
+    "primal-sea":{label:"Sea", speed:"5 ft., swim 60 ft.", str:14,dex:14,con:15,int:8,wis:14,cha:11, hp:l=>5+5*l, atk:"Binding Strike", dmg:"1d6", dtype:"piercing",
+      extra:"Amphibious. The beast can breathe air and water. On a hit the target is grappled (escape DC = 8 + your proficiency bonus + the beast's Strength modifier); the beast can't make a Binding Strike while grappling."},
+    "primal-sky":{label:"Sky", speed:"10 ft., fly 60 ft.", str:6,dex:16,con:13,int:8,wis:14,cha:11, hp:l=>4+l, atk:"Gore", dmg:"1d4", dtype:"piercing",
+      extra:"Flyby. The beast doesn't provoke opportunity attacks when it flies out of an enemy's reach."}
+  };
+  function rangerClassLevel(){ const w = (charClasses||[]).find(c => c.name === "Ranger"); return w ? w.level : (charLevel()||0); }
   function blankCompanion(){ return {name:"",monster:"",template:"",ac:"",hp:"",curhp:"",speed:"",str:"",dex:"",con:"",int:"",wis:"",cha:"",
     save:"",skill:"",senses:"",languages:"",resist:"",immune:"",vuln:"",condimmune:"",cr:"",pb:"",traits:"",actions:"",notes:"",portrait:null,autoPortrait:false}; }
   function compMod(v){ const n = parseInt(v,10); return isNaN(n) ? "" : sgn(Math.floor((n-10)/2)); }
@@ -4865,6 +4895,15 @@
       const hpn = parseInt(c.hp,10);
       if(!isNaN(hpn)){ const nh = Math.max(hpn, 4*(lvl||0)); c.hp = String(nh); c.curhp = String(nh); }
       if(lvl != null) c.pb = sgn(pb);
+    } else if(PRIMAL_BEASTS[t]){                         // Tasha's Primal Companion: a level-scaled spirit beast (no bestiary pick)
+      const b = PRIMAL_BEASTS[t], rl = rangerClassLevel(), spellAtk = pb + modOf("wis");
+      const dmgMod = 2 + pb, hp = b.hp(rl);   // Tasha's Primal Companion attacks deal their die + 2 + your proficiency bonus
+      c.monster = ""; if(!c.name) c.name = "Beast of the " + b.label;   // no bestiary entry → keep monster empty so switching Beast types re-applies cleanly
+      c.ac = String(13 + pb); c.hp = String(hp); c.curhp = String(hp); c.speed = b.speed; c.cr = "";
+      ["str","dex","con","int","wis","cha"].forEach(a => c[a] = String(b[a]));
+      c.senses = "darkvision 60 ft., passive Perception 13"; c.pb = sgn(pb);
+      c.traits = "The beast obeys your commands and acts on your turn (you can use a bonus action to command it; otherwise it takes the Dodge action). It adds your proficiency bonus to its AC, attack rolls, damage, saves, and any skill it's proficient in. If it drops to 0 HP it isn't destroyed unless you let it die; you can resummon it with an action and a spell slot, or after a long rest.";
+      c.actions = `${b.atk}. Melee Weapon Attack: ${sgn(spellAtk)} to hit (your spell attack modifier), reach 5 ft., one target. Hit: ${b.dmg} + ${dmgMod} ${b.dtype} damage.\n\n${b.extra}`;
     } else if(t === "wildshape"){                        // keep your mental stats + proficiency bonus
       ["int","wis","cha"].forEach(a => { const v = finalScore(a); if(v != null) c[a] = String(v); });
       if(lvl != null) c.pb = sgn(pb);
@@ -4912,6 +4951,9 @@
     familiar:"Familiar: acts on its own initiative, obeys you, and can't attack. Telepathic link and shared senses within 100 ft. Forms: bat, cat, crab, frog, hawk, lizard, octopus, owl, poisonous snake, fish (quipper), rat, raven, sea horse, spider, or weasel.",
     chain:"Pact of the Chain: the familiar may also be an imp, pseudodragon, quasit, or sprite, and it can make one attack of its own when you forgo one of your attacks.",
     companion:"Beast Master companion: AC and HP have been adjusted for your level — also add your proficiency bonus to its attack rolls, damage, saving throws, and proficient skills. It acts on your initiative.",
+    "primal-land":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level. AC, HP, proficiency bonus, and its Maul attack are filled automatically; attacks use your spell attack modifier. You command it with a bonus action.",
+    "primal-sea":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level. AC, HP, proficiency bonus, and its Binding Strike attack are filled automatically; attacks use your spell attack modifier. You command it with a bonus action.",
+    "primal-sky":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level. AC, HP, proficiency bonus, and its Gore attack are filled automatically; attacks use your spell attack modifier. You command it with a bonus action.",
     wildshape:"Wild Shape: you keep your Int/Wis/Cha, personality, alignment, and proficiency bonus; use the beast's physical stats, AC, HP, and speed. Limited/no spellcasting; you revert at 0 HP.",
     summon:"Summoned/conjured creature or polymorph form — track its duration and your control per the spell."
   };
@@ -5204,10 +5246,15 @@
   function weaponAtkRow(w){                   // {bonus, dmg} from current scores, assuming proficiency
     const m = modOf(weaponAtkAbility(w)), lvl = charLevel(), pb = (lvl == null) ? 0 : 2 + Math.floor((lvl-1)/4);
     const md = s => s > 0 ? "+"+s : (s < 0 ? ""+s : "");
-    let dmg = (w.dmg||"") + (m ? md(m) : "") + (w.dmgType ? " " + w.dmgType : "");
-    if(w.versatile) dmg += ` (${w.versatile}${m ? md(m) : ""} versatile)`;
+    const twoH = (w.props||[]).some(p => /two-handed/i.test(p)), thrown = (w.props||[]).some(p => /thrown/i.test(p));
+    let atkB = m + pb, flat = m;                                                  // Fighting Style math (see FIGHTING_STYLES)
+    if(!w.melee && hasFightingStyle("Archery")) atkB += 2;                        // Archery: +2 to ranged attack rolls
+    if(w.melee && !twoH && hasFightingStyle("Dueling")) flat += 2;               // Dueling: +2 damage with a one-handed melee weapon
+    if(thrown && hasFightingStyle("Thrown Weapon Fighting")) flat += 2;          // Thrown Weapon Fighting: +2 thrown damage
+    let dmg = (w.dmg||"") + (flat ? md(flat) : "") + (w.dmgType ? " " + w.dmgType : "");
+    if(w.versatile) dmg += ` (${w.versatile}${m ? md(m) : ""} versatile)`;       // two-handed use forfeits Dueling → show base mod only
     if(w.range)     dmg += `, range ${w.range}`;
-    return {bonus: sgn(m + pb), dmg: dmg.trim()};
+    return {bonus: sgn(atkB), dmg: dmg.trim()};
   }
   function unarmedStrike(){                   // auto Unarmed Strike row: Str (or Monk Dex) + PB; damage 1+mod, or a die from Monk Martial Arts / Tavern Brawler
     const cls = ($("classlevel").value || "").toLowerCase();
@@ -5217,6 +5264,7 @@
     const m = modOf(ab), md = s => s > 0 ? "+"+s : (s < 0 ? ""+s : "");
     const hasTB = asiChoices.some(s => (s.feat||"") === "Tavern Brawler") || /\btavern brawler\b/i.test($("features").value || "");
     let die = hasTB ? 4 : 0;                                              // Tavern Brawler: unarmed strikes deal 1d4
+    if(hasFightingStyle("Unarmed Fighting")) die = Math.max(die, 6);      // Unarmed Fighting: at least 1d6 (1d8 situational)
     if(isMonk){ const mm = cls.match(/monk[^\d]*(\d+)/), ml = mm ? parseInt(mm[1],10) : (lvl||1);
       die = Math.max(die, ml>=17?10 : ml>=11?8 : ml>=5?6 : 4); }          // Martial Arts die scales with monk level
     const dmg = die ? `1d${die}${m?md(m):""} bludgeoning` : `${1+m} bludgeoning`;
@@ -5471,7 +5519,8 @@
     if(!DATA){ alert("Character creation needs sourcebook data. Open Settings → Source books and load a book from your 5etools server (or import a source-data.json)."); return; }
     wizStep = 0; wizEquip = "equipment"; wizDraft = {};
     wizClasses = (characterCreated && Array.isArray(charClasses) && charClasses.length)   // editing → reload the saved build; fresh → empty
-      ? charClasses.map(c => ({name:c.name, level:c.level, sub:c.sub||"", subOpts:Object.assign({}, c.subOpts||{})}))
+      ? charClasses.map(c => ({name:c.name, level:c.level, sub:c.sub||"", subOpts:Object.assign({}, c.subOpts||{}),
+          fightingStyles:(c.fightingStyles||[]).slice(), classChoices:Object.assign({}, c.classChoices||{})}))
       : [];
     wizFocus = wizClasses[0] ? wizClasses[0].name : "";
     wizSpells = {};
@@ -5815,6 +5864,63 @@
       desc:"After a long rest you can replace one wizard cantrip you know with another from the wizard spell list."},
   ];
   const TCE_BY_ID = {}; TCE_RULES.forEach(r => TCE_BY_ID[r.id] = r);
+  // ===== Fighting Style (Fighter / Paladin / Ranger) — wizard picker + live AC/attack math. Includes Tasha's options. =====
+  // name → short mechanical paraphrase. The four styles with auto-math (Archery / Defense / Dueling / Thrown Weapon
+  // Fighting) are applied by name in the AC + weaponAtkRow engines via hasFightingStyle(); the rest are reminders only.
+  const FIGHTING_STYLES = {
+    "Archery":{desc:"+2 bonus to attack rolls you make with ranged weapons."},
+    "Defense":{desc:"+1 bonus to AC while you are wearing armor."},
+    "Dueling":{desc:"When wielding a melee weapon in one hand and no other weapon, gain +2 to its damage rolls."},
+    "Great Weapon Fighting":{desc:"Reroll a 1 or 2 on a damage die of a melee weapon wielded in two hands (use the new roll)."},
+    "Protection":{desc:"When a creature attacks a target within 5 ft of you, use your reaction to impose disadvantage on the roll (requires a shield)."},
+    "Two-Weapon Fighting":{desc:"Add your ability modifier to the damage of your off-hand (second) attack."},
+    "Blind Fighting":{desc:"You have blindsight out to a range of 10 feet (TCE)."},
+    "Interception":{desc:"When a creature you can see hits a target within 5 ft of you, use your reaction to reduce the damage by 1d10 + your proficiency bonus (TCE; requires a shield or a wielded weapon)."},
+    "Superior Technique":{desc:"You learn one Battle Master maneuver and gain one superiority die (d6), regained on a short or long rest (TCE)."},
+    "Thrown Weapon Fighting":{desc:"You can draw a thrown weapon as part of the attack, and gain +2 to damage rolls with thrown weapons (TCE)."},
+    "Unarmed Fighting":{desc:"Your unarmed strikes deal 1d6 bludgeoning (1d8 with no weapon or shield in either hand); deal 1d4 to a creature you've grappled (TCE)."},
+    "Druidic Warrior":{desc:"You learn two druid cantrips of your choice; Wisdom is your spellcasting ability for them, and they don't count against your cantrips known (TCE)."}
+  };
+  const FS_BY_CLASS = {   // 2014 PHB styles + the styles each class gained in Tasha's
+    Fighter:["Archery","Defense","Dueling","Great Weapon Fighting","Protection","Two-Weapon Fighting","Blind Fighting","Interception","Superior Technique","Thrown Weapon Fighting","Unarmed Fighting"],
+    Paladin:["Defense","Dueling","Great Weapon Fighting","Protection","Blind Fighting","Interception"],
+    Ranger:["Archery","Defense","Dueling","Two-Weapon Fighting","Blind Fighting","Druidic Warrior","Thrown Weapon Fighting"]
+  };
+  function fsOptionsFor(cls){ return FS_BY_CLASS[cls] || []; }
+  // How many Fighting Style picks a class build is owed: base "Fighting Style" features at/below level,
+  // plus a subclass "Additional Fighting Style" (Champion). Only classes in FS_BY_CLASS surface a picker.
+  function fsPicksDue(w){
+    if(!FS_BY_CLASS[w.name] || !DATA) return 0;
+    const c = findBy(DATA.classes, w.name); if(!c) return 0;
+    let n = (c.features||[]).filter(f => (f.level||1) <= w.level && /^fighting style$/i.test((f.name||"").trim())).length;
+    const sub = w.sub && (c.subclasses||[]).find(s => s.name === w.sub);
+    if(sub) n += (sub.features||[]).filter(f => (f.level||1) <= w.level && /^additional fighting style$/i.test((f.name||"").trim())).length;
+    return n;
+  }
+  // True if the character has the named Fighting Style — from the persisted build OR a "Fighting Style: X" line
+  // a player typed into Features by hand. Read live by the AC and attack engines.
+  function hasFightingStyle(name){
+    const lc = String(name).toLowerCase();
+    if((charClasses||[]).some(w => (w.fightingStyles||[]).some(s => String(s||"").toLowerCase() === lc))) return true;
+    const fEl = $("features"); if(!fEl) return false;
+    const re = new RegExp("fighting style:\\s*" + lc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    return re.test(fEl.value || "");
+  }
+  // ===== Ranger base-class choices surfaced as wizard picks (Favored Enemy / Natural Explorer), or their
+  // Tasha's replacements' choices. Gated by the matching TCE toggle so we never offer a replaced feature's pick. =====
+  const FAVORED_ENEMY_OPTS = ["Aberrations","Beasts","Celestials","Constructs","Dragons","Elementals","Fey","Fiends","Giants","Monstrosities","Oozes","Plants","Undead","Two humanoid races"];
+  const FAVORED_TERRAIN_OPTS = ["Arctic","Coast","Desert","Forest","Grassland","Mountain","Swamp","Underdark"];
+  function rangerChoicesFor(w){
+    if(w.name !== "Ranger") return [];
+    const out = [];
+    if(!tceOn("ranger-favored-foe"))                                       // Favored Foe (TCE) replaces Favored Enemy and has no pick
+      out.push({id:"favoredEnemy", level:1, prompt:"choose Favored Enemy", options:FAVORED_ENEMY_OPTS, kind:"note"});
+    if(tceOn("ranger-deft-explorer"))                                      // Deft Explorer (TCE) replaces Natural Explorer; Canny grants Expertise in a skill
+      out.push({id:"deftCanny", level:1, prompt:"choose Deft Explorer skill (Expertise)", options:SKILLS.map(s=>s[1]), kind:"expertise"});
+    else
+      out.push({id:"favoredTerrain", level:1, prompt:"choose Favored Terrain", options:FAVORED_TERRAIN_OPTS, kind:"note"});
+    return out;
+  }
   function tceOn(id){ return !tceOff[id]; }                  // every rule defaults on
   function classLevelOf(name){ const w = (charClasses||[]).find(c => c.name === name); return w ? w.level : 0; }
   function _blockName(b){ const s = String(b).trim().replace(/^Feat:\s*/i, ""); const cuts = [s.indexOf(" ("), s.indexOf(". ")].filter(x => x >= 0); return cuts.length ? s.slice(0, Math.min(...cuts)).trim() : s.split("\n")[0].trim(); }
@@ -6066,6 +6172,27 @@
           if(subObj.expanded && subObj.expanded.length)
             featLines.push(`${w.sub} expanded spells (added to your spell list): ${[...new Set(subObj.expanded.map(sp => sp.n))].join(", ")}.`);
         }
+        (w.fightingStyles||[]).filter(Boolean).forEach(fsName => {                 // Fighting Style picks → a recorded line the AC/attack engines read
+          const fs = FIGHTING_STYLES[fsName];
+          featLines.push(`Fighting Style: ${fsName} (${w.name}).${fs ? " " + fs.desc : ""}`);
+        });
+        rangerChoicesFor(w).forEach(ch => {                                        // Favored Enemy / terrain / Deft Explorer skill picks
+          const pick = (w.classChoices||{})[ch.id]; if(!pick) return;
+          if(ch.id === "favoredEnemy")        featLines.push(`Favored Enemy: ${pick} (${w.name} 1). You also learn one language your favored enemy speaks.`);
+          else if(ch.id === "favoredTerrain") featLines.push(`Natural Explorer: ${pick} (${w.name} 1) — your favored terrain.`);
+          else if(ch.id === "deftCanny"){ const key = SKILL_KEY[pick.toLowerCase()];   // Canny: Expertise in the chosen skill (proficiency + expertise)
+            if(key){ const pb = $("skp-"+key), ex = $("ske-"+key); if(pb) pb.checked = true; if(ex) ex.checked = true; }
+            featLines.push(`Deft Explorer — Canny: Expertise in ${pick}, and you learn two languages of your choice (${w.name} 1).`); }
+        });
+        if(w.name === "Ranger" && tceOn("ranger-primal-awareness") && sInfo){      // Primal Awareness (TCE): always-prepared spells, once each per long rest
+          const PA = [[3,"Speak with Animals",1],[5,"Beast Sense",2],[9,"Speak with Plants",3],[13,"Locate Creature",4],[17,"Commune with Nature",5]];
+          const granted = PA.filter(p => w.level >= p[0]);
+          if(granted.length){
+            featLines.push(`Primal Awareness spells (always prepared, cast once each per long rest without a slot): ${granted.map(p => p[1]).join(", ")}.`);
+            granted.forEach(p => { const l = p[2], arr = (spellEntriesOf(0)[l] = spellEntriesOf(0)[l] || []);
+              if(!arr.some(r => (r.name||"").toLowerCase() === p[1].toLowerCase())) arr.push({name:p[1], prep:true}); });
+          }
+        }
         const featMap = {};                                                       // feature name → text, for limited-use tooltips
         (c.features||[]).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
         (subObj && subObj.features || []).forEach(f => { featMap[(f.name||"").toLowerCase()] = f.text; });
@@ -6112,7 +6239,8 @@
       }
     }
     if(genMode === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });   // genMode/scores were set in the wizard's Ability Scores step
-    charClasses = list.map(w => ({name:w.name, level:w.level, sub:w.sub||"", subOpts:Object.assign({}, w.subOpts||{})}));   // persist the build → drives the main-sheet decisions flag + Edit Character
+    charClasses = list.map(w => ({name:w.name, level:w.level, sub:w.sub||"", subOpts:Object.assign({}, w.subOpts||{}),
+      fightingStyles:(w.fightingStyles||[]).slice(), classChoices:Object.assign({}, w.classChoices||{})}));   // persist the build → drives the main-sheet decisions flag + Edit Character
     applyTceClassFeatures();   // Tasha's optional class features (reminders / replacements) for the enabled rules — before the genFeatures diff so they're tracked
     if(hpRolls.length || hpMode !== "manual") regenHp(hpMode, list);   // size HP records to the final build
     ensureUnarmedStrike();   // every character can punch — auto Unarmed Strike as the first attack
@@ -6489,9 +6617,12 @@
     $("wiz-chosen").addEventListener("click", e => { const b = e.target.closest(".wiz-cls-rm"); if(!b) return;
       wizClasses.splice(+b.dataset.i, 1); if(!wizClasses.some(w => w.name === wizFocus)) {} syncBuildToSheet(); renderBuilder(); });
     $("wiz-pending").addEventListener("change", e => {
-      const sub = e.target.closest(".wiz-pend-sub"), opt = e.target.closest(".wiz-pend-opt");
+      const sub = e.target.closest(".wiz-pend-sub"), opt = e.target.closest(".wiz-pend-opt"),
+            fs = e.target.closest(".wiz-pend-fs"), cc = e.target.closest(".wiz-pend-cc");
       if(sub){ const i = +sub.dataset.i; if(wizClasses[i]){ wizClasses[i].sub = sub.value; wizClasses[i].subOpts = {}; syncBuildToSheet(); renderBuilder(); } }
       else if(opt){ const i = +opt.dataset.i; if(wizClasses[i]){ (wizClasses[i].subOpts = wizClasses[i].subOpts || {})[opt.dataset.group] = opt.value; renderWizPending(); } }
+      else if(fs){ const i = +fs.dataset.i, slot = +fs.dataset.slot; if(wizClasses[i]){ (wizClasses[i].fightingStyles = wizClasses[i].fightingStyles || [])[slot] = fs.value; renderWizPending(); } }
+      else if(cc){ const i = +cc.dataset.i; if(wizClasses[i]){ (wizClasses[i].classChoices = wizClasses[i].classChoices || {})[cc.dataset.id] = cc.value; renderWizPending(); } }
     });
     $("wiz-pending").addEventListener("click", e => { if(e.target.closest(".wiz-pend-asi")) openAsiModal(); });
     $("wiz-bg").addEventListener("change", updateCustomBgVisibility);
