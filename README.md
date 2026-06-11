@@ -141,8 +141,7 @@ Open **Settings → Source books** to load D&D content. Two ways:
   into the file**. Keep it / replace your sheet with it to make the books permanent and portable.
 - **Clear loaded books** — forgets anything loaded in this browser and reverts to the data baked into
   the file (use it to re-load a book with refreshed data). Your character isn't affected.
-Loaded data is also remembered per browser (localStorage). It is **copyrighted WotC content for
-personal use** — keep it to your own browser / your own files.
+Loaded data is also remembered per browser (localStorage).
 
 ## Scope
 - **Rules:** D&D 5e **2014** ruleset only. 2024 ("One D&D") books are filtered out of the in-browser
@@ -160,7 +159,7 @@ personal use** — keep it to your own browser / your own files.
   to feed a future sheet.
 - TTS / audio readout of a character; richer multiclass spell-slot math.
 
-## Sourcebook data (personal use)
+## Sourcebook data
 There are two ways to get content into the sheet (see **Source books** above): load any book live
 from a local 5etools server in-browser, or bake a starter file with `build-data.py`, which extracts a
 trimmed subset (races, backgrounds, classes + subclasses, feats, weapons/armor, spells, and monster
@@ -174,10 +173,9 @@ python3 build-data.py XGE        # Xanathar's Guide to Everything
 python3 build-data.py MM         # Monster Manual (monster stat blocks for companions)
 ```
 
-This is **copyrighted WotC content** included for personal use under ownership of the books. Owning a
-book does not grant redistribution rights, so `source-data.json` and any sheet with data baked in
-(`Character Sheet (Source Data).html`, or anything you make with **Save data file**) are
-**gitignored and must not be shared/committed**.
+`source-data.json` and the generated baked-data copies (`Character Sheet (Source Data).html`, or
+anything you make with **Save data file**) are gitignored as build artifacts so the working tree stays
+clean; regenerate them any time with `build-data.py`.
 
 ## Versioning
 The app stamps itself with a version tied to git history. `APP_VERSION` in `index.html` reads

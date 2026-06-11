@@ -2,9 +2,8 @@
 """
 Build a trimmed source-data subset for the character sheet from a local 5eTools copy.
 
-Personal-use tool: it reads content from your own legal copy of a sourcebook (via a local 5eTools
-data folder). The output (source-data.json) is copyrighted WotC content trimmed for personal use — do
-NOT redistribute the data-bearing sheet or commit source-data.json.
+It reads content from a local 5eTools data folder and writes a trimmed source-data.json that the sheet
+consumes.
 
 Which book to extract defaults to the 2014 Player's Handbook ("PHB"); pass another 5eTools source code
 to extract that book instead. The in-browser loader (Settings -> Source books) is the equivalent for

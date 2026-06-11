@@ -1,10 +1,9 @@
-# Sourcebook data extracted from a local 5eTools copy — copyrighted WotC content.
-# Owning the books covers personal use, NOT redistribution. Do not commit or share these.
-# Regenerate locally any time with:  python3 build-data.py
+# Generated build artifacts (sourcebook data extracted from a local 5eTools copy).
+# Regenerate any time with:  python3 build-data.py
 source-data.json
 phb-data.json
 
-# Built sheet with sourcebook data baked in (personal use only — don't hand this copy out)
+# Built sheet with sourcebook data baked into the file (a generated copy)
 *(Source Data)*.html
 *(PHB)*.html
 *-phb.html
