@@ -99,8 +99,10 @@ print a blank copy and fill it in by hand. Fill any value digitally and the math
 - **Print / PDF** → "Save as PDF". A dense, standardized stylesheet fits a normal character onto
   **one page** (builder UI hidden; text sections render as full-content mirrors; two balanced columns).
 - **Settings** → page-layout toggles (hide/show any tab) and **Source books** (see below).
-- **New** → opens a fresh blank character in a new tab (current one untouched). Each tab gets its own
-  storage slot via a `#slot=…` URL hash; the loaded sourcebook is shared across slots.
+- **Manage Characters** → a card view of every character saved in this browser (portrait or name
+  initials, class/level, last-edited time). Open one to switch to it in place, or create / rename /
+  duplicate / delete. Each character is a storage slot keyed by a `#slot=…` URL hash; optional rules
+  and page visibility are per-character, while the loaded sourcebook library is shared across slots.
 - **Reset** (red) → after confirmation, clears *this* sheet back to defaults (deletes the character
   and portrait in place). The loaded sourcebook is kept.
 
