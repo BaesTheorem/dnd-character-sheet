@@ -4712,6 +4712,7 @@
   }
   // ---- Guided character creation wizard ----
   let wizStep = 0, wizEquip = "equipment", characterCreated = false;
+  let wizDraft = {};   // fresh-creation scratch: in-progress sub-choices (race picks, skills, equipment) so tabbing between steps doesn't wipe them. Reset each time the wizard opens.
   let wizLevelTarget = null;   // when leveling up: the total level to reach (drives the "assign N levels" banner); null on a normal Edit
   const WIZ_LAST = 6;
   // Step order: 0 Race · 1 Ability Scores · 2 Class · 3 Skills · 4 Equipment · 5 Background · 6 Name
@@ -4743,6 +4744,7 @@
       `<label class="wiz-skill"><input type="checkbox" class="wiz-skill-cb" value="${esc(o.key)}"> <span>${esc(o.label)}</span></label>`).join("");
     if(characterCreated)                                   // editing → re-check the skills this character already has, so they're preserved (not rebuilt)
       box.querySelectorAll(".wiz-skill-cb").forEach(cb => { const b = $("skp-"+cb.value); if(b && b.checked) cb.checked = true; });
+    restoreSkillsDraft();   // fresh build → re-apply skills picked on a prior visit to this step
     hint.textContent = `Choose ${ch.count}${(ch.from && ch.from.length) ? "" : " from any skill"}.`;
     updateWizSkillLimit();
   }
@@ -5128,9 +5130,12 @@
                              : `<select class="equip-pick" data-i="${i}">` + p.options.map(o => optTag(o,o)).join("") + `</select>`;
         return `<div class="equip-line" data-i="${i}">${head}<div class="equip-sub"></div></div>`;
       }).join("");
+      const d = (wizDraft.equip && wizDraft.equip.sig === wizEquipSig()) ? wizDraft.equip : null;   // fresh build → re-apply equipment picked on a prior visit to this step
       items.forEach((line,i) => {                                       // render weapon sub-pickers for each line's current option
-        const lineEl = choices.querySelector(`.equip-line[data-i="${i}"]`), p = parseEquipLine(line);
-        renderEquipSub(lineEl, p.fixed ? p.text : (lineEl.querySelector(".equip-pick").value));
+        const lineEl = choices.querySelector(`.equip-line[data-i="${i}"]`), p = parseEquipLine(line), pick = lineEl.querySelector(".equip-pick");
+        if(d && pick && d.picks[i] != null && [...pick.options].some(o => o.value === d.picks[i])) pick.value = d.picks[i];
+        renderEquipSub(lineEl, p.fixed ? p.text : pick.value);
+        if(d) lineEl.querySelectorAll(".equip-wpick").forEach(w => { const k = i + ":" + w.dataset.slot; if(d.wpicks[k] != null && [...w.options].some(o => o.value === d.wpicks[k])) w.value = d.wpicks[k]; });
       });
     }
   }
@@ -5252,7 +5257,7 @@
   function openWizard(){
     wizLevelTarget = null;   // normal open; levelUp() sets a target after calling this
     if(!DATA){ alert("Character creation needs sourcebook data. Open Settings → Source books and load a book from your 5etools server (or import a source-data.json)."); return; }
-    wizStep = 0; wizEquip = "equipment";
+    wizStep = 0; wizEquip = "equipment"; wizDraft = {};
     wizClasses = (characterCreated && Array.isArray(charClasses) && charClasses.length)   // editing → reload the saved build; fresh → empty
       ? charClasses.map(c => ({name:c.name, level:c.level, sub:c.sub||"", subOpts:Object.assign({}, c.subOpts||{})}))
       : [];
@@ -5459,6 +5464,7 @@
         const sel = box.querySelector('.rc-featabil[data-i="'+i+'"]'); if(sel && slot.featAbil) sel.value = slot.featAbil;
       });
     }
+    restoreRaceDraft();   // fresh build → re-apply any in-progress race picks from a prior visit to this step
     // Each racial ability increase must land on a different score — you customize where they go, but can't pool them onto one. Disable an option once another picker has taken it.
     const abilSelects = [...box.querySelectorAll(".rc-abil")];
     const syncAbilDupes = () => { const taken = abilSelects.map(s => s.value).filter(Boolean);
@@ -5466,6 +5472,45 @@
     abilSelects.forEach(s => s.addEventListener("change", syncAbilDupes));
     syncAbilDupes();
     refreshLangPickers();
+  }
+  // ===== Wizard draft: preserve in-progress sub-choices across step navigation =====
+  // The Race / Skills / Equipment steps rebuild their pickers from scratch on every entry. On Edit they
+  // re-derive picks from the saved character; on a fresh build there's nothing to restore from, so tabbing
+  // away and back used to wipe the selections. These snapshot the picks on change and re-apply them on render.
+  function wizSkillSig(){ const c = wizClass(); return c ? c.name + ":" + ((c.skillChoose && c.skillChoose.count) || 0) : ""; }
+  function wizEquipSig(){ const c = wizClass(); return (c ? c.name : "") + ":" + wizEquip; }
+  function snapRaceDraft(){
+    const box = $("wiz-race-choices"); if(!box) return;
+    wizDraft.race = {
+      sig: $("wiz-race").value,
+      abil: [...box.querySelectorAll(".rc-abil")].map(s => s.value),
+      skill: ($("rc-skill") || {}).value || "",
+      skilldv: (box.querySelector('input[name="rc-skilldv"]:checked') || {}).value || "",
+      prof: [...box.querySelectorAll(".rc-prof")].map(s => s.value),
+      lang: [...box.querySelectorAll(".rc-lang")].map(s => s.value),
+      feats: [...box.querySelectorAll(".rc-feat-radio")].reduce((a, r) => { if(r.checked) a[+r.dataset.i] = r.value; return a; }, []),
+      featAbil: [...box.querySelectorAll(".rc-featabil")].reduce((a, s) => { a[+s.dataset.i] = s.value; return a; }, []),
+    };
+  }
+  function restoreRaceDraft(){   // re-apply remembered race sub-picks (only when they belong to the race still selected)
+    const box = $("wiz-race-choices"), d = wizDraft.race; if(!box || !d || d.sig !== $("wiz-race").value) return;
+    const setByOrder = (sel, vals) => [...box.querySelectorAll(sel)].forEach((s, i) => { if(vals[i] != null) s.value = vals[i]; });
+    setByOrder(".rc-abil", d.abil); setByOrder(".rc-prof", d.prof); setByOrder(".rc-lang", d.lang);
+    if(d.skilldv){ const radio = box.querySelector('input[name="rc-skilldv"][value="' + d.skilldv + '"]'); if(radio){ radio.checked = true; const sk = $("rc-skill"); if(sk) sk.disabled = (d.skilldv === "darkvision"); } }
+    if(d.skill){ const sk = $("rc-skill"); if(sk) sk.value = d.skill; }
+    (d.feats || []).forEach((val, i) => { if(!val) return;
+      const radio = [...box.querySelectorAll('input[name="rc-feat-' + i + '"]')].find(r => r.value === val);
+      if(radio){ radio.checked = true; const dt = radio.nextElementSibling; if(dt && dt.tagName === "DETAILS") dt.open = true; renderRcFeatAbil(i); } });
+    (d.featAbil || []).forEach((v, i) => { const sel = box.querySelector('.rc-featabil[data-i="' + i + '"]'); if(sel && v != null) sel.value = v; });
+  }
+  function snapSkillsDraft(){ wizDraft.skills = { sig: wizSkillSig(), vals: [...document.querySelectorAll(".wiz-skill-cb")].reduce((a, cb) => { a[cb.value] = cb.checked; return a; }, {}) }; }
+  function restoreSkillsDraft(){ const d = wizDraft.skills; if(!d || d.sig !== wizSkillSig()) return;
+    document.querySelectorAll(".wiz-skill-cb").forEach(cb => { if(cb.value in d.vals) cb.checked = d.vals[cb.value]; }); }
+  function snapEquipDraft(){ const box = $("wiz-equip-choices"); if(!box) return;
+    const d = { sig: wizEquipSig(), picks: {}, wpicks: {} };
+    box.querySelectorAll(".equip-line").forEach(line => { const i = line.dataset.i, p = line.querySelector(".equip-pick"); if(p) d.picks[i] = p.value;
+      line.querySelectorAll(".equip-wpick").forEach(w => { d.wpicks[i + ":" + w.dataset.slot] = w.value; }); });
+    wizDraft.equip = d;
   }
   // Limited-use class resources → the Limited Features card. count(level, abilityMods)→number; rec = recovery; min = first level.
   const LIMITED_RESOURCES = {
@@ -6161,7 +6206,12 @@
     $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
     $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
     $("wiz-dots").addEventListener("click", e=>{ const b = e.target.closest(".wiz-dot"); if(b){ wizStep = +b.dataset.goto; renderWizStep(); } });   // jump straight to any section
-    $("wizard").addEventListener("change", e=>{ if(e.target.matches(".rc-lang, .bg-lang, .cbg-tl")) refreshLangPickers(); });   // picking a language greys it in the other pickers
+    $("wizard").addEventListener("change", e=>{
+      if(e.target.matches(".rc-lang, .bg-lang, .cbg-tl")) refreshLangPickers();   // picking a language greys it in the other pickers
+      if(e.target.matches('.rc-abil, #rc-skill, input[name="rc-skilldv"], .rc-prof, .rc-lang, .rc-feat-radio, .rc-featabil')) snapRaceDraft();   // remember race sub-picks across step navigation
+      if(e.target.matches(".wiz-skill-cb")) snapSkillsDraft();
+      if(e.target.matches(".equip-pick, .equip-wpick")) snapEquipDraft();
+    });
     $("wiz-race").addEventListener("change", raceHint);
     // Multiclass builder (step 2): class list focus, add, level edit, remove, and inline pending-decision pickers
     $("wiz-race-list").addEventListener("click", e => { const b = e.target.closest(".wiz-rce"); if(b){ $("wiz-race").value = b.dataset.race; $("wiz-race").dispatchEvent(new Event("change", {bubbles:true})); } });   // race buttons mirror the class list
