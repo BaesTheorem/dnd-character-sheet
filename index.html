@@ -404,7 +404,10 @@
   .equip-line select{width:100%}
   .equip-fixed{display:block; padding:3px 2px; font-size:13px; color:var(--muted)}
   .modal-foot{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-top:1px solid var(--line)}
-  .wiz-dots{font-size:11px; color:var(--muted); letter-spacing:.04em}
+  .wiz-dots{display:flex; flex-wrap:wrap; justify-content:center; gap:4px; flex:1; margin:0 8px}
+  .wiz-dot{font-size:11px; letter-spacing:.02em; color:var(--muted); background:#fff; border:1px solid var(--line2); padding:3px 7px; cursor:pointer; line-height:1.4; white-space:nowrap}
+  .wiz-dot:hover{border-color:var(--accent); color:var(--accent)}
+  .wiz-dot.active{background:var(--accent); border-color:var(--accent); color:#fff}
   .help{font-size:11px; color:var(--muted); margin:2px 0 0}
   .mini{font-size:11px; padding:4px 8px}
   .stack{display:flex; flex-direction:column; gap:12px}
@@ -4619,11 +4622,14 @@
   let wizLevelTarget = null;   // when leveling up: the total level to reach (drives the "assign N levels" banner); null on a normal Edit
   const WIZ_LAST = 6;
   // Step order: 0 Race · 1 Ability Scores · 2 Class · 3 Skills · 4 Equipment · 5 Background · 6 Name
+  const WIZ_TITLES = ["Race", "Ability", "Class", "Skills", "Equipment", "Background", "Name"];
   function renderWizStep(){
     document.querySelectorAll(".wiz-step").forEach(s => s.hidden = (+s.dataset.step !== wizStep));
     $("wiz-back").style.visibility = wizStep === 0 ? "hidden" : "visible";
     $("wiz-next").textContent = wizStep === WIZ_LAST ? (characterCreated ? "Save" : "Create") : "Next";
-    $("wiz-dots").textContent = `Step ${wizStep + 1} of ${WIZ_LAST + 1}`;
+    // Clickable stepper — jump straight to any section instead of paging through Back/Next.
+    $("wiz-dots").innerHTML = WIZ_TITLES.map((t, i) =>
+      `<button type="button" class="wiz-dot${i === wizStep ? " active" : ""}" data-goto="${i}">${i + 1} ${t}</button>`).join("");
     if(wizStep === 0){ renderRaceList(); raceHint(); }   // build the race list + refresh the run-down / choice pickers on entry
     if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial (the Race step restores the player's "choose" picks on Edit, so this re-derives the column faithfully)
     if(wizStep === 2){ syncBuildToSheet(); renderBuilder(); }   // multiclass builder (also re-validates prereqs against the abilities just set)
@@ -6026,6 +6032,7 @@
     $("wizard").addEventListener("click", e=>{ if(e.target.id === "wizard") closeWizard(); });
     $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
     $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
+    $("wiz-dots").addEventListener("click", e=>{ const b = e.target.closest(".wiz-dot"); if(b){ wizStep = +b.dataset.goto; renderWizStep(); } });   // jump straight to any section
     $("wiz-race").addEventListener("change", raceHint);
     // Multiclass builder (step 2): class list focus, add, level edit, remove, and inline pending-decision pickers
     $("wiz-race-list").addEventListener("click", e => { const b = e.target.closest(".wiz-rce"); if(b){ $("wiz-race").value = b.dataset.race; $("wiz-race").dispatchEvent(new Event("change", {bubbles:true})); } });   // race buttons mirror the class list
