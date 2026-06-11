@@ -140,8 +140,7 @@ Open **Settings → Source books** to load D&D content. Two ways:
 - **Clear loaded books** — forgets anything loaded in this browser and reverts to the data baked into
   the file (use it to re-load a book with refreshed data). Your character isn't affected.
 Loaded data is also remembered per browser (localStorage). It is **copyrighted WotC content for
-personal use** — it lives only in your browser / your own file and is never committed; the shipped
-app stays content-free.
+personal use** — keep it to your own browser / your own files.
 
 ## Scope
 - **Rules:** D&D 5e **2014** ruleset only. 2024 ("One D&D") books are filtered out of the in-browser
@@ -176,8 +175,7 @@ python3 build-data.py MM         # Monster Manual (monster stat blocks for compa
 This is **copyrighted WotC content** included for personal use under ownership of the books. Owning a
 book does not grant redistribution rights, so `source-data.json` and any sheet with data baked in
 (`Character Sheet (Source Data).html`, or anything you make with **Save data file**) are
-**gitignored and must not be shared/committed**. The clean app (`Character Sheet.html`) stays
-content-free and remains freely shareable.
+**gitignored and must not be shared/committed**.
 
 ## Design / longevity rules
 Vanilla HTML/CSS/JS only — no frameworks, no build step, no CDN, no web-fetched fonts (uses the
