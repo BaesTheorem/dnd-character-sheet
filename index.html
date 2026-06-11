@@ -666,7 +666,7 @@
     .page.excluded{display:none !important}          /* any page hidden via Settings (or mini w/o portrait) won't print */
     #page-mini .mini-wrap{gap:12mm}
     /* keep the on-screen two-column grouping (left = abilities/saves/skills, right = combat/etc.) */
-    #page-core{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}   /* fill the printed sheet; even gaps between cards */
+    #page-core{display:flex !important; flex-direction:column; gap:7px; min-height:252mm}   /* fill the printed sheet; min-height stays under the natural content height so it never inflates Core past one page (was 261mm, which left only ~2mm of slack and spilled to a 2nd sheet in real browser print) */
     #page-core .columns{flex:1 1 auto; grid-template-rows:1fr}                     /* row fills the page; stacks stretch into it */
     .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:stretch}
     .stack{display:flex; flex-direction:column; gap:5px}   /* tighter inter-card gaps buy Core a few mm of headroom so a filled character still fits one page */
@@ -702,6 +702,10 @@
     .portrait-menu{display:none !important}
     input::placeholder, textarea::placeholder{color:transparent !important}  /* no hint text on a printed sheet */
     .meta-grid{gap:3px 8px; margin-top:5px}
+    /* Experience → one blank write-in box: drop the Add-XP controls and the "… / 300 XP to 2" status line */
+    .xp-wrap{display:block}
+    .xp-add,#btn-addxp,.xp-status{display:none !important}
+    .xp-wrap > #xp{width:100%; min-height:15px}
 
     .ability{padding:1.5px 0; gap:4px}
     .ability .name{font-size:8px}
@@ -715,7 +719,7 @@
     .chip .v{font-size:13px}
     .chip .k{font-size:6px}
 
-    .row{padding:0.5px 0; gap:5px}
+    .row{padding:0; gap:5px}   /* skills/saves are the tallest fixed block on Core; shaving the per-row padding buys a few mm so a filled sheet stays on one page */
     .row .total{width:19px; height:19px; font-size:10px}   /* match the ability score/modifier boxes */
     .row .rname{font-size:8px}
     .row .rname .ab{font-size:6px}
@@ -1729,7 +1733,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v171 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v172 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
