@@ -188,12 +188,12 @@ def build_races(raw):
     out, bases, base_idx = [], {}, {}
     flavor = _race_flavor_map()
     for r in raw.get("race", []):
-        if not is_src(r): continue
         ab = list(r.get("ability") or [])
         fg = feat_grants(r); pf = prof_block(r); rs = damage_resist(r)
         dv, lc = r.get("darkvision") or 0, lang_choose(r)
         rsp = _race_spell_names(r); rsx = _speed_extra(r); fl = flavor.get(r["name"], [])
-        bases[r["name"]] = {"ability": ab, "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl}
+        bases[r["name"]] = {"ability": ab, "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium", "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl}
+        if not is_src(r): continue    # keep EVERY race in `bases` (any book) so a cross-book subrace inherits its parent; only output THIS book's races
         base_idx[r["name"]] = len(out)
         out.append({"name": r["name"], "ability": ab,
                     "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
@@ -218,7 +218,7 @@ def build_races(raw):
         base = bases.get(parent, {})               # named subrace -> "Race (Subrace)", base + subrace
         out.append({"name": f"{parent} ({s['name']})",
                     "ability": (base.get("ability") or []) + (s.get("ability") or []),
-                    "size": "", "speed": _speed(s) if s.get("speed") is not None else base.get("speed", 30),
+                    "size": base.get("size", ""), "speed": _speed(s) if s.get("speed") is not None else base.get("speed", 30),
                     "speedExtra": _speed_extra(s) if s.get("speed") is not None else base.get("speedExtra", ""),
                     "subraceOf": parent,
                     "traits": (base.get("traits") or []) + _traits(s.get("entries", [])),

@@ -2368,11 +2368,11 @@
     const out = [], bases = {}, baseIdx = {}, flavor = {};
     ((fluffData && fluffData.raceFluff) || []).forEach(f => { if(f.source === SRC && f.entries) flavor[f.name] = etRaceFluff(f.entries); });
     (raw.race||[]).forEach(r => {
-      if(r.source !== SRC) return;
       const ab = (r.ability||[]).slice(), fg = etFeatGrants(r), pf = etProfBlock(r), rs = etDamageResist(r);
       const dv = r.darkvision||0, lc = etLangChoose(r.languageProficiencies);
       const rsp = etRaceSpellNames(r), fl = flavor[r.name] || [];
-      bases[r.name] = {ability:ab, speed:etSpeed(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc, spells:rsp, flavor:fl};
+      bases[r.name] = {ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), speedExtra:etSpeedExtra(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc, spells:rsp, flavor:fl};   // EVERY race goes in bases (any book), so a subrace whose parent lives in another book still inherits
+      if(r.source !== SRC) return;     // ...but only THIS book's races are output
       baseIdx[r.name] = out.length;
       out.push({name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), speedExtra:etSpeedExtra(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc, spells:rsp, flavor:fl});
     });
@@ -2381,10 +2381,40 @@
       const parent = s.raceName, sdv = s.darkvision||0, slc = etLangChoose(s.languageProficiencies);
       if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); out[i].prof = etMergeProf(out[i].prof, etProfBlock(s)); out[i].resist = (out[i].resist||[]).concat(etDamageResist(s)); out[i].darkvision = Math.max(out[i].darkvision||0, sdv); out[i].langChoose = (out[i].langChoose||0) + slc; out[i].spells = (out[i].spells||[]).concat(etRaceSpellNames(s)); } return; }
       const base = bases[parent] || {};
-      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:"", speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), speedExtra:(s.speed != null ? etSpeedExtra(s) : (base.speedExtra||"")), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), featGrants:(base.featGrants||0) + etFeatGrants(s), prof:etMergeProf(base.prof, etProfBlock(s)), resist:(base.resist||[]).concat(etDamageResist(s)), darkvision:Math.max(base.darkvision||0, sdv), langChoose:(base.langChoose||0)+slc, spells:(base.spells||[]).concat(etRaceSpellNames(s)), flavor:(flavor[parent+" ("+s.name+")"] || base.flavor || [])});
+      out.push({name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:(base.size||""), speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), speedExtra:(s.speed != null ? etSpeedExtra(s) : (base.speedExtra||"")), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), featGrants:(base.featGrants||0) + etFeatGrants(s), prof:etMergeProf(base.prof, etProfBlock(s)), resist:(base.resist||[]).concat(etDamageResist(s)), darkvision:Math.max(base.darkvision||0, sdv), langChoose:(base.langChoose||0)+slc, spells:(base.spells||[]).concat(etRaceSpellNames(s)), flavor:(flavor[parent+" ("+s.name+")"] || base.flavor || [])});
     });
     out.forEach(o => { if(/custom lineage/i.test(o.name)) o.variableSkillDarkvision = true; });   // TCE Custom Lineage: skill proficiency OR darkvision (5etools lists both; the rule is a choice)
     return out;
+  }
+  // Backfill each subrace from its parent race. 5etools subraces store only their delta; a subrace whose parent
+  // lives in another book (e.g. Ghostwise Halfling ← PHB Halfling) was extracted before that parent was available
+  // and kept ONLY its own traits — missing the parent's ability bonus, speed, languages, etc. Detection-based and
+  // idempotent: a subrace that already carries the parent's traits (a same-book subrace, or one already resolved)
+  // is left untouched, so this is safe to run on any data (baked, stored, freshly merged) and on every load order.
+  function resolveSubraces(d){
+    if(!d || !Array.isArray(d.races)) return;
+    const byName = new Map(d.races.map(r => [r.name, r]));
+    const tname = t => (t && t.name) || t;
+    d.races.forEach(r => {
+      if(!r.subraceOf) return;
+      const p = byName.get(r.subraceOf); if(!p) return;
+      if(!r.size && p.size) r.size = p.size;                        // every subrace shows the parent's size (the extractor left subrace size blank → it fell back to "Medium")
+      if(!(p.traits||[]).length) return;
+      const have = new Set((r.traits||[]).map(tname));
+      if((p.traits||[]).every(t => have.has(tname(t)))) return;     // parent traits already present → already merged (no-op)
+      r.traits = (p.traits||[]).concat(r.traits||[]);               // parent traits first, then the subrace's own
+      const haveAbil = new Set((r.ability||[]).flatMap(o => Object.keys(o||{})));
+      (p.ability||[]).forEach(o => { if(!Object.keys(o||{}).some(k => haveAbil.has(k))) (r.ability = r.ability||[]).push(o); });   // add parent ability bonuses the subrace doesn't already grant (no double-count)
+      r.speed = p.speed;                                            // delta-only subraces captured a wrong default speed → take the parent's
+      if(!r.speedExtra) r.speedExtra = p.speedExtra || "";
+      r.prof = etMergeProf(p.prof, r.prof);                         // parent languages/proficiencies + the subrace's
+      r.resist = (p.resist||[]).concat(r.resist||[]);
+      r.darkvision = Math.max(p.darkvision||0, r.darkvision||0);
+      r.langChoose = (p.langChoose||0) + (r.langChoose||0);
+      r.spells = (p.spells||[]).concat(r.spells||[]);
+      if(p.featGrants) r.featGrants = (r.featGrants||0) + p.featGrants;
+      if(!r.flavor || !r.flavor.length) r.flavor = p.flavor || [];
+    });
   }
   function etBgEquipment(b){                          // starting items + gold a background provides
     const items = []; let gold = 0;
@@ -2840,6 +2870,7 @@
     });
     if(bookName && !into._meta.books.includes(bookName)) into._meta.books.push(bookName);
     into._meta.dataVersion = DATA_VERSION;   // stamp the extractor version so stale localStorage data can be detected after an app update
+    resolveSubraces(into);   // backfill cross-book subraces now that this book's parent races may be present (idempotent; load-order-safe)
   }
   const RULESET_2024 = new Set(["XPHB","XDMG","XMM"]);   // 2024 ("One D&D") core books
   function isBook2024(b){                                 // which ruleset a 5etools book belongs to
@@ -2945,6 +2976,7 @@
     let baked = null; try{ baked = JSON.parse($("source-data").textContent); }catch(e){}
     DATA = baked || null;
     if(DATA && DATA._meta){ delete DATA._meta.raw; delete DATA._meta.disabled; }
+    resolveSubraces(DATA);
     _spellIndex = null;
     bakeSourceData();   // keep the in-document block consistent with the reverted data
     refreshAfterData();
@@ -5686,6 +5718,7 @@
     const verOf = d => (d && d._meta && d._meta.dataVersion) || 0;
     const sameVer = verOf(_stored) === verOf(_baked);   // discard stored data built by an OLDER app/data shape
     DATA = (srcComplete(_stored) && (sameVer || !_baked)) ? _stored : (_baked || _stored || null);
+    resolveSubraces(DATA);   // fix subraces in baked/stored data built before cross-book inheritance was resolved (idempotent)
     if(DATA && DATA._meta && DATA === _stored){   // restore per-book data (kept in a separate key so quota can't lose the merged copy)
       try{ const r = localStorage.getItem(SOURCES_RAW_KEY); if(r) DATA._meta.raw = JSON.parse(r); }catch(e){}
     }
@@ -5883,6 +5916,7 @@
           $("file-input").value=""; return;
         }
         DATA = d; _spellIndex = null;
+        resolveSubraces(DATA);   // an imported file may predate cross-book subrace resolution
         if(DATA._meta){ delete DATA._meta.raw; delete DATA._meta.disabled; }   // imported file is merged-only; per-book filtering needs a reload
         try{ localStorage.removeItem(SOURCES_RAW_KEY); }catch(e){}
         bakeSourceData();
