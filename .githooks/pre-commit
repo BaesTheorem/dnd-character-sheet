@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Stamps the app version (derived from git) into the sheet on every commit, so the
+# app always knows which build it is and Save/Update downloads are version-named.
+#
+#   APP_VERSION in index.html  ->  "v<N> (YYYY-MM-DD)"   N = this commit's number
+#
+# Best-effort: never block a commit. Activate in a fresh clone with:
+#   git config core.hooksPath .githooks
+set -u
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$root" || exit 0
+
+# This commit's sequence number = existing commits + 1 (0 commits -> v1).
+have="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
+num=$((have + 1))
+date="$(date +%Y-%m-%d)"
+ver="v${num} (${date})"
+
+# Stamp APP_VERSION on the line carrying the @APP_VERSION@ marker (idempotent).
+if grep -q '@APP_VERSION@' index.html 2>/dev/null; then
+  ver="$ver" perl -i -pe 's/(const APP_VERSION = ")[^"]*(";)/$1$ENV{ver}$2/ if /\@APP_VERSION\@/' index.html \
+    && git add index.html \
+    && echo "pre-commit: stamped APP_VERSION = $ver"
+fi
+
+exit 0

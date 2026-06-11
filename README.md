@@ -179,6 +179,19 @@ book does not grant redistribution rights, so `source-data.json` and any sheet w
 (`Character Sheet (Source Data).html`, or anything you make with **Save data file**) are
 **gitignored and must not be shared/committed**.
 
+## Versioning
+The app stamps itself with a version tied to git history. `APP_VERSION` in `index.html` reads
+`v<N> (YYYY-MM-DD)`, where `N` is the commit number. It shows under **Settings -> Update**, and
+both the **Save** button and the offline **Update** (download) name their file with it, e.g.
+`Character Sheet v170 (2026-06-11).html`, so every backup says which build it came from.
+
+The stamp is written automatically by `.githooks/pre-commit` on every commit, so a change can't ship
+without a fresh version. After cloning, activate the hook once:
+
+```
+git config core.hooksPath .githooks
+```
+
 ## Design / longevity rules
 Vanilla HTML/CSS/JS only — no frameworks, no build step, no CDN, no web-fetched fonts (uses the
 system font stack). Edit it with any text editor. Data model is plain JSON keyed by field id.
