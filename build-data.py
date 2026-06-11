@@ -429,7 +429,12 @@ def build_classes():
             if not is_src(c): continue
             sp = c.get("startingProficiencies", {})
             sk_fixed, sk_choose = skills_from(sp.get("skills"))
-            cls_prof = prof_block({"toolProficiencies": sp.get("tools"), "armorProficiencies": sp.get("armor"), "weaponProficiencies": sp.get("weapons")})
+            # Prefer the structured `toolProficiencies` (machine form, e.g. [{"anyArtisansTool": 1}]) over the
+            # human-readable `tools` prose ("any one type of artisan's tools or any one musical instrument...").
+            # The prose form leaves "any one type of ... or any one ..." scaffolding around the tool names when the
+            # sheet's tool-picker substitutes a concrete choice; the structured form normalizes to clean "N <kind> of
+            # your choice" tokens the picker resolves cleanly. Mirrors how races/backgrounds feed toolProficiencies.
+            cls_prof = prof_block({"toolProficiencies": sp.get("toolProficiencies") or sp.get("tools"), "armorProficiencies": sp.get("armor"), "weaponProficiencies": sp.get("weapons")})
             seen, subs = set(), []
             for s in data.get("subclass", []):
                 if not is_src(s) or s.get("className") != c["name"]: continue
