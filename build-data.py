@@ -249,21 +249,23 @@ def _clean(s):           # strip 5eTools {@item ...|...} markup, the |source suf
     return render_tags(str(s)).split("|")[0].split("#")[0].strip()
 def _titlecase(s):
     return " ".join((w[:1].upper() + w[1:]) if w else w for w in str(s).split(" "))
-def _chooser_options(entries):   # names referenced inside an `options` block → this feature is a "choose one" chooser (e.g. Totem Spirit)
-    names = []
+def _chooser_option_blocks(entries):   # every `options` block referencing sub-features → (options, count). The caller decides which are real "choose one" choosers (see build_classes).
+    out = []
     def walk(e):
         if isinstance(e, list):
             for x in e: walk(x)
         elif isinstance(e, dict):
             if e.get("type") == "options":
+                refs = []
                 for o in e.get("entries", []) or []:
                     if isinstance(o, dict):
                         ref = (o.get("subclassFeature") if o.get("type") == "refSubclassFeature"
                                else o.get("optionalfeature") if o.get("type") == "refOptionalfeature" else None)   # match JS: only typed refs
-                        if ref: names.append(str(ref).split("|")[0].strip())
+                        if ref: refs.append(str(ref).split("|")[0].strip())
+                if refs: out.append((refs, e.get("count")))
             for x in e.get("entries", []) or []: walk(x)
     walk(entries)
-    return names
+    return out
 def normalize_subclass(sub):   # mirror of JS normalizeSubclass: derive opt/optGroup tags + featChoices from features + choosers
     feats, choosers = sub.get("features", []), sub.get("choosers", [])
     ref_names = set()
@@ -411,9 +413,18 @@ def build_classes():
                 raw_feats = [f for f in data.get("subclassFeature", [])
                           if is_src(f) and f.get("className")==c["name"] and f.get("subclassShortName")==short and f.get("name")]
                 choosers = []                                   # features offering a "choose one" set (Totem Spirit, …)
+                _raw_ch = []                                     # (name, level, options, count) for every options block
                 for cf in raw_feats:
-                    opts = _chooser_options(cf.get("entries", []))
-                    if opts: choosers.append({"name": cf.get("name"), "level": cf.get("level",1), "options": opts})
+                    for refs, cnt in _chooser_option_blocks(cf.get("entries", [])):
+                        _raw_ch.append((cf.get("name"), cf.get("level",1), refs, cnt))
+                _set_count = {}                                  # a set spanning 2+ features is a PERSISTENT choose-one (e.g. Storm Herald's Desert/Sea/Tundra across Storm Aura/Soul/Raging Storm)
+                for _,_,refs,_c in _raw_ch:
+                    k = tuple(sorted(refs)); _set_count[k] = _set_count.get(k,0)+1
+                for nm, lv, refs, cnt in _raw_ch:
+                    firm = cnt is not None and cnt < len(refs)              # explicit "choose N of M" (Totem Spirit, Maneuvers)
+                    persistent = _set_count[tuple(sorted(refs))] >= 2      # same option-set recurs → one-time choice that carries forward
+                    # no count and referenced by a single feature = "gain ALL of these" (e.g. Soulknife's Psionic Power / Soul Blades) → NOT a chooser
+                    if firm or persistent: choosers.append({"name": nm, "level": lv, "options": refs})
                 sfeats = [{"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))} for f in raw_feats]
                 sfeats.sort(key=lambda x: (x["level"], x["name"]))
                 _lvl = lambda lv: int(str(lv).lstrip("sS")) if str(lv).lstrip("sS").isdigit() else 0   # "s1"→1 (expanded-spell level keys)
