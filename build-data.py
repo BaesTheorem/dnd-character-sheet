@@ -316,6 +316,37 @@ def _norm_prof(arr):     # -> list of display strings: fixed proficiencies + "ch
             elif v is True: out.append(_titlecase(_clean(k)))
             elif isinstance(v, int) and v: out.append(f"{v} {_ANY_LABELS.get(k, _pretty(k))}")
     return out
+# Class starting tools come from the human-readable `tools` prose (not the structured toolProficiencies): only the
+# prose preserves "X or Y" either/or choices, which the structured form flattens into two independent grants. Emits
+# canonical tokens the sheet's tool-picker resolves:
+#   "Herbalism Kit"                                            (concrete)
+#   "3 musical instrument of your choice"                      (single kind, N picks)
+#   "1 artisan's tools or musical instrument of your choice"   (either/or — ONE pick spanning both kinds)
+_TOOL_NUMWORD = {"a": 1, "an": 1, "any": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+def _tool_kind(phrase):
+    p = phrase.lower()
+    if "artisan" in p: return "artisan's tools"
+    if "instrument" in p: return "musical instrument"
+    return None
+def _tool_count(phrase):
+    for w in re.findall(r"\d+|[a-z]+", phrase.lower()):
+        if w.isdigit(): return int(w)
+        if w in _TOOL_NUMWORD: return _TOOL_NUMWORD[w]
+    return 1
+def _norm_class_tools(lst):
+    out = []
+    for raw in lst or []:
+        s = _clean(raw); low = s.lower()
+        if "artisan" not in low and "instrument" not in low and "of your choice" not in low:
+            out.append(_titlecase(s)); continue                       # concrete tool (Herbalism Kit, Thieves' Tools)
+        kinds = []
+        for part in re.split(r"\bor\b", s, flags=re.I):               # "X or Y" → choice across kinds
+            k = _tool_kind(part)
+            if k and k not in kinds: kinds.append(k)
+        if len(kinds) >= 2: out.append("1 " + " or ".join(kinds) + " of your choice")   # either/or = one pick
+        elif len(kinds) == 1: out.append(f"{_tool_count(s)} {kinds[0]} of your choice")
+        else: out.append(_titlecase(s))
+    return out
 def prof_block(obj):     # structured skills (for checkboxes) + display lists for the Proficiencies box
     sk_fixed, sk_choose = skills_from(obj.get("skillProficiencies"))
     out = {}
@@ -429,12 +460,9 @@ def build_classes():
             if not is_src(c): continue
             sp = c.get("startingProficiencies", {})
             sk_fixed, sk_choose = skills_from(sp.get("skills"))
-            # Prefer the structured `toolProficiencies` (machine form, e.g. [{"anyArtisansTool": 1}]) over the
-            # human-readable `tools` prose ("any one type of artisan's tools or any one musical instrument...").
-            # The prose form leaves "any one type of ... or any one ..." scaffolding around the tool names when the
-            # sheet's tool-picker substitutes a concrete choice; the structured form normalizes to clean "N <kind> of
-            # your choice" tokens the picker resolves cleanly. Mirrors how races/backgrounds feed toolProficiencies.
-            cls_prof = prof_block({"toolProficiencies": sp.get("toolProficiencies") or sp.get("tools"), "armorProficiencies": sp.get("armor"), "weaponProficiencies": sp.get("weapons")})
+            cls_prof = prof_block({"armorProficiencies": sp.get("armor"), "weaponProficiencies": sp.get("weapons")})
+            ct = _norm_class_tools(sp.get("tools"))   # canonical tool tokens (preserves "artisan's tools OR instrument")
+            if ct: cls_prof["tools"] = ct
             seen, subs = set(), []
             for s in data.get("subclass", []):
                 if not is_src(s) or s.get("className") != c["name"]: continue

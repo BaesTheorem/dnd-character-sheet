@@ -5,7 +5,7 @@
    on the next launch. CACHE is auto-stamped to the app version by .githooks/pre-commit on every
    commit, so each deploy drops the old cache and fresh content lands on the next load (no manual
    bump, no "reload twice"). */
-const CACHE = "dnd-sheet-v190";
+const CACHE = "dnd-sheet-v191";
 
 self.addEventListener("install", () => self.skipWaiting());
 
