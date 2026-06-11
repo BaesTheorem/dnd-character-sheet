@@ -407,6 +407,8 @@
   .intro-card p{margin:0 0 12px}
   .intro-card p:last-of-type{margin-bottom:0}
   .intro-cta{font-weight:700}
+  .intro-note{border:1px solid var(--line2); border-left:3px solid var(--accent); padding:12px 14px; margin:16px 0; font-size:14px; line-height:1.5}
+  .intro-ver{margin:16px 0 0; font-size:11px; letter-spacing:.04em; color:var(--muted)}
   .intro-actions{display:flex; gap:14px; align-items:center; margin-top:20px; flex-wrap:wrap}
   .intro-actions .btn{flex:none}
   .intro-skip{background:none; border:none; color:var(--muted); cursor:pointer; font:inherit;
@@ -936,11 +938,17 @@
       <p>Instead of being some fancy PDF you need Adobe for, or an ugly Excel file, or someone else's hosted web app, it's an HTML file. Offline-first. Everyone with a browser can open it with no extra software or tricks (with a special case for iOS; you still have to originally open it from this link and add it as a web app to your home screen in order to use it offline, because Apple is scared of HTML files).</p>
       <p>It caches all your character data in the browser, so it has a kind of autosave, though I always recommend manually saving a copy to your drive to be safe.</p>
       <p>You can keep <strong>more than one character</strong> in here. Each one is its own siloed sheet, with its own sources, optional rules, pages, and portrait. Click "Manage Characters" in the top bar any time to see them all as cards and switch between them.</p>
+      <div class="intro-note">
+        <strong>Best way to fill it in:</strong> use <strong>Create Character</strong> and let the sheet do the math. It walks you through race, class, background, and feats, then keeps everything (modifiers, AC, saves, spell DC, attacks, HP, and more) calculated and correct as you go. Unless you really know your way around the rules, this is the way to go.
+        <br><br>
+        <strong>Manual overrides (advanced):</strong> if you ever need to, you can pin any calculated value by hand. On a computer, <strong>double-click</strong> a value to set your own; on a phone or tablet, <strong>long-press</strong> it. It's meant for homebrew, table rulings, and the odd magic item the rules engine doesn't know about. Use it carefully: a pinned value stops auto-updating, so if you later change something it depends on, it can quietly fall out of date or stop matching the rest of the sheet. To undo one, Alt-click it (or long-press and clear it) to go back to calculated, or clear them all under Settings → Manual overrides.
+      </div>
       <p class="intro-cta">Click "Create Character" to get started!</p>
       <div class="intro-actions">
         <button class="btn primary" type="button" id="intro-create">Create Character</button>
         <button class="intro-skip" type="button" id="intro-skip">or explore the blank sheet</button>
       </div>
+      <p class="intro-ver" id="intro-ver"></p>
     </div>
   </div>
 
@@ -1781,7 +1789,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v185 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v186 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -6847,7 +6855,7 @@
 
   // Short welcome guide. Shown once per browser automatically (introSeen flag); also re-runnable from
   // Settings → General. Hidden (not removed) on dismiss so it can be reopened; handlers wire once.
-  function showIntro(){
+  function showIntro(isUpdate){
     const ov = $("intro-overlay"); if(!ov) return;
     if(!ov._wired){
       ov._wired = true;
@@ -6856,18 +6864,23 @@
       $("intro-skip").addEventListener("click", dismissIntro);
       ov.addEventListener("click", e => { if(e.target === ov) dismissIntro(); });   // click the backdrop to dismiss
     }
+    const ver = $("intro-ver");
+    if(ver) ver.textContent = isUpdate
+      ? ("You're now on " + APP_VERSION + ". This guide reappears after each update so you catch anything new (like the note above).")
+      : (APP_VERSION + " · this guide reappears after each update.");
     ov.hidden = false;
     document.addEventListener("keydown", ov._onKey);
   }
   function dismissIntro(){
     const ov = $("intro-overlay"); if(!ov) return;
-    try{ localStorage.setItem("introSeen","1"); }catch(e){}
+    try{ localStorage.setItem("introSeenVersion", APP_VERSION); }catch(e){}   // remember the version they acknowledged, so the guide re-shows after each update
     if(ov._onKey) document.removeEventListener("keydown", ov._onKey);
     ov.hidden = true;
   }
   function maybeShowIntro(){
-    let seen = false; try{ seen = localStorage.getItem("introSeen") === "1"; }catch(e){}
-    if(!seen) showIntro();
+    let seenVer = null;
+    try{ seenVer = localStorage.getItem("introSeenVersion") || (localStorage.getItem("introSeen") === "1" ? "" : null); }catch(e){}   // migrate the old boolean flag: treat a prior "seen" as an unknown old version so the updated guide shows once
+    if(seenVer !== APP_VERSION) showIntro(seenVer != null);   // first-ever load → plain; any version change → "what's new" framing
   }
 
   // ===== Character Manager =====
