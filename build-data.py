@@ -376,10 +376,14 @@ def build_backgrounds(raw):
         fixed, choose = skills_from(b.get("skillProficiencies"))
         feat = next((e for e in b.get("entries", []) if isinstance(e, dict)
                      and str(e.get("name","")).startswith("Feature:")), None)
-        out.append({"name": b["name"], "skills": fixed, "skillChoose": choose, "prof": prof_block(b),
-                    "feature": {"name": feat["name"].replace("Feature: ","") if feat else "",
-                                "text": entries_to_text(feat.get("entries",[])) if feat else ""},
-                    "equip": bg_equipment(b)})
+        bg = {"name": b["name"], "skills": fixed, "skillChoose": choose, "prof": prof_block(b),
+              "feature": {"name": feat["name"].replace("Feature: ","") if feat else "",
+                          "text": entries_to_text(feat.get("entries",[])) if feat else ""},
+              "equip": bg_equipment(b)}
+        sp, exp = _extract_spells(b)   # Ravnica guild backgrounds grant a guild-spells list via additionalSpells.expanded
+        if sp: bg["spells"] = sp
+        if exp: bg["expanded"] = exp
+        out.append(bg)
     return out
 
 def _collect_spell_names(v, out):
@@ -392,6 +396,25 @@ def _collect_spell_names(v, out):
         for k, val in v.items():
             if k in ("choose", "all"): continue
             _collect_spell_names(val, out)
+
+def _extract_spells(obj):
+    # Parse an entity's additionalSpells into (spells, expanded), mirroring the subclass logic:
+    # prepared/known/innate = always-granted ("#c" marks a cantrip → level 0); expanded = added-to-your-list.
+    _lvl = lambda lv, nm: 0 if "#c" in str(nm).lower() else (int(str(lv).lstrip("sS")) if str(lv).lstrip("sS").isdigit() else 0)
+    spells, expanded, seen = [], [], set()
+    for blk in obj.get("additionalSpells") or []:
+        for grp in ("prepared", "known", "innate"):
+            for lv, val in (blk.get(grp) or {}).items():
+                names = []; _collect_spell_names(val, names)
+                for nm in names:
+                    n = _titlecase(_clean(nm)); spl = _lvl(lv, nm); key = (n.lower(), spl)
+                    if key in seen: continue
+                    seen.add(key); spells.append({"n": n, "l": spl})
+        for lv, val in (blk.get("expanded") or {}).items():
+            names = []; _collect_spell_names(val, names)
+            for nm in names:
+                expanded.append({"n": _titlecase(_clean(nm)), "l": _lvl(lv, nm)})
+    return spells, expanded
 
 def build_classes():
     out = []
