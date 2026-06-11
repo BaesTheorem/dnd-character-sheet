@@ -1793,7 +1793,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v191 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v192 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3353,10 +3353,17 @@
   function characterExpandedSpells(forClass){
     if(!DATA) return [];
     const out = [], seen = new Set(), add = sp => { const k = (sp.n||"").toLowerCase(); if(sp.n && !seen.has(k)){ seen.add(k); out.push({n:sp.n, l:sp.l||0}); } };
-    (charClasses||[]).forEach(w => {                              // a subclass's expanded list belongs to THAT subclass's class
+    (charClasses||[]).forEach(w => {                              // a subclass's spell grants belong to THAT subclass's class
       const c = findBy(DATA.classes, w.name);
       const sub = w.sub && c && (c.subclasses||[]).find(s => s.name === w.sub);
-      if(sub && sub.expanded && sub.expanded.length && (!forClass || forClass === w.name || String(forClass).startsWith(w.name + " (") || `${w.name} (${w.sub})` === forClass)) sub.expanded.forEach(add);
+      if(!sub) return;
+      const mine = !forClass || forClass === w.name || String(forClass).startsWith(w.name + " (") || `${w.name} (${w.sub})` === forClass;
+      if(!mine) return;
+      (sub.expanded||[]).forEach(add);                            // Warlock-patron style "added to your spell list" options
+      // Always-prepared subclass spells (Cleric domain, Paladin oath, Artificer specialist) join the list so they render as
+      // checkable rows. Their stored level is the ACQUISITION level, so resolve the real spell level from the spell data and
+      // only include the ones you've reached.
+      (sub.spells||[]).forEach(sp => { if((sp.l||0) > 0 && (w.level == null || w.level >= sp.l)){ const d = spellData(sp.n); add({n:sp.n, l:(d && typeof d.level === "number") ? d.level : 1}); } });
     });
     const bg = findBy(DATA.backgrounds, (($("background")||{}).value)||"");   // background / subrace "added to your spell list" → any class you can cast with
     if(bg && bg.expanded) bg.expanded.forEach(add);
@@ -3409,7 +3416,8 @@
     if(cls === "Warlock") byLvl = lvl>=9?5:lvl>=7?4:lvl>=5?3:lvl>=3?2:1;
     else if(THIRD_CASTERS.includes(cls)) byLvl = lvl>=19?4:lvl>=13?3:lvl>=7?2:lvl>=3?1:0;                    // one-third casters
     else if(["Bard","Cleric","Druid","Sorcerer","Wizard"].includes(cls)) byLvl = Math.ceil(lvl/2);          // full casters
-    else if(["Paladin","Ranger","Artificer"].includes(cls)) byLvl = lvl<2 ? 0 : Math.floor(lvl/4)+1;        // half casters
+    else if(cls === "Artificer") byLvl = Math.ceil(lvl/4);                                                  // Artificer: half-caster table but gains 1st-level slots at level 1
+    else if(["Paladin","Ranger"].includes(cls)) byLvl = lvl<2 ? 0 : Math.ceil(lvl/4);                        // half casters (no spells at level 1); ceil(lvl/4) matches the slot table (2nd at 5, 3rd at 9, 4th at 13, 5th at 17)
     else byLvl = 9;
     return Math.min(cap, byLvl, 9);
   }
@@ -5075,6 +5083,8 @@
   const COMP_TEMPLATES = [["","— no template —"],["familiar","Familiar (Find Familiar)"],["chain","Pact of the Chain familiar"],
     ["companion","Animal Companion (Beast Master)"],
     ["primal-land","Primal Companion — Beast of the Land (TCE)"],["primal-sea","Primal Companion — Beast of the Sea (TCE)"],["primal-sky","Primal Companion — Beast of the Sky (TCE)"],
+    ["steel-defender","Steel Defender (Battle Smith, TCE)"],["homunculus","Homunculus Servant (Infuse Item, TCE)"],
+    ["eldritch-cannon-flamethrower","Eldritch Cannon — Flamethrower (Artillerist, TCE)"],["eldritch-cannon-ballista","Eldritch Cannon — Force Ballista (Artillerist, TCE)"],["eldritch-cannon-protector","Eldritch Cannon — Protector (Artillerist, TCE)"],
     ["wildshape","Wild Shape"],["summon","Summon / Polymorph"]];
   // Tasha's Primal Companion (revised Beast Master). A spirit beast whose stats scale with ranger level; no bestiary
   // pick needed. Stat blocks verified against bestiary-tce.json. AC = 13 + PB; attacks use your spell attack modifier;
@@ -5088,6 +5098,22 @@
     "primal-sky":{label:"Sky", speed:"10 ft., fly 60 ft.", str:6,dex:16,con:13,int:8,wis:14,cha:11, hp:l=>4+4*l, atk:"Shred", dmg:"1d4", dflat:3, dtype:"slashing",
       traits:"Flyby. The beast doesn't provoke opportunity attacks when it flies out of an enemy's reach.\n\nPrimal Bond. You can add your proficiency bonus to any ability check or saving throw the beast makes."}
   };
+  // Artificer constructs (Steel Defender / Homunculus Servant) — level-scaled like the Primal Companion. AC/HP/attacks fill
+  // from your artificer level + Intelligence; attacks use your spell attack modifier (PB + Int). Verified vs bestiary-tce.json.
+  // (Eldritch Cannon is handled separately below — it's an object, not a creature, with all ability scores 10.)
+  const ARTIFICER_CONSTRUCTS = {
+    "steel-defender":{label:"Steel Defender", ac:"15 (natural armor)", speed:"40 ft.", str:14,dex:12,con:14,int:4,wis:10,cha:6,
+      immune:"poison", condimmune:"charmed, exhaustion, poisoned", hp:(al,im)=>2+im+5*al,
+      save:pb=>"Dex "+sgn(1+pb)+", Con "+sgn(2+pb), skill:pb=>"Athletics "+sgn(2+pb)+", Perception "+sgn(2*pb),
+      traits:"Vigilant. The defender can't be surprised.",
+      actions:(spellAtk,pb)=>`Force-Empowered Rend. Melee weapon attack: ${sgn(spellAtk)} to hit (your spell attack modifier), reach 5 ft., one target. Hit: 1d8 + ${pb} force damage.\n\nRepair (3/Day). The defender restores 2d8 + ${pb} hit points to itself or to one construct or object within 5 feet of it.\n\nReactions\nDeflect Attack. The defender imposes disadvantage on the attack roll of one creature it can see within 5 feet of it, provided the attack roll is against a creature other than the defender.`},
+    "homunculus":{label:"Homunculus Servant", ac:"13 (natural armor)", speed:"20 ft., fly 30 ft.", str:4,dex:15,con:12,int:10,wis:10,cha:7,
+      immune:"poison", condimmune:"exhaustion, poisoned", hp:(al,im)=>1+im+al,
+      save:pb=>"Dex "+sgn(2+pb), skill:pb=>"Perception "+sgn(2*pb)+", Stealth "+sgn(2+pb),
+      traits:"Evasion. If the homunculus is subjected to an effect that allows a Dexterity saving throw for half damage, it instead takes no damage on a success and only half on a failure.",
+      actions:(spellAtk,pb)=>`Force Strike. Ranged spell attack: ${sgn(spellAtk)} to hit (your spell attack modifier), range 30 ft., one target. Hit: 1d4 + ${pb} force damage.\n\nReactions\nChannel Magic. The homunculus delivers a spell you cast that has a range of touch; it must be within 120 feet of you.`}
+  };
+  function artificerClassLevel(){ const w = (charClasses||[]).find(c => c.name === "Artificer"); return w ? w.level : (charLevel()||0); }
   function rangerClassLevel(){ const w = (charClasses||[]).find(c => c.name === "Ranger"); return w ? w.level : (charLevel()||0); }
   function blankCompanion(){ return {name:"",monster:"",template:"",ac:"",hp:"",curhp:"",speed:"",str:"",dex:"",con:"",int:"",wis:"",cha:"",
     save:"",skill:"",senses:"",languages:"",resist:"",immune:"",vuln:"",condimmune:"",cr:"",pb:"",traits:"",actions:"",notes:"",portrait:null,autoPortrait:false}; }
@@ -5152,6 +5178,26 @@
       c.senses = "darkvision 60 ft., passive Perception 12"; c.pb = sgn(pb);
       c.traits = b.traits;
       c.actions = `${b.atk}. Melee Weapon Attack: ${sgn(spellAtk)} to hit (your spell attack modifier), reach 5 ft., one target. Hit: ${b.dmg} + ${dmgMod} ${b.dtype} damage.${b.atkExtra||""}`;
+    } else if(ARTIFICER_CONSTRUCTS[t]){                  // Steel Defender / Homunculus Servant: a level-scaled construct (no bestiary pick)
+      const b = ARTIFICER_CONSTRUCTS[t], al = artificerClassLevel(), intMod = modOf("int"), spellAtk = pb + intMod, hp = b.hp(al, intMod);
+      c.monster = ""; if(!c.name) c.name = b.label;     // no bestiary entry → keep monster empty so re-picking the template re-applies cleanly
+      c.ac = b.ac; c.hp = String(hp); c.curhp = String(hp); c.speed = b.speed; c.cr = "";
+      ["str","dex","con","int","wis","cha"].forEach(a => c[a] = String(b[a]));
+      c.save = b.save(pb); c.skill = b.skill(pb); c.senses = "darkvision 60 ft., passive Perception " + (10 + 2*pb);
+      c.immune = b.immune; c.condimmune = b.condimmune; c.pb = sgn(pb);
+      c.traits = b.traits; c.actions = b.actions(spellAtk, pb, intMod);
+    } else if(t && t.indexOf("eldritch-cannon") === 0){  // Artillerist's Eldritch Cannon: a magical OBJECT (all ability scores 10), three types
+      const al = artificerClassLevel(), intMod = modOf("int"), saveDC = 8 + pb + intMod, spellAtk = pb + intMod, hp = 5 * al;
+      c.monster = ""; if(!c.name) c.name = "Eldritch Cannon";
+      c.ac = "18"; c.hp = String(hp); c.curhp = String(hp); c.speed = "15 ft. (only if it has legs)"; c.cr = "";
+      ["str","dex","con","int","wis","cha"].forEach(a => c[a] = "10");
+      c.save = ""; c.skill = ""; c.senses = ""; c.pb = sgn(pb);
+      c.immune = "poison, psychic"; c.condimmune = "all conditions";
+      c.traits = "Magical Object. AC 18; hit points equal to five times your artificer level. Immune to poison and psychic damage and to all conditions; all of its ability scores are 10. If mending is cast on it, it regains 2d6 hit points. It disappears at 0 HP or after 1 hour, and you can dismiss it as an action. As a bonus action while within 60 ft. you activate it (and can direct it to move up to 15 ft. if it has legs). One cannon at a time.";
+      const variant = t.slice("eldritch-cannon-".length);
+      if(variant === "flamethrower") c.actions = `Flamethrower (activated with a bonus action). The cannon exhales fire in an adjacent 15-foot cone. Each creature in that area makes a Dexterity saving throw (DC ${saveDC}, your spell save DC), taking 2d8 fire damage on a failed save or half as much on a success. Flammable objects in the area that aren't being worn or carried start burning.`;
+      else if(variant === "ballista") c.actions = `Force Ballista (activated with a bonus action). Make a ranged spell attack, ${sgn(spellAtk)} to hit (your spell attack modifier), range 120 ft., at one creature or object. Hit: 2d8 force damage, and if the target is a creature it is pushed up to 5 feet away from the cannon.`;
+      else c.actions = `Protector (activated with a bonus action). The cannon emits positive energy, granting you and each creature of your choice within 10 feet of it 1d8 + ${intMod} (your Intelligence modifier) temporary hit points.`;
     } else if(t === "wildshape"){                        // keep your mental stats + proficiency bonus
       ["int","wis","cha"].forEach(a => { const v = finalScore(a); if(v != null) c[a] = String(v); });
       if(lvl != null) c.pb = sgn(pb);
@@ -5202,6 +5248,11 @@
     "primal-land":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level (AC/HP/PB and its Maul attack fill automatically; attacks use your spell attack modifier). It takes the Dodge action unless you use a bonus action to command another action; it acts on your initiative. At 0 HP it isn't destroyed unless you let it die — revive it with an action + a spell slot, or resummon after a long rest.",
     "primal-sea":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level (AC/HP/PB and its Binding Strike attack fill automatically; attacks use your spell attack modifier). It takes the Dodge action unless you use a bonus action to command another action; it acts on your initiative. At 0 HP it isn't destroyed unless you let it die — revive it with an action + a spell slot, or resummon after a long rest.",
     "primal-sky":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level (AC/HP/PB and its Shred attack fill automatically; attacks use your spell attack modifier). It takes the Dodge action unless you use a bonus action to command another action; it acts on your initiative. At 0 HP it isn't destroyed unless you let it die — revive it with an action + a spell slot, or resummon after a long rest.",
+    "steel-defender":"Steel Defender (Battle Smith, TCE): a construct whose AC, HP, saves, skills, and attack scale with your artificer level and Intelligence (filled automatically; its Force-Empowered Rend uses your spell attack modifier). It obeys your commands and acts on your initiative. If it drops to 0 HP, revive it with the mending spell (1 minute) or rebuild it over a long rest.",
+    homunculus:"Homunculus Servant (Infuse Item infusion, TCE): a tiny construct whose HP scales with your artificer level and Intelligence (its Force Strike uses your spell attack modifier). It acts on your initiative and can deliver your touch spells via Channel Magic. You can have one at a time.",
+    "eldritch-cannon-flamethrower":"Eldritch Cannon — Flamethrower (Artillerist, TCE): a magical object, AC 18, HP = 5 × your artificer level (ability scores all 10). Create it with an action; activate with a bonus action. The Dexterity save DC equals your spell save DC. Lasts 1 hour; only one cannon at a time.",
+    "eldritch-cannon-ballista":"Eldritch Cannon — Force Ballista (Artillerist, TCE): a magical object, AC 18, HP = 5 × your artificer level (ability scores all 10). Activate with a bonus action; its ranged attack uses your spell attack modifier. Lasts 1 hour; only one cannon at a time.",
+    "eldritch-cannon-protector":"Eldritch Cannon — Protector (Artillerist, TCE): a magical object, AC 18, HP = 5 × your artificer level (ability scores all 10). Activate with a bonus action to grant nearby allies temporary HP (1d8 + your Intelligence modifier). Lasts 1 hour; only one cannon at a time.",
     wildshape:"Wild Shape: you keep your Int/Wis/Cha, personality, alignment, and proficiency bonus; use the beast's physical stats, AC, HP, and speed. Limited/no spellcasting; you revert at 0 HP.",
     summon:"Summoned/conjured creature or polymorph form — track its duration and your control per the spell."
   };
@@ -6494,6 +6545,7 @@
     if(genMode === "pointbuy") ABILITIES.forEach(([k])=>{ if(baseVals[k]==null||baseVals[k]<8||baseVals[k]>15) baseVals[k]=8; });   // genMode/scores were set in the wizard's Ability Scores step
     charClasses = list.map(w => ({name:w.name, level:w.level, sub:w.sub||"", subOpts:Object.assign({}, w.subOpts||{}),
       fightingStyles:(w.fightingStyles||[]).slice(), classChoices:Object.assign({}, w.classChoices||{})}));   // persist the build → drives the main-sheet decisions flag + Edit Character
+    if($("spellclass").value) renderSpellStyle(false, 0);   // re-render now that charClasses is set, so subclass always-prepared spells (domain/oath/Artificer specialist) surface as rows via characterExpandedSpells
     applyTceClassFeatures();   // Tasha's optional class features (reminders / replacements) for the enabled rules — before the genFeatures diff so they're tracked
     if(hpRolls.length || hpMode !== "manual") regenHp(hpMode, list);   // size HP records to the final build
     ensureUnarmedStrike();   // every character can punch — auto Unarmed Strike as the first attack
