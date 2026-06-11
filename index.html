@@ -313,8 +313,9 @@
   .cm-port img{width:100%; height:100%; object-fit:contain; display:block}  /* fit whole image, no crop */
   .cm-port .cm-init{font-size:34px; font-weight:700; color:var(--accent)}
   .cm-meta{padding:8px 10px; flex:1; min-width:0; cursor:pointer}
-  .cm-name{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cm-name{font-weight:700; font-size:14px; overflow-wrap:anywhere}  /* always show the full name, wrap if long */
   .cm-sub{color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cm-camp{color:var(--accent); font-size:11px; margin-top:2px; overflow-wrap:anywhere}
   .cm-when{color:var(--muted); font-size:11px; margin-top:2px}
   .cm-badge{position:absolute; top:6px; left:6px; background:var(--accent); color:#fff; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px}
   .cm-acts{display:flex; border-top:1px solid var(--line)}
@@ -1733,7 +1734,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v172 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v173 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -4212,8 +4213,9 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 1000);
   }
-  function versionedFileName(){   // "Character Sheet v170 (2026-06-11).html" — stamps the app version so saved/updated backups are identifiable
-    return "Character Sheet " + APP_VERSION + ".html";
+  function versionedFileName(){   // "Character Sheet v172.html" — stamps just the app version (no date) so saved/updated backups are identifiable
+    const ver = APP_VERSION.split(" ")[0];   // "v172 (2026-06-11)" -> "v172"
+    return "Character Sheet " + ver + ".html";
   }
   function charLabel(){
     const n = ($("charname").value || "character").trim();
@@ -6560,12 +6562,12 @@
       let d = null; try{ d = JSON.parse(localStorage.getItem(k)); }catch(e){}
       if(!d || typeof d !== "object") continue;
       const slot = (k === BASE_KEY) ? "" : k.slice((BASE_KEY + "::").length);
-      out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), savedAt:+d.savedAt||0 });
+      out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), campaign:(d.campaign||"").trim(), savedAt:+d.savedAt||0 });
       seen.add(slot);
     }
     if(!seen.has(SLOT)){   // the character we're viewing may not be saved yet — show it live so it's never invisible
       out.push({ key:KEY, slot:SLOT, name:($("charname").value||"").trim(),
-                 sub:($("classlevel").value||$("race").value||"").trim(), savedAt:Date.now(), unsaved:true });
+                 sub:($("classlevel").value||$("race").value||"").trim(), campaign:($("campaign").value||"").trim(), savedAt:Date.now(), unsaved:true });
     }
     out.sort((a,b)=> (b.savedAt||0) - (a.savedAt||0));   // most-recently-edited first
     return out;
@@ -6698,6 +6700,7 @@
         `<div class="cm-port"></div>` +
         `<div class="cm-meta"><div class="cm-name">${esc(c.name||"Unnamed character")}</div>` +
           `<div class="cm-sub">${esc(c.sub||"No class set")}</div>` +
+          (c.campaign ? `<div class="cm-camp">⚔ ${esc(c.campaign)}</div>` : ``) +
           `<div class="cm-when">${c.unsaved ? "unsaved" : "edited " + esc(relTime(c.savedAt))}</div></div>` +
         `<div class="cm-acts">` +
           `<button type="button" class="cm-open">Open</button>` +
