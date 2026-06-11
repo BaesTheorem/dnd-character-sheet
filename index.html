@@ -4315,7 +4315,8 @@
   function applyPicksToSheet(inst, plan, picks, prev){   // write one caster's picks to a spell sheet (idempotent; removes its prior writes)
     const ce = spellEntriesOf(inst), prepared = preparedOf(inst); prev = prev || {cantrips:[], rows:[], prepared:[]};
     if((prev.cantrips||[]).length && ce[0]) ce[0].forEach(r => { if(prev.cantrips.includes(r.name)) r.name = ""; });
-    (prev.rows||[]).forEach(p => { const a = ce[p.l]; if(a){ const i = a.findIndex(r => (r.name||"") === p.name); if(i>=0) a[i].name = ""; } });
+    const touched = new Set();   // leveled sections we rewrite — pruned of leftover blanks at the end so a swapped-out spell never leaves an orphan row
+    (prev.rows||[]).forEach(p => { const a = ce[p.l]; if(a){ const i = a.findIndex(r => (r.name||"") === p.name); if(i>=0){ a[i].name = ""; touched.add(p.l); } } });
     (prev.prepared||[]).forEach(n => { delete prepared[n]; });
     const lvlOf = {}; ((DATA.classSpells && DATA.classSpells[plan.listFrom])||[]).forEach(sp => { lvlOf[(sp.n||"").toLowerCase()] = sp.l; });
     const rec = {cantrips:[], rows:[], prepared:[]};
@@ -4323,8 +4324,10 @@
     (picks.spells||[]).forEach(n => {
       if(plan.mode === "prepare"){ prepared[n] = true; rec.prepared.push(n); }
       else { const l = lvlOf[n.toLowerCase()] || 1, a = (ce[l] = ce[l] || []);
-        if(!a.some(r => (r.name||"").toLowerCase() === n.toLowerCase())) a.push({name:n, prep:false}); rec.rows.push({l, name:n}); }
+        if(!a.some(r => (r.name||"").toLowerCase() === n.toLowerCase())){ let slot = a.find(r => !(r.name||"").trim()); if(!slot){ slot = {name:"", prep:false}; a.push(slot); } slot.name = n; }   // reuse a row we just cleared instead of stacking a fresh blank beneath it
+        touched.add(l); rec.rows.push({l, name:n}); }
     });
+    touched.forEach(l => { if(ce[l]) ce[l] = ce[l].filter(r => (r.name||"").trim()); });   // drop blanks left where a removed/replaced spell used to sit (matches the create-time blank strip)
     return rec;
   }
   function applyWizSpells(){   // write each caster's picks: primary → Spells sheet 0, each secondary → its own (auto-created) spell sheet
