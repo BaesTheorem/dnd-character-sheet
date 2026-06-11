@@ -404,8 +404,13 @@
   .intro-skip{background:none; border:none; color:var(--muted); cursor:pointer; font:inherit;
     padding:8px 2px; text-decoration:underline}
   .intro-skip:hover{color:var(--ink)}
-  html.mobile .intro-overlay{padding:0; align-items:stretch}
-  html.mobile .intro-card{max-width:none; border:none; padding:22px 18px}
+  /* flex-start + min-height (not align-items:stretch): stretch pins the card to the
+     viewport height, so when the intro is taller than the screen its content spills
+     OUT of the white card and reads against the dim sheet behind. min-height fills a
+     short screen but lets the card grow to contain (and back) all its text when scrolled. */
+  html.mobile .intro-overlay{padding:0; align-items:flex-start}
+  html.mobile .intro-card{max-width:none; border:none; padding:22px 18px;
+    min-height:100%; padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
   @media print{ .intro-overlay{display:none} }
   /* Multiclass class builder (step 2) */
   .wiz-build{display:grid; grid-template-columns:170px 1fr; gap:12px; align-items:start}
@@ -1747,7 +1752,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v177 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v178 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
