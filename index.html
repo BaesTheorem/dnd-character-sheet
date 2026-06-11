@@ -329,6 +329,7 @@
   .cm-warn strong{color:#6f5300}
   /* Import-characters picker: checkbox list of every character found in a saved file */
   #charimport .modal-panel{max-width:560px}
+  #charimport{z-index:60}   /* import is launched from Settings; all modals share z-index:50, so without this it stacks BEHIND the later-in-DOM #settings. Float it above. */
   .imp-top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
   .imp-top .imp-count{color:var(--muted); font-size:12px}
   .imp-bulk{display:flex; gap:4px}
@@ -1775,7 +1776,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v180 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v181 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
