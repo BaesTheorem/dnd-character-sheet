@@ -1734,7 +1734,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v174 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v175 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -4830,15 +4830,16 @@
     ["primal-land","Primal Companion — Beast of the Land (TCE)"],["primal-sea","Primal Companion — Beast of the Sea (TCE)"],["primal-sky","Primal Companion — Beast of the Sky (TCE)"],
     ["wildshape","Wild Shape"],["summon","Summon / Polymorph"]];
   // Tasha's Primal Companion (revised Beast Master). A spirit beast whose stats scale with ranger level; no bestiary
-  // pick needed. AC = 13 + PB; it adds PB to damage and to checks/saves it's proficient in; attacks use your spell
-  // attack modifier. Damage flat = the beast's better physical modifier + PB.
+  // pick needed. Stat blocks verified against bestiary-tce.json. AC = 13 + PB; attacks use your spell attack modifier;
+  // damage = die + the beast's listed flat (+2 Land/Sea, +3 Sky) + PB. Primal Bond adds PB to its checks/saves.
   const PRIMAL_BEASTS = {
-    "primal-land":{label:"Land", speed:"40 ft., climb 40 ft.", str:14,dex:14,con:15,int:8,wis:14,cha:11, hp:l=>5+5*l, atk:"Maul", dmg:"1d8", dtype:"slashing",
-      extra:"Charge. If the beast moves at least 20 ft. straight toward a target and then hits it with a Maul attack on the same turn, the target takes an extra 1d6 damage, and the beast can knock it prone (Strength save, DC = 8 + your proficiency bonus + the beast's Strength modifier)."},
-    "primal-sea":{label:"Sea", speed:"5 ft., swim 60 ft.", str:14,dex:14,con:15,int:8,wis:14,cha:11, hp:l=>5+5*l, atk:"Binding Strike", dmg:"1d6", dtype:"piercing",
-      extra:"Amphibious. The beast can breathe air and water. On a hit the target is grappled (escape DC = 8 + your proficiency bonus + the beast's Strength modifier); the beast can't make a Binding Strike while grappling."},
-    "primal-sky":{label:"Sky", speed:"10 ft., fly 60 ft.", str:6,dex:16,con:13,int:8,wis:14,cha:11, hp:l=>4+l, atk:"Gore", dmg:"1d4", dtype:"piercing",
-      extra:"Flyby. The beast doesn't provoke opportunity attacks when it flies out of an enemy's reach."}
+    "primal-land":{label:"Land", speed:"40 ft., climb 40 ft.", str:14,dex:14,con:15,int:8,wis:14,cha:11, hp:l=>5+5*l, atk:"Maul", dmg:"1d8", dflat:2, dtype:"slashing",
+      traits:"Charge. If the beast moves at least 20 ft. straight toward a target and then hits it with a Maul attack on the same turn, the target takes an extra 1d6 slashing damage; if the target is a creature it must succeed on a Strength saving throw against your spell save DC or be knocked prone.\n\nPrimal Bond. You can add your proficiency bonus to any ability check or saving throw the beast makes."},
+    "primal-sea":{label:"Sea", speed:"5 ft., swim 60 ft.", str:14,dex:14,con:15,int:8,wis:14,cha:11, hp:l=>5+5*l, atk:"Binding Strike", dmg:"1d6", dflat:2, dtype:"piercing or bludgeoning (your choice)",
+      atkExtra:" On a hit the target is grappled (escape DC equals your spell save DC); until the grapple ends the beast can't use this attack on another target.",
+      traits:"Amphibious. The beast can breathe both air and water.\n\nPrimal Bond. You can add your proficiency bonus to any ability check or saving throw the beast makes."},
+    "primal-sky":{label:"Sky", speed:"10 ft., fly 60 ft.", str:6,dex:16,con:13,int:8,wis:14,cha:11, hp:l=>4+4*l, atk:"Shred", dmg:"1d4", dflat:3, dtype:"slashing",
+      traits:"Flyby. The beast doesn't provoke opportunity attacks when it flies out of an enemy's reach.\n\nPrimal Bond. You can add your proficiency bonus to any ability check or saving throw the beast makes."}
   };
   function rangerClassLevel(){ const w = (charClasses||[]).find(c => c.name === "Ranger"); return w ? w.level : (charLevel()||0); }
   function blankCompanion(){ return {name:"",monster:"",template:"",ac:"",hp:"",curhp:"",speed:"",str:"",dex:"",con:"",int:"",wis:"",cha:"",
@@ -4897,13 +4898,13 @@
       if(lvl != null) c.pb = sgn(pb);
     } else if(PRIMAL_BEASTS[t]){                         // Tasha's Primal Companion: a level-scaled spirit beast (no bestiary pick)
       const b = PRIMAL_BEASTS[t], rl = rangerClassLevel(), spellAtk = pb + modOf("wis");
-      const dmgMod = 2 + pb, hp = b.hp(rl);   // Tasha's Primal Companion attacks deal their die + 2 + your proficiency bonus
+      const dmgMod = b.dflat + pb, hp = b.hp(rl);   // damage = die + listed flat (+2 Land/Sea, +3 Sky) + your proficiency bonus
       c.monster = ""; if(!c.name) c.name = "Beast of the " + b.label;   // no bestiary entry → keep monster empty so switching Beast types re-applies cleanly
       c.ac = String(13 + pb); c.hp = String(hp); c.curhp = String(hp); c.speed = b.speed; c.cr = "";
       ["str","dex","con","int","wis","cha"].forEach(a => c[a] = String(b[a]));
-      c.senses = "darkvision 60 ft., passive Perception 13"; c.pb = sgn(pb);
-      c.traits = "The beast obeys your commands and acts on your turn (you can use a bonus action to command it; otherwise it takes the Dodge action). It adds your proficiency bonus to its AC, attack rolls, damage, saves, and any skill it's proficient in. If it drops to 0 HP it isn't destroyed unless you let it die; you can resummon it with an action and a spell slot, or after a long rest.";
-      c.actions = `${b.atk}. Melee Weapon Attack: ${sgn(spellAtk)} to hit (your spell attack modifier), reach 5 ft., one target. Hit: ${b.dmg} + ${dmgMod} ${b.dtype} damage.\n\n${b.extra}`;
+      c.senses = "darkvision 60 ft., passive Perception 12"; c.pb = sgn(pb);
+      c.traits = b.traits;
+      c.actions = `${b.atk}. Melee Weapon Attack: ${sgn(spellAtk)} to hit (your spell attack modifier), reach 5 ft., one target. Hit: ${b.dmg} + ${dmgMod} ${b.dtype} damage.${b.atkExtra||""}`;
     } else if(t === "wildshape"){                        // keep your mental stats + proficiency bonus
       ["int","wis","cha"].forEach(a => { const v = finalScore(a); if(v != null) c[a] = String(v); });
       if(lvl != null) c.pb = sgn(pb);
@@ -4951,9 +4952,9 @@
     familiar:"Familiar: acts on its own initiative, obeys you, and can't attack. Telepathic link and shared senses within 100 ft. Forms: bat, cat, crab, frog, hawk, lizard, octopus, owl, poisonous snake, fish (quipper), rat, raven, sea horse, spider, or weasel.",
     chain:"Pact of the Chain: the familiar may also be an imp, pseudodragon, quasit, or sprite, and it can make one attack of its own when you forgo one of your attacks.",
     companion:"Beast Master companion: AC and HP have been adjusted for your level — also add your proficiency bonus to its attack rolls, damage, saving throws, and proficient skills. It acts on your initiative.",
-    "primal-land":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level. AC, HP, proficiency bonus, and its Maul attack are filled automatically; attacks use your spell attack modifier. You command it with a bonus action.",
-    "primal-sea":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level. AC, HP, proficiency bonus, and its Binding Strike attack are filled automatically; attacks use your spell attack modifier. You command it with a bonus action.",
-    "primal-sky":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level. AC, HP, proficiency bonus, and its Gore attack are filled automatically; attacks use your spell attack modifier. You command it with a bonus action.",
+    "primal-land":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level (AC/HP/PB and its Maul attack fill automatically; attacks use your spell attack modifier). It takes the Dodge action unless you use a bonus action to command another action; it acts on your initiative. At 0 HP it isn't destroyed unless you let it die — revive it with an action + a spell slot, or resummon after a long rest.",
+    "primal-sea":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level (AC/HP/PB and its Binding Strike attack fill automatically; attacks use your spell attack modifier). It takes the Dodge action unless you use a bonus action to command another action; it acts on your initiative. At 0 HP it isn't destroyed unless you let it die — revive it with an action + a spell slot, or resummon after a long rest.",
+    "primal-sky":"Primal Companion (TCE): a spirit beast whose stats scale with your ranger level (AC/HP/PB and its Shred attack fill automatically; attacks use your spell attack modifier). It takes the Dodge action unless you use a bonus action to command another action; it acts on your initiative. At 0 HP it isn't destroyed unless you let it die — revive it with an action + a spell slot, or resummon after a long rest.",
     wildshape:"Wild Shape: you keep your Int/Wis/Cha, personality, alignment, and proficiency bonus; use the beast's physical stats, AC, HP, and speed. Limited/no spellcasting; you revert at 0 HP.",
     summon:"Summoned/conjured creature or polymorph form — track its duration and your control per the spell."
   };
@@ -5879,11 +5880,12 @@
     "Superior Technique":{desc:"You learn one Battle Master maneuver and gain one superiority die (d6), regained on a short or long rest (TCE)."},
     "Thrown Weapon Fighting":{desc:"You can draw a thrown weapon as part of the attack, and gain +2 to damage rolls with thrown weapons (TCE)."},
     "Unarmed Fighting":{desc:"Your unarmed strikes deal 1d6 bludgeoning (1d8 with no weapon or shield in either hand); deal 1d4 to a creature you've grappled (TCE)."},
-    "Druidic Warrior":{desc:"You learn two druid cantrips of your choice; Wisdom is your spellcasting ability for them, and they don't count against your cantrips known (TCE)."}
+    "Druidic Warrior":{desc:"You learn two cantrips of your choice from the druid spell list; they count as ranger spells and Wisdom is your spellcasting ability for them (TCE)."},
+    "Blessed Warrior":{desc:"You learn two cantrips of your choice from the cleric spell list; they count as paladin spells and Charisma is your spellcasting ability for them (TCE)."}
   };
-  const FS_BY_CLASS = {   // 2014 PHB styles + the styles each class gained in Tasha's
+  const FS_BY_CLASS = {   // 2014 PHB styles + the styles each class gained in Tasha's; option lists verified against optionalfeatures.json (FS:F / FS:P / FS:R)
     Fighter:["Archery","Defense","Dueling","Great Weapon Fighting","Protection","Two-Weapon Fighting","Blind Fighting","Interception","Superior Technique","Thrown Weapon Fighting","Unarmed Fighting"],
-    Paladin:["Defense","Dueling","Great Weapon Fighting","Protection","Blind Fighting","Interception"],
+    Paladin:["Defense","Dueling","Great Weapon Fighting","Protection","Blind Fighting","Interception","Blessed Warrior"],
     Ranger:["Archery","Defense","Dueling","Two-Weapon Fighting","Blind Fighting","Druidic Warrior","Thrown Weapon Fighting"]
   };
   function fsOptionsFor(cls){ return FS_BY_CLASS[cls] || []; }
