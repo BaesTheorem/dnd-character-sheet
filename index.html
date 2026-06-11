@@ -326,6 +326,24 @@
   .cm-empty{padding:30px 10px; text-align:center; color:var(--muted)}
   .cm-warn{margin-top:12px; padding:10px 12px; border:1px solid #d9a400; background:#fff8e6; color:#6f5300; font-size:12px; line-height:1.55}
   .cm-warn strong{color:#6f5300}
+  /* Import-characters picker: checkbox list of every character found in a saved file */
+  #charimport .modal-panel{max-width:560px}
+  .imp-top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
+  .imp-top .imp-count{color:var(--muted); font-size:12px}
+  .imp-bulk{display:flex; gap:4px}
+  .imp-bulk .btn{font-size:11px; padding:3px 8px}
+  .imp-list{display:flex; flex-direction:column; border:1px solid var(--line2); max-height:50vh; overflow:auto}
+  .imp-row{display:flex; align-items:center; gap:10px; padding:8px 10px; border-bottom:1px solid var(--line); cursor:pointer}
+  .imp-row:last-child{border-bottom:none}
+  .imp-row:hover{background:var(--accent-soft)}
+  .imp-row .imp-cb{flex:none; width:16px; height:16px}
+  .imp-port{flex:none; width:40px; height:40px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; overflow:hidden}
+  .imp-port img{width:100%; height:100%; object-fit:cover; display:block}
+  .imp-port .imp-init{font-size:15px; font-weight:700; color:var(--accent)}
+  .imp-meta{min-width:0; display:flex; flex-direction:column}
+  .imp-name{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .imp-sub{color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .imp-empty{padding:24px 10px; text-align:center; color:var(--muted)}
   /* Settings: left-side section tabs + right-side content */
   .settings-panel{max-width:660px}
   .settings-wrap{display:flex; min-height:320px}
@@ -853,6 +871,7 @@
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
     <button class="btn ghost" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
     <input type="file" id="file-input" accept="application/json,.json" style="display:none">
+    <input type="file" id="import-chars-input" accept=".html,.htm,text/html,application/json,.json" style="display:none">
   </div>
 
   <!-- Floating Save — always reachable in Mobile view (the toolbar scrolls off-screen). Hidden otherwise. -->
@@ -894,6 +913,29 @@
           <span>Each character is its own siloed sheet — separate sources, rules, pages, and portrait.</span>
         </div>
         <div class="cm-warn" id="cm-warn" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import characters: pick a saved Character Sheet file, untick any you don't want, add the rest as new cards -->
+  <div class="modal noprint" id="charimport">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2>Import characters</h2>
+        <button class="btn ghost" id="imp-cancel" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="imp-top">
+          <span class="imp-count" id="imp-count"></span>
+          <span class="imp-bulk"><button class="btn ghost" id="imp-all" type="button">Select all</button><button class="btn ghost" id="imp-none" type="button">Select none</button></span>
+        </div>
+        <div class="imp-list" id="imp-list"></div>
+        <p class="wiz-hint" style="margin-top:12px">Each ticked character is added as a new card here. Nothing already in this browser is replaced, so importing another copy of a character you already have just gives you a second version of it.</p>
+      </div>
+      <div class="modal-foot">
+        <span class="wiz-hint" style="flex:1; margin:0"></span>
+        <button class="btn ghost" id="imp-cancel2" type="button">Cancel</button>
+        <button class="btn primary" id="imp-do" type="button">Import</button>
       </div>
     </div>
   </div>
@@ -1615,6 +1657,9 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
             <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
             <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Import characters</label>
+            <button class="btn" id="btn-import-chars" type="button" title="Load characters from a saved Character Sheet file">Import from a file…</button>
+            <p class="wiz-hint">Pick a “Character Sheet.html” you saved with the <strong>Save</strong> button (or a character <code>.json</code>). You'll see every character in it and can untick any you don't want. Imported characters are added alongside your current ones — nothing is overwritten, so a second copy of a character you already have just becomes another version.</p>
             <div id="update-block">
               <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Update</label>
               <button class="btn" id="btn-update" type="button" title="Fetch the latest version of the sheet from the web">Update to the latest version</button>
@@ -6356,6 +6401,23 @@
     $("cm-close").addEventListener("click", closeCharMgr);
     $("cm-new").addEventListener("click", ()=>{ gotoSlot(newSlotId()); });   // fresh blank character, in place
     $("charmgr").addEventListener("click", e=>{ if(e.target.id === "charmgr") closeCharMgr(); });   // click backdrop to close
+
+    $("btn-import-chars").addEventListener("click", ()=> $("import-chars-input").click());
+    $("import-chars-input").addEventListener("change", ev=>{
+      const f = ev.target.files[0]; ev.target.value = "";   // reset so re-picking the same file fires again
+      if(!f) return;
+      const r = new FileReader();
+      r.onload = ()=> startCharImport(r.result);
+      r.onerror = ()=> alert("Couldn't read that file.");
+      r.readAsText(f);
+    });
+    $("imp-cancel").addEventListener("click", closeCharImport);
+    $("imp-cancel2").addEventListener("click", closeCharImport);
+    $("imp-do").addEventListener("click", doCharImport);
+    $("imp-list").addEventListener("change", e=>{ if(e.target.classList.contains("imp-cb")) updateImportCount(); });
+    $("imp-all").addEventListener("click", ()=>{ document.querySelectorAll(".imp-cb").forEach(cb=> cb.checked = true); updateImportCount(); });
+    $("imp-none").addEventListener("click", ()=>{ document.querySelectorAll(".imp-cb").forEach(cb=> cb.checked = false); updateImportCount(); });
+    $("charimport").addEventListener("click", e=>{ if(e.target.id === "charimport") closeCharImport(); });   // click backdrop to close
     $("btn-showguide").addEventListener("click", ()=>{ $("settings").classList.remove("open"); showIntro(); });   // close Settings, re-run the welcome guide
     $("btn-update").addEventListener("click", updateApp);
 
@@ -6705,6 +6767,120 @@
   }
   function openCharMgr(){ renderCharMgr(); $("charmgr").classList.add("open"); }
   function closeCharMgr(){ $("charmgr").classList.remove("open"); }
+
+  // ===== Import characters from a saved file =====
+  // A saved "Character Sheet.html" embeds the whole library (#embedded-roster) plus, for
+  // older/single-character files, the active character (#embedded-data). We pull every
+  // character we can find, let the user untick the ones they don't want, and add each kept
+  // one as a NEW slot — never overwriting. Slots are keyed by id, not name, so importing two
+  // versions of the same-named character simply yields two cards.
+  let _impCandidates = [];
+  function charLabel(d){ return ((d && d.charname) || "").trim(); }
+  function charSubtitle(d){ return ((d && (d.classlevel || d.race)) || "").trim(); }
+  // Extract character candidates from a saved file's text. Returns {chars:[...], looksLikeBook}.
+  function parseImportText(text){
+    const out = [];
+    let looksLikeBook = false;
+    const pushChar = (data, portrait) => {
+      if(!data || typeof data !== "object" || Array.isArray(data)) return;
+      const d = Object.assign({}, data);
+      const port = portrait || d.portrait || null;   // roster stores the portrait separately; embedded-data inlines it
+      delete d.portrait;
+      out.push({ data:d, portrait:(port && port.data) ? port : null, thumb:null,
+                 name:charLabel(d), sub:charSubtitle(d) });
+    };
+    const fromRoster = (roster) => {
+      if(!roster || !Array.isArray(roster.chars)) return false;
+      const before = out.length;
+      roster.chars.forEach(ch => {
+        if(!ch || !ch.data) return;
+        pushChar(ch.data, ch.portrait);
+        if(out.length > before) out[out.length-1].thumb = ch.thumb || null;
+      });
+      return out.length > before;
+    };
+    const trimmed = (text || "").replace(/^﻿/, "").trim();
+    if(/^[\[{]/.test(trimmed)){            // a raw .json file: a roster, a single character, or sourcebook data
+      let j = null; try{ j = JSON.parse(trimmed); }catch(e){}
+      if(j){
+        if(Array.isArray(j.races) && Array.isArray(j.classes) && Array.isArray(j.spells)) looksLikeBook = true;
+        else if(!fromRoster(j)) pushChar(j, j.portrait);
+      }
+    } else {                               // an HTML file saved by this app: read its embedded JSON islands
+      let doc = null; try{ doc = new DOMParser().parseFromString(text, "text/html"); }catch(e){}
+      if(doc){
+        let roster = null; const rEl = doc.getElementById("embedded-roster");
+        if(rEl){ try{ roster = JSON.parse(rEl.textContent || "null"); }catch(e){} }
+        if(!fromRoster(roster)){
+          const dEl = doc.getElementById("embedded-data");
+          let one = null; if(dEl){ try{ one = JSON.parse(dEl.textContent || "null"); }catch(e){} }
+          if(one) pushChar(one, one.portrait);
+        }
+      }
+    }
+    return { chars:out, looksLikeBook };
+  }
+  function startCharImport(text){
+    const res = parseImportText(text);
+    if(!res.chars.length){
+      alert(res.looksLikeBook
+        ? "That's a sourcebook data file, not characters.\nTo load sourcebooks, use Settings → Advanced → Import file."
+        : "Couldn't find any characters in that file.\nPick a “Character Sheet.html” you saved with the Save button (or a character .json).");
+      return;
+    }
+    _impCandidates = res.chars;
+    renderImport();
+    $("charimport").classList.add("open");
+  }
+  function renderImport(){
+    const list = $("imp-list"); if(!list) return;
+    list.innerHTML = "";
+    _impCandidates.forEach((c, i) => {
+      const row = document.createElement("label");
+      row.className = "imp-row";
+      const init = (c.name||"").replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "⬢";
+      row.innerHTML =
+        `<input type="checkbox" class="imp-cb" data-i="${i}" checked>` +
+        `<span class="imp-port"><span class="imp-init">${esc(init)}</span></span>` +
+        `<span class="imp-meta"><span class="imp-name">${esc(c.name||"Unnamed character")}</span>` +
+          `<span class="imp-sub">${esc(c.sub||"No class set")}</span></span>`;
+      const src = c.thumb || (c.portrait && c.portrait.data);
+      if(src){ const portEl = row.querySelector(".imp-port"); const im = document.createElement("img"); im.alt = ""; portEl.innerHTML = ""; portEl.appendChild(im); im.src = src; }   // set src after attach — never inject a data URL into innerHTML
+      list.appendChild(row);
+    });
+    updateImportCount();
+  }
+  function updateImportCount(){
+    const n = [...document.querySelectorAll(".imp-cb")].filter(cb => cb.checked).length, total = _impCandidates.length;
+    $("imp-count").textContent = n + " of " + total + " selected";
+    const go = $("imp-do");
+    go.disabled = n === 0;
+    go.textContent = n ? ("Import " + n + " character" + (n===1?"":"s")) : "Import";
+  }
+  async function doCharImport(){
+    const picked = [...document.querySelectorAll(".imp-cb")].filter(cb => cb.checked).map(cb => _impCandidates[+cb.dataset.i]).filter(Boolean);
+    if(!picked.length) return;
+    let added = 0, failed = 0;
+    for(const c of picked){
+      const nk = BASE_KEY + "::" + newSlotId();   // always a fresh slot → same-name versions coexist, nothing is overwritten
+      const d = Object.assign({}, c.data); d.savedAt = Date.now();
+      try{ localStorage.setItem(nk, JSON.stringify(d)); }
+      catch(e){ failed++; continue; }
+      let thumb = c.thumb;
+      if(c.portrait && c.portrait.data){
+        idbPortraitPut(nk, c.portrait).catch(()=>{});
+        if(!thumb){ try{ thumb = await makeThumb(c.portrait.data, THUMB_MAX); }catch(e){} }
+      }
+      if(thumb){ try{ localStorage.setItem(nk + "_thumb", thumb); }catch(e){} }
+      added++;
+    }
+    closeCharImport();
+    if($("charmgr").classList.contains("open")) renderCharMgr();
+    let msg = "Imported " + added + " character" + (added===1?"":"s") + ".";
+    if(failed) msg += " " + failed + " couldn't fit in this browser's storage.";
+    flashStatus(msg);
+  }
+  function closeCharImport(){ $("charimport").classList.remove("open"); _impCandidates = []; }
 
   document.addEventListener("DOMContentLoaded", init);
   </script>
