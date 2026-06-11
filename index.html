@@ -778,6 +778,28 @@
     #page-spells .spell-list, .spell-extra .spell-list{break-inside:auto}     /* let the spell list flow onto extra sheets */
     .spelltable tr{break-inside:avoid}              /* don't split a spell row across pages */
     .spelltable .sp-section td{break-after:avoid}   /* keep a level header with its first rows */
+
+    /* ---- iOS Safari print fixes ----
+       Two iOS-only WebKit behaviours clip this sheet when printing / saving to PDF:
+       (1) iOS ignores @page{margin} and applies a larger inset, so the Letter-tuned
+           page heights below overflow its shorter printable area and the BOTTOM is cut.
+       (2) iOS does NOT paginate flex/grid print containers — content past the first
+           page is clipped instead of flowing to the next sheet (whole pages lost).
+       Gate: @supports(-webkit-touch-callout) matches iOS WebKit ONLY (not macOS
+       Safari/Chrome), so desktop print — which is tuned and verified — is untouched.
+       Fix: drop the page-level flex/grid to plain block flow so long pages break
+       naturally, remove the mm height floors so nothing is forced taller than a page,
+       and shrink a few % so the one-page sheets still fit iOS's smaller printable box. */
+    @supports (-webkit-touch-callout: none){
+      .sheet{ zoom:0.94; }   /* counter iOS's un-removable extra margin so a full page fits */
+      #page-core, #page-inv, #page-bg, #page-feat, #feat-cards,
+      #page-spells, .page.spell-extra, #page-companion,
+      .page[data-page^="overflow-"]{
+        display:block !important; min-height:0 !important;   /* block flow paginates; flex/grid clips on iOS */
+      }
+      .feat-blank{ min-height:0 !important; }                /* don't force a >1-page write-in box (iOS would clip it) */
+      #page-story .ta-print, #page-notes .ta-print{ min-height:180mm !important; }   /* big enough to write in, short enough not to overflow iOS's page */
+    }
   }
 
   /* ============================================================
@@ -1752,7 +1774,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v178 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v179 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
