@@ -267,6 +267,7 @@
   .ov::after{content:""; position:absolute; top:1px; right:1px; width:4px; height:4px; background:var(--accent)}
   input.ov{outline:1px dashed var(--accent); outline-offset:-2px; background:rgba(0,0,0,.03)}
   .ovf[contenteditable="true"]{outline:1px solid var(--accent); outline-offset:-2px; cursor:text}
+  .ovf:not([contenteditable="true"]){-webkit-user-select:none; user-select:none; -webkit-touch-callout:none}   /* touch long-press = edit, not the iOS text-selection magnifier */
   @media print{ .ov{outline:none} .ov::after{display:none} input.ov{outline:none; background:none} }
   .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
   .deathsaves{display:flex; align-items:center; gap:16px; margin-top:12px}
@@ -1719,7 +1720,7 @@
             <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Manual overrides</label>
             <button class="btn" id="btn-reset-overrides" type="button" title="Clear every hand-pinned value and return to calculated values">Clear all manual overrides</button>
-            <p class="wiz-hint">Double-click any calculated value on the sheet (ability scores, modifiers, proficiency, AC, initiative, saves, skills, spell DC, attacks, HP…) to pin a custom value. A pinned source value still feeds everything below it. Pinned fields are outlined with a small marker and their tooltip shows the calculated value; Alt-click one to revert. This button clears them all at once.</p>
+            <p class="wiz-hint">Double-click any calculated value on the sheet (ability scores, modifiers, proficiency, AC, initiative, saves, skills, spell DC, attacks, HP…) to pin a custom value. A pinned source value still feeds everything below it. Pinned fields are outlined with a small marker and their tooltip shows the calculated value; Alt-click one to revert. <strong>On a phone or tablet, long-press a field to edit it</strong>, and clear the value to revert it to calculated. This button clears them all at once.</p>
           </section>
           <section class="set-sec" data-sec="pages">
             <label class="lbl" style="display:block; margin-bottom:6px">Visible pages</label>
@@ -1780,7 +1781,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v184 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v185 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -4022,6 +4023,28 @@
     e.preventDefault();
     delete overrides[el.id]; if(el.tagName === "INPUT") el.readOnly = false;
     queueSave(); compute(); flashStatus("Reverted to the calculated value.");
+  }
+  // Touch has no double-click and no Alt key, so on touch/pen a long-press opens the same inline editor.
+  // (To revert on touch: long-press the pinned field, clear it, and commit — an empty value reverts to calculated.)
+  let _lpTimer = null, _lpEl = null, _lpReady = false, _lpX = 0, _lpY = 0;
+  function clearLongPress(){ if(_lpTimer){ clearTimeout(_lpTimer); _lpTimer = null; } _lpEl = null; _lpReady = false; }
+  function onOvPointerDown(e){
+    if(e.pointerType === "mouse") return;                                       // mouse keeps double-click / Alt-click
+    const el = e.target.closest(".ovf"); if(!el || !el.id || !overrideIds().includes(el.id)) return;
+    _lpEl = el; _lpReady = false; _lpX = e.clientX; _lpY = e.clientY;
+    clearTimeout(_lpTimer);
+    _lpTimer = setTimeout(() => { _lpTimer = null; if(_lpEl === el){ _lpReady = true; if(navigator.vibrate){ try{ navigator.vibrate(10); }catch(_){} } } }, 450);   // mark ready + buzz; the edit itself fires on pointerup
+  }
+  function onOvPointerMove(e){ if(_lpEl && (Math.abs(e.clientX - _lpX) > 10 || Math.abs(e.clientY - _lpY) > 10)) clearLongPress(); }   // moved → it's a scroll, not a long-press
+  function onOvPointerUp(e){
+    const el = _lpEl, ready = _lpReady;
+    if(_lpTimer){ clearTimeout(_lpTimer); _lpTimer = null; }
+    _lpEl = null; _lpReady = false;
+    if(!ready || !el) return;                                                    // released too early or scrolled → normal tap
+    e.preventDefault();                                                          // open the editor inside this pointerup gesture, so iOS shows the keyboard (a focus() from the timer wouldn't)
+    const wasPinned = hasOv(el.id);
+    beginOverride(el);
+    flashStatus(wasPinned ? "Editing a pinned value — clear it to revert to calculated." : "Pinning a manual value.");
   }
   function resetAllOverrides(){
     if(!Object.keys(overrides).length){ flashStatus("No manual overrides to clear."); return; }
@@ -6497,6 +6520,10 @@
     document.addEventListener("change", onChange);
     document.addEventListener("dblclick", onOvDblclick);   // double-click any computed value to pin it by hand
     document.addEventListener("click", onOvClick);         // Alt-click a pinned value to revert it
+    document.addEventListener("pointerdown", onOvPointerDown);   // touch/pen: long-press to pin (mouse keeps double-click)
+    document.addEventListener("pointermove", onOvPointerMove);
+    document.addEventListener("pointerup", onOvPointerUp);
+    document.addEventListener("pointercancel", clearLongPress);
     window.addEventListener("pagehide", flushSave);   // flush any debounced autosave before the tab is hidden/closed
     document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidden") flushSave(); });
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing

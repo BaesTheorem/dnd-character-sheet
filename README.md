@@ -128,8 +128,10 @@ prepared count, attack rows, Max HP, hit dice, speed, carrying capacity), type a
 so drift stays visible. **Override-as-source:** pinning a *source* value cascades — pin an ability
 score and its modifier, saves, skills, AC and attacks all recompute from it; pin the proficiency bonus
 and everything that uses it follows. **Alt-click** a pinned field to revert it to calculated, or use
-**Settings → Manual overrides → Clear all manual overrides** to drop them all. Overrides are saved
-with the character and print as plain values.
+**Settings → Manual overrides → Clear all manual overrides** to drop them all. **On a phone or tablet,
+long-press** a field to edit it (there's no double-click or Alt key on touch); to revert a pinned field
+on touch, long-press it, clear the value, and commit. Overrides are saved with the character and print
+as plain values.
 
 ## Source books (Settings)
 Open **Settings → Source books** to load D&D content. Two ways:
