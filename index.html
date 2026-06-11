@@ -298,6 +298,29 @@
   .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--line)}
   .modal-head h2{margin:0; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
   .modal-body{padding:18px; min-height:120px}
+  /* Character Manager: card grid of all saved characters */
+  #charmgr .modal-panel{max-width:760px}
+  .cm-top{display:flex; align-items:center; gap:10px; margin-bottom:14px}
+  .cm-top .cm-count{color:var(--muted); font-size:12px}
+  .cm-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px}
+  .cm-card{border:1px solid var(--line2); background:#fff; display:flex; flex-direction:column; position:relative}
+  .cm-card:hover{border-color:var(--accent)}
+  .cm-card.current{border-color:var(--accent)}
+  .cm-port{height:120px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer}
+  .cm-port img{width:100%; height:100%; object-fit:cover; display:block}
+  .cm-port .cm-init{font-size:34px; font-weight:700; color:var(--accent)}
+  .cm-meta{padding:8px 10px; flex:1; min-width:0; cursor:pointer}
+  .cm-name{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cm-sub{color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cm-when{color:var(--muted); font-size:11px; margin-top:2px}
+  .cm-badge{position:absolute; top:6px; left:6px; background:var(--accent); color:#fff; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 6px}
+  .cm-acts{display:flex; border-top:1px solid var(--line)}
+  .cm-acts button{flex:1; font:inherit; font-size:12px; padding:6px 4px; background:none; border:none; border-left:1px solid var(--line); color:var(--muted); cursor:pointer}
+  .cm-acts button:first-child{border-left:none}
+  .cm-acts button:hover{color:var(--ink); background:var(--accent-soft)}
+  .cm-acts button.cm-del:hover{color:#b42318}
+  .cm-foot{margin-top:16px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px}
+  .cm-empty{padding:30px 10px; text-align:center; color:var(--muted)}
   /* Settings: left-side section tabs + right-side content */
   .settings-panel{max-width:660px}
   .settings-wrap{display:flex; min-height:320px}
@@ -822,7 +845,7 @@
     <button class="btn" onclick="window.print()">Print / PDF</button>
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
-    <button class="btn ghost" id="btn-new" title="Open a new blank character in another tab">New</button>
+    <button class="btn ghost" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
     <input type="file" id="file-input" accept="application/json,.json" style="display:none">
   </div>
 
@@ -838,10 +861,32 @@
       <p>Also, if you upload a portrait image, it will generate a cut-out page with instructions to turn it into a physical mini. 🙂</p>
       <p>Instead of being some fancy PDF you need Adobe for, or an ugly Excel file, or someone else's hosted web app, it's an HTML file. Offline-first. Everyone with a browser can open it with no extra software or tricks (with a special case for iOS; you still have to originally open it from this link and add it as a web app to your home screen in order to use it offline, because Apple is scared of HTML files).</p>
       <p>It caches all your character data in the browser, so it has a kind of autosave, though I always recommend manually saving a copy to your drive to be safe.</p>
+      <p>You can keep <strong>more than one character</strong> in here. Each one is its own siloed sheet, with its own sources, optional rules, pages, and portrait. Click "Manage Characters" in the top bar any time to see them all as cards and switch between them.</p>
       <p class="intro-cta">Click "Create Character" to get started!</p>
       <div class="intro-actions">
         <button class="btn primary" type="button" id="intro-create">Create Character</button>
         <button class="intro-skip" type="button" id="intro-skip">or explore the blank sheet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Character Manager: card view of every character saved in this browser; switch / create / rename / duplicate / delete -->
+  <div class="modal noprint" id="charmgr">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2>Characters</h2>
+        <button class="btn ghost" id="cm-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="cm-top">
+          <button class="btn primary" id="cm-new" type="button">＋ New character</button>
+          <span class="cm-count" id="cm-count"></span>
+        </div>
+        <div class="cm-grid" id="cm-grid"></div>
+        <div class="cm-foot">
+          <span id="cm-storage"></span>
+          <span>Each character is its own siloed sheet — separate sources, rules, pages, and portrait.</span>
+        </div>
       </div>
     </div>
   </div>
@@ -3752,6 +3797,7 @@
     data.baseVals = baseVals;
     data.bonusVals = bonusVals;
     data.portrait = portraitData;
+    data.savedAt = Date.now();                            // last-edited stamp, for the Character Manager's sort + "edited X ago"
     data.spellSheets = spellSheets;                       // multi-sheet spell state
     data.spellSheetKind = spellSheetKind;
     data.spellEntriesByInst = spellEntriesByInst;
@@ -3916,7 +3962,9 @@
     const s = $("status"); s.textContent = msg;
     clearTimeout(saveTimer); saveTimer = setTimeout(()=> s.textContent = "", 1500);
   }
+  let _suppressSave = false;   // set when we've just deleted the current character and are navigating away — don't resurrect it
   function save(){
+    if(_suppressSave) return;
     const d = collect();
     const portrait = d.portrait; delete d.portrait;          // keep the heavy image out of the main key
     try{ localStorage.setItem(KEY, JSON.stringify(d)); }
@@ -6075,10 +6123,10 @@
       flashStatus("Downloaded “"+charLabel()+".html” — self-contained, with your character"+books+" baked in.");
     });
 
-    $("btn-new").addEventListener("click", ()=>{
-      const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-      window.open(location.href.split("#")[0] + "#slot=" + id, "_blank");   // fresh blank sheet, current one untouched
-    });
+    $("btn-manage").addEventListener("click", openCharMgr);
+    $("cm-close").addEventListener("click", closeCharMgr);
+    $("cm-new").addEventListener("click", ()=>{ gotoSlot(newSlotId()); });   // fresh blank character, in place
+    $("charmgr").addEventListener("click", e=>{ if(e.target.id === "charmgr") closeCharMgr(); });   // click backdrop to close
 
     $("btn-reset").addEventListener("click", ()=>{
       if(!confirm("Delete this character and reset the sheet to blank?\n\nThis can't be undone. If you might want it later, cancel and use “Save” first to download a copy.\n\n(Your loaded sourcebooks are kept.)")) return;
@@ -6163,6 +6211,129 @@
     ov.addEventListener("click", e => { if(e.target === ov) dismiss(); });   // click the backdrop to dismiss
     document.addEventListener("keydown", onKey);
   }
+
+  // ===== Character Manager =====
+  // Every character is a localStorage entry: the default lives at BASE_KEY, each "New character" at BASE_KEY::<slot>.
+  // The portrait rides alongside at <key>_img. We enumerate storage directly (no separate index to drift out of sync).
+  function characterSlots(){
+    const out = [], seen = new Set();
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(!k || k === SOURCES_KEY || k === SOURCES_RAW_KEY || k === SERVER_KEY) continue;
+      if(k.slice(-4) === "_img") continue;                                  // portraits are tracked with their character
+      if(!(k === BASE_KEY || k.indexOf(BASE_KEY + "::") === 0)) continue;   // only this app's character keys
+      let d = null; try{ d = JSON.parse(localStorage.getItem(k)); }catch(e){}
+      if(!d || typeof d !== "object") continue;
+      const slot = (k === BASE_KEY) ? "" : k.slice((BASE_KEY + "::").length);
+      out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), savedAt:+d.savedAt||0 });
+      seen.add(slot);
+    }
+    if(!seen.has(SLOT)){   // the character we're viewing may not be saved yet — show it live so it's never invisible
+      out.push({ key:KEY, slot:SLOT, name:($("charname").value||"").trim(),
+                 sub:($("classlevel").value||$("race").value||"").trim(), savedAt:Date.now(), unsaved:true });
+    }
+    out.sort((a,b)=> (b.savedAt||0) - (a.savedAt||0));   // most-recently-edited first
+    return out;
+  }
+  function slotPortrait(key){
+    try{ const p = JSON.parse(localStorage.getItem(key + "_img")); if(p && p.data) return p.data; }catch(e){}
+    if(key === KEY && portraitData && portraitData.data) return portraitData.data;   // current char's portrait may be in memory pre-save
+    return null;
+  }
+  function relTime(ts){
+    if(!ts) return "";
+    const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+    if(s < 60) return "just now";
+    const m = Math.floor(s/60); if(m < 60) return m + (m===1?" min ago":" mins ago");
+    const h = Math.floor(m/60); if(h < 24) return h + (h===1?" hour ago":" hours ago");
+    const d = Math.floor(h/24); if(d < 30) return d + (d===1?" day ago":" days ago");
+    const mo = Math.floor(d/30); if(mo < 12) return mo + (mo===1?" month ago":" months ago");
+    return Math.floor(mo/12) + " yr ago";
+  }
+  function newSlotId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function gotoSlot(slot){            // switch the view to another character (autosaves the current one first)
+    flushSave();
+    const base = location.href.split("#")[0];
+    location.href = base + (slot ? "#slot=" + slot : "#");
+    location.reload();               // a hash-only change won't reload on its own; force it so init() re-reads the new slot
+  }
+  function storageBytes(){
+    let n = 0;
+    try{ for(let i=0; i<localStorage.length; i++){ const k = localStorage.key(i); n += (k.length + (localStorage.getItem(k)||"").length); } }catch(e){}
+    return n * 2;   // localStorage is UTF-16
+  }
+  function renderCharMgr(){
+    const grid = $("cm-grid"); if(!grid) return;
+    const list = characterSlots();
+    $("cm-count").textContent = list.length + (list.length===1 ? " character" : " characters");
+    grid.innerHTML = "";
+    if(!list.length){ grid.innerHTML = `<div class="cm-empty">No characters yet. Click “＋ New character” to begin.</div>`; }
+    list.forEach(c => {
+      const card = document.createElement("div");
+      card.className = "cm-card" + (c.slot === SLOT ? " current" : "");
+      const initials = (c.name||"").replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "⬢";
+      card.innerHTML =
+        (c.slot === SLOT ? `<span class="cm-badge">Current</span>` : ``) +
+        `<div class="cm-port"></div>` +
+        `<div class="cm-meta"><div class="cm-name">${esc(c.name||"Unnamed character")}</div>` +
+          `<div class="cm-sub">${esc(c.sub||"No class set")}</div>` +
+          `<div class="cm-when">${c.unsaved ? "unsaved" : "edited " + esc(relTime(c.savedAt))}</div></div>` +
+        `<div class="cm-acts">` +
+          `<button type="button" class="cm-open">Open</button>` +
+          `<button type="button" class="cm-rename">Rename</button>` +
+          `<button type="button" class="cm-dupe">Duplicate</button>` +
+          `<button type="button" class="cm-del">Delete</button>` +
+        `</div>`;
+      const portEl = card.querySelector(".cm-port");
+      const port = slotPortrait(c.key);
+      if(port){ const im = document.createElement("img"); im.alt = ""; im.src = port; portEl.appendChild(im); }   // set src as a property — never inject the data URL into innerHTML
+      else { const sp = document.createElement("span"); sp.className = "cm-init"; sp.textContent = initials; portEl.appendChild(sp); }
+      const open = ()=>{ if(c.slot === SLOT){ closeCharMgr(); return; } gotoSlot(c.slot); };
+      portEl.addEventListener("click", open);
+      card.querySelector(".cm-meta").addEventListener("click", open);
+      card.querySelector(".cm-open").addEventListener("click", e=>{ e.stopPropagation(); open(); });
+      card.querySelector(".cm-rename").addEventListener("click", e=>{ e.stopPropagation(); renameSlot(c); });
+      card.querySelector(".cm-dupe").addEventListener("click", e=>{ e.stopPropagation(); duplicateSlot(c); });
+      card.querySelector(".cm-del").addEventListener("click", e=>{ e.stopPropagation(); deleteSlot(c); });
+      grid.appendChild(card);
+    });
+    const mb = storageBytes() / 1048576;
+    $("cm-storage").textContent = "Browser storage in use: ~" + (mb < 0.1 ? "<0.1" : mb.toFixed(1)) + " MB";
+  }
+  function renameSlot(c){
+    const nm = prompt("Character name:", c.name || "");
+    if(nm == null) return;
+    const name = nm.trim();
+    if(c.slot === SLOT){ $("charname").value = name; save(); renderCharMgr(); return; }   // live character → go through the normal save path
+    try{ const d = JSON.parse(localStorage.getItem(c.key)) || {}; d.charname = name; d.savedAt = Date.now(); localStorage.setItem(c.key, JSON.stringify(d)); }catch(e){}
+    renderCharMgr();
+  }
+  function duplicateSlot(c){
+    if(c.slot === SLOT) flushSave();   // make sure we copy the latest
+    let d; try{ d = JSON.parse(localStorage.getItem(c.key)); }catch(e){ d = null; }
+    if(!d){ flashStatus("Couldn't read that character to duplicate."); return; }
+    d.charname = ((d.charname||"Character").trim() || "Character") + " (copy)";
+    d.savedAt = Date.now();
+    const nk = BASE_KEY + "::" + newSlotId();
+    try{ localStorage.setItem(nk, JSON.stringify(d)); }
+    catch(e){ alert("Not enough browser storage to duplicate this character.\nTry removing a portrait or deleting an old character first."); return; }
+    try{ const img = localStorage.getItem(c.key + "_img"); if(img) localStorage.setItem(nk + "_img", img); }catch(e){}
+    renderCharMgr();
+  }
+  function deleteSlot(c){
+    const label = c.name ? "“" + c.name + "”" : "this character";
+    if(!confirm("Delete " + label + "? This can't be undone.\n\nIf you might want it later, cancel and use Save to download a copy first.")) return;
+    try{ localStorage.removeItem(c.key); localStorage.removeItem(c.key + "_img"); }catch(e){}
+    if(c.slot === SLOT){   // we deleted the character we're looking at — jump to another (or a fresh blank), without re-saving this one
+      _suppressSave = true;
+      const next = characterSlots().find(x => !x.unsaved);
+      gotoSlot(next ? next.slot : newSlotId());
+      return;
+    }
+    renderCharMgr();
+  }
+  function openCharMgr(){ renderCharMgr(); $("charmgr").classList.add("open"); }
+  function closeCharMgr(){ $("charmgr").classList.remove("open"); }
 
   document.addEventListener("DOMContentLoaded", init);
   </script>
