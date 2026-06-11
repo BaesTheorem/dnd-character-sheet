@@ -3,7 +3,7 @@
    Strategy: stale-while-revalidate — serve the cached copy instantly (works fully offline once
    it has been loaded online once), and refresh the cache in the background so edits flow through
    on the next launch. Bump CACHE to force every client to drop the old cache. */
-const CACHE = "dnd-sheet-v1";
+const CACHE = "dnd-sheet-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 
