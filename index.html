@@ -3971,7 +3971,7 @@
     catch(e){ flashStatus("⚠ Out of browser storage — NOT autosaved. Use Save to download a copy and keep this character."); return; }
     try{
       if(portrait) localStorage.setItem(KEY+"_img", JSON.stringify(portrait));
-      else localStorage.removeItem(KEY+"_img");
+      else { localStorage.removeItem(KEY+"_img"); localStorage.removeItem(KEY+"_thumb"); }
     }catch(e){ flashStatus("Portrait too large to autosave — use Save copy (HTML) to keep it"); return; }
     flashStatus("Saved");
   }
@@ -6049,12 +6049,13 @@
     });
     $("portrait-replace").addEventListener("click", e=>{ e.stopPropagation(); closeMenu(); $("portrait-input").click(); });
     $("portrait-dl").addEventListener("click", e=>{ e.stopPropagation(); closeMenu(); downloadPortrait(); });
-    $("portrait-rm").addEventListener("click", e=>{ e.stopPropagation(); closeMenu(); portraitData=null; renderPortrait(); save(); });
+    $("portrait-rm").addEventListener("click", e=>{ e.stopPropagation(); closeMenu(); portraitData=null; renderPortrait(); save(); try{ localStorage.removeItem(KEY+"_thumb"); }catch(e){} });
     document.addEventListener("click", e=>{ if(!e.target.closest("#portrait")) closeMenu(); });
     $("portrait-input").addEventListener("change", ev=>{
       const f = ev.target.files[0]; if(!f) return;
       const r = new FileReader();
-      r.onload = ()=>{ portraitData = { data:r.result, name:f.name, type:f.type||"" }; renderPortrait(); save(); };
+      r.onload = ()=>{ portraitData = { data:r.result, name:f.name, type:f.type||"" }; renderPortrait(); save();
+        makeThumb(r.result, THUMB_MAX).then(t => storeThumb(KEY, t)); };   // refresh this character's card thumbnail
       r.readAsDataURL(f);
       ev.target.value = "";
     });
@@ -6132,6 +6133,7 @@
       if(!confirm("Delete this character and reset the sheet to blank?\n\nThis can't be undone. If you might want it later, cancel and use “Save” first to download a copy.\n\n(Your loaded sourcebooks are kept.)")) return;
       localStorage.removeItem(KEY);                 // clear this slot's character
       localStorage.removeItem(KEY + "_img");        // and its portrait
+      localStorage.removeItem(KEY + "_thumb");      // and its card thumbnail
       $("embedded-data").textContent = "null";      // ignore any baked-in character
       location.reload();                            // re-init blank (sourcebook is kept)
     });
@@ -6220,7 +6222,7 @@
     for(let i=0; i<localStorage.length; i++){
       const k = localStorage.key(i);
       if(!k || k === SOURCES_KEY || k === SOURCES_RAW_KEY || k === SERVER_KEY) continue;
-      if(k.slice(-4) === "_img") continue;                                  // portraits are tracked with their character
+      if(k.slice(-4) === "_img" || k.slice(-6) === "_thumb") continue;      // portrait + thumbnail are tracked with their character
       if(!(k === BASE_KEY || k.indexOf(BASE_KEY + "::") === 0)) continue;   // only this app's character keys
       let d = null; try{ d = JSON.parse(localStorage.getItem(k)); }catch(e){}
       if(!d || typeof d !== "object") continue;
@@ -6240,6 +6242,27 @@
     if(key === KEY && portraitData && portraitData.data) return portraitData.data;   // current char's portrait may be in memory pre-save
     return null;
   }
+  // Card portraits use a small cached thumbnail, never the full-res original — a grid of multi-MB
+  // data URLs would balloon memory. The thumb is derived once and stored at <key>_thumb.
+  const THUMB_MAX = 360;   // longest edge in px (covers the ~240px card at 1.5x)
+  function slotThumb(key){ try{ return localStorage.getItem(key + "_thumb") || null; }catch(e){ return null; } }
+  function makeThumb(dataUrl, maxPx){
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if(!w || !h){ resolve(null); return; }
+        const s = Math.min(1, maxPx / Math.max(w, h));
+        const cw = Math.max(1, Math.round(w*s)), ch = Math.max(1, Math.round(h*s));
+        const cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+        try{ cv.getContext("2d").drawImage(img, 0, 0, cw, ch); resolve(cv.toDataURL("image/jpeg", 0.82)); }
+        catch(e){ resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  }
+  function storeThumb(key, dataUrl){ if(!dataUrl) return; try{ localStorage.setItem(key + "_thumb", dataUrl); }catch(e){} }   // best-effort cache; a quota miss just means we re-derive next open
   function relTime(ts){
     if(!ts) return "";
     const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -6285,9 +6308,15 @@
           `<button type="button" class="cm-del">Delete</button>` +
         `</div>`;
       const portEl = card.querySelector(".cm-port");
-      const port = slotPortrait(c.key);
-      if(port){ const im = document.createElement("img"); im.alt = ""; im.src = port; portEl.appendChild(im); }   // set src as a property — never inject the data URL into innerHTML
-      else { const sp = document.createElement("span"); sp.className = "cm-init"; sp.textContent = initials; portEl.appendChild(sp); }
+      const setImg = src => { const im = document.createElement("img"); im.alt = ""; portEl.innerHTML = ""; portEl.appendChild(im); im.src = src; };   // set src after attach — never inject the data URL into innerHTML
+      const setInit = () => { const sp = document.createElement("span"); sp.className = "cm-init"; sp.textContent = initials; portEl.innerHTML = ""; portEl.appendChild(sp); };
+      const thumb = slotThumb(c.key);
+      if(thumb){ setImg(thumb); }
+      else {
+        setInit();                                          // initials placeholder until the thumbnail is derived
+        const full = slotPortrait(c.key);                   // full-res original, used only to derive + cache the thumb
+        if(full) makeThumb(full, THUMB_MAX).then(t => { if(t){ setImg(t); storeThumb(c.key, t); } });
+      }
       const open = ()=>{ if(c.slot === SLOT){ closeCharMgr(); return; } gotoSlot(c.slot); };
       portEl.addEventListener("click", open);
       card.querySelector(".cm-meta").addEventListener("click", open);
@@ -6318,12 +6347,13 @@
     try{ localStorage.setItem(nk, JSON.stringify(d)); }
     catch(e){ alert("Not enough browser storage to duplicate this character.\nTry removing a portrait or deleting an old character first."); return; }
     try{ const img = localStorage.getItem(c.key + "_img"); if(img) localStorage.setItem(nk + "_img", img); }catch(e){}
+    try{ const th = localStorage.getItem(c.key + "_thumb"); if(th) localStorage.setItem(nk + "_thumb", th); }catch(e){}
     renderCharMgr();
   }
   function deleteSlot(c){
     const label = c.name ? "“" + c.name + "”" : "this character";
     if(!confirm("Delete " + label + "? This can't be undone.\n\nIf you might want it later, cancel and use Save to download a copy first.")) return;
-    try{ localStorage.removeItem(c.key); localStorage.removeItem(c.key + "_img"); }catch(e){}
+    try{ localStorage.removeItem(c.key); localStorage.removeItem(c.key + "_img"); localStorage.removeItem(c.key + "_thumb"); }catch(e){}
     if(c.slot === SLOT){   // we deleted the character we're looking at — jump to another (or a fresh blank), without re-saving this one
       _suppressSave = true;
       const next = characterSlots().find(x => !x.unsaved);
