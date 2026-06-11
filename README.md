@@ -186,7 +186,9 @@ both the **Save** button and the offline **Update** (download) name their file w
 `Character Sheet v170 (2026-06-11).html`, so every backup says which build it came from.
 
 The stamp is written automatically by `.githooks/pre-commit` on every commit, so a change can't ship
-without a fresh version. After cloning, activate the hook once:
+without a fresh version. The same hook bumps the service-worker cache (`CACHE` in `sw.js`) to match,
+so each deploy drops the old offline cache and fresh content lands on the next load — no "reload
+twice." After cloning, activate the hook once:
 
 ```
 git config core.hooksPath .githooks

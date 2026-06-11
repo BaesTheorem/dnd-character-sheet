@@ -2,8 +2,10 @@
    Only used when the sheet is served over http(s); a locally-opened file never registers this.
    Strategy: stale-while-revalidate — serve the cached copy instantly (works fully offline once
    it has been loaded online once), and refresh the cache in the background so edits flow through
-   on the next launch. Bump CACHE to force every client to drop the old cache. */
-const CACHE = "dnd-sheet-v2";
+   on the next launch. CACHE is auto-stamped to the app version by .githooks/pre-commit on every
+   commit, so each deploy drops the old cache and fresh content lands on the next load (no manual
+   bump, no "reload twice"). */
+const CACHE = "dnd-sheet-v171";
 
 self.addEventListener("install", () => self.skipWaiting());
 
