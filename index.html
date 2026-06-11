@@ -818,7 +818,7 @@
 
   @media screen {
   html.mobile input, html.mobile select, html.mobile textarea{ font-size:16px; }   /* iOS won't zoom a focused field at >=16px */
-  html.mobile body{ padding-bottom:calc(78px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar AND the floating Save button so neither covers the last card */
+  html.mobile body{ padding-bottom:calc(16px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar so it doesn't cover the last card */
 
   /* kill the legacy ~300ms double-tap delay on tap targets (keeps pinch-zoom + scroll) */
   html.mobile *, html.mobile *::before, html.mobile *::after{ touch-action:manipulation; }
@@ -831,14 +831,9 @@
   html.mobile .toolbar .btn{ flex:1 1 auto; min-height:42px; padding:9px 10px; }
   html.mobile .toolbar .status{ width:100%; order:5; min-width:0; text-align:center; }
 
-  /* --- Always-reachable floating Save (the static toolbar scrolls off the top) --- */
-  html.mobile #btn-savecopy{ display:none; }   /* the floating Save below replaces it on mobile — don't show two */
-  html.mobile .mobile-save{
-    display:inline-flex; align-items:center; justify-content:center;
-    position:fixed; right:12px; bottom:calc(12px + env(safe-area-inset-bottom,0px));
-    z-index:40; min-height:46px; padding:0 18px; font-size:14px; font-weight:600;
-    border:1px solid var(--accent);
-  }
+  /* Save stays in the toolbar (same place as desktop) on mobile too — the
+     floating bottom-right Save is intentionally left hidden (.mobile-save base
+     rule above keeps it display:none). */
 
   /* --- Page tabs: a single pinned, swipeable row --- */
   html.mobile .sheet{ margin:0 auto 16px; padding:0 10px; }
@@ -1776,7 +1771,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v182 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v183 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
