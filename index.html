@@ -1793,7 +1793,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v189 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v190 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -4772,6 +4772,19 @@
       `<button type="button" class="x wiz-cls-rm" data-i="${i}" title="Remove">✕</button></div>`).join("");
   }
   // ----- Pending decisions (subclass / subclass option / ASI / spells) -----
+  function classToolGrants(w, isPrimary){   // a class's generic "N artisan's tools / musical instrument of your choice" grants → one pick slot each
+    const c = findBy(DATA.classes, w.name); if(!c) return [];
+    const prof = isPrimary ? c.prof : c.mcProf;
+    const picks = [];
+    ((prof && prof.tools) || []).forEach((t, ti) => {
+      scanToolPicks(t).forEach((m, mi) => {
+        const base = m.kind === "artisan" ? "Artisan's tools" : "Musical instrument";
+        for(let cidx = 0; cidx < m.count; cidx++)
+          picks.push({key:`tool:${ti}:${mi}:${cidx}`, kind:m.kind, label:base + (m.count > 1 ? " #"+(cidx+1) : "")});
+      });
+    });
+    return picks;
+  }
   function pendingFor(list){    // structural decisions due across a class build (subclass + options); used by builder AND main-sheet flag
     const out = [];
     (list||[]).forEach((w,i) => {
@@ -4823,6 +4836,18 @@
           `<select class="wiz-pend-cc" data-i="${p.i}" data-id="${esc(p.choice.id)}"><option value="">Choose…</option>`+
           p.choice.options.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")+`</select></div>`);
       }
+    });
+    // Class tool-proficiency picks (artisan's tools / musical instrument "of your choice"). Kept out of pendingFor so
+    // the main-sheet decisions flag keeps its old meaning; unpicked grants fall through to the end-of-build modal.
+    wizClasses.forEach((w, i) => {
+      const cc = w.classChoices || {};
+      classToolGrants(w, i === 0).forEach(g => {
+        if(cc[g.key]) return;                                                                    // already chosen → no row
+        const opts = (DATA.toolCats && DATA.toolCats[g.kind]) || [];
+        rows.push(`<div class="wiz-pend-row"><p class="lbl2">${esc(w.name + ": choose " + g.label)}</p>`+
+          `<select class="wiz-pend-tool" data-i="${i}" data-key="${esc(g.key)}"><option value="">Choose…</option>`+
+          opts.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join("")+`</select></div>`);
+      });
     });
     // (spell selection is handled by the Spells picker above; secondary multiclass casters can still be filled on the Spells page)
     let html = rows.length ? `<p class="wiz-pend-head">Pending decisions (you can proceed without these)</p>` + rows.join("") : "";
@@ -4909,6 +4934,24 @@
     toolPickMatches = [];
     $("toolmodal").classList.remove("open");
     save(); compute();
+  }
+  // Bake a class build's tool picks (made on the Class step) into its prof block so the concrete tools land
+  // directly in the Proficiencies box — anything left unpicked stays generic and the end-of-build modal catches it.
+  function resolveClassToolTokens(w, prof){
+    if(!prof || !prof.tools) return prof;
+    const cc = w.classChoices || {};
+    const tools = prof.tools.map((t, ti) => {
+      const matches = scanToolPicks(t); if(!matches.length) return t;
+      let out = "", cursor = 0;
+      matches.forEach((m, mi) => {
+        const names = [];
+        for(let cidx = 0; cidx < m.count; cidx++){ const v = cc[`tool:${ti}:${mi}:${cidx}`]; if(v) names.push(v); }
+        out += t.slice(cursor, m.start) + (names.length ? names.join(", ") : t.slice(m.start, m.end));   // chosen → concrete; else leave generic
+        cursor = m.end;
+      });
+      return out + t.slice(cursor);
+    });
+    return Object.assign({}, prof, {tools});
   }
   // Set just the Racial ability column from a race's fixed bonuses — for the in-wizard "Under the Hood" preview.
   function applyRaceAbilityOnly(name){
@@ -6336,7 +6379,7 @@
       else { hitDieFaces = null; $("hd-total").value = totalLevel;                                          // multiclass → mixed pools as text (compute() leaves #hitdice alone when faces=null)
         const pools = list.map(w => { const c=findBy(DATA.classes,w.name); return (c&&c.hd) ? `${w.level}d${c.hd}` : ""; }).filter(Boolean);
         if(pools.length) $("hitdice").value = pools.join(", "); }
-      list.forEach((w,idx) => { const c=findBy(DATA.classes,w.name); if(c) applyProficiencies(idx===0 ? c.prof : c.mcProf, w.name); });   // initial = full; secondary = multiclass subset
+      list.forEach((w,idx) => { const c=findBy(DATA.classes,w.name); if(c) applyProficiencies(resolveClassToolTokens(w, idx===0 ? c.prof : c.mcProf), w.name); });   // initial = full; secondary = multiclass subset; tool picks from the Class step baked in
       document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // initial-class skill picks
       const primary = (primaryCasterOf(list)||{}).key || null;                    // primary spell sheet anchors the DC/attack ability + pre-filled list (non-Warlock preferred)
       if(primary){ $("spellclass").value = primary; renderSpellStyle(true, 0); }
@@ -6820,11 +6863,12 @@
       wizClasses.splice(+b.dataset.i, 1); if(!wizClasses.some(w => w.name === wizFocus)) {} syncBuildToSheet(); renderBuilder(); });
     $("wiz-pending").addEventListener("change", e => {
       const sub = e.target.closest(".wiz-pend-sub"), opt = e.target.closest(".wiz-pend-opt"),
-            fs = e.target.closest(".wiz-pend-fs"), cc = e.target.closest(".wiz-pend-cc");
+            fs = e.target.closest(".wiz-pend-fs"), cc = e.target.closest(".wiz-pend-cc"), tl = e.target.closest(".wiz-pend-tool");
       if(sub){ const i = +sub.dataset.i; if(wizClasses[i]){ wizClasses[i].sub = sub.value; wizClasses[i].subOpts = {}; syncBuildToSheet(); renderBuilder(); } }
       else if(opt){ const i = +opt.dataset.i; if(wizClasses[i]){ (wizClasses[i].subOpts = wizClasses[i].subOpts || {})[opt.dataset.group] = opt.value; renderWizPending(); } }
       else if(fs){ const i = +fs.dataset.i, slot = +fs.dataset.slot; if(wizClasses[i]){ (wizClasses[i].fightingStyles = wizClasses[i].fightingStyles || [])[slot] = fs.value; renderWizPending(); } }
       else if(cc){ const i = +cc.dataset.i; if(wizClasses[i]){ (wizClasses[i].classChoices = wizClasses[i].classChoices || {})[cc.dataset.id] = cc.value; renderWizPending(); } }
+      else if(tl){ const i = +tl.dataset.i; if(wizClasses[i]){ (wizClasses[i].classChoices = wizClasses[i].classChoices || {})[tl.dataset.key] = tl.value; renderWizPending(); } }
     });
     $("wiz-pending").addEventListener("click", e => { if(e.target.closest(".wiz-pend-asi")) openAsiModal(); });
     $("wiz-bg").addEventListener("change", updateCustomBgVisibility);
