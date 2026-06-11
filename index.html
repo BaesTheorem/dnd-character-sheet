@@ -1608,6 +1608,9 @@
             <label class="lbl" style="display:block; margin-bottom:6px">Portrait</label>
             <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
             <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
+            <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
+            <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
             <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
             <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
@@ -6133,6 +6136,7 @@
     $("cm-close").addEventListener("click", closeCharMgr);
     $("cm-new").addEventListener("click", ()=>{ gotoSlot(newSlotId()); });   // fresh blank character, in place
     $("charmgr").addEventListener("click", e=>{ if(e.target.id === "charmgr") closeCharMgr(); });   // click backdrop to close
+    $("btn-showguide").addEventListener("click", ()=>{ $("settings").classList.remove("open"); showIntro(); });   // close Settings, re-run the welcome guide
 
     $("btn-reset").addEventListener("click", ()=>{
       if(!confirm("Delete this character and reset the sheet to blank?\n\nThis can't be undone. If you might want it later, cancel and use “Save” first to download a copy.\n\n(Your loaded sourcebooks are kept.)")) return;
@@ -6205,18 +6209,29 @@
     maybeShowIntro();
   }
 
-  // First time this browser opens the sheet, obscure it with a short guide. Dismissed (or "Create Character") sets a flag so it never shows again.
-  function maybeShowIntro(){
+  // Short welcome guide. Shown once per browser automatically (introSeen flag); also re-runnable from
+  // Settings → General. Hidden (not removed) on dismiss so it can be reopened; handlers wire once.
+  function showIntro(){
     const ov = $("intro-overlay"); if(!ov) return;
-    let seen = false; try{ seen = localStorage.getItem("introSeen") === "1"; }catch(e){}
-    if(seen){ ov.remove(); return; }
-    function onKey(e){ if(e.key === "Escape") dismiss(); }
-    function dismiss(){ try{ localStorage.setItem("introSeen","1"); }catch(e){} document.removeEventListener("keydown", onKey); ov.remove(); }
+    if(!ov._wired){
+      ov._wired = true;
+      ov._onKey = e => { if(e.key === "Escape" && !ov.hidden) dismissIntro(); };
+      $("intro-create").addEventListener("click", ()=>{ dismissIntro(); openWizard(); });
+      $("intro-skip").addEventListener("click", dismissIntro);
+      ov.addEventListener("click", e => { if(e.target === ov) dismissIntro(); });   // click the backdrop to dismiss
+    }
     ov.hidden = false;
-    $("intro-create").addEventListener("click", ()=>{ dismiss(); openWizard(); });
-    $("intro-skip").addEventListener("click", dismiss);
-    ov.addEventListener("click", e => { if(e.target === ov) dismiss(); });   // click the backdrop to dismiss
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", ov._onKey);
+  }
+  function dismissIntro(){
+    const ov = $("intro-overlay"); if(!ov) return;
+    try{ localStorage.setItem("introSeen","1"); }catch(e){}
+    if(ov._onKey) document.removeEventListener("keydown", ov._onKey);
+    ov.hidden = true;
+  }
+  function maybeShowIntro(){
+    let seen = false; try{ seen = localStorage.getItem("introSeen") === "1"; }catch(e){}
+    if(!seen) showIntro();
   }
 
   // ===== Character Manager =====
