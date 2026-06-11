@@ -417,13 +417,17 @@ def build_classes():
                 sfeats = [{"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))} for f in raw_feats]
                 sfeats.sort(key=lambda x: (x["level"], x["name"]))
                 _lvl = lambda lv: int(str(lv).lstrip("sS")) if str(lv).lstrip("sS").isdigit() else 0   # "s1"→1 (expanded-spell level keys)
-                sspells = []; sexpanded = []
+                sspells = []; sexpanded = []; _seen_sp = set()
                 for blk in s.get("additionalSpells") or []:
-                    prep = blk.get("prepared") or blk.get("known") or blk.get("innate") or {}
-                    for lv, val in prep.items():
-                        names = []; _collect_spell_names(val, names)   # val may be array or nested object (e.g. Sun Soul resource:{2:[...]})
-                        for nm in names:
-                            sspells.append({"n": _titlecase(_clean(nm)), "l": _lvl(lv)})
+                    for grp in ("prepared", "known", "innate"):   # merge ALL grant types — one block can grant a prepared spell AND a known cantrip (e.g. Star Map: Guiding Bolt + Guidance), so never short-circuit between them
+                        for lv, val in (blk.get(grp) or {}).items():
+                            names = []; _collect_spell_names(val, names)   # val may be array or nested object (e.g. Sun Soul resource:{2:[...]})
+                            for nm in names:
+                                n = _titlecase(_clean(nm))
+                                spl = 0 if "#c" in str(nm).lower() else _lvl(lv)   # the level key is the ACQUISITION level, not the spell level; the "#c" marker flags a cantrip (spell level 0)
+                                key = (n.lower(), spl)
+                                if key in _seen_sp: continue
+                                _seen_sp.add(key); sspells.append({"n": n, "l": spl})
                     for lv, val in (blk.get("expanded") or {}).items():   # Warlock patron expanded lists
                         names = []; _collect_spell_names(val, names)
                         for nm in names:
