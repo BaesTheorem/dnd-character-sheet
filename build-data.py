@@ -191,14 +191,16 @@ def build_races(raw):
         ab = list(r.get("ability") or [])
         fg = feat_grants(r); pf = prof_block(r); rs = damage_resist(r)
         dv, lc = r.get("darkvision") or 0, lang_choose(r)
-        rsp = _race_spell_names(r); rsx = _speed_extra(r); fl = flavor.get(r["name"], [])
-        bases[r["name"]] = {"ability": ab, "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium", "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl}
+        rsp = _race_spell_names(r); rsx = _speed_extra(r); fl = flavor.get(r["name"], []); rexp = _extract_spells(r)[1]
+        bases[r["name"]] = {"ability": ab, "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium", "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp, "expanded": rexp, "flavor": fl}
         if not is_src(r): continue    # keep EVERY race in `bases` (any book) so a cross-book subrace inherits its parent; only output THIS book's races
         base_idx[r["name"]] = len(out)
-        out.append({"name": r["name"], "ability": ab,
-                    "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
-                    "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs,
-                    "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl})
+        ro = {"name": r["name"], "ability": ab,
+              "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium",
+              "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs,
+              "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl}
+        if rexp: ro["expanded"] = rexp   # e.g. dragonmark "Spells of the Mark"
+        out.append(ro)
     for s in raw.get("subrace", []):
         if not is_src(s): continue
         parent = s.get("raceName")
@@ -216,18 +218,21 @@ def build_races(raw):
                 out[i]["spells"] = (out[i].get("spells") or []) + _race_spell_names(s)
             continue
         base = bases.get(parent, {})               # named subrace -> "Race (Subrace)", base + subrace
-        out.append({"name": f"{parent} ({s['name']})",
-                    "ability": (base.get("ability") or []) + (s.get("ability") or []),
-                    "size": base.get("size", ""), "speed": _speed(s) if s.get("speed") is not None else base.get("speed", 30),
-                    "speedExtra": _speed_extra(s) if s.get("speed") is not None else base.get("speedExtra", ""),
-                    "subraceOf": parent,
-                    "traits": (base.get("traits") or []) + _traits(s.get("entries", [])),
-                    "featGrants": (base.get("featGrants") or 0) + feat_grants(s),
-                    "prof": _merge_prof(base.get("prof"), prof_block(s)),
-                    "resist": (base.get("resist") or []) + damage_resist(s),
-                    "darkvision": max(base.get("darkvision") or 0, sdv), "langChoose": (base.get("langChoose") or 0) + slc,
-                    "spells": (base.get("spells") or []) + _race_spell_names(s),
-                    "flavor": flavor.get(f"{parent} ({s['name']})", base.get("flavor", []))})
+        sexp = (base.get("expanded") or []) + _extract_spells(s)[1]   # dragonmark subraces add a "Spells of the Mark" expanded list
+        so = {"name": f"{parent} ({s['name']})",
+              "ability": (base.get("ability") or []) + (s.get("ability") or []),
+              "size": base.get("size", ""), "speed": _speed(s) if s.get("speed") is not None else base.get("speed", 30),
+              "speedExtra": _speed_extra(s) if s.get("speed") is not None else base.get("speedExtra", ""),
+              "subraceOf": parent,
+              "traits": (base.get("traits") or []) + _traits(s.get("entries", [])),
+              "featGrants": (base.get("featGrants") or 0) + feat_grants(s),
+              "prof": _merge_prof(base.get("prof"), prof_block(s)),
+              "resist": (base.get("resist") or []) + damage_resist(s),
+              "darkvision": max(base.get("darkvision") or 0, sdv), "langChoose": (base.get("langChoose") or 0) + slc,
+              "spells": (base.get("spells") or []) + _race_spell_names(s),
+              "flavor": flavor.get(f"{parent} ({s['name']})", base.get("flavor", []))}
+        if sexp: so["expanded"] = sexp
+        out.append(so)
     for o in out:
         if "custom lineage" in o["name"].lower(): o["variableSkillDarkvision"] = True   # TCE: skill OR darkvision
     return out
