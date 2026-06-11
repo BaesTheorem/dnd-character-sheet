@@ -1618,7 +1618,7 @@
             <div id="update-block">
               <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Update</label>
               <button class="btn" id="btn-update" type="button" title="Fetch the latest version of the sheet from the web">Update to the latest version</button>
-              <p class="wiz-hint">Fetches the newest version of the whole app from the web and reloads. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.</p>
+              <p class="wiz-hint" id="update-note">Fetches the newest version of the whole app from the web and reloads. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.</p>
             </div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
             <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
@@ -4003,20 +4003,55 @@
     const s = $("status"); s.textContent = msg;
     clearTimeout(saveTimer); saveTimer = setTimeout(()=> s.textContent = "", 1500);
   }
-  // Settings → General → Update: force-refresh the whole app from the hosted site (GitHub Pages), keeping the
-  // browser-stored character + sourcebooks. Clears the service-worker offline cache so we skip the stale copy.
+  // Settings → General → Update. HOSTED build: force-refresh in place (clear the service-worker cache + reload).
+  // LOCAL FILE build: a file can't overwrite itself or use a service worker, so fetch the latest code from the web
+  // and download a fresh copy with the current character + sourcebooks baked in — the user replaces their old file.
+  const APP_SRC = "https://baestheorem.github.io/dnd-character-sheet/index.html";                       // canonical hosted build (sends ACAO:* so a file:// page can fetch it)
+  const APP_SRC_FALLBACK = "https://raw.githubusercontent.com/BaesTheorem/dnd-character-sheet/main/index.html";   // same content, also ACAO:*
+  async function fetchLatestApp(){   // → newest index.html text, or null if unreachable / not the sheet
+    for(const url of [APP_SRC, APP_SRC_FALLBACK]){
+      try{ const r = await fetch(url + (url.includes("?")?"&":"?") + "_upd=" + Date.now(), {cache:"reload"});
+        if(r && r.ok){ const t = await r.text(); if(/id="embedded-data"/.test(t) && /id="source-data"/.test(t)) return t; } }catch(e){}
+    }
+    return null;
+  }
+  function updateBlockMode(){   // the Update control reads differently hosted (refresh in place) vs. a local file (download a fresh copy)
+    const hosted = /^https?:$/.test(location.protocol), btn = $("btn-update"), note = $("update-note");
+    if(btn) btn.textContent = hosted ? "Update to the latest version" : "Download the latest version";
+    if(note) note.innerHTML = hosted
+      ? 'Fetches the newest version of the whole app from the web and reloads in place. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.'
+      : 'Downloads the newest version of the app from the web with your <strong>current character baked in</strong> (your sourcebooks come too), so it still works fully offline. Replace your old file with the download. <strong>Save a copy first</strong> in case a new version misbehaves.';
+  }
   async function updateApp(){
-    const btn = $("btn-update"), restore = () => { if(btn){ btn.disabled = false; btn.textContent = "Update to the latest version"; } };
-    if(!/^https?:$/.test(location.protocol)){ flashStatus("Updates apply to the hosted version (this looks like a local file)."); return; }
-    if(!confirm("Update to the latest version of the sheet?\n\nYour current character and loaded sourcebooks are kept. If you want a backup, press Cancel, then Save a copy first.")) return;
-    if(btn){ btn.disabled = true; btn.textContent = "Checking…"; }
-    // confirm the site is actually reachable BEFORE clearing anything (a unique URL bypasses the offline cache, so this is a real network check) — otherwise an offline "update" would wipe the cache and leave nothing to load
-    try{ const probe = await fetch(location.pathname + "?_upd=" + Date.now(), {cache:"reload"}); if(!probe || !probe.ok) throw 0; }
-    catch(e){ flashStatus("Couldn't reach the site to update — check your connection and try again."); restore(); return; }
-    if(btn) btn.textContent = "Updating…";
-    try{ if("serviceWorker" in navigator){ const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); } }catch(e){}   // drop the SW so the reload isn't served the cached build
-    try{ if("caches" in window){ const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } }catch(e){}   // and clear its cache
-    location.reload();   // re-fetches every file fresh from the server; localStorage (character + sourcebooks) is untouched
+    const hosted = /^https?:$/.test(location.protocol);
+    const btn = $("btn-update"), label = hosted ? "Update to the latest version" : "Download the latest version";
+    const restore = () => { if(btn){ btn.disabled = false; btn.textContent = label; } };
+    if(!confirm(hosted
+        ? "Update to the latest version of the sheet?\n\nYour current character and loaded sourcebooks are kept. If you want a backup, press Cancel, then Save a copy first."
+        : "Download the latest version of the sheet, with your current character baked in?\n\nYou'll get a fresh HTML file to replace this one — your character and sourcebooks come with it. If you want a backup, press Cancel, then Save a copy first.")) return;
+    if(btn){ btn.disabled = true; btn.textContent = hosted ? "Checking…" : "Fetching latest…"; }
+    if(hosted){
+      // reachability check that bypasses the offline cache (unique URL), so an offline "update" can't wipe the cache and leave nothing to load
+      try{ const probe = await fetch(location.pathname + "?_upd=" + Date.now(), {cache:"reload"}); if(!probe || !probe.ok) throw 0; }
+      catch(e){ flashStatus("Couldn't reach the site to update — check your connection and try again."); restore(); return; }
+      if(btn) btn.textContent = "Updating…";
+      try{ if("serviceWorker" in navigator){ const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); } }catch(e){}   // drop the SW so the reload isn't served the cached build
+      try{ if("caches" in window){ const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } }catch(e){}   // and clear its cache
+      location.reload();   // re-fetches every file fresh; localStorage (character + sourcebooks) is untouched
+      return;
+    }
+    // local file: fetch the latest code, re-bake the current character + sourcebooks, download a fresh file to replace this one
+    const html = await fetchLatestApp();
+    if(!html){ flashStatus("Couldn't download the latest version — check your connection and try again."); restore(); return; }
+    let doc; try{ doc = new DOMParser().parseFromString(html, "text/html"); }catch(e){ doc = null; }
+    const ed = doc && doc.querySelector("#embedded-data");
+    if(!ed){ flashStatus("That download didn't look like the sheet — update cancelled."); restore(); return; }
+    ed.textContent = JSON.stringify(collect());                                                          // your current character travels into the new file
+    const sd = doc.querySelector("#source-data"); if(sd) sd.textContent = JSON.stringify(DATA || null);   // and your loaded sourcebooks (so the new file still works fully offline)
+    const st = doc.querySelector("#status"); if(st) st.textContent = "";
+    download("<!DOCTYPE html>\n" + doc.documentElement.outerHTML, charLabel()+".html", "text/html");
+    flashStatus("Downloaded the latest version with your character baked in — replace your old file with this download.");
+    restore();
   }
   let _suppressSave = false;   // set when we've just deleted the current character and are navigating away — don't resurrect it
   function save(){
@@ -6167,7 +6202,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; { const ub = $("update-block"); if(ub) ub.style.display = /^https?:$/.test(location.protocol) ? "" : "none"; } $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
