@@ -321,6 +321,8 @@
   .cm-acts button.cm-del:hover{color:#b42318}
   .cm-foot{margin-top:16px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px}
   .cm-empty{padding:30px 10px; text-align:center; color:var(--muted)}
+  .cm-warn{margin-top:12px; padding:10px 12px; border:1px solid #d9a400; background:#fff8e6; color:#6f5300; font-size:12px; line-height:1.55}
+  .cm-warn strong{color:#6f5300}
   /* Settings: left-side section tabs + right-side content */
   .settings-panel{max-width:660px}
   .settings-wrap{display:flex; min-height:320px}
@@ -887,6 +889,7 @@
           <span id="cm-storage"></span>
           <span>Each character is its own siloed sheet — separate sources, rules, pages, and portrait.</span>
         </div>
+        <div class="cm-warn" id="cm-warn" hidden></div>
       </div>
     </div>
   </div>
@@ -3974,6 +3977,7 @@
       else { localStorage.removeItem(KEY+"_img"); localStorage.removeItem(KEY+"_thumb"); }
     }catch(e){ flashStatus("Portrait too large to autosave — use Save copy (HTML) to keep it"); return; }
     flashStatus("Saved");
+    storagePressureCheck();   // soft nudge if we've crossed ~90% (only once the cap is known — never probes here)
   }
 
   // ---- Inspiration toggle ----
@@ -5894,6 +5898,7 @@
     if(tb && tb.parentNode) tb.parentNode.insertBefore(bar, tb.nextSibling); else document.body.appendChild(bar);
   }
   function init(){
+    try{ localStorage.removeItem(STORE_PROBE_KEY); }catch(e){}   // sweep a probe temp key if a prior probe was ever interrupted
     buildStatic();
     wireLabels();
     let _stored = null, _baked = null;
@@ -6280,10 +6285,35 @@
     location.href = base + (slot ? "#slot=" + slot : "#");
     location.reload();               // a hash-only change won't reload on its own; force it so init() re-reads the new slot
   }
-  function storageBytes(){
+  function storageChars(){   // total localStorage size in UTF-16 code units (keys + values)
     let n = 0;
     try{ for(let i=0; i<localStorage.length; i++){ const k = localStorage.key(i); n += (k.length + (localStorage.getItem(k)||"").length); } }catch(e){}
-    return n * 2;   // localStorage is UTF-16
+    return n;
+  }
+  // localStorage has its own ~5MB cap that navigator.storage.estimate() does NOT report (that's the
+  // whole-origin quota, often GBs). We auto-detect the real ceiling once with a non-destructive
+  // binary-search probe: how big a temp value still fits, on top of what's already stored.
+  let _capChars = null, _storageWarned = false;
+  const STORE_PROBE_KEY = "__cap_probe__";
+  function probeStorageCap(){
+    if(_capChars != null) return _capChars;
+    try{ localStorage.removeItem(STORE_PROBE_KEY); }catch(e){}
+    const used = storageChars();
+    const fits = n => { try{ localStorage.setItem(STORE_PROBE_KEY, "a".repeat(n)); localStorage.removeItem(STORE_PROBE_KEY); return true; }
+                        catch(e){ try{ localStorage.removeItem(STORE_PROBE_KEY); }catch(_){} return false; } };
+    let lo = 0, hi = 16 * 1024 * 1024;   // assume the spare headroom is under ~16M chars
+    if(fits(hi)){ _capChars = used + hi; return _capChars; }   // unusually large quota — treat hi as plenty of headroom
+    while(hi - lo > 65536){ const mid = (lo + hi) >> 1; if(fits(mid)) lo = mid; else hi = mid; }   // 64K-char resolution
+    _capChars = used + lo;
+    return _capChars;
+  }
+  function storagePct(){ const cap = _capChars || (5 * 1024 * 1024); return cap > 0 ? storageChars() / cap : 0; }   // before a probe, assume the common ~5M-char cap
+  function storagePressureCheck(){   // light, autosave-path friendly: never triggers the probe itself
+    if(_capChars == null) return;
+    const pct = storagePct();
+    if(pct >= 0.90 && !_storageWarned){ _storageWarned = true;
+      flashStatus("⚠ Browser storage ~" + Math.round(pct*100) + "% full — only autosave is affected. See Manage Characters; manual Save to a file always works."); }
+    else if(pct < 0.80 && _storageWarned){ _storageWarned = false; }   // hysteresis: re-arm once they've freed space
   }
   function renderCharMgr(){
     const grid = $("cm-grid"); if(!grid) return;
@@ -6326,8 +6356,19 @@
       card.querySelector(".cm-del").addEventListener("click", e=>{ e.stopPropagation(); deleteSlot(c); });
       grid.appendChild(card);
     });
-    const mb = storageBytes() / 1048576;
-    $("cm-storage").textContent = "Browser storage in use: ~" + (mb < 0.1 ? "<0.1" : mb.toFixed(1)) + " MB";
+    const cap = probeStorageCap();                 // auto-detect this browser's localStorage ceiling (cached after first open)
+    const usedMb = storageChars() * 2 / 1048576, capMb = cap * 2 / 1048576;
+    const pct = storagePct();
+    $("cm-storage").textContent = "Browser storage: ~" + (usedMb < 0.1 ? "<0.1" : usedMb.toFixed(1)) +
+      " MB of ~" + capMb.toFixed(1) + " MB (" + Math.round(pct*100) + "%)";
+    const warn = $("cm-warn");
+    if(pct >= 0.90){
+      warn.hidden = false;
+      warn.innerHTML = "<strong>You're using ~" + Math.round(pct*100) + "% of this browser's storage for the sheet.</strong> " +
+        "This doesn't break anything except <em>autosave</em> — new edits may stop saving to the browser. " +
+        "If you keep a manually-saved copy of each character (the <strong>Save</strong> button → an HTML file, recommended anyway), you can ignore this. " +
+        "Otherwise, delete a character or remove a portrait above to free space.";
+    } else { warn.hidden = true; warn.textContent = ""; }
   }
   function renameSlot(c){
     const nm = prompt("Character name:", c.name || "");
