@@ -397,10 +397,14 @@
   html.mobile .install-hint{position:static; padding-bottom:10px; border-top:none; border-bottom:1px solid var(--line2)}
   @media print{ .install-hint{display:none} }
   /* First-load intro overlay (shown once per browser) */
-  .intro-overlay{position:fixed; inset:0; z-index:11000; display:flex; align-items:center; justify-content:center;
+  /* align-items:flex-start + margin:auto on the card (not align-items:center): centering a flex item
+     taller than the overlay pushes its top ABOVE the scrollable area, so the title clips and you can't
+     scroll up to it (worse when a bookmarks bar shrinks the viewport). margin:auto still centers a short
+     card but collapses to the top when it overflows, keeping the whole card reachable. */
+  .intro-overlay{position:fixed; inset:0; z-index:11000; display:flex; align-items:flex-start; justify-content:center;
     padding:24px; background:rgba(26,29,35,.55); overflow:auto; overscroll-behavior:contain}
   .intro-overlay[hidden]{display:none}   /* the class's display:flex overrides the UA [hidden] rule, so honour hidden explicitly (dismissIntro toggles it) */
-  .intro-card{background:var(--card); border:1px solid var(--line2); max-width:640px; width:100%;
+  .intro-card{background:var(--card); border:1px solid var(--line2); max-width:640px; width:100%; margin:auto;
     padding:28px 30px; color:var(--ink); font-size:15px; line-height:1.5}
   .intro-card h2{margin:0; font-size:20px; letter-spacing:.04em; color:var(--accent)}
   .intro-sub{margin:2px 0 16px; font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted)}
@@ -1789,7 +1793,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v186 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v187 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
