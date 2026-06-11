@@ -1768,6 +1768,7 @@
   let genTce = [], genTceRemoved = [];                      // TCE class-feature blocks this build added / the base feature blocks it replaced — so toggling a rule (or Edit) can cleanly undo them
   let genFeatures = [], genProf = [], genDefenses = [];     // exact Feature blocks + Proficiency lines + Defense notes the wizard last generated, so "Edit Character" replaces them instead of duplicating
   let genSpells = {};      // per-caster record of spell picks the wizard last wrote (so Edit replaces, not piles up): {casterKey:{cantrips,rows,prepared}}
+  let genFeatSpells = [];  // spells a "you learn ..." feat (Fey/Shadow Touched) auto-added to the spell sheet: [{name,inst,mode:'prep'|'row'}] — tracked so a swap/removal never touches the player's own copy
   function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
   function scanDefenses(text){   // pull "you have/gain resistance/immunity to X" out of feature prose → concise Resistances/Immunities lines (with any "while …" qualifier)
     const out = [];
@@ -3225,6 +3226,7 @@
     if(bg && bg.expanded) bg.expanded.forEach(add);
     const rc = findBy(DATA.races, (($("race")||{}).value)||"");
     if(rc && rc.expanded) rc.expanded.forEach(add);
+    featGrantedSpells().forEach(n => { const d = spellData(n); add({n, l:(d && typeof d.level === "number") ? d.level : 1}); });   // "you learn ..." feats add their spells to your list
     return out;
   }
   function classSpellList(cls){
@@ -3810,8 +3812,8 @@
         else hint.style.display = "none"; } }
     renderContainers();      // container carets, nesting, collapse
     { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig()
-        + "" + (asiChoices||[]).map(s => (s.feat||"")+":"+(s.featSpell||"")).join(",");   // feat-granted spell picks drive "<Feat> (Spell)" limited rows
-      if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
+        + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")).join(",");   // feat type + spell picks drive limited rows and learned-spell sync
+      if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
   }
@@ -3851,7 +3853,7 @@
     data.charBgChoices = charBgChoices;
     data.charRaceChoices = charRaceChoices;
     data.tceOff = tceOff; data.genTce = genTce; data.genTceRemoved = genTceRemoved;   // Tasha's optional-rule prefs + the feature blocks they added/replaced
-    data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells;   // remember generated content so Edit Character replaces it instead of duplicating
+    data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells; data.genFeatSpells = genFeatSpells;   // remember generated content so Edit Character replaces it instead of duplicating
     data.levelMethod = levelMethod;
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
@@ -3936,6 +3938,7 @@
     genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
     genDefenses = (data && Array.isArray(data.genDefenses)) ? data.genDefenses : [];
     genSpells = (data && data.genSpells && typeof data.genSpells === "object" && !Array.isArray(data.genSpells) && !data.genSpells.cantrips) ? data.genSpells : {};   // keyed by caster (old single-record saves reset to {})
+    genFeatSpells = (data && Array.isArray(data.genFeatSpells)) ? data.genFeatSpells.filter(g => g && g.name).map(g => ({name:g.name, inst:g.inst||0, mode:g.mode==="prep"?"prep":"row"})) : [];
     levelMethod = (data && data.levelMethod === "milestone") ? "milestone" : "xp";
     hpMode = (data && data.hpMode) || "manual";
     hpRolls = (data && Array.isArray(data.hpRolls)) ? data.hpRolls : [];
@@ -4346,6 +4349,39 @@
     });
     genSpells = newGen;
     renderAllSpellSheets(false);
+  }
+  // ---- "you learn ..." feats: Fey Touched / Shadow Touched add their granted spells to the spell list ----
+  function featGrantedSpells(){   // every spell a chosen spell-feat grants you ("learn"): its fixed spell(s) + the chosen one
+    const out = [], seen = new Set();
+    (asiChoices||[]).forEach(s => { if(s.type !== "feat" && s.source !== "race") return;   // only an actually-taken feat grants spells (a slot switched back to ASI keeps its old feat string)
+      const fs = s.feat && FEAT_SPELLS[s.feat]; if(!fs) return;
+      const names = (fs.fixed||[]).slice(); if(fs.choose && s.featSpell) names.push(s.featSpell);
+      names.forEach(n => { const k = (n||"").toLowerCase(); if(n && !seen.has(k)){ seen.add(k); out.push(n); } });
+    });
+    return out;
+  }
+  function syncFeatSpells(){   // keep the feat-granted spells on the character's main sheet in step with the current feat picks
+    const inst = 0, desired = featGrantedSpells(), desiredSet = new Set(desired.map(n => n.toLowerCase()));
+    const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], fullList = !!(info && info.fullList);
+    const ce = spellEntriesOf(inst), prepared = preparedOf(inst);
+    let changed = false;
+    const keep = [];
+    (genFeatSpells||[]).forEach(g => {
+      if(g.inst !== inst || desiredSet.has(g.name.toLowerCase())){ keep.push(g); return; }   // other sheet, or still granted → leave in place
+      if(g.mode === "prep"){ if(prepared[g.name]){ delete prepared[g.name]; changed = true; } }   // no longer granted → pull the copy we added
+      else for(const l in ce){ const a = ce[l]; if(!a) continue; const i = a.findIndex(r => (r.name||"").toLowerCase() === g.name.toLowerCase()); if(i>=0){ a.splice(i,1); changed = true; break; } }
+    });
+    genFeatSpells = keep;
+    desired.forEach(n => {
+      const lc = n.toLowerCase();
+      if(genFeatSpells.some(g => g.inst===inst && g.name.toLowerCase()===lc)) return;   // already added by us
+      if(hasSpellNamed(n)) return;                                                       // the player already knows it — share their row, never duplicate or claim it
+      if(fullList){ prepared[n] = true; genFeatSpells.push({name:n, inst, mode:"prep"}); changed = true; }   // full-list caster: always-prepared (feat spells don't count against your prepared count)
+      else { const d = spellData(n), l = Math.min(9, Math.max(0, (d && typeof d.level === "number") ? d.level : 1)), a = (ce[l] = ce[l] || []);
+        let slot = a.find(r => !(r.name||"").trim()); if(!slot){ slot = {name:"", prep:false}; a.push(slot); } slot.name = n;
+        genFeatSpells.push({name:n, inst, mode:"row"}); changed = true; }
+    });
+    if(changed) renderAllSpellSheets(false);
   }
   function scrollListToActive(box){   // reveal the highlighted button within its own scroll box only (never the page/modal); no-op if already visible
     const a = box && box.querySelector(".active"); if(!a) return;
@@ -5291,12 +5327,13 @@
     wizFocus = wizClasses[0] ? wizClasses[0].name : "";
     wizSpells = {};
     if(characterCreated){   // editing → preload each caster's picker from its spell sheet (primary = sheet 0; secondaries = their own sheets)
+      const featSet = new Set(featGrantedSpells().map(n => n.toLowerCase()));   // feat-granted spells are managed separately — don't import them as class picks
       wizCasters().forEach((c, idx) => { const pl = spellPlan(c.key, c.level); if(!pl) return;
         const inst = idx === 0 ? 0 : findSheetForClass(c.key); if(inst < 0) return;
         const picks = {cantrips:[], spells:[]};
-        ((spellEntriesByInst[inst]||{})[0]||[]).forEach(r => { if((r.name||"").trim()) picks.cantrips.push(r.name); });
-        if(pl.mode === "prepare") Object.keys(preparedByInst[inst]||{}).forEach(n => { if(preparedByInst[inst][n]) picks.spells.push(n); });
-        else for(let l=1;l<=9;l++) ((spellEntriesByInst[inst]||{})[l]||[]).forEach(r => { if((r.name||"").trim()) picks.spells.push(r.name); });
+        ((spellEntriesByInst[inst]||{})[0]||[]).forEach(r => { if((r.name||"").trim() && !featSet.has(r.name.toLowerCase())) picks.cantrips.push(r.name); });
+        if(pl.mode === "prepare") Object.keys(preparedByInst[inst]||{}).forEach(n => { if(preparedByInst[inst][n] && !featSet.has(n.toLowerCase())) picks.spells.push(n); });
+        else for(let l=1;l<=9;l++) ((spellEntriesByInst[inst]||{})[l]||[]).forEach(r => { if((r.name||"").trim() && !featSet.has(r.name.toLowerCase())) picks.spells.push(r.name); });
         wizSpells[c.key] = picks;
       });
     }
@@ -5886,7 +5923,7 @@
         fillLimitedFeatures(w.name, w.level, featMap);                            // Rage / Ki / Sorcery Points / Channel Divinity → Limited Features card
       });
       if(featLines.length){ const t = $("features"); const block = featLines.join("\n\n"); t.value = t.value.trim() ? t.value+"\n\n"+block : block; autoGrow(t); }
-      if(primary){ applyWizSpells(); renderSpellStyle(false, 0); }                  // write the builder's spell picks + reflect always-prepared subclass spells
+      if(primary){ applyWizSpells(); syncFeatSpells(); renderSpellStyle(false, 0); }   // write the builder's spell picks + always-prepared subclass spells + "you learn ..." feat spells
       if(!editing){                                                               // starting gear/gold is a one-time level-1 grant — never re-add on Edit
         const eq = (c0 && c0.equip) || {};                                        // comes from the INITIAL class only
         if(wizEquip === "gold"){ const g = goldAverage(eq.gold); if(g != null) $("gp").value = g; }
