@@ -1935,6 +1935,8 @@
       if(!s.feat) return false;
       const f = DATA && DATA.feats && DATA.feats.find(x => x.name === s.feat);
       if(f && f.ability && f.ability.choose && !s.featAbil) return false;   // half-feat: must pick which ability
+      const fs = FEAT_SPELLS[s.feat];
+      if(fs && fs.choose && !s.featSpell) return false;                     // spell-granting feat: must pick the chosen spell
       return true;
     }
     return false;
@@ -1999,6 +2001,13 @@
     "Alert": "Alert (+5 initiative; can't be surprised while conscious; hidden attackers gain no advantage)" };
   // Feats that add a flat bonus to Initiative (5etools has no structured field for these — hardcode the known ones).
   const FEAT_INIT = { "Alert": 5 };
+  // Feats that grant spells (5etools has no structured field for these): one or more always-granted "fixed" spells,
+  // plus an optional player "choose" of a spell at a given level from certain schools. Each granted spell can be cast
+  // once per long rest without a slot → each becomes its own "<Feat> (Spell)" Limited Features row.
+  const FEAT_SPELLS = {
+    "Fey Touched":    { fixed:["Misty Step"],   choose:{count:1, level:1, schools:["Divination","Enchantment"]} },
+    "Shadow Touched": { fixed:["Invisibility"], choose:{count:1, level:1, schools:["Illusion","Necromancy"]} },
+  };
   // Class / subclass features that belong in the Senses box (keyed by lowercased feature name).
   const FEATURE_SENSES = {
     "danger sense": "Danger Sense (advantage on Dex saves vs. effects you can see)",
@@ -2077,7 +2086,7 @@
           `<div class="feat-list">`+ feats.map(f =>
             `<div class="pick-item"><input type="radio" name="asi-feat-${i}" class="asi-feat-radio" data-i="${i}" value="${esc(f.name)}"${s.feat===f.name?" checked":""}>`+
             `<details class="pick-det"${s.feat===f.name?" open":""}><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("") +`</div></div>`+
-          featAbilPicker(s, i)
+          featAbilPicker(s, i) + featSpellPicker(s, i)
         : `<div class="asi-body"><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
       if(s.source === "race"){                       // racial feat — feat only, no ASI option
         raceIdx++;
@@ -2112,6 +2121,19 @@
     const opts = `<option value=""></option>` + (f.ability.choose.from||[]).map(k => `<option value="${k}"${s.featAbil===k?" selected":""}>${ABBR[k]||k}</option>`).join("");
     const lbl = (f.saves && f.saves.choose) ? "+1 &amp; save in" : "+1 to";
     return `<div class="asi-body"><label>${lbl}</label><select class="asi-featabil" data-i="${i}">${opts}</select></div>`;
+  }
+  // Spell-granting feats (Fey Touched, Shadow Touched, …) let you choose one spell of a fixed level + school — show that picker.
+  function featSpellPicker(s, i){
+    const fs = FEAT_SPELLS[s.feat]; if(!fs || !fs.choose) return "";
+    const ch = fs.choose, ord = n => n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:Math.min(n%10,4)] || "th");
+    const spells = ((DATA && DATA.spells) || [])
+      .filter(sp => sp.level === ch.level && ch.schools.includes(sp.school))
+      .sort((a,b) => a.name.localeCompare(b.name));
+    const opts = `<option value=""></option>` + spells.map(sp =>
+      `<option value="${esc(sp.name)}"${s.featSpell===sp.name?" selected":""}>${esc(sp.name)}</option>`).join("");
+    const granted = fs.fixed && fs.fixed.length ? ` (also grants ${fs.fixed.join(", ")})` : "";
+    return `<div class="asi-body"><label>${ord(ch.level)}-level ${ch.schools.join(" / ")} spell${granted}</label>`+
+      `<select class="asi-featspell" data-i="${i}">${opts}</select></div>`;
   }
   function openAsiModal(){ renderAsiList(); $("asimodal").classList.add("open"); focusModal($("asimodal")); }
 
@@ -3787,7 +3809,8 @@
         if(found){ hint.style.display = ""; hint.textContent = `You have ${found.name} in your inventory but no armor is set — ${found.equip?"":"check its Equipped box, then "}pick it under Armor to apply its AC.`; }
         else hint.style.display = "none"; } }
     renderContainers();      // container carets, nesting, collapse
-    { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig();
+    { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig()
+        + "" + (asiChoices||[]).map(s => (s.feat||"")+":"+(s.featSpell||"")).join(",");   // feat-granted spell picks drive "<Feat> (Spell)" limited rows
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
@@ -3868,7 +3891,7 @@
       else if(data.racialVals) bonusVals.racial = {...bonusVals.racial, ...data.racialVals};   // legacy: old single racial bonus
     }
     asiChoices = (data && Array.isArray(data.asiChoices))
-      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||"", featAbil:(s&&s.featAbil)||"", source:(s&&s.source)||"class"}))
+      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||"", featAbil:(s&&s.featAbil)||"", featSpell:(s&&s.featSpell)||"", source:(s&&s.source)||"class"}))
       : [];
     asiFeatsAdded = (data && data.asiFeatsAdded) ? {...data.asiFeatsAdded} : {};
     if(data && data.asiChoices) applyAsiBonuses();   // ASI column derives from the picks (legacy sheets keep their manual column)
@@ -5756,6 +5779,19 @@
     featureBlocks().forEach(b => {
       const lc = b.name.toLowerCase();
       if(LIMITED_FEAT_NAMES.has(lc)) return;                                  // class resources handled with computed counts
+      const fsKey = Object.keys(FEAT_SPELLS).find(k => k.toLowerCase() === lc);
+      if(fsKey){                                                              // spell-granting feat → one "<Feat> (Spell)" row per granted spell (each 1/long rest)
+        const fs = FEAT_SPELLS[fsKey];
+        const slot = (asiChoices||[]).find(x => x.type === "feat" && x.feat === fsKey);
+        const want = (fs.fixed||[]).slice();
+        if(fs.choose && slot && slot.featSpell) want.push(slot.featSpell);
+        const labels = want.map(nm => `${fsKey} (${nm})`), low = labels.map(l => l.toLowerCase());
+        const gi = lfIndexByName(b.name); if(gi >= 0) clearLfRow(gi);         // drop a stray bare "Fey Touched" row
+        for(let i=0;i<NLIMITED;i++){ const nm = ($("lfname-"+i).value||"").trim();   // clear stale "<Feat> (...)" rows (e.g. the chosen spell was re-picked)
+          if(nm.toLowerCase().startsWith(fsKey.toLowerCase()+" (") && !low.includes(nm.toLowerCase())) clearLfRow(i); }
+        labels.forEach(l => addLimitedRow(l, 1, "LR", b.text.slice(0,300)));
+        return;
+      }
       if(/^channel divinity\b\s*[:(]/.test(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); return; }   // "Channel Divinity: X" options share the tracked Channel Divinity pool
       if(LIMITED_EXCLUDE.has(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); return; }   // never limited → clear any stray row
       if(LIMITED_OVERRIDES[lc]){ const rows = LIMITED_OVERRIDES[lc];          // known exact values (possibly renamed / split into several rows)
@@ -6059,8 +6095,9 @@
       if(isNaN(i) || !asiChoices[i]) return;
       if(t.classList.contains("asi-type-r")){ asiChoices[i].type = t.value; }
       else if(t.classList.contains("asi-ab")){ asiChoices[i][t.dataset.which] = t.value; }
-      else if(t.classList.contains("asi-feat-radio")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; }   // new feat → reset its ability pick
+      else if(t.classList.contains("asi-feat-radio")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; asiChoices[i].featSpell = ""; }   // new feat → reset its ability + spell picks
       else if(t.classList.contains("asi-featabil")){ asiChoices[i].featAbil = t.value; }
+      else if(t.classList.contains("asi-featspell")){ asiChoices[i].featSpell = t.value; }
       applyAsiBonuses();
       renderAsiList(); renderHoodControls(); save(); compute();
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
