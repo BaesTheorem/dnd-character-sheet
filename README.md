@@ -119,6 +119,18 @@ Beyond character creation, the sheet keeps these live as you edit:
 - Race / background / feat / class **proficiencies** route to the skill checkboxes and the
   Proficiencies box; the **Observant** feat also adds its line to Senses.
 
+## Manual overrides
+Every calculated value can be pinned by hand when your table's ruling, a homebrew item, or a variant
+rule disagrees with the math. **Double-click** any computed field (ability scores, modifiers,
+proficiency bonus, AC, initiative, passive Perception, saves, skills, spell save DC / attack /
+prepared count, attack rows, Max HP, hit dice, speed, carrying capacity), type a value, and press
+**Enter**. Pinned fields show a small marker and an outline; their tooltip shows the calculated value
+so drift stays visible. **Override-as-source:** pinning a *source* value cascades — pin an ability
+score and its modifier, saves, skills, AC and attacks all recompute from it; pin the proficiency bonus
+and everything that uses it follows. **Alt-click** a pinned field to revert it to calculated, or use
+**Settings → Manual overrides → Clear all manual overrides** to drop them all. Overrides are saved
+with the character and print as plain values.
+
 ## Source books (Settings)
 Open **Settings → Source books** to load D&D content. Two ways:
 - **From a local 5etools server** — pick any book (PHB, XGE, TCE, **Monster Manual**, …) and click

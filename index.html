@@ -262,6 +262,12 @@
   .stat.toggle-stat{cursor:pointer; user-select:none}
   .stat.on{background:var(--accent); border-color:var(--accent)}
   .stat.on .k,.stat.on .calc{color:#fff}
+  /* Manual overrides: a hand-pinned computed value — flat square marker + hairline outline, no shadow */
+  .ov{position:relative; outline:1px dashed var(--accent); outline-offset:-2px}
+  .ov::after{content:""; position:absolute; top:1px; right:1px; width:4px; height:4px; background:var(--accent)}
+  input.ov{outline:1px dashed var(--accent); outline-offset:-2px; background:rgba(0,0,0,.03)}
+  .ovf[contenteditable="true"]{outline:1px solid var(--accent); outline-offset:-2px; cursor:text}
+  @media print{ .ov{outline:none} .ov::after{display:none} input.ov{outline:none; background:none} }
   .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
   .deathsaves{display:flex; align-items:center; gap:16px; margin-top:12px}
   .deathsaves .ds-title{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--ink)}
@@ -1711,6 +1717,9 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
             <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
             <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Manual overrides</label>
+            <button class="btn" id="btn-reset-overrides" type="button" title="Clear every hand-pinned value and return to calculated values">Clear all manual overrides</button>
+            <p class="wiz-hint">Double-click any calculated value on the sheet (ability scores, modifiers, proficiency, AC, initiative, saves, skills, spell DC, attacks, HP…) to pin a custom value. A pinned source value still feeds everything below it. Pinned fields are outlined with a small marker and their tooltip shows the calculated value; Alt-click one to revert. This button clears them all at once.</p>
           </section>
           <section class="set-sec" data-sec="pages">
             <label class="lbl" style="display:block; margin-bottom:6px">Visible pages</label>
@@ -1771,7 +1780,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v183 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v184 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -1938,18 +1947,35 @@
   let hitDieFaces = null;                      // class hit-die size (e.g. 8) → Hit Dice box shows "1d8+CON"
   let speedBase = null;                        // base walking speed; Speed box shows the modified value, base shown only while focused
 
+  // ---- Manual overrides (override-as-source) ----
+  // Any computed value the player pins by hand. A pinned ability score / modifier / proficiency bonus is
+  // fed back into every downstream calc (saves, skills, AC, attacks, spell DC…) via the helpers below;
+  // pinned "leaf" values (AC, initiative, spell DC…) are just repainted after compute() in applyOverrides().
+  let overrides = {};                                     // { elementId: rawString } — presence = pinned
+  const hasOv = id => Object.prototype.hasOwnProperty.call(overrides, id);
+  function ovInt(id){ const m = String(overrides[id]).match(/-?\d+/); return m ? parseInt(m[0],10) : null; }
+  let _rawCalc = {};                                      // per-compute stash of each source field's UNPINNED value, for the "Calculated X" ghost
+
   // ---- Derived score helpers (work in every mode) ----
   function baseScore(k){
     if(genMode === "manual"){ const n = parseInt(manualScores[k],10); return isNaN(n) ? null : n; }   // blank → null
     return baseVals[k];                                     // may be null (unassigned array)
   }
   function totalBonus(k){ let s = 0; for(const [c] of BONUS_CATS) s += (bonusVals[c][k] || 0); return s; }
+  function rawFinalScore(k){ const b = baseScore(k); return b == null ? null : b + totalBonus(k); }   // base + ASI/racial/magical/misc, before any override
   function finalScore(k){
-    const b = baseScore(k);
-    if(b == null) return null;
-    return b + totalBonus(k);   // final = base + ASI + racial + magical + misc (all modes)
+    if(hasOv("score-"+k+"-out")){ const v = ovInt("score-"+k+"-out"); if(v != null) return v; }   // a pinned score feeds the modifier, carrying capacity, etc.
+    return rawFinalScore(k);
   }
-  function modOf(k){ const s = finalScore(k); return s == null ? 0 : Math.floor((s - 10) / 2); }
+  function modOf(k){
+    if(hasOv("mod-"+k)){ const v = ovInt("mod-"+k); if(v != null) return v; }   // a directly-pinned modifier wins; else derive (honoring a pinned score)
+    const s = finalScore(k); return s == null ? 0 : Math.floor((s - 10) / 2);
+  }
+  function profBonus(){                                   // proficiency bonus, honoring a manual override (feeds saves/skills/attacks/spell DC)
+    const lvl = charLevel(); const base = (lvl == null) ? null : 2 + Math.floor((lvl - 1) / 4);
+    if(hasOv("pb")){ const v = ovInt("pb"); if(v != null) return v; }
+    return base;
+  }
   function pbSpent(vals){
     let s = 0;
     ABILITIES.forEach(([k]) => { const b = (vals[k]==null?8:vals[k]); s += (POINTBUY_COST[b]||0); });
@@ -3692,8 +3718,11 @@
   function compute(){
     // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
     const level = charLevel();
-    const pb = (level == null) ? null : 2 + Math.floor((level - 1) / 4);
+    const pbBase = (level == null) ? null : 2 + Math.floor((level - 1) / 4);
+    const pb = profBonus();                                   // honors a manual override
     const pbAdd = pb || 0;
+    _rawCalc = {};
+    _rawCalc["pb"] = (pbBase == null) ? "" : sgn(pbBase);
     $("pb").textContent = (pb == null) ? "" : sgn(pb);
 
     const mods = {};
@@ -3702,6 +3731,9 @@
       mods[k] = (s == null) ? null : modOf(k);
       $("mod-"+k).textContent = (mods[k] == null) ? "" : sgn(mods[k]);
       const o = $("score-"+k+"-out"); if(o) o.textContent = (s == null) ? "" : s;
+      const rs = rawFinalScore(k), rm = (rs == null) ? null : Math.floor((rs - 10) / 2);   // unpinned ghost for the override tooltip
+      _rawCalc["score-"+k+"-out"] = (rs == null) ? "" : String(rs);
+      _rawCalc["mod-"+k] = (rm == null) ? "" : sgn(rm);
     });
 
     ABILITIES.forEach(([k]) => {
@@ -3792,7 +3824,7 @@
         if(hpRolls.length){
           const con = (mods.con == null) ? 0 : mods.con, lvl = hpRolls.length;
           hm.value = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*lvl;
-          hm.readOnly = true; hm.title = "Set from HP by level (Create/Edit Character → HP). Con is applied per level.";
+          hm.readOnly = !hasOv("hpmax"); hm.title = "Set from HP by level (Create/Edit Character → HP). Con is applied per level.";
         } else { hm.readOnly = false; hm.removeAttribute("title"); }   // no records → manual entry
       }
     }
@@ -3915,6 +3947,87 @@
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
+    applyOverrides();    // repaint any hand-pinned leaf values over what compute() just wrote (sources already cascaded via the helpers)
+  }
+
+  // ===== Manual overrides: pin any computed value by hand =====
+  // Every id here can be double-clicked to pin a custom value; Alt-click a pinned field to revert.
+  // Source fields (ability scores/modifiers, proficiency bonus) cascade through compute() via the helpers;
+  // the rest are leaves repainted here. Calculated value is kept as a "Calculated X" ghost so drift stays visible.
+  function overrideIds(){
+    const ids = ["pb","ac-calc","init","passive","attacks-per","hd-avail","hitdice","hpmax","speed",
+                 "carry","enc5","enc10","pushdrag","coinwt","totalwt","carried"];
+    ABILITIES.forEach(([k]) => ids.push("score-"+k+"-out","mod-"+k,"savetot-"+k));
+    SKILLS.forEach(([k]) => ids.push("sktot-"+k));
+    for(let i=0;i<NATTACKS;i++) ids.push("atkbonus-"+i,"atkdmg-"+i);
+    for(let inst=0; inst<spellSheets; inst++) ["spelldc","spellatk","prepcount"].forEach(b => ids.push(sx(inst,b)));
+    return ids;
+  }
+  function applyOverrides(){
+    overrideIds().forEach(id => {
+      const el = $(id); if(!el) return;
+      el.classList.add("ovf");
+      if(!("baseTitle" in el.dataset)) el.dataset.baseTitle = el.getAttribute("title") || "";   // remember any real title so revert can restore it
+      const isInput = el.tagName === "INPUT";
+      if(el === document.activeElement && (isInput || el.isContentEditable)) return;             // never stomp the field being edited
+      const ghost = (id in _rawCalc) ? _rawCalc[id] : (isInput ? el.value : el.textContent);     // leaves: compute() just wrote the real (unpinned) value here
+      if(hasOv(id)){
+        el.dataset.calc = (ghost == null) ? "" : String(ghost);
+        if(isInput) el.value = overrides[id]; else el.textContent = overrides[id];
+        el.classList.add("ov");
+        el.setAttribute("title", (ghost !== "" && ghost != null) ? ("Calculated " + ghost + " — pinned by hand. Alt-click to revert.") : "Pinned by hand. Alt-click to revert.");
+      } else if(el.classList.contains("ov")){
+        el.classList.remove("ov");
+        if(el.dataset.baseTitle) el.setAttribute("title", el.dataset.baseTitle); else el.removeAttribute("title");
+      }
+    });
+  }
+  function commitOverride(id, raw, el){
+    const v = String(raw).trim();
+    if(v === "") delete overrides[id]; else overrides[id] = v;   // cleared → revert to calculated
+    if(el && el.tagName === "INPUT" && !overrides[id]) el.readOnly = false;
+    queueSave(); compute();
+  }
+  let _ovEditing = null;   // id of the field currently in an override-edit session (suppresses that field's normal onChange side-effects)
+  function beginOverride(el){
+    const id = el.id; if(!id) return;
+    _ovEditing = id;
+    if(el.tagName === "INPUT"){
+      el.readOnly = false; el.focus(); if(el.select) el.select();
+      let lastVal = el.value;                                  // track the typed value; compute() can repaint this input on blur before commit reads it
+      const onInput = () => { lastVal = el.value; };
+      const done = save => { _ovEditing = null; el.removeEventListener("input", onInput); el.removeEventListener("blur", onBlur); el.removeEventListener("keydown", onKey); if(save) commitOverride(id, lastVal, el); else compute(); };
+      const onBlur = () => done(true);
+      const onKey = e => { if(e.key === "Enter"){ e.preventDefault(); done(true); el.blur(); } else if(e.key === "Escape"){ e.preventDefault(); done(false); el.blur(); } };
+      el.addEventListener("input", onInput); el.addEventListener("blur", onBlur); el.addEventListener("keydown", onKey);
+    } else {
+      const prev = el.textContent;
+      el.contentEditable = "true"; el.focus();
+      const selAll = () => { try{ const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }catch(e){} };
+      selAll(); setTimeout(selAll, 0);   // deferred pass wins over the browser's native double-click word-selection, so the first keystroke replaces the whole value
+      const done = save => { _ovEditing = null; el.contentEditable = "false"; el.removeEventListener("blur", onBlur); el.removeEventListener("keydown", onKey);
+        if(save) commitOverride(id, el.textContent, el); else { el.textContent = prev; compute(); } };
+      const onBlur = () => done(true);
+      const onKey = e => { if(e.key === "Enter"){ e.preventDefault(); el.blur(); } else if(e.key === "Escape"){ e.preventDefault(); done(false); } };
+      el.addEventListener("blur", onBlur); el.addEventListener("keydown", onKey);
+    }
+  }
+  function onOvDblclick(e){
+    const el = e.target.closest(".ovf"); if(!el || !el.id || !overrideIds().includes(el.id)) return;
+    e.preventDefault(); beginOverride(el);
+  }
+  function onOvClick(e){
+    if(!e.altKey) return;
+    const el = e.target.closest(".ovf"); if(!el || !hasOv(el.id)) return;
+    e.preventDefault();
+    delete overrides[el.id]; if(el.tagName === "INPUT") el.readOnly = false;
+    queueSave(); compute(); flashStatus("Reverted to the calculated value.");
+  }
+  function resetAllOverrides(){
+    if(!Object.keys(overrides).length){ flashStatus("No manual overrides to clear."); return; }
+    overrides = {};
+    document.querySelectorAll("input.ov").forEach(el => el.readOnly = false);
+    queueSave(); compute(); flashStatus("Cleared all manual overrides.");
   }
 
   // ---- Persistence ----
@@ -3966,6 +4079,7 @@
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     data.companions = companions;
     data.lfDesc = []; for(let i=0;i<NLIMITED;i++){ const el = $("lfname-"+i); data.lfDesc.push((el && el.title) || ""); }   // limited-feature tooltips
+    data.overrides = overrides;   // hand-pinned computed values
     return data;
   }
   function applyFields(data){                 // restores data-save fields + inspiration
@@ -3995,6 +4109,7 @@
       ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||"", featAbil:(s&&s.featAbil)||"", featSpell:(s&&s.featSpell)||"", source:(s&&s.source)||"class"}))
       : [];
     asiFeatsAdded = (data && data.asiFeatsAdded) ? {...data.asiFeatsAdded} : {};
+    overrides = (data && data.overrides && typeof data.overrides === "object" && !Array.isArray(data.overrides)) ? {...data.overrides} : {};   // hand-pinned values
     if(data && data.asiChoices) applyAsiBonuses();   // ASI column derives from the picks (legacy sheets keep their manual column)
     // ---- spell sheets (multi-sheet, with legacy single-sheet fallback) ----
     const loadEntries = src => { const e = defaultSpellEntries();
@@ -4180,7 +4295,9 @@
   function onChange(e){
     const t = e.target;
     if(t.id === "inspiration") return;
+    if(t.isContentEditable) return;   // an in-progress span override edits its own field; don't run the normal pipeline
     if(t.tagName === "TEXTAREA") autoGrow(t);
+    if(t.id && hasOv(t.id) && t.tagName === "INPUT") overrides[t.id] = t.value;   // editing a pinned input updates its override live
     if(t.id === "classlevel") renderAllSpellSheets(false);   // level changes the castable spell range → re-filter every sheet's list + slots
     if(t.id === "spellclass" || /^spellclass__\d+$/.test(t.id||"")){   // class picker on any sheet → re-tailor that sheet
       const inst = t.id.includes("__") ? +t.id.split("__")[1] : 0; renderSpellStyle(true, inst); }
@@ -4206,7 +4323,7 @@
     if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
       const P = preparedOf(+(t.dataset.inst||0));
       if(t.checked) P[t.dataset.sp] = true; else delete P[t.dataset.sp]; }
-    if(t.id === "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base
+    if(t.id === "speed" && !hasOv("speed") && _ovEditing !== "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base (unless it's pinned or being pinned)
     const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
     if(im){ const i = im[1];
       if(!t.value.trim()){ const q = $("invqty-"+i); if(q) q.value = ""; setRowUnit(i, null); const w = $("invwt-"+i); if(w) w.value = "";   // cleared → clear qty + weight
@@ -5282,7 +5399,7 @@
     return [...allowed].sort((a,b) => modOf(b) - modOf(a))[0] || "str";   // best available modifier
   }
   function weaponAtkRow(w){                   // {bonus, dmg} from current scores, assuming proficiency
-    const m = modOf(weaponAtkAbility(w)), lvl = charLevel(), pb = (lvl == null) ? 0 : 2 + Math.floor((lvl-1)/4);
+    const m = modOf(weaponAtkAbility(w)), pb = profBonus() || 0;
     const md = s => s > 0 ? "+"+s : (s < 0 ? ""+s : "");
     const twoH = (w.props||[]).some(p => /two-handed/i.test(p)), thrown = (w.props||[]).some(p => /thrown/i.test(p));
     let atkB = m + pb, flat = m;                                                  // Fighting Style math (see FIGHTING_STYLES)
@@ -5296,7 +5413,7 @@
   }
   function unarmedStrike(){                   // auto Unarmed Strike row: Str (or Monk Dex) + PB; damage 1+mod, or a die from Monk Martial Arts / Tavern Brawler
     const cls = ($("classlevel").value || "").toLowerCase();
-    const lvl = charLevel(), pb = (lvl == null) ? 0 : 2 + Math.floor((lvl-1)/4);
+    const lvl = charLevel(), pb = profBonus() || 0;
     const isMonk = /\bmonk\b/.test(cls);
     const ab = (isMonk && modOf("dex") > modOf("str")) ? "dex" : "str";   // Martial Arts may use Dex
     const m = modOf(ab), md = s => s > 0 ? "+"+s : (s < 0 ? ""+s : "");
@@ -5335,14 +5452,18 @@
     for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i);   // drop a derived row whose weapon is no longer equipped (e.g. the item was deleted)
       if(el && el.dataset.weapon && !equipped.has(el.dataset.weapon.toLowerCase())){ el.value = ""; delete el.dataset.weapon; const b=$("atkbonus-"+i), d=$("atkdmg-"+i); if(b) b.value=""; if(d) d.value=""; } }
     for(let i=0;i<NATTACKS;i++){ const nm = $("atkname-"+i); if(!nm) continue;
+      const bId = "atkbonus-"+i, dId = "atkdmg-"+i;
       if(nm.dataset.unarmed === "1" || /^unarmed strike$/i.test((nm.value||"").trim())){   // auto Unarmed Strike (re-links by name after reload)
         nm.dataset.unarmed = "1"; const r = unarmedStrike();
-        [nm, $("atkbonus-"+i), $("atkdmg-"+i)].forEach(el => { if(el) el.readOnly = true; });
-        $("atkbonus-"+i).value = r.bonus; $("atkdmg-"+i).value = r.dmg; continue;
+        nm.readOnly = true;
+        $(bId).readOnly = !hasOv(bId); if(!hasOv(bId)) $(bId).value = r.bonus;   // a pinned value stays editable + untouched
+        $(dId).readOnly = !hasOv(dId); if(!hasOv(dId)) $(dId).value = r.dmg; continue;
       }
       const linked = !!nm.dataset.weapon, w = linked ? weaponByName(nm.dataset.weapon) : null;
-      [nm, $("atkbonus-"+i), $("atkdmg-"+i)].forEach(el => { if(el) el.readOnly = linked; });
-      if(w){ const r = weaponAtkRow(w); $("atkbonus-"+i).value = r.bonus; $("atkdmg-"+i).value = r.dmg; }
+      nm.readOnly = linked;
+      $(bId).readOnly = linked && !hasOv(bId);
+      $(dId).readOnly = linked && !hasOv(dId);
+      if(w){ const r = weaponAtkRow(w); if(!hasOv(bId)) $(bId).value = r.bonus; if(!hasOv(dId)) $(dId).value = r.dmg; }
     }
   }
   function refreshEquipToggles(){             // show the Equipped box on weapon/armor/magic/attunement rows
@@ -6374,6 +6495,8 @@
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
+    document.addEventListener("dblclick", onOvDblclick);   // double-click any computed value to pin it by hand
+    document.addEventListener("click", onOvClick);         // Alt-click a pinned value to revert it
     window.addEventListener("pagehide", flushSave);   // flush any debounced autosave before the tab is hidden/closed
     document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidden") flushSave(); });
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
@@ -6608,6 +6731,7 @@
       $("embedded-data").textContent = "null";      // ignore any baked-in character
       location.reload();                            // re-init blank (sourcebook is kept)
     });
+    $("btn-reset-overrides").addEventListener("click", resetAllOverrides);
 
     $("btn-create").addEventListener("click", openWizard);
     $("btn-levelup").addEventListener("click", levelUp);
