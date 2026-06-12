@@ -44,7 +44,10 @@ page you don't want via **Settings → Layout**.
    drag to reorder, live total weight); Strength-based carrying capacity (×5/×10/×15/×30 with status);
    **Armor** (sets your AC, with AC-bonus item pickers) beside **Attuned Items**; and Equipment Notes.
 3. **Features** — Features & Traits. Class, subclass, racial, feat, and background features all land
-   here on character creation.
+   here on character creation. For Artificers, an **Infusions** tracker also appears: pick from the
+   Artificer Infusions list (level-gated, with hover rules text), tick which are currently infused,
+   track Infusions Known / Items Infused / attunement against your level's limits, and Enhanced Defense
+   / Enhanced Arcane Focus auto-apply to your AC and spell attack.
 4. **Spells** — pick a spellcasting class and the sheet tailors itself: cantrips-known and
    spells-known/preparable counts, the visible spell levels, and the slot tracker all scale to your
    class & level (full / half / one-third / Warlock pact). Each row is a dropdown of your class's
@@ -53,8 +56,9 @@ page you don't want via **Settings → Layout**.
    Knight, Arcane Trickster, Way of Shadow monk).
 5. **Companions & Forms** — animal companions, familiars, summons, and **Wild Shape** forms. Add
    multiple creature blocks, each with a searchable monster stat-block picker (load the Monster Manual
-   via Source books) and a template (Find Familiar, Pact of the Chain, Beast Master, Wild Shape, …).
-   Each creature's portrait also makes its own paper mini.
+   via Source books) and a template (Find Familiar, Pact of the Chain, Beast Master, Wild Shape,
+   Artificer **Steel Defender** / **Eldritch Cannon** / **Homunculus Servant**, …). Each creature's
+   portrait also makes its own paper mini.
 6. **Background** — appearance (age/height/weight/eyes/skin/hair) + Personality / Ideals / Bonds /
    Flaws + Allies / Enemies.
 7. **Backstory** — a full-page Character Backstory box.

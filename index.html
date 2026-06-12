@@ -570,6 +570,20 @@
   .armor-attune{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start}
   .armor-attune > .card{margin-bottom:16px}
   @media (max-width:560px){ .coins{grid-template-columns:repeat(3,1fr)} .encgrid, .encgrid.enc-4col{grid-template-columns:repeat(2,1fr)} .armor-attune{grid-template-columns:1fr} }
+  /* Artificer infusions tracker (Features page) */
+  .inf-meta{display:flex; gap:18px; flex-wrap:wrap; margin:4px 0 10px; font-size:13px}
+  .inf-meta b{color:var(--accent); font-weight:700}
+  .inf-warn{color:#b42318; font-size:12px; margin:0 0 8px; font-weight:600}
+  .inf-table{width:100%; border-collapse:collapse; font-size:13px}
+  .inf-table th{text-align:left; font-size:9px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; padding:2px 6px; border-bottom:1px solid var(--line)}
+  .inf-table td{padding:3px 6px; border-bottom:1px solid var(--line); vertical-align:middle}
+  .inf-table td.inf-known-cell{cursor:help; min-width:160px}
+  .inf-table td.inf-ctr{text-align:center; width:54px}
+  .inf-table select, .inf-table .inf-target, .inf-table .inf-sub{width:100%; box-sizing:border-box}
+  .inf-sub{margin-top:4px}
+  .inf-rm{color:var(--muted); cursor:pointer; background:none; border:none; font-size:14px}
+  .inf-att-fixed{font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:var(--accent); cursor:help}
+  @media print{ #add-infusion, .inf-rm{display:none} .inf-table th, .inf-table td{border-color:#999} }
 
   /* ---- spell sheet ---- */
   .incl{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600}
@@ -1453,6 +1467,7 @@
         <textarea data-save="" id="features" placeholder="Class features, racial traits, feats…" style="height: 0px;"></textarea><div class="ta-print"></div>
       </details>
       <div id="feat-cards" class="feat-cards"><div class="card feat-blank"><h2>Features &amp; Traits</h2></div></div>
+      <div class="card" id="infusions-inner" style="display:none"></div>
     </section>
 
     <!-- SPELL SHEET -->
@@ -1793,7 +1808,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v192 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v193 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3825,7 +3840,8 @@
       const warforged = /warforged/.test(($("race").value || "").toLowerCase()) ? 1 : 0;   // Integrated Protection: +1 AC in any configuration
       const armorWorn = sel && sel !== "Unarmored" && sel !== "Mage Armor";       // Defense fighting style: +1 AC only while wearing actual armor
       const fsDefense = (armorWorn && hasFightingStyle("Defense")) ? 1 : 0;
-      $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus + warforged + fsDefense);
+      const infDef = (armorWorn || bonus > 0) ? infusionEnhancedDefenseBonus() : 0;   // Artificer Enhanced Defense infusion (needs worn armor or a shield)
+      $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus + warforged + fsDefense + infDef);
     }
 
     // --- hit dice available = total - used ---
@@ -3926,7 +3942,7 @@
       const sa = sEl(inst,"spellability").value;
       if(sa && pb != null && mods[sa] != null){
         sEl(inst,"spelldc").textContent = 8 + pb + mods[sa];
-        sEl(inst,"spellatk").textContent = sgn(pb + mods[sa]);
+        sEl(inst,"spellatk").textContent = sgn(pb + mods[sa] + infusionArcaneFocusBonus());   // Artificer Enhanced Arcane Focus infusion → +1/+2 spell attack
       } else { sEl(inst,"spelldc").textContent = ""; sEl(inst,"spellatk").textContent = ""; }
       // prepared casters: spells they can prepare; known casters: spells known (from class progression)
       const spName = sEl(inst,"spellclass").value, spInfo = CASTERS[spName], spLbl = sEl(inst,"prep-stat-label");
@@ -3947,6 +3963,7 @@
       }
     }
 
+    updateInfusionMeta();   // Artificer infusion counts/warnings + show-hide (cheap; full rebuild only on add/remove/known-change)
     updateGenStatus();
     updateStepStates();
     updateSourcesFlag();
@@ -4121,6 +4138,7 @@
     data.invEquip = []; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i); data.invEquip.push(!!(cb && cb.checked)); }   // per-row equipped state
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     data.companions = companions;
+    data.infusions = infusions;
     data.lfDesc = []; for(let i=0;i<NLIMITED;i++){ const el = $("lfname-"+i); data.lfDesc.push((el && el.title) || ""); }   // limited-feature tooltips
     data.overrides = overrides;   // hand-pinned computed values
     return data;
@@ -4236,6 +4254,8 @@
       ["0","1","2"].forEach(k => { const s = $("attune-"+k); if(s && (("attune-"+k) in data)) s.value = data["attune-"+k]||""; }); }
     companions = (data && Array.isArray(data.companions)) ? data.companions.map(c => Object.assign(blankCompanion(), c)) : [];
     renderCompanions();
+    infusions = (data && Array.isArray(data.infusions)) ? data.infusions.map(x => Object.assign(blankInfusion(), x)) : [];
+    renderInfusions();
     for(let i=0;i<NLIMITED;i++){ const el = $("lfname-"+i); if(!el) continue;   // restore limited-feature tooltips
       const t = (data && Array.isArray(data.lfDesc)) ? data.lfDesc[i] : ""; if(t) el.title = t; else el.removeAttribute("title"); }
     portraitData = (data && data.portrait) || null;
@@ -5076,6 +5096,95 @@
 
   // ---- Companions & Forms (multiple creature stat blocks) ----
   let companions = [];
+  let infusions = [];     // Artificer Infuse Item tracker: [{known, replicate, resist, target, infused, attuned}]
+  // ---- Artificer: Infuse Item (base-class feature; hand-coded like FIGHTING_STYLES, not data-driven) ----------------
+  // Infusions Known / Infused Items by artificer level (TCE class table, verified vs class-artificer.json classTableGroups).
+  const INFUSIONS_KNOWN = [0,4,4,4,4,6,6,6,6,8,8,8,8,10,10,10,10,12,12,12];
+  const INFUSED_ITEMS   = [0,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,6,6,6];
+  // The 16 TCE infusions. {name, lvl: min artificer level, attune: the resulting item needs attunement (a property of the
+  // item, taken from the TCE rules — the 5etools optionalfeature doesn't store it), text: condensed effect from
+  // optionalfeatures.json (type "AI")}. replicate/resist flag the two infusions that need an extra choice field.
+  const ARTIFICER_INFUSIONS = [
+    {name:"Arcane Propulsion Armor", lvl:14, attune:true,  text:"Replaces the wearer's limbs as needed; walking speed +5 ft.; includes gauntlets that are 1d8-force magic melee weapons (returning when thrown); the armor can't be removed against your will."},
+    {name:"Armor of Magical Strength", lvl:1, attune:true, text:"Armor with 6 charges. Spend a charge to add your Int modifier to a Strength check or save, or to avoid being knocked prone. Regains 1d6 charges daily at dawn."},
+    {name:"Boots of the Winding Path", lvl:6, attune:true, text:"While wearing the boots, teleport up to 15 ft. as a bonus action to a space you occupied this turn."},
+    {name:"Enhanced Arcane Focus", lvl:1, attune:false, text:"While holding it: +1 to spell attack rolls (+2 at artificer 10) and you ignore half/three-quarters cover on spell attacks. (Auto-applied to your spell attack bonus when infused.)"},
+    {name:"Enhanced Defense", lvl:1, attune:false, text:"+1 AC (+2 at artificer 10) while wearing the infused armor or wielding the infused shield. (Auto-applied to AC when infused.)"},
+    {name:"Enhanced Weapon", lvl:1, attune:false, text:"+1 to attack and damage rolls with this magic weapon (+2 at artificer 10)."},
+    {name:"Helm of Awareness", lvl:10, attune:true, text:"While worn: advantage on initiative, and you can't be surprised unless incapacitated."},
+    {name:"Homunculus Servant", lvl:1, attune:false, text:"Creates a Homunculus Servant that obeys you. Add it on the Companions page (Homunculus Servant template) to track its stats."},
+    {name:"Mind Sharpener", lvl:1, attune:false, text:"Armor/clothing with 4 charges. When you fail a Constitution save to keep concentration, use a reaction to spend a charge and succeed instead. Regains 1d4 charges daily at dawn."},
+    {name:"Radiant Weapon", lvl:6, attune:true, text:"+1 magic weapon that can shed/extinguish bright light (bonus action). 4 charges: on a hit, spend a reaction + 1 charge to blind the attacker (Con save vs your spell DC). Regains 1d4 at dawn."},
+    {name:"Repeating Shot", lvl:1, attune:true, text:"+1 magic ranged weapon that ignores Loading and creates its own magic ammunition each shot."},
+    {name:"Replicate Magic Item", lvl:1, attune:false, replicate:true, text:"Replicate a specific common/uncommon (and later rare/very-rare) magic item from the Replicable Items tables. Learn it multiple times for different items. Attunement depends on the item you choose."},
+    {name:"Repulsion Shield", lvl:6, attune:true, text:"+1 shield with 4 charges. After being hit by a melee attack, spend a reaction + 1 charge to push the attacker up to 15 ft. Regains 1d4 at dawn."},
+    {name:"Resistant Armor", lvl:6, attune:true, resist:true, text:"While worn, you have resistance to one damage type you choose when you infuse it."},
+    {name:"Returning Weapon", lvl:1, attune:false, text:"+1 magic weapon with the thrown property that returns to your hand after a ranged attack."},
+    {name:"Spell-Refueling Ring", lvl:6, attune:true, text:"While worn, take an action to recover one expended spell slot of 3rd level or lower. Once used, it can't be used again until the next dawn."}
+  ];
+  const INF_RESIST_TYPES = ["acid","cold","fire","force","lightning","necrotic","poison","psychic","radiant","thunder"];
+  function blankInfusion(){ return {known:"", replicate:"", resist:"", target:"", infused:false, attuned:false}; }
+  function infusionByName(n){ return ARTIFICER_INFUSIONS.find(x => x.name === n) || null; }
+  function isArtificer(){ return /\bartificer\b/i.test($("classlevel").value || ""); }
+  function infCaps(){ const lvl = artificerClassLevel(); const i = (lvl == null || lvl < 1) ? 0 : Math.min(20, lvl) - 1;
+    return {known: INFUSIONS_KNOWN[i] || 0, items: INFUSED_ITEMS[i] || 0}; }
+  // an infusion counts against attunement if the infusion itself requires it, or (for Replicate) you marked its item attuned
+  function infNeedsAttune(x){ const inf = infusionByName(x.known); return !!(inf && inf.attune) || !!x.attuned; }
+  function activeInfusionNames(){ return infusions.filter(x => x.known && x.infused).map(x => x.known); }
+  function infusionEnhancedDefenseBonus(){ return activeInfusionNames().includes("Enhanced Defense") ? ((artificerClassLevel() || 0) >= 10 ? 2 : 1) : 0; }
+  function infusionArcaneFocusBonus(){ return activeInfusionNames().includes("Enhanced Arcane Focus") ? ((artificerClassLevel() || 0) >= 10 ? 2 : 1) : 0; }
+  function infRow(x, i){
+    const lvl = artificerClassLevel();
+    const inf = infusionByName(x.known);
+    const opts = ARTIFICER_INFUSIONS.filter(o => lvl == null || o.lvl <= lvl);
+    if(x.known && !opts.some(o => o.name === x.known) && inf) opts.push(inf);   // keep a now-too-high-level current pick visible
+    let sel = `<option value=""></option>` + opts.map(o => `<option value="${esc(o.name)}"${o.name === x.known ? " selected" : ""}>${esc(o.name)}${o.lvl > 1 ? ` (L${o.lvl})` : ""}</option>`).join("");
+    let sub = "";
+    if(inf && inf.replicate) sub = `<input class="inf-sub" data-ii="${i}" data-f="replicate" value="${esc(x.replicate || "")}" placeholder="which magic item…">`;
+    else if(inf && inf.resist) sub = `<select class="inf-sub" data-ii="${i}" data-f="resist"><option value=""></option>` + INF_RESIST_TYPES.map(t => `<option value="${t}"${x.resist === t ? " selected" : ""}>${t}</option>`).join("") + `</select>`;
+    const attuneCell = (inf && inf.attune)
+      ? `<span class="inf-att-fixed" title="This infusion requires attunement (counts against your 3-item limit).">req'd</span>`
+      : `<input type="checkbox" class="inf-cb" data-ii="${i}" data-f="attuned"${x.attuned ? " checked" : ""} title="Mark if the item you replicate requires attunement.">`;
+    return `<tr data-ii="${i}">`+
+      `<td class="inf-known-cell"${inf ? ` title="${esc(inf.text)}"` : ""}><select class="inf-known" data-ii="${i}" data-f="known">${sel}</select>${sub}</td>`+
+      `<td class="inf-ctr"><input type="checkbox" class="inf-cb" data-ii="${i}" data-f="infused"${x.infused ? " checked" : ""} title="Currently infused into an item (counts against Infused Items)."></td>`+
+      `<td><input class="inf-target" data-ii="${i}" data-f="target" value="${esc(x.target || "")}" placeholder="on item…"></td>`+
+      `<td class="inf-ctr">${attuneCell}</td>`+
+      `<td class="inf-ctr"><button type="button" class="inf-rm" data-ii="${i}" title="Remove">✕</button></td>`+
+    `</tr>`;
+  }
+  function renderInfusions(){
+    const card = $("infusions-inner"); if(!card) return;
+    const rows = infusions.map(infRow).join("");
+    card.innerHTML = `<h2>Infusions <span class="hood-btn-spacer"></span></h2>`+
+      `<div class="inf-meta"><span>Infusions known <b id="inf-known">0/0</b></span><span>Items infused <b id="inf-active">0/0</b></span><span>Attunement used <b id="inf-attune">0</b></span></div>`+
+      `<p class="inf-warn" id="inf-warn" style="display:none"></p>`+
+      `<table class="inf-table"><thead><tr><th>Infusion</th><th class="inf-ctr">Infused?</th><th>On item</th><th class="inf-ctr">Attune</th><th class="inf-ctr"></th></tr></thead>`+
+      `<tbody id="inf-rows">${rows}</tbody></table>`+
+      `<button type="button" class="btn" id="add-infusion" style="margin-top:8px">+ Add infusion</button>`+
+      `<p class="wiz-hint">You learn infusions from the Artificer Infusions list and can swap which ones you know after a long rest. At the end of a long rest you infuse known infusions into nonmagical items, up to your Items-infused limit. Tick <strong>Infused?</strong> for ones currently active — Enhanced Defense and Enhanced Arcane Focus then auto-apply to your AC and spell attack.</p>`;
+    updateInfusionMeta();
+  }
+  function updateInfusionMeta(){
+    const card = $("infusions-inner"); if(!card) return;
+    const show = isArtificer() || infusions.length > 0;
+    card.style.display = show ? "" : "none";
+    if(!show) return;
+    const caps = infCaps();
+    const known = infusions.filter(x => x.known).length;
+    const active = infusions.filter(x => x.known && x.infused).length;
+    const attunedInf = infusions.filter(x => x.known && x.infused && infNeedsAttune(x)).length;
+    const set = (id, v) => { const e = $(id); if(e) e.textContent = v; };
+    set("inf-known", known + "/" + caps.known);
+    set("inf-active", active + "/" + caps.items);
+    set("inf-attune", String(attunedInf));
+    const warns = [];
+    if(known > caps.known) warns.push(`You know ${known} infusions but can only know ${caps.known} at this level.`);
+    if(active > caps.items) warns.push(`${active} items infused — your limit is ${caps.items}.`);
+    const manualAtt = ["0","1","2"].filter(k => ((($("attune-"+k)||{}).value)||"").trim()).length;
+    if(manualAtt + attunedInf > 3) warns.push(`Attunement over limit: ${manualAtt} attuned item(s) + ${attunedInf} attuned infusion(s) exceed 3.`);
+    const w = $("inf-warn"); if(w){ w.textContent = warns.join(" "); w.style.display = warns.length ? "" : "none"; }
+  }
   const COMP_AB = [["str","Str"],["dex","Dex"],["con","Con"],["int","Int"],["wis","Wis"],["cha","Cha"]];
   const COMP_STATS = [["ac","AC"],["hp","Max HP"],["curhp","Cur HP"],["speed","Speed"],["cr","CR"],["pb","Prof"]];
   const COMP_LINES = [["save","Saving Throws"],["skill","Skills"],["senses","Senses"],["languages","Languages"],
@@ -6810,6 +6919,26 @@
       const rm = e.target.closest(".comp-rm"); if(rm){ companions.splice(+rm.dataset.ci, 1); renderCompanions(); applyLayout(); save(); return; }
       const port = e.target.closest(".comp-portrait"); if(port){ compPortraitUpload(+port.dataset.ci); }
     });
+    const infCard = $("infusions-inner");
+    if(infCard){
+      infCard.addEventListener("input", e => {     // text fields (on item / replicated item) — no rebuild, no math impact
+        const t = e.target, ii = +t.dataset.ii, f = t.dataset.f;
+        if(isNaN(ii) || !infusions[ii] || !f || t.type === "checkbox" || t.tagName === "SELECT") return;
+        infusions[ii][f] = t.value; updateInfusionMeta(); save();
+      });
+      infCard.addEventListener("change", e => {     // selects (known/resist) + checkboxes (infused/attuned)
+        const t = e.target, ii = +t.dataset.ii, f = t.dataset.f;
+        if(isNaN(ii) || !infusions[ii] || !f) return;
+        infusions[ii][f] = (t.type === "checkbox") ? t.checked : t.value;
+        if(f === "known"){ infusions[ii].replicate = ""; infusions[ii].resist = ""; renderInfusions(); }   // changing the infusion clears its sub-choice + rebuilds the row
+        else updateInfusionMeta();
+        compute(); save();   // infused/attuned/known affect AC, spell attack, and the attunement count
+      });
+      infCard.addEventListener("click", e => {
+        if(e.target.closest("#add-infusion")){ infusions.push(blankInfusion()); renderInfusions(); save(); return; }
+        const rm = e.target.closest(".inf-rm"); if(rm){ infusions.splice(+rm.dataset.ii, 1); renderInfusions(); compute(); save(); }
+      });
+    }
 
     $("btn-savedata").addEventListener("click", saveDataFile);
     $("btn-import").addEventListener("click", ()=> $("file-input").click());
