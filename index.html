@@ -668,6 +668,10 @@
   .sp-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:11px; line-height:1; padding:0 3px; visibility:hidden}
   .spelltable tr:hover .sp-del, .spelltable tr.has-spell .sp-del{visibility:visible}   /* show on hover, or always on a filled row */
   .sp-del:hover{color:#b42318}
+  .spelltable .col-prep input:disabled{opacity:.28; cursor:not-allowed}   /* prep cap reached → unchecked boxes grey out */
+  .prep-cur{font-weight:700}
+  .prep-cur.over{color:#b42318}                                           /* over the cap (e.g. after a level/Int drop) */
+  .prep-sep{color:var(--muted); font-weight:400}
   .spelltable .sp-section td{background:var(--field); font-weight:800; font-size:10px; letter-spacing:.07em;
     text-transform:uppercase; color:var(--accent); padding:6px 8px; border-top:2px solid var(--line2)}
 
@@ -1819,7 +1823,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v197 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v198 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3604,6 +3608,47 @@
       }
     }
     sEl(inst,"spells").innerHTML = body;
+    updatePrepState(inst);   // refresh the "prepared X / Y" indicator + grey out boxes at the cap on every re-render
+  }
+  // How many leveled spells a prepared caster can have ready (cantrips never count). Null = not a prepared caster.
+  function preparedMax(inst){
+    const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], sa = sEl(inst,"spellability").value;
+    if(!(info && info.prepares) || !sa) return null;
+    const slvl = casterClassLevel(inst), m = modOf(sa);
+    if(slvl == null || m == null) return null;
+    const half = ["Paladin","Artificer"].includes(cls);
+    return Math.max(1, m + (half ? Math.floor(slvl/2) : slvl));   // Wizard/Cleric/Druid: mod + level; Paladin/Artificer: mod + ½ level
+  }
+  // Subclass spells that are ALWAYS prepared (domain/oath/specialist) — they're free, so they don't count against the cap.
+  function alwaysPreparedNames(cls){
+    const out = new Set();
+    if(!DATA) return out;
+    (charClasses||[]).forEach(w => {
+      if(cls && !(w.name === cls || `${w.name} (${w.sub})` === cls)) return;   // only this sheet's caster class
+      const c = findBy(DATA.classes, w.name);
+      const sub = w.sub && c && (c.subclasses||[]).find(s => s.name === w.sub);
+      if(!sub) return;
+      (sub.spells||[]).forEach(sp => { if((sp.l||0) > 0 && (w.level == null || w.level >= (sp.l||0))) out.add((sp.n||"").toLowerCase()); });
+    });
+    return out;
+  }
+  // Update the "Can Prepare" box to read "<prepared> / <max>" and disable every UNchecked prep box once the cap is hit
+  // (checked boxes stay clickable so you can always swap one out). No-op for non-prepared casters. Always-prepared
+  // subclass spells are excluded from the count so they never eat into the limit.
+  function updatePrepState(inst){
+    const tbody = sEl(inst,"spells"); if(!tbody) return;
+    const boxes = tbody.querySelectorAll(".sp-prep, .prep-spell");
+    const max = preparedMax(inst);
+    if(max == null){ boxes.forEach(cb => { cb.disabled = false; }); return; }   // known/blank casters never grey out
+    const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], always = alwaysPreparedNames(cls);
+    let cur = 0;
+    if(info.fullList){ const P = preparedOf(inst); Object.keys(P).forEach(n => { if(P[n] && !always.has(n.toLowerCase())) cur++; }); }
+    else { const SE = spellEntriesByInst[inst] || {}; for(let l=1;l<=9;l++) (SE[l]||[]).forEach(r => { if(r.prep && (r.name||"").trim() && !always.has((r.name||"").toLowerCase())) cur++; }); }
+    const out = sEl(inst,"prepcount");
+    if(out) out.innerHTML = `<span class="prep-cur${cur>max?' over':''}">${cur}</span> <span class="prep-sep">/</span> ${max}`;
+    const atMax = cur >= max;
+    boxes.forEach(cb => { cb.disabled = atMax && !cb.checked; });
+    tbody.classList.toggle("prep-full", atMax);
   }
   // Cantrips the class knows: the exact count at the given level, or — class chosen but no level — the class's MAXIMUM.
   function cantripCount(cls, lvl){
@@ -3977,8 +4022,7 @@
         sEl(inst,"prep-stat").style.display = ""; if(spLbl) spLbl.textContent = "Can Prepare";
         const slvl = casterClassLevel(inst);   // prepared count scales with THIS class's level, not the combined multiclass level
         if(spInfo && spInfo.prepares && sa && slvl != null && mods[sa] != null){
-          const half = ["Paladin","Artificer"].includes(spName);
-          sEl(inst,"prepcount").textContent = Math.max(1, mods[sa] + (half ? Math.floor(slvl/2) : slvl));
+          updatePrepState(inst);   // "<prepared> / <max>" indicator + grey out boxes at the cap
         } else sEl(inst,"prepcount").textContent = "";   // blank → write it in on a printed/blank sheet
       }
     }
