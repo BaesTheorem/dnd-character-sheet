@@ -1507,6 +1507,10 @@
         <div class="card" id="slots-card"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="slots"><div class="slot" id="slotcell1"><div class="k">Lv 1</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot1" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot1u" min="0"></label></div></div><div class="slot" id="slotcell2"><div class="k">Lv 2</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot2" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot2u" min="0"></label></div></div><div class="slot" id="slotcell3"><div class="k">Lv 3</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot3" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot3u" min="0"></label></div></div><div class="slot" id="slotcell4"><div class="k">Lv 4</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot4" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot4u" min="0"></label></div></div><div class="slot" id="slotcell5"><div class="k">Lv 5</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot5" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot5u" min="0"></label></div></div><div class="slot" id="slotcell6"><div class="k">Lv 6</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot6" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot6u" min="0"></label></div></div><div class="slot" id="slotcell7"><div class="k">Lv 7</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot7" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot7u" min="0"></label></div></div><div class="slot" id="slotcell8"><div class="k">Lv 8</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot8" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot8u" min="0"></label></div></div><div class="slot" id="slotcell9"><div class="k">Lv 9</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot9" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot9u" min="0"></label></div></div></div></div>
         <div class="card spell-list"><h2 id="spells-h2">Spells</h2>
           <p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Hover a spell name for the full description.</p>
+          <div class="item-search-wrap spell-search-wrap noprint" id="spell-search-wrap" style="display:none">
+            <input id="spell-search" placeholder="Search Wizard spells to add to your spellbook…" autocomplete="off" spellcheck="false">
+            <div id="spell-results" class="item-results" hidden=""></div>
+          </div>
           <table class="spelltable" id="spelltable">
             <thead><tr>
               <th class="col-prep" style="width:34px">Prep</th>
@@ -1815,7 +1819,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v196 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v197 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3629,6 +3633,8 @@
       for(let l=1; l<=9; l++) if(Array.isArray(e[l])) e[l] = e[l].filter(r => (r.name||"").trim());
     }
     if(!(info && info.fixed)) resizeCantrips(cantripCount(cls, L), inst);      // cantrip rows = cantrips known at this class level
+    const ssw = document.getElementById(sx(inst,"spell-search-wrap"));         // spellbook search box: Wizard only
+    if(ssw) ssw.style.display = (cls === "Wizard") ? "" : "none";
     renderSpellTable(inst);
     applySlotFilter(inst);
   }
@@ -3677,6 +3683,10 @@
         `<div class="card" id="${S('slots-card')}"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="${S('slots')}"></div></div>`+
         `<div class="card spell-list"><h2 id="${S('spells-h2')}">Spells</h2>`+
           `<p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Hover a spell name for the full description.</p>`+
+          `<div class="item-search-wrap spell-search-wrap noprint" id="${S('spell-search-wrap')}" style="display:none">`+
+            `<input id="${S('spell-search')}" placeholder="Search Wizard spells to add to your spellbook…" autocomplete="off" spellcheck="false">`+
+            `<div id="${S('spell-results')}" class="item-results" hidden></div>`+
+          `</div>`+
           `<table class="spelltable" id="${S('spelltable')}">`+
             `<thead><tr><th class="col-prep" style="width:34px">Prep</th><th class="col-name">Name</th><th class="col-comp" style="width:44px">Comp</th><th class="col-time" style="width:62px">Cast Time</th><th class="col-range" style="width:62px">Range</th><th class="col-dur" style="width:84px">Duration</th><th class="col-school" style="width:66px">School</th></tr></thead>`+
             `<tbody id="${S('spells')}"></tbody>`+
@@ -3695,6 +3705,7 @@
       .insertAdjacentHTML("beforebegin", `<button class="ptab spell-tab" data-page="${sx(inst,'spells')}" type="button">Spells ${inst+1}</button>`);
     sEl(inst,"slots").innerHTML = slotsHTML(inst);
     spellSheets++;
+    setupSpellSearch(inst);
     renderSpellStyle(false, inst);
   }
   function removeExtraSpellSheets(){             // tear down all extra sheets (DOM only; state arrays are rebuilt by applyAll)
@@ -5543,6 +5554,51 @@
     res.addEventListener("mousedown", e => { const o = e.target.closest(".opt"); if(o && o.dataset.i != null){ e.preventDefault(); add(matches[+o.dataset.i]); } });   // mousedown beats input blur
     document.addEventListener("click", e => { if(!e.target.closest(".item-search-wrap")) res.hidden = true; });
   }
+  // Every spell name available to a caster class across all levels (cantrips → 9th), deduped — source for the spell search box.
+  function spellSearchNames(cls){ const out = []; for(let l=0;l<=9;l++){ const ns = classSpellNamesAt(cls, l); if(ns) out.push(...ns); } return [...new Set(out)]; }
+  // Wizard-style spell search: type a spell, pick it, and it lands in the right level of this sheet's write-in rows.
+  // renderSpellTable sorts each level alphabetically, so ordering is automatic. Fills an existing blank row before growing.
+  function setupSpellSearch(inst=0){
+    const inp = sEl(inst,"spell-search"), res = sEl(inst,"spell-results"); if(!inp || !res) return;
+    let matches = [], sel = -1;
+    const lvlTag = name => { const d = spellData(name); const l = (d && typeof d.level === "number") ? d.level : null; return l == null ? "" : (l === 0 ? "Cantrip" : "Lv "+l); };
+    function paint(){ [...res.querySelectorAll(".opt")].forEach((o,i) => o.classList.toggle("sel", i === sel)); const s = res.querySelector(".opt.sel"); if(s) s.scrollIntoView({block:"nearest"}); }
+    function render(){
+      const q = inp.value.trim().toLowerCase();
+      if(!q){ res.hidden = true; res.innerHTML = ""; matches = []; sel = -1; return; }
+      const names = spellSearchNames(sEl(inst,"spellclass").value);
+      const starts = [], contains = [];
+      for(const n of names){ const i = n.toLowerCase().indexOf(q); if(i === 0) starts.push(n); else if(i > 0) contains.push(n); }
+      matches = starts.concat(contains).slice(0, 200);
+      sel = matches.length ? 0 : -1;
+      res.innerHTML = matches.length
+        ? matches.map((n,i) => { const t = lvlTag(n); return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(n)}${t?`<span class="w">${t}</span>`:''}</div>`; }).join("")
+        : '<div class="opt none">No matching spells (load the right sourcebook?)</div>';
+      res.hidden = false;
+    }
+    function add(name){
+      if(!name) return;
+      const d = spellData(name), l = (d && typeof d.level === "number") ? d.level : 1;
+      const SE = spellEntriesOf(inst); SE[l] = SE[l] || [];
+      if(!SE[l].some(r => (r.name||"").trim().toLowerCase() === name.toLowerCase())){   // skip if already in the book at this level
+        const blank = SE[l].find(r => !(r.name||"").trim());
+        if(blank) blank.name = name; else SE[l].push({name, prep:false});               // reuse a blank row, else grow the level
+      }
+      inp.value = ""; res.hidden = true; res.innerHTML = ""; matches = []; sel = -1;
+      renderSpellTable(inst); save(); compute(); inp.focus();
+    }
+    inp.addEventListener("input", render);
+    inp.addEventListener("focus", () => { if(inp.value.trim()) render(); });
+    inp.addEventListener("keydown", e => {
+      if(res.hidden || !matches.length) return;
+      if(e.key === "ArrowDown"){ e.preventDefault(); sel = Math.min(sel+1, matches.length-1); paint(); }
+      else if(e.key === "ArrowUp"){ e.preventDefault(); sel = Math.max(sel-1, 0); paint(); }
+      else if(e.key === "Enter"){ e.preventDefault(); add(matches[sel]); }
+      else if(e.key === "Escape"){ res.hidden = true; }
+    });
+    res.addEventListener("mousedown", e => { const o = e.target.closest(".opt"); if(o && o.dataset.i != null){ e.preventDefault(); add(matches[+o.dataset.i]); } });
+    document.addEventListener("click", e => { if(!e.target.closest(".spell-search-wrap")) res.hidden = true; });
+  }
   // The same filtered dropdown as the search box, but on each inventory row's name input (fills THAT row; free text still allowed).
   function setupInvAutocomplete(){
     const pop = $("inv-ac"); if(!pop) return;
@@ -6781,6 +6837,7 @@
     document.addEventListener("click", e => { const b = e.target.closest(".sp-del"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l, i = +b.dataset.i;   // remove a write-in spell row (rows are sorted in place before render, so data-i matches the array index)
       const SE = spellEntriesOf(inst); if(SE[l] && i < SE[l].length){ SE[l].splice(i, 1); renderSpellTable(inst); save(); } } });
     setupItemSearch();
+    setupSpellSearch(0);
     setupInvAutocomplete();
 
     // --- inventory drag-to-reorder (across both columns) ---
