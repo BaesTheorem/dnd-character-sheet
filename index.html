@@ -1856,7 +1856,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v204 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v205 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3373,7 +3373,7 @@
     Cleric:    {fullList:true,  prepares:true,  ritual:true, ability:"wis", note:"Cleric: your whole class list is pre-filled — check which spells you have prepared today."},
     Druid:     {fullList:true,  prepares:true,  ritual:true, ability:"wis", note:"Druid: your whole class list is pre-filled — check which spells you have prepared today."},
     Paladin:   {fullList:true,  prepares:true,  ability:"cha", note:"Paladin: your whole class list is pre-filled — check which spells you have prepared."},
-    Artificer: {fullList:true,  prepares:true,  ability:"int", note:"Artificer: your whole class list is pre-filled — check which spells you have prepared today."},
+    Artificer: {fullList:true,  prepares:true,  ritual:true, ability:"int", note:"Artificer: your whole class list is pre-filled — check which spells you have prepared today."},
     Bard:      {fullList:false, prepares:false, ritual:true, ability:"cha", note:"Bard: write your spells known — they're always ready (no preparation)."},
     Sorcerer:  {fullList:false, prepares:false, ability:"cha", note:"Sorcerer: write your spells known — always ready (no preparation)."},
     Ranger:    {fullList:false, prepares:false, ability:"wis", note:"Ranger: write your spells known — always ready (no preparation)."},
