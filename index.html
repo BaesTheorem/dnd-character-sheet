@@ -699,6 +699,15 @@
   .cspell-checks{display:flex; gap:16px; align-items:center; padding:4px 0; font-size:13px}
   .cspell-checks label{display:flex; gap:4px; align-items:center; font-weight:400; cursor:pointer}
   @media (max-width:560px){ .cspell-grid{grid-template-columns:1fr} }
+  .cspell-store{display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
+  .cspell-store select{padding:5px 7px; border:1px solid var(--line); background:var(--field); font:inherit; font-size:12px; text-transform:none; letter-spacing:0; font-weight:400}
+  .cspell-foot-btns{display:flex; gap:8px}
+  @media (max-width:560px){ .modal-foot{flex-direction:column; gap:10px; align-items:stretch} .cspell-store{flex-direction:column; align-items:flex-start} }
+  .hb-spells{margin-top:2px}
+  .hb-row{display:flex; align-items:center; justify-content:space-between; padding:3px 2px; font-size:13px; border-bottom:1px solid var(--line)}
+  .hb-row:last-child{border-bottom:none}
+  .hb-del{border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 4px}
+  .hb-del:hover{color:#b42318}
   .spelltable .col-prep input:disabled{opacity:.28; cursor:not-allowed}   /* prep cap reached → unchecked boxes grey out */
   .spelltable .col-prep{white-space:nowrap}                               /* keep the checkbox + granted ★ on one line */
   .sp-free{border:none; background:none; cursor:pointer; font-size:12px; line-height:1; padding:0 1px; color:var(--muted); visibility:hidden; vertical-align:middle}
@@ -1846,6 +1855,7 @@
             <button class="btn primary" id="btn-loadall" type="button" style="margin-top:8px" title="Import every available 2014-ruleset book from your 5etools server in one click">Load all books</button>
             <button class="btn" id="btn-reload-all" type="button" style="display:none; margin-top:8px" title="Re-fetch every loaded book from your 5etools server to refresh its data">Reload all loaded sources</button>
             <div id="loaded-books"><label class="lbl" style="display:block; margin:14px 0 4px">Loaded sources <span class="wiz-hint" style="font-weight:400; display:inline">— uncheck to hide a book's content</span></label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Acquisitions Incorporated"> Acquisitions Incorporated</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Adventure Atlas: The Mortuary"> Adventure Atlas: The Mortuary</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Adventure with Muk"> Adventure with Muk</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Adventurers League"> Adventurers League</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Astral Adventurer's Guide"> Astral Adventurer's Guide</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Bigby Presents: Glory of the Giants"> Bigby Presents: Glory of the Giants</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Boo's Astral Menagerie"> Boo's Astral Menagerie</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Domains of Delight"> Domains of Delight</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Guide (2014)" checked=""> Dungeon Master's Guide (2014)</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Screen"> Dungeon Master's Screen</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Screen: Dungeon Kit"> Dungeon Master's Screen: Dungeon Kit</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Screen: Spelljammer"> Dungeon Master's Screen: Spelljammer</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Screen: Wilderness Kit"> Dungeon Master's Screen: Wilderness Kit</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeons &amp; Dragons vs. Rick and Morty: Basic Rules"> Dungeons &amp; Dragons vs. Rick and Morty: Basic Rules</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Eberron: Rising from the Last War" checked=""> Eberron: Rising from the Last War</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Explorer's Guide to Wildemount" checked=""> Explorer's Guide to Wildemount</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Fizban's Treasury of Dragons" checked=""> Fizban's Treasury of Dragons</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Guildmasters' Guide to Ravnica" checked=""> Guildmasters' Guide to Ravnica</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Heroes' Feast"> Heroes' Feast</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Heroes' Feast Flavors of the Multiverse"> Heroes' Feast Flavors of the Multiverse</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Minsc and Boo's Journal of Villainy"> Minsc and Boo's Journal of Villainy</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Monster Manual (2014)" checked=""> Monster Manual (2014)</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Monstrous Compendium Volume 4: Eldraine Creatures"> Monstrous Compendium Volume 4: Eldraine Creatures</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Mordenkainen Presents: Monsters of the Multiverse" checked=""> Mordenkainen Presents: Monsters of the Multiverse</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Mordenkainen's Tome of Foes" checked=""> Mordenkainen's Tome of Foes</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Morte's Planar Parade"> Morte's Planar Parade</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Muk's Guide to Everything He Learned From Tasha"> Muk's Guide to Everything He Learned From Tasha</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Mythic Odysseys of Theros"> Mythic Odysseys of Theros</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="One Grung Above"> One Grung Above</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Amonkhet"> Plane Shift: Amonkhet</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Dominaria"> Plane Shift: Dominaria</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Innistrad"> Plane Shift: Innistrad</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Ixalan"> Plane Shift: Ixalan</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Kaladesh"> Plane Shift: Kaladesh</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Zendikar"> Plane Shift: Zendikar</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Player's Handbook (2014)" checked=""> Player's Handbook (2014)</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Puncheons and Flagons"> Puncheons and Flagons</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Sage Advice Compendium (2014)"> Sage Advice Compendium (2014)</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Sigil and the Outlands"> Sigil and the Outlands</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Strixhaven: A Curriculum of Chaos" checked=""> Strixhaven: A Curriculum of Chaos</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Sword Coast Adventurer's Guide" checked=""> Sword Coast Adventurer's Guide</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Tarot Deck"> Tarot Deck</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Tasha's Cauldron of Everything" checked=""> Tasha's Cauldron of Everything</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="The Book of Many Things"> The Book of Many Things</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="The Deck of Many Things: Card Reference Guide"> The Deck of Many Things: Card Reference Guide</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Thieves' Gallery"> Thieves' Gallery</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Van Richten's Guide to Ravenloft" checked=""> Van Richten's Guide to Ravenloft</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Volo's Guide to Monsters" checked=""> Volo's Guide to Monsters</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Xanathar's Guide to Everything" checked=""> Xanathar's Guide to Everything</label></div>
+            <div id="homebrew-list"></div>
             <label class="lbl" style="display:block; margin:10px 0 4px" for="server-url">5etools server</label>
             <input id="server-url" value="http://localhost:5050" spellcheck="false">
             <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
@@ -1873,13 +1883,14 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v207 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v208 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
+  const HOMEBREW_KEY = "dnd-sheet-homebrew";   // homebrew saved as SOURCE MATERIAL — browser-wide, survives character clears, managed in Settings
   function serverBase(){ return (($("server-url")||{}).value || "").trim() || "http://localhost:5050"; }   // the 5etools server URL (single source)
 
   const ABILITIES = [
@@ -2529,6 +2540,15 @@
         `<label class="lay-row"><input type="checkbox" class="book-toggle" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label>`
       ).join("");
   }
+  function renderHomebrewList(){   // Settings: the homebrew "source material" — enable/disable the whole source + delete individual spells
+    const el = $("homebrew-list"); if(!el) return;
+    const names = Object.values(homebrew.spells).map(s => s.name).sort((a,b)=>String(a).localeCompare(String(b)));
+    if(!names.length){ el.innerHTML = ""; return; }
+    el.innerHTML = `<label class="lbl" style="display:block; margin:14px 0 4px">Homebrew <span class="wiz-hint" style="font-weight:400; display:inline">— your custom content, saved as source material (this browser; survives character clears)</span></label>`+
+      `<label class="lay-row"><input type="checkbox" id="homebrew-enabled" ${homebrew.enabled?"checked":""}> Enable homebrew source</label>`+
+      `<div class="hb-spells">` + names.map(n => `<div class="hb-row"><span class="hb-name">${esc(n)}</span><button type="button" class="hb-del" data-name="${esc(n)}" title="Delete this homebrew spell">✕</button></div>`).join("") + `</div>`;
+  }
+  function refreshHomebrew(){ saveHomebrew(); renderHomebrewList(); renderAllSpellSheets(false); compute(); }   // persist + re-render everything that reads spell data
   async function toggleBook(name, enabled){
     if(!DATA || !DATA._meta) return;
     const prev = (DATA._meta.disabled || []).slice();
@@ -3524,7 +3544,8 @@
         `<label class="cspell-f cspell-full"><span>Description</span><textarea id="cspell-text" rows="4"></textarea></label>`+
         `<label class="cspell-f cspell-full"><span>At Higher Levels</span><textarea id="cspell-higher" rows="2"></textarea></label>`+
       `</div></div>`+
-      `<div class="modal-foot"><button class="btn ghost" id="cspell-cancel" type="button">Cancel</button><button class="btn primary" id="cspell-save" type="button">Save spell</button></div></div>`;
+      `<div class="modal-foot"><label class="cspell-store">Save as <select id="cspell-store"><option value="character">Character data (clears with this character)</option><option value="source">Source material (reusable, in Settings)</option></select></label>`+
+      `<span class="cspell-foot-btns"><button class="btn ghost" id="cspell-cancel" type="button">Cancel</button><button class="btn primary" id="cspell-save" type="button">Save spell</button></span></div></div>`;
     document.body.appendChild(m);
     $("cspell-x").addEventListener("click", closeSpellWizard);
     $("cspell-cancel").addEventListener("click", closeSpellWizard);
@@ -3547,6 +3568,8 @@
     $("cspell-conc").checked = !!(d && d.conc); $("cspell-ritual").checked = !!(d && d.ritual);
     $("cspell-text").value = (d && d.text) || "";
     $("cspell-higher").value = (d && d.higher) || "";
+    const lc0 = name.toLowerCase();
+    $("cspell-store").value = (homebrew.spells[lc0] && !customSpells[lc0]) ? "source" : "character";   // default to where it already lives
     $("spell-wizard").classList.add("open");
     setTimeout(() => $("cspell-name").focus(), 0);
   }
@@ -3557,10 +3580,15 @@
     if(!name){ flashStatus("Name the spell first"); $("cspell-name").focus(); return; }
     const newLevel = Math.max(0, Math.min(9, parseInt($("cspell-level").value, 10) || 0));
     const comp = ($("cspell-v").checked?"V":"") + ($("cspell-s").checked?"S":"") + ($("cspell-m").checked?"M":"");
-    customSpells[name.toLowerCase()] = { name, level:newLevel, school:$("cspell-school").value||"",
+    const lc = name.toLowerCase(), obj = { name, level:newLevel, school:$("cspell-school").value||"",
       time:$("cspell-time").value.trim(), range:$("cspell-range").value.trim(), components:comp,
       duration:$("cspell-duration").value.trim(), material:$("cspell-material").value.trim(),
       conc:$("cspell-conc").checked, ritual:$("cspell-ritual").checked, text:$("cspell-text").value.trim(), higher:$("cspell-higher").value.trim() };
+    if($("cspell-store").value === "source"){   // SOURCE material: browser-wide, reusable, managed in Settings
+      homebrew.spells[lc] = obj; homebrew.enabled = true; delete customSpells[lc]; saveHomebrew(); renderHomebrewList();
+    } else {                                     // CHARACTER data: clears with this character
+      customSpells[lc] = obj; if(homebrew.spells[lc]){ delete homebrew.spells[lc]; saveHomebrew(); renderHomebrewList(); }
+    }
     const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l][i] = SE[l][i] || {name:"", prep:false};
     const row = SE[l][i]; row.name = name;
     if(newLevel !== l){ SE[l].splice(i, 1); SE[newLevel] = SE[newLevel] || []; SE[newLevel].push(row); }   // re-file under the chosen level
@@ -3656,9 +3684,18 @@
     if(!_spellIndex){ _spellIndex = {}; if(DATA && DATA.spells) DATA.spells.forEach(s => { _spellIndex[s.name.toLowerCase()] = s; }); }
     return _spellIndex;
   }
-  let customSpells = {};   // user-defined spells, keyed by lowercased name → same shape as a DATA spell {name,level,school,time,range,components,duration,ritual,conc,material,text,higher}
-  function spellData(name){ if(!name) return null; const lc = String(name).toLowerCase(); return customSpells[lc] || spellIndex()[lc] || null; }   // custom spells take precedence (lets you override too)
-  function customSpellNamesAt(l){ return Object.values(customSpells).filter(s => (s.level||0) === l).map(s => s.name); }
+  let customSpells = {};   // CHARACTER-data homebrew, keyed by lowercased name → DATA-spell shape {name,level,school,time,range,components,duration,ritual,conc,material,text,higher}. Clears with the character.
+  let homebrew = { enabled: true, spells: {} };   // SOURCE-material homebrew — browser-wide, survives character clears, enabled/disabled/deleted in Settings
+  function loadHomebrew(){ try{ const h = JSON.parse(localStorage.getItem(HOMEBREW_KEY)); if(h && typeof h === "object"){ homebrew = { enabled: h.enabled !== false, spells: (h.spells && typeof h.spells === "object") ? h.spells : {} }; } }catch(e){} }
+  function saveHomebrew(){ try{ localStorage.setItem(HOMEBREW_KEY, JSON.stringify(homebrew)); }catch(e){} }
+  function homebrewActiveSpells(){ return homebrew.enabled ? homebrew.spells : {}; }
+  function spellData(name){ if(!name) return null; const lc = String(name).toLowerCase();   // precedence: this character's homebrew → enabled source homebrew → loaded sourcebooks
+    return customSpells[lc] || (homebrew.enabled ? homebrew.spells[lc] : null) || spellIndex()[lc] || null; }
+  function customSpellNamesAt(l){   // names to autocomplete in a write-in row's datalist: character customs + enabled source homebrew
+    const out = [], seen = new Set();
+    [...Object.values(customSpells), ...Object.values(homebrewActiveSpells())].forEach(s => { if((s.level||0) === l){ const k = (s.name||"").toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(s.name); } } });
+    return out;
+  }
   function spellTitle(d){                         // hover tooltip: description + material + higher-level scaling
     if(!d) return "";
     let t = d.text || "";
@@ -7110,6 +7147,7 @@
     let data = null;
     try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
     if(!data && !SLOT){ try{ data = JSON.parse($("embedded-data").textContent); }catch(e){} }  // fresh "New" slot / single-char file
+    loadHomebrew();   // source-material homebrew (browser-wide) — load before rendering spell sheets so its spells resolve
     populateWizard();
     populateArmor(); populateItemList();
     populateMonsterList();
@@ -7119,6 +7157,7 @@
     else loadStoredPortrait();                                                   // otherwise pull it from IndexedDB (migrating any legacy localStorage copy)
     updateSourcebookStatus();
     renderLoadedBookList();
+    renderHomebrewList();
     if(sourcesAreStale()) flashStatus("Loaded sourcebooks are out of date — open Settings → Source books → “Reload all loaded sources” to enable new features (e.g. subclass choices).");
 
     document.addEventListener("input", onChange);
@@ -7251,7 +7290,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -7271,6 +7310,8 @@
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
     $("loaded-books").addEventListener("change", e => { const t = e.target.closest(".book-toggle"); if(t) toggleBook(t.dataset.book, t.checked); });
+    $("homebrew-list").addEventListener("change", e => { if(e.target.id === "homebrew-enabled"){ homebrew.enabled = e.target.checked; refreshHomebrew(); } });
+    $("homebrew-list").addEventListener("click", e => { const b = e.target.closest(".hb-del"); if(b){ const nm = b.dataset.name||""; if(confirm(`Delete homebrew spell "${nm}"? This removes it from your source material for all characters.`)){ delete homebrew.spells[nm.toLowerCase()]; refreshHomebrew(); } } });
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
     $("settings-done").addEventListener("click", ()=> $("settings").classList.remove("open"));
