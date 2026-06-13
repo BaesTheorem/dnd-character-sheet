@@ -663,6 +663,11 @@
   .spelltable th.col-comp, .spelltable th.col-time, .spelltable th.col-range,
   .spelltable th.col-dur, .spelltable th.col-school{text-align:center}   /* headers use the global th font/size/style (centered over their values) */
   .spelltable .col-name[title]{cursor:help}
+  .spelltable td.col-name-edit{display:flex; align-items:center; gap:2px}   /* write-in rows: name field + delete ✕ */
+  .col-name-edit .sp-name{flex:1; min-width:0}
+  .sp-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:11px; line-height:1; padding:0 3px; visibility:hidden}
+  .spelltable tr:hover .sp-del, .spelltable tr.has-spell .sp-del{visibility:visible}   /* show on hover, or always on a filled row */
+  .sp-del:hover{color:#b42318}
   .spelltable .sp-section td{background:var(--field); font-weight:800; font-size:10px; letter-spacing:.07em;
     text-transform:uppercase; color:var(--accent); padding:6px 8px; border-top:2px solid var(--line2)}
 
@@ -1810,7 +1815,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v195 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v196 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3587,7 +3592,9 @@
                                   : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-inst="${inst}" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
           const nameField = names ? spellRowSelect(l, i, m.name, names, inst)
                                   : `<input class="sp-name" data-inst="${inst}" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
-          body += `<tr>${prepCell}<td class="col-name"${titleAttr}>${nameField}</td>`+ propCells(d) +`</tr>`;
+          const delBtn = l>0 ? `<button type="button" class="sp-del noprint" data-inst="${inst}" data-l="${l}" data-i="${i}" tabindex="-1" title="Delete this spell row">✕</button>` : "";   // cantrips are count-managed (no delete), matching the add-row rule
+          const rowClass = (m.name||"").trim() ? ` class="has-spell"` : "";
+          body += `<tr${rowClass}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${delBtn}</td>`+ propCells(d) +`</tr>`;
         });
         if(l>0) body += `<tr class="sp-addrow noprint"><td colspan="7"><button type="button" class="sp-add" data-inst="${inst}" data-l="${l}">+ add blank row</button></td></tr>`;   // grow this level on demand (cantrips are a fixed count, so no add-row there)
       }
@@ -6771,6 +6778,8 @@
     document.addEventListener("click", e => { const b = e.target.closest(".inv-del"); if(b) deleteInvRow(b.dataset.r); });   // ✕ delete an inventory item
     document.addEventListener("click", e => { const b = e.target.closest(".sp-add"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l;   // add another blank spell row to this level
       const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l].push({name:"", prep:false}); renderSpellTable(inst); save(); } });
+    document.addEventListener("click", e => { const b = e.target.closest(".sp-del"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l, i = +b.dataset.i;   // remove a write-in spell row (rows are sorted in place before render, so data-i matches the array index)
+      const SE = spellEntriesOf(inst); if(SE[l] && i < SE[l].length){ SE[l].splice(i, 1); renderSpellTable(inst); save(); } } });
     setupItemSearch();
     setupInvAutocomplete();
 
