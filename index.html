@@ -669,9 +669,15 @@
   .spelltable tr:hover .sp-del, .spelltable tr.has-spell .sp-del{visibility:visible}   /* show on hover, or always on a filled row */
   .sp-del:hover{color:#b42318}
   .spelltable .col-prep input:disabled{opacity:.28; cursor:not-allowed}   /* prep cap reached → unchecked boxes grey out */
+  .spelltable .col-prep{white-space:nowrap}                               /* keep the checkbox + granted ★ on one line */
+  .sp-free{border:none; background:none; cursor:pointer; font-size:12px; line-height:1; padding:0 1px; color:var(--muted); visibility:hidden; vertical-align:middle}
+  .spelltable tr:hover .sp-free, .sp-free.on{visibility:visible}          /* ☆ shows on hover; granted ★ is always visible */
+  .sp-free.on{color:#d4a017}                                             /* gold = granted / always-prepared, free of the cap */
+  .sp-free.locked{cursor:default}
   .prep-cur{font-weight:700}
   .prep-cur.over{color:#b42318}                                           /* over the cap (e.g. after a level/Int drop) */
   .prep-sep{color:var(--muted); font-weight:400}
+  .prep-free-note{color:#d4a017; font-size:11px; font-weight:600; white-space:nowrap}
   .spelltable .sp-section td{background:var(--field); font-weight:800; font-size:10px; letter-spacing:.07em;
     text-transform:uppercase; color:var(--accent); padding:6px 8px; border-top:2px solid var(--line2)}
 
@@ -1517,7 +1523,7 @@
           </div>
           <table class="spelltable" id="spelltable">
             <thead><tr>
-              <th class="col-prep" style="width:34px">Prep</th>
+              <th class="col-prep" style="width:46px">Prep</th>
               <th class="col-name">Name</th>
               <th class="col-comp" style="width:44px">Comp</th>
               <th class="col-time" style="width:62px">Cast Time</th>
@@ -1823,7 +1829,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v198 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v199 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3348,6 +3354,7 @@
   let spellSheets = 1;                                 // number of spell sheets (>=1)
   let spellEntriesByInst = [];                         // [inst] -> {lvl:[{name,prep}]} write-your-own rows (lazily created via spellEntriesOf; CANTRIP_COUNT is declared below, so don't call defaultSpellEntries() at load time)
   let preparedByInst = [{}];                           // [inst] -> {spellName:true} pre-filled full-list picks
+  let freeByInst = [{}];                                // [inst] -> {spellName:true} full-list spells marked "granted (free)" — prepared but don't count against the cap
   let spellMaxByInst = [9];                            // [inst] -> highest spell-level section shown
   // [inst] -> 'character' (sheet 0, follows the character) | 'manual' (made with the + button; has its own Class Level
   // dropdown) | 'class' (reserved: a future level-up/multiclass system will auto-anchor these to that class's level).
@@ -3356,6 +3363,7 @@
   const sEl = (inst, base) => $(sx(inst, base));
   function spellEntriesOf(inst){ return spellEntriesByInst[inst] || (spellEntriesByInst[inst] = defaultSpellEntries()); }
   function preparedOf(inst){ return preparedByInst[inst] || (preparedByInst[inst] = {}); }
+  function freeOf(inst){ return freeByInst[inst] || (freeByInst[inst] = {}); }
   // Level a sheet's spell math runs off. A manual sheet (made with the + button) may override it via its own Class Level
   // dropdown; everything else (the character sheet, and future multiclass-anchored sheets) follows the character's level.
   function sheetLevel(inst){
@@ -3555,8 +3563,23 @@
            `<td class="col-dur sp-dur">${d?esc(d.duration||""):""}</td>`+
            `<td class="col-school sp-school">${d?esc(d.school||""):""}</td>`;
   }
+  // Render a Prep-column cell: a gold ★ when the spell is granted/always-prepared (free of the cap), else a checkbox
+  // plus a hover ☆ to grant it. `sp` set → full-list row (data-sp); else write-in row (data-l/data-i).
+  function prepCellHTML(o){
+    const dattr = (o.sp != null) ? `data-inst="${o.inst}" data-sp="${esc(o.sp)}"` : `data-inst="${o.inst}" data-l="${o.l}" data-i="${o.i}"`;
+    if(o.free){
+      const t = o.locked ? "Always prepared by your subclass — doesn't count against your limit"
+                         : "Granted (free): prepared, but doesn't count against your limit. Click to undo.";
+      return `<td class="col-prep"><button type="button" class="sp-free on${o.locked?' locked':''}" ${dattr} tabindex="-1" title="${t}">★</button></td>`;
+    }
+    const chk = (o.sp != null)
+      ? `<input type="checkbox" class="prep-spell" ${dattr} ${o.prepared ? "checked" : ""}>`
+      : `<input type="checkbox" class="sp-prep" ${dattr} ${o.prepared ? "checked" : ""}>`;
+    return `<td class="col-prep">${chk}<button type="button" class="sp-free" ${dattr} tabindex="-1" title="Mark granted (free) — prepared, doesn't count against your limit">☆</button></td>`;
+  }
   function renderSpellTable(inst=0){
     const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], spellEntries = spellEntriesOf(inst), preparedSpells = preparedOf(inst);
+    const alwaysSet = alwaysPreparedNames(cls), isPrepCaster = !!(info && info.prepares), F = freeOf(inst);   // "granted/free" denotation context
     sEl(inst,"spelltable").classList.toggle("hide-prep", !(info ? info.prepares : true));   // blank/Other shows Prep
     if(info && info.fixed){                      // fixed-list caster (e.g. Shadow Monk) — exactly these spells, no blank rows
       // these spells live ONLY in the fixed list — scrub any copies out of the write-in rows so they don't linger when you switch class
@@ -3583,8 +3606,9 @@
       if(l>0 && fullByLvl){                      // full-list class → pre-fill this level's real spells (Prep checkbox each)
         (fullByLvl[l]||[]).forEach(sp => {
           const d = spellData(sp.n), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
+          const locked = alwaysSet.has((sp.n||"").toLowerCase()), free = locked || !!F[sp.n];
           body += `<tr>`+
-            `<td class="col-prep"><input type="checkbox" class="prep-spell" data-inst="${inst}" data-sp="${esc(sp.n)}" ${preparedSpells[sp.n] ? "checked" : ""}></td>`+
+            prepCellHTML({inst, sp:sp.n, prepared:!!preparedSpells[sp.n] || free, free, locked})+
             `<td class="col-name"${titleAttr}>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
         });
       } else {                                   // learn-spells rows (cantrips never show Prep)
@@ -3596,8 +3620,11 @@
         });
         (spellEntries[l]||[]).forEach((m,i) => {
           const d = spellData(m.name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
+          const mFree = isPrepCaster && ((!!m.free) || alwaysSet.has((m.name||"").toLowerCase()));
+          const mLocked = mFree && alwaysSet.has((m.name||"").toLowerCase());
           const prepCell = l===0 ? `<td class="col-prep"></td>`
-                                  : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-inst="${inst}" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
+                                  : isPrepCaster ? prepCellHTML({inst, l, i, prepared: !!m.prep || mFree, free:mFree, locked:mLocked})
+                                                 : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-inst="${inst}" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
           const nameField = names ? spellRowSelect(l, i, m.name, names, inst)
                                   : `<input class="sp-name" data-inst="${inst}" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
           const delBtn = l>0 ? `<button type="button" class="sp-del noprint" data-inst="${inst}" data-l="${l}" data-i="${i}" tabindex="-1" title="Delete this spell row">✕</button>` : "";   // cantrips are count-managed (no delete), matching the add-row rule
@@ -3640,12 +3667,16 @@
     const boxes = tbody.querySelectorAll(".sp-prep, .prep-spell");
     const max = preparedMax(inst);
     if(max == null){ boxes.forEach(cb => { cb.disabled = false; }); return; }   // known/blank casters never grey out
-    const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], always = alwaysPreparedNames(cls);
-    let cur = 0;
-    if(info.fullList){ const P = preparedOf(inst); Object.keys(P).forEach(n => { if(P[n] && !always.has(n.toLowerCase())) cur++; }); }
-    else { const SE = spellEntriesByInst[inst] || {}; for(let l=1;l<=9;l++) (SE[l]||[]).forEach(r => { if(r.prep && (r.name||"").trim() && !always.has((r.name||"").toLowerCase())) cur++; }); }
+    const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], always = alwaysPreparedNames(cls), F = freeOf(inst);
+    const isFree = name => always.has((name||"").toLowerCase()) || !!F[name];   // granted/always-prepared → free of the cap
+    let cur = 0, freeCount = 0;   // cur = prepared spells that COUNT; freeCount = prepared-but-granted
+    if(info.fullList){ const P = preparedOf(inst); Object.keys(P).forEach(n => { if(!P[n]) return; if(isFree(n)) freeCount++; else cur++; }); }
+    else { const SE = spellEntriesByInst[inst] || {}; for(let l=1;l<=9;l++) (SE[l]||[]).forEach(r => {
+      if(!(r.name||"").trim()) return; const free = r.free || always.has((r.name||"").toLowerCase());
+      if(!(r.prep || free)) return; if(free) freeCount++; else cur++; }); }
     const out = sEl(inst,"prepcount");
-    if(out) out.innerHTML = `<span class="prep-cur${cur>max?' over':''}">${cur}</span> <span class="prep-sep">/</span> ${max}`;
+    if(out) out.innerHTML = `<span class="prep-cur${cur>max?' over':''}">${cur}</span> <span class="prep-sep">/</span> ${max}`
+      + (freeCount ? ` <span class="prep-free-note" title="Granted spells — always prepared, free of the cap">+${freeCount} free</span>` : "");
     const atMax = cur >= max;
     boxes.forEach(cb => { cb.disabled = atMax && !cb.checked; });
     tbody.classList.toggle("prep-full", atMax);
@@ -3733,7 +3764,7 @@
             `<div id="${S('spell-results')}" class="item-results" hidden></div>`+
           `</div>`+
           `<table class="spelltable" id="${S('spelltable')}">`+
-            `<thead><tr><th class="col-prep" style="width:34px">Prep</th><th class="col-name">Name</th><th class="col-comp" style="width:44px">Comp</th><th class="col-time" style="width:62px">Cast Time</th><th class="col-range" style="width:62px">Range</th><th class="col-dur" style="width:84px">Duration</th><th class="col-school" style="width:66px">School</th></tr></thead>`+
+            `<thead><tr><th class="col-prep" style="width:46px">Prep</th><th class="col-name">Name</th><th class="col-comp" style="width:44px">Comp</th><th class="col-time" style="width:62px">Cast Time</th><th class="col-range" style="width:62px">Range</th><th class="col-dur" style="width:84px">Duration</th><th class="col-school" style="width:66px">School</th></tr></thead>`+
             `<tbody id="${S('spells')}"></tbody>`+
           `</table>`+
         `</div>`+
@@ -4174,6 +4205,7 @@
     data.spellSheetKind = spellSheetKind;
     data.spellEntriesByInst = spellEntriesByInst;
     data.preparedByInst = preparedByInst;
+    data.freeByInst = freeByInst;
     data.spellMaxByInst = spellMaxByInst;
     data.spellEntries = spellEntriesByInst[0];            // backward-compat: an older reader still sees sheet 0
     data.spellMaxLevel = spellMaxByInst[0];
@@ -4239,11 +4271,12 @@
     if(data && data.asiChoices) applyAsiBonuses();   // ASI column derives from the picks (legacy sheets keep their manual column)
     // ---- spell sheets (multi-sheet, with legacy single-sheet fallback) ----
     const loadEntries = src => { const e = defaultSpellEntries();
-      if(src) for(let l=0;l<=9;l++) if(Array.isArray(src[l])) e[l] = src[l].map(m => ({name:(m&&m.name)||"", prep:!!(m&&m.prep)}));
+      if(src) for(let l=0;l<=9;l++) if(Array.isArray(src[l])) e[l] = src[l].map(m => ({name:(m&&m.name)||"", prep:!!(m&&m.prep), free:!!(m&&m.free)}));
       return e; };
     if(data && Array.isArray(data.spellEntriesByInst) && data.spellEntriesByInst.length){   // new multi-sheet format
       spellEntriesByInst = data.spellEntriesByInst.map(loadEntries);
       preparedByInst = (data.preparedByInst||[]).map(p => ({...(p||{})}));
+      freeByInst = (data.freeByInst||[]).map(p => ({...(p||{})}));   // full-list "granted (free)" picks
       spellMaxByInst = (data.spellMaxByInst||[]).map(n => typeof n === "number" ? n : 9);
     } else {                                                          // legacy: a single sheet
       let e0 = defaultSpellEntries();
@@ -4255,13 +4288,15 @@
       }
       spellEntriesByInst = [e0];
       preparedByInst = [ (data && data.preparedSpells) || {} ];
+      freeByInst = [ (data && data.freeByInst && data.freeByInst[0]) || {} ];
       spellMaxByInst = [ (data && typeof data.spellMaxLevel === "number") ? data.spellMaxLevel : 9 ];
     }
     const nSheets = Math.max(1, (data && data.spellSheets) || spellEntriesByInst.length || 1);
     while(spellEntriesByInst.length < nSheets) spellEntriesByInst.push(defaultSpellEntries());
     while(preparedByInst.length < nSheets) preparedByInst.push({});
+    while(freeByInst.length < nSheets) freeByInst.push({});
     while(spellMaxByInst.length < nSheets) spellMaxByInst.push(9);
-    spellEntriesByInst.length = nSheets; preparedByInst.length = nSheets; spellMaxByInst.length = nSheets;
+    spellEntriesByInst.length = nSheets; preparedByInst.length = nSheets; freeByInst.length = nSheets; spellMaxByInst.length = nSheets;
     spellSheetKind = (data && Array.isArray(data.spellSheetKind)) ? data.spellSheetKind.slice(0, nSheets) : [];   // extra sheets default to 'manual' (the only way they could exist so far)
     spellSheetKind[0] = "character";
     while(spellSheetKind.length < nSheets) spellSheetKind.push("manual");
@@ -6880,6 +6915,16 @@
       const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l].push({name:"", prep:false}); renderSpellTable(inst); save(); } });
     document.addEventListener("click", e => { const b = e.target.closest(".sp-del"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l, i = +b.dataset.i;   // remove a write-in spell row (rows are sorted in place before render, so data-i matches the array index)
       const SE = spellEntriesOf(inst); if(SE[l] && i < SE[l].length){ SE[l].splice(i, 1); renderSpellTable(inst); save(); } } });
+    document.addEventListener("click", e => { const b = e.target.closest(".sp-free"); if(!b || b.classList.contains("locked")) return;   // toggle "granted (free)"; locked = subclass always-prepared (not user-editable)
+      const inst = +(b.dataset.inst||0);
+      if(b.dataset.sp != null){                                          // full-list row
+        const F = freeOf(inst), P = preparedOf(inst), name = b.dataset.sp;
+        if(F[name]) delete F[name]; else { F[name] = true; P[name] = true; }   // granting implies prepared; ungranting leaves it prepared so you can then uncheck
+      } else {                                                           // write-in row
+        const l = +b.dataset.l, i = +b.dataset.i, SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l][i] = SE[l][i] || {name:"", prep:false};
+        if(SE[l][i].free) SE[l][i].free = false; else { SE[l][i].free = true; SE[l][i].prep = true; }
+      }
+      renderSpellTable(inst); save(); compute(); });
     setupItemSearch();
     setupSpellSearch(0);
     setupInvAutocomplete();
