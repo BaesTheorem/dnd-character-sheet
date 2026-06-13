@@ -682,6 +682,23 @@
   .sp-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:11px; line-height:1; padding:0 3px; visibility:hidden}
   .spelltable tr:hover .sp-del, .spelltable tr.has-spell .sp-del{visibility:visible}   /* show on hover, or always on a filled row */
   .sp-del:hover{color:#b42318}
+  .sp-edit{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:11px; line-height:1; padding:0 3px; visibility:hidden}
+  .spelltable tr:hover .sp-edit{visibility:visible}   /* ✎ edit-properties affordance, on hover */
+  .sp-edit:hover{color:var(--accent)}
+  .prop-setbtn{text-align:left}
+  .sp-edit-inline{border:none; background:none; color:var(--accent); cursor:pointer; font:inherit; font-size:11px; font-weight:600; padding:1px 2px}
+  .sp-edit-inline:hover{text-decoration:underline}
+  /* Custom Spell wizard */
+  #spell-wizard .modal-panel{max-width:620px}
+  .cspell-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .cspell-f{display:flex; flex-direction:column; gap:4px; font-size:12px}
+  .cspell-f > span{font-weight:700; font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
+  .cspell-full{grid-column:1 / -1}
+  .cspell-f input[type=text], .cspell-f select, .cspell-f textarea{width:100%; padding:6px 8px; border:1px solid var(--line); background:var(--field); font:inherit; font-size:13px}
+  .cspell-f textarea{resize:vertical}
+  .cspell-checks{display:flex; gap:16px; align-items:center; padding:4px 0; font-size:13px}
+  .cspell-checks label{display:flex; gap:4px; align-items:center; font-weight:400; cursor:pointer}
+  @media (max-width:560px){ .cspell-grid{grid-template-columns:1fr} }
   .spelltable .col-prep input:disabled{opacity:.28; cursor:not-allowed}   /* prep cap reached → unchecked boxes grey out */
   .spelltable .col-prep{white-space:nowrap}                               /* keep the checkbox + granted ★ on one line */
   .sp-free{border:none; background:none; cursor:pointer; font-size:12px; line-height:1; padding:0 1px; color:var(--muted); visibility:hidden; vertical-align:middle}
@@ -1539,7 +1556,7 @@
         </div>
         <div class="card" id="slots-card"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="slots"><div class="slot" id="slotcell1"><div class="k">Lv 1</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot1" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot1u" min="0"></label></div></div><div class="slot" id="slotcell2"><div class="k">Lv 2</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot2" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot2u" min="0"></label></div></div><div class="slot" id="slotcell3"><div class="k">Lv 3</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot3" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot3u" min="0"></label></div></div><div class="slot" id="slotcell4"><div class="k">Lv 4</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot4" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot4u" min="0"></label></div></div><div class="slot" id="slotcell5"><div class="k">Lv 5</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot5" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot5u" min="0"></label></div></div><div class="slot" id="slotcell6"><div class="k">Lv 6</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot6" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot6u" min="0"></label></div></div><div class="slot" id="slotcell7"><div class="k">Lv 7</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot7" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot7u" min="0"></label></div></div><div class="slot" id="slotcell8"><div class="k">Lv 8</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot8" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot8u" min="0"></label></div></div><div class="slot" id="slotcell9"><div class="k">Lv 9</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot9" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot9u" min="0"></label></div></div></div></div>
         <div class="card spell-list"><h2 id="spells-h2">Spells</h2>
-          <p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Hover a spell name for the full description.</p>
+          <p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Type anything not in the lists to make a custom spell, then use the ✎ button (or "Set spell properties") to fill in its details. Hover a spell name for the full description.</p>
           <div class="item-search-wrap spell-search-wrap noprint" id="spell-search-wrap" style="display:none">
             <input id="spell-search" placeholder="Search Wizard spells to add to your spellbook…" autocomplete="off" spellcheck="false">
             <div id="spell-results" class="item-results" hidden=""></div>
@@ -1856,7 +1873,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v205 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v206 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3472,14 +3489,83 @@
       ex.forEach(n => { if(!have.has(n.toLowerCase())){ have.add(n.toLowerCase()); names.push(n); } }); }
     return names;
   }
-  // <select> for a write-in row, listing the class's spells of that level (+ blank, + any current value not in the list).
-  function spellRowSelect(l, i, cur, names, inst){
-    const lc = (cur||"").toLowerCase();
-    const inList = names.some(n => n.toLowerCase() === lc);
-    let o = `<option value=""></option>`;
-    if(cur && !inList) o += `<option value="${esc(cur)}" selected>${esc(cur)} (off-list)</option>`;
-    o += names.map(n => `<option value="${esc(n)}"${n.toLowerCase()===lc?" selected":""}>${esc(n)}</option>`).join("");
-    return `<select class="sp-name" data-inst="${inst||0}" data-l="${l}" data-i="${i}">${o}</select>`;
+  // Write-in spell field: a free-text input (type ANY name — unknown text becomes a custom spell) with a datalist of the
+  // class's spells (+ your custom spells) for autocomplete. The matching <datalist> is emitted once per level (see spellLevelDatalist).
+  function spellRowInput(l, i, cur, names, inst){
+    const hasList = (names && names.length) || customSpellNamesAt(l).length;
+    const listAttr = hasList ? ` list="dl-${inst||0}-${l}"` : "";
+    return `<input class="sp-name" data-inst="${inst||0}" data-l="${l}" data-i="${i}" value="${esc(cur||'')}"${listAttr} autocomplete="off">`;
+  }
+  function spellLevelDatalist(inst, l, names){   // dedup'd <datalist> of class spells + custom spells of this level (lives in the section-header cell — valid in a <td>)
+    const seen = new Set(), opts = [];
+    [...(names||[]), ...customSpellNamesAt(l)].forEach(n => { const k = n.toLowerCase(); if(!seen.has(k)){ seen.add(k); opts.push(n); } });
+    return opts.length ? `<datalist id="dl-${inst}-${l}">` + opts.map(n => `<option value="${esc(n)}"></option>`).join("") + `</datalist>` : "";
+  }
+  // ---- Custom Spell wizard: define every property of a write-in spell that isn't in the data ----
+  const SPELL_SCHOOLS = ["Abjuration","Conjuration","Divination","Enchantment","Evocation","Illusion","Necromancy","Transmutation"];
+  let _spellWizCtx = null;
+  function buildSpellWizard(){
+    if($("spell-wizard")) return;
+    const lvlOpts = ['<option value="0">Cantrip</option>'].concat([1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}">Level ${n}</option>`)).join("");
+    const schoolOpts = '<option value=""></option>' + SPELL_SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join("");
+    const m = document.createElement("div"); m.id = "spell-wizard"; m.className = "modal noprint";
+    m.innerHTML =
+      `<div class="modal-panel"><div class="modal-head"><h2>Custom Spell</h2><button class="btn ghost" id="cspell-x" type="button">✕</button></div>`+
+      `<div class="modal-body"><div class="cspell-grid">`+
+        `<label class="cspell-f cspell-full"><span>Name</span><input type="text" id="cspell-name"></label>`+
+        `<label class="cspell-f"><span>Level</span><select id="cspell-level">${lvlOpts}</select></label>`+
+        `<label class="cspell-f"><span>School</span><select id="cspell-school">${schoolOpts}</select></label>`+
+        `<label class="cspell-f"><span>Casting Time</span><input type="text" id="cspell-time" placeholder="1 action"></label>`+
+        `<label class="cspell-f"><span>Range</span><input type="text" id="cspell-range" placeholder="60 feet"></label>`+
+        `<label class="cspell-f"><span>Duration</span><input type="text" id="cspell-duration" placeholder="Instantaneous"></label>`+
+        `<div class="cspell-f"><span>Components</span><div class="cspell-checks"><label><input type="checkbox" id="cspell-v"> V</label><label><input type="checkbox" id="cspell-s"> S</label><label><input type="checkbox" id="cspell-m"> M</label></div></div>`+
+        `<label class="cspell-f cspell-full"><span>Material component</span><input type="text" id="cspell-material" placeholder="a pinch of sulfur…"></label>`+
+        `<div class="cspell-f cspell-full"><span>Flags</span><div class="cspell-checks"><label><input type="checkbox" id="cspell-conc"> Concentration</label><label><input type="checkbox" id="cspell-ritual"> Ritual</label></div></div>`+
+        `<label class="cspell-f cspell-full"><span>Description</span><textarea id="cspell-text" rows="4"></textarea></label>`+
+        `<label class="cspell-f cspell-full"><span>At Higher Levels</span><textarea id="cspell-higher" rows="2"></textarea></label>`+
+      `</div></div>`+
+      `<div class="modal-foot"><button class="btn ghost" id="cspell-cancel" type="button">Cancel</button><button class="btn primary" id="cspell-save" type="button">Save spell</button></div></div>`;
+    document.body.appendChild(m);
+    $("cspell-x").addEventListener("click", closeSpellWizard);
+    $("cspell-cancel").addEventListener("click", closeSpellWizard);
+    $("cspell-save").addEventListener("click", saveSpellWizard);
+    m.addEventListener("mousedown", e => { if(e.target === m) closeSpellWizard(); });   // click the backdrop to dismiss
+  }
+  function openSpellWizard(inst, l, i){
+    buildSpellWizard();
+    const SE = spellEntriesOf(inst), m = (SE[l] && SE[l][i]) || {name:""}, name = (m.name||"").trim(), d = spellData(name);
+    _spellWizCtx = {inst, l, i};
+    $("cspell-name").value = name;
+    $("cspell-level").value = String(d ? (d.level||0) : l);
+    $("cspell-school").value = (d && d.school) || "";
+    $("cspell-time").value = (d && d.time) || "";
+    $("cspell-range").value = (d && d.range) || "";
+    $("cspell-duration").value = (d && d.duration) || "";
+    const comp = String((d && d.components) || "").toUpperCase();
+    $("cspell-v").checked = comp.includes("V"); $("cspell-s").checked = comp.includes("S"); $("cspell-m").checked = comp.includes("M");
+    $("cspell-material").value = (d && d.material) || "";
+    $("cspell-conc").checked = !!(d && d.conc); $("cspell-ritual").checked = !!(d && d.ritual);
+    $("cspell-text").value = (d && d.text) || "";
+    $("cspell-higher").value = (d && d.higher) || "";
+    $("spell-wizard").classList.add("open");
+    setTimeout(() => $("cspell-name").focus(), 0);
+  }
+  function closeSpellWizard(){ const m = $("spell-wizard"); if(m) m.classList.remove("open"); _spellWizCtx = null; }
+  function saveSpellWizard(){
+    if(!_spellWizCtx) return;
+    const {inst, l, i} = _spellWizCtx, name = ($("cspell-name").value||"").trim();
+    if(!name){ flashStatus("Name the spell first"); $("cspell-name").focus(); return; }
+    const newLevel = Math.max(0, Math.min(9, parseInt($("cspell-level").value, 10) || 0));
+    const comp = ($("cspell-v").checked?"V":"") + ($("cspell-s").checked?"S":"") + ($("cspell-m").checked?"M":"");
+    customSpells[name.toLowerCase()] = { name, level:newLevel, school:$("cspell-school").value||"",
+      time:$("cspell-time").value.trim(), range:$("cspell-range").value.trim(), components:comp,
+      duration:$("cspell-duration").value.trim(), material:$("cspell-material").value.trim(),
+      conc:$("cspell-conc").checked, ritual:$("cspell-ritual").checked, text:$("cspell-text").value.trim(), higher:$("cspell-higher").value.trim() };
+    const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l][i] = SE[l][i] || {name:"", prep:false};
+    const row = SE[l][i]; row.name = name;
+    if(newLevel !== l){ SE[l].splice(i, 1); SE[newLevel] = SE[newLevel] || []; SE[newLevel].push(row); }   // re-file under the chosen level
+    closeSpellWizard();
+    renderSpellTable(inst); save(); compute();
   }
   // the highest spell level a class can EVER reach (caps the sheet by class alone, even with no level)
   const THIRD_CASTERS = ["Fighter (Eldritch Knight)","Rogue (Arcane Trickster)"];
@@ -3570,7 +3656,9 @@
     if(!_spellIndex){ _spellIndex = {}; if(DATA && DATA.spells) DATA.spells.forEach(s => { _spellIndex[s.name.toLowerCase()] = s; }); }
     return _spellIndex;
   }
-  function spellData(name){ return (name && spellIndex()[String(name).toLowerCase()]) || null; }
+  let customSpells = {};   // user-defined spells, keyed by lowercased name → same shape as a DATA spell {name,level,school,time,range,components,duration,ritual,conc,material,text,higher}
+  function spellData(name){ if(!name) return null; const lc = String(name).toLowerCase(); return customSpells[lc] || spellIndex()[lc] || null; }   // custom spells take precedence (lets you override too)
+  function customSpellNamesAt(l){ return Object.values(customSpells).filter(s => (s.level||0) === l).map(s => s.name); }
   function spellTitle(d){                         // hover tooltip: description + material + higher-level scaling
     if(!d) return "";
     let t = d.text || "";
@@ -3675,7 +3763,9 @@
     let body = "";
     for(let l=0; l<=spellMaxByInst[inst]; l++){
       if(l===0 && !(spellEntries[0]||[]).length) continue;   // class knows no cantrips at this level → no Cantrips section
-      body += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
+      const writeIn = !(l>0 && fullByLvl);                                    // typeable rows vs the full-list catalog
+      const lvlNames = writeIn ? classSpellNamesAt(cls, l) : null;
+      body += `<tr class="sp-section"><td colspan="7">${l===0 ? "Cantrips" : "Level "+l}${writeIn ? spellLevelDatalist(inst, l, lvlNames) : ""}</td></tr>`;
       if(l>0 && fullByLvl){                      // full-list class → pre-fill this level's real spells (Prep checkbox each)
         (fullByLvl[l]||[]).forEach(sp => {
           const d = spellData(sp.n), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
@@ -3684,24 +3774,26 @@
             prepCellHTML({inst, sp:sp.n, prepared:!!preparedSpells[sp.n] || free, free, locked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)})+
             `<td class="col-name"${titleAttr}>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
         });
-      } else {                                   // learn-spells rows (cantrips never show Prep)
-        const names = classSpellNamesAt(cls, l);   // dropdown of this class's spells at this level (null → free-text)
+      } else {                                   // write-in rows: type any name (unknown → custom spell); cantrips never show Prep
         if(spellEntries[l]) spellEntries[l].sort((a,b) => {   // alphabetical within the level; blank rows sink to the bottom
           const an = (a.name||"").trim(), bn = (b.name||"").trim();
           if(!an !== !bn) return an ? -1 : 1;
           return an.localeCompare(bn);
         });
         (spellEntries[l]||[]).forEach((m,i) => {
-          const d = spellData(m.name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
+          const named = (m.name||"").trim(), d = spellData(m.name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           const mFree = isPrepCaster && ((!!m.free) || alwaysSet.has((m.name||"").toLowerCase()));
           const mLocked = mFree && alwaysSet.has((m.name||"").toLowerCase());
           const prepCell = l===0 ? `<td class="col-prep"></td>`
                                   : prepCellHTML({inst, l, i, prepared: !!m.prep || mFree, free:mFree, locked:mLocked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)});
-          const nameField = names ? spellRowSelect(l, i, m.name, names, inst)
-                                  : `<input class="sp-name" data-inst="${inst}" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
-          const delBtn = l>0 ? `<button type="button" class="sp-del noprint" data-inst="${inst}" data-l="${l}" data-i="${i}" tabindex="-1" title="Delete this spell row">✕</button>` : "";   // cantrips are count-managed (no delete), matching the add-row rule
-          const rowClass = (m.name||"").trim() ? ` class="has-spell"` : "";
-          body += `<tr${rowClass}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${delBtn}</td>`+ propCells(d) +`</tr>`;
+          const nameField = spellRowInput(l, i, m.name, lvlNames, inst);
+          const editBtn = `<button type="button" class="sp-edit noprint" data-inst="${inst}" data-l="${l}" data-i="${i}" tabindex="-1" title="Edit / create this spell's properties">✎</button>`;
+          const delBtn = l>0 ? `<button type="button" class="sp-del noprint" data-inst="${inst}" data-l="${l}" data-i="${i}" tabindex="-1" title="Delete this spell row">✕</button>` : "";   // cantrips are count-managed (no delete)
+          const propArea = (named && !d)         // typed-in name with no spell data yet → offer the properties wizard right in the info columns
+            ? `<td class="col-comp prop-setbtn" colspan="5"><button type="button" class="sp-edit-inline noprint" data-inst="${inst}" data-l="${l}" data-i="${i}">✎ Set spell properties…</button></td>`
+            : propCells(d);
+          const rowClass = named ? ` class="has-spell"` : "";
+          body += `<tr${rowClass}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}</td>${propArea}</tr>`;
         });
         if(l>0) body += `<tr class="sp-addrow noprint"><td colspan="7"><button type="button" class="sp-add" data-inst="${inst}" data-l="${l}">+ add blank row</button></td></tr>`;   // grow this level on demand (cantrips are a fixed count, so no add-row there)
       }
@@ -3848,7 +3940,7 @@
         `</div>`+
         `<div class="card" id="${S('slots-card')}"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="${S('slots')}"></div></div>`+
         `<div class="card spell-list"><h2 id="${S('spells-h2')}">Spells</h2>`+
-          `<p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Hover a spell name for the full description.</p>`+
+          `<p class="help noprint">Pre-filled spells show their stats; type a spell name into a blank row to auto-fill it. Type anything not in the lists to make a custom spell, then use the ✎ button (or "Set spell properties") to fill in its details. Hover a spell name for the full description.</p>`+
           `<div class="item-search-wrap spell-search-wrap noprint" id="${S('spell-search-wrap')}" style="display:none">`+
             `<input id="${S('spell-search')}" placeholder="Search Wizard spells to add to your spellbook…" autocomplete="off" spellcheck="false">`+
             `<div id="${S('spell-results')}" class="item-results" hidden></div>`+
@@ -4294,6 +4386,7 @@
     data.spellSheets = spellSheets;                       // multi-sheet spell state
     data.spellSheetKind = spellSheetKind;
     data.spellEntriesByInst = spellEntriesByInst;
+    data.customSpells = customSpells;   // user-defined spells
     data.preparedByInst = preparedByInst;
     data.freeByInst = freeByInst;
     data.spellMaxByInst = spellMaxByInst;
@@ -4360,6 +4453,7 @@
     overrides = (data && data.overrides && typeof data.overrides === "object" && !Array.isArray(data.overrides)) ? {...data.overrides} : {};   // hand-pinned values
     if(data && data.asiChoices) applyAsiBonuses();   // ASI column derives from the picks (legacy sheets keep their manual column)
     // ---- spell sheets (multi-sheet, with legacy single-sheet fallback) ----
+    customSpells = (data && data.customSpells && typeof data.customSpells === "object") ? {...data.customSpells} : {};   // reset/load on every character switch
     const loadEntries = src => { const e = defaultSpellEntries();
       if(src) for(let l=0;l<=9;l++) if(Array.isArray(src[l])) e[l] = src[l].map(m => ({name:(m&&m.name)||"", prep:!!(m&&m.prep), free:!!(m&&m.free)}));
       return e; };
@@ -4571,6 +4665,10 @@
           const rit = tr.querySelector(".sp-rit-slot"); if(rit) rit.innerHTML = ritualLeft(d);   // keep the left ritual tag in sync with the picked spell
         }
         if(nameCell){ const tt = spellTitle(d); if(tt) nameCell.title = tt; else nameCell.removeAttribute("title"); }
+        if(e.type === "change" && tr){   // on commit, rebuild the row if it just became (or stopped being) a custom spell — swaps the prop cells ↔ "Set properties" button
+          const wasSetBtn = !!tr.querySelector(".prop-setbtn"), nowCustom = !!((t.value||"").trim() && !d);
+          if(wasSetBtn !== nowCustom) renderSpellTable(inst);
+        }
       } else SE[l][i].prep = t.checked;
     }
     if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
@@ -7049,6 +7147,7 @@
       const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l].push({name:"", prep:false}); renderSpellTable(inst); save(); } });
     document.addEventListener("click", e => { const b = e.target.closest(".sp-del"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l, i = +b.dataset.i;   // remove a write-in spell row (rows are sorted in place before render, so data-i matches the array index)
       const SE = spellEntriesOf(inst); if(SE[l] && i < SE[l].length){ SE[l].splice(i, 1); renderSpellTable(inst); save(); } } });
+    document.addEventListener("click", e => { const b = e.target.closest(".sp-edit, .sp-edit-inline"); if(b) openSpellWizard(+(b.dataset.inst||0), +b.dataset.l, +b.dataset.i); });   // ✎ open the Custom Spell wizard
     document.addEventListener("click", e => { const b = e.target.closest(".sp-free"); if(!b || b.classList.contains("locked")) return;   // toggle "granted (free)"; locked = subclass always-prepared (not user-editable)
       const inst = +(b.dataset.inst||0);
       if(b.dataset.sp != null){                                          // full-list row
