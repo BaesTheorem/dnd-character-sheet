@@ -1497,6 +1497,7 @@
             <div class="stat" id="prep-stat" style=""><div class="k" id="prep-stat-label">Can Prepare</div><div class="calc" id="prepcount"></div></div>
           </div>
           <p class="help" id="cast-note">Flexible layout — fill in as needed. Pick a class to tailor it.</p>
+          <button class="btn noprint" id="btn-make-sim" type="button" style="display:none; margin-top:4px" title="Cast Simulacrum: create a full duplicate of this character (half HP, no equipment, only the spells prepared now) as a new entry in Manage Characters">❄ Create Simulacrum</button>
         </div>
         <div class="card" id="slots-card"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="slots"><div class="slot" id="slotcell1"><div class="k">Lv 1</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot1" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot1u" min="0"></label></div></div><div class="slot" id="slotcell2"><div class="k">Lv 2</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot2" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot2u" min="0"></label></div></div><div class="slot" id="slotcell3"><div class="k">Lv 3</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot3" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot3u" min="0"></label></div></div><div class="slot" id="slotcell4"><div class="k">Lv 4</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot4" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot4u" min="0"></label></div></div><div class="slot" id="slotcell5"><div class="k">Lv 5</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot5" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot5u" min="0"></label></div></div><div class="slot" id="slotcell6"><div class="k">Lv 6</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot6" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot6u" min="0"></label></div></div><div class="slot" id="slotcell7"><div class="k">Lv 7</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot7" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot7u" min="0"></label></div></div><div class="slot" id="slotcell8"><div class="k">Lv 8</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot8" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot8u" min="0"></label></div></div><div class="slot" id="slotcell9"><div class="k">Lv 9</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot9" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot9u" min="0"></label></div></div></div></div>
         <div class="card spell-list"><h2 id="spells-h2">Spells</h2>
@@ -1809,7 +1810,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v194 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v195 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3987,6 +3988,7 @@
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
     applyOverrides();    // repaint any hand-pinned leaf values over what compute() just wrote (sources already cascaded via the helpers)
+    refreshSimulacrumButton();   // surface the "Create Simulacrum" button only when the Simulacrum spell is on a sheet
   }
 
   // ===== Manual overrides: pin any computed value by hand =====
@@ -6983,6 +6985,7 @@
     });
 
     $("btn-manage").addEventListener("click", openCharMgr);
+    $("btn-make-sim").addEventListener("click", makeSimulacrumOfCurrent);
     $("cm-close").addEventListener("click", closeCharMgr);
     $("cm-new").addEventListener("click", ()=>{ gotoSlot(newSlotId()); });   // fresh blank character, in place
     $("charmgr").addEventListener("click", e=>{ if(e.target.id === "charmgr") closeCharMgr(); });   // click backdrop to close
@@ -7290,7 +7293,6 @@
           `<button type="button" class="cm-open">Open</button>` +
           `<button type="button" class="cm-rename">Rename</button>` +
           `<button type="button" class="cm-dupe">Duplicate</button>` +
-          `<button type="button" class="cm-sim" title="Create a Simulacrum: a full duplicate with half HP, no equipment, and (for Wizards) only the spells prepared now">Simulacrum</button>` +
           `<button type="button" class="cm-del">Delete</button>` +
         `</div>`;
       const portEl = card.querySelector(".cm-port");
@@ -7311,7 +7313,6 @@
       card.querySelector(".cm-open").addEventListener("click", e=>{ e.stopPropagation(); open(); });
       card.querySelector(".cm-rename").addEventListener("click", e=>{ e.stopPropagation(); renameSlot(c); });
       card.querySelector(".cm-dupe").addEventListener("click", e=>{ e.stopPropagation(); duplicateSlot(c); });
-      card.querySelector(".cm-sim").addEventListener("click", e=>{ e.stopPropagation(); simulacrumSlot(c); });
       card.querySelector(".cm-del").addEventListener("click", e=>{ e.stopPropagation(); deleteSlot(c); });
       grid.appendChild(card);
     });
@@ -7410,6 +7411,23 @@
     try{ const th = localStorage.getItem(c.key + "_thumb"); if(th) localStorage.setItem(nk + "_thumb", th); }catch(e){}
     renderCharMgr();
     flashStatus("Created “" + d.charname + "” — half HP, no equipment" + (anyWiz ? ", Wizard spells trimmed to those prepared" : "") + ". Open it to equip and adjust.");
+  }
+  function hasSimulacrumSpell(){       // true when "Simulacrum" appears on any of this character's spell sheets
+    for(let i=0; i<spellSheets; i++){
+      const e = spellEntriesByInst[i];
+      if(e) for(let l=0; l<=9; l++){ const rows = e[l]; if(rows) for(const r of rows){ if((((r&&r.name)||"")).trim().toLowerCase() === "simulacrum") return true; } }
+      const p = preparedByInst[i];
+      if(p) for(const k in p){ if(p[k] && String(k).trim().toLowerCase() === "simulacrum") return true; }
+    }
+    return false;
+  }
+  function refreshSimulacrumButton(){  // the "Create Simulacrum" button lives on the Spells page, shown only when you have the spell
+    const btn = $("btn-make-sim"); if(!btn) return;
+    btn.style.display = hasSimulacrumSpell() ? "" : "none";
+  }
+  function makeSimulacrumOfCurrent(){  // cast Simulacrum on yourself → a duplicate character slot, surfaced in Manage Characters
+    simulacrumSlot({ key:KEY, slot:SLOT, name:($("charname").value||"").trim() });
+    openCharMgr();
   }
   function deleteSlot(c){
     const label = c.name ? "“" + c.name + "”" : "this character";
