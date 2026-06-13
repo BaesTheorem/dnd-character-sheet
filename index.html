@@ -664,10 +664,10 @@
   .spelltable td.col-comp, .spelltable td.col-time, .spelltable td.col-dur{white-space:nowrap}   /* these are short after abbreviation — never wrap them */
   .spelltable th.col-comp, .spelltable th.col-time, .spelltable th.col-range,
   .spelltable th.col-dur, .spelltable th.col-school{text-align:center}   /* headers use the global th font/size/style (centered over their values) */
-  .sp-tag-pre{margin-left:0; margin-right:4px}   /* ritual "R" sits to the LEFT of the spell name */
+  .sp-tag-pre{margin:0}   /* ritual "R" centered in its fixed slot, left of the checkbox */
   .conc-tag{display:inline-block; font-size:9px; font-weight:800; line-height:1; padding:2px 4px; border-radius:0;
     background:var(--accent-soft); color:var(--accent); vertical-align:middle; margin-right:3px; letter-spacing:.04em}   /* Concentration */
-  .sp-rit-slot:empty{display:none}   /* no empty gap on non-ritual rows */
+  .col-prep .sp-rit-slot{display:inline-block; width:15px; text-align:center; vertical-align:middle}   /* fixed slot reserves space so checkboxes + names stay aligned whether or not the spell is a ritual */
   .spelltable .col-name[title]{cursor:help}
   .spelltable td.col-name-edit{display:flex; align-items:center; gap:2px}   /* write-in rows: name field + delete ✕ */
   .col-name-edit .sp-name{flex:1; min-width:0}
@@ -1529,7 +1529,7 @@
           </div>
           <table class="spelltable" id="spelltable">
             <thead><tr>
-              <th class="col-prep" style="width:46px">Prep</th>
+              <th class="col-prep" style="width:54px">Prep</th>
               <th class="col-name">Name</th>
               <th class="col-comp" style="width:44px">Comp</th>
               <th class="col-time" style="width:62px">Cast Time</th>
@@ -1835,7 +1835,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v201 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v202 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3332,12 +3332,12 @@
   // ---- class-specific spell-sheet formatting ----
   // fullList: pre-populate the class's entire spell list.   prepares: show a "Prep" (prepared) column.
   const CASTERS = {
-    Wizard:    {fullList:false, prepares:true,  ability:"int", note:"Wizard: write the spells in your spellbook, then check which you have prepared today."},
-    Cleric:    {fullList:true,  prepares:true,  ability:"wis", note:"Cleric: your whole class list is pre-filled — check which spells you have prepared today."},
-    Druid:     {fullList:true,  prepares:true,  ability:"wis", note:"Druid: your whole class list is pre-filled — check which spells you have prepared today."},
+    Wizard:    {fullList:false, prepares:true,  ritual:true, ability:"int", note:"Wizard: write the spells in your spellbook, then check which you have prepared today."},
+    Cleric:    {fullList:true,  prepares:true,  ritual:true, ability:"wis", note:"Cleric: your whole class list is pre-filled — check which spells you have prepared today."},
+    Druid:     {fullList:true,  prepares:true,  ritual:true, ability:"wis", note:"Druid: your whole class list is pre-filled — check which spells you have prepared today."},
     Paladin:   {fullList:true,  prepares:true,  ability:"cha", note:"Paladin: your whole class list is pre-filled — check which spells you have prepared."},
     Artificer: {fullList:true,  prepares:true,  ability:"int", note:"Artificer: your whole class list is pre-filled — check which spells you have prepared today."},
-    Bard:      {fullList:false, prepares:false, ability:"cha", note:"Bard: write your spells known — they're always ready (no preparation)."},
+    Bard:      {fullList:false, prepares:false, ritual:true, ability:"cha", note:"Bard: write your spells known — they're always ready (no preparation)."},
     Sorcerer:  {fullList:false, prepares:false, ability:"cha", note:"Sorcerer: write your spells known — always ready (no preparation)."},
     Ranger:    {fullList:false, prepares:false, ability:"wis", note:"Ranger: write your spells known — always ready (no preparation)."},
     Warlock:   {fullList:false, prepares:false, ability:"cha", note:"Warlock (Pact Magic): write your spells known — always ready; slots recharge on a short rest."},
@@ -3561,9 +3561,17 @@
     if(d.higher)   body += (body ? "\n\n" : "") + "At Higher Levels. " + d.higher;
     return `<div class="sp-meta">${esc(spellMetaLine(d))}</div><div class="pick-desc">${esc(body)}</div>`;
   }
-  // Ritual marker, shown on the LEFT next to the checkbox. Full "RITUAL" badge for the roomier creation picker.
+  // Ritual marker, shown on the LEFT in the Prep column. Full "RITUAL" badge for the roomier creation picker.
   function ritualLeft(d){ return (d && d.ritual) ? `<span class="sp-tag sp-tag-pre" title="Ritual — can be cast as a ritual (no spell slot; +10 minutes)">R</span>` : ""; }
   function ritualBadge(d){ return (d && d.ritual) ? ` <span class="sp-tag sp-tag-lg" title="Ritual — can be cast as a ritual (no spell slot; +10 minutes)">RITUAL</span>` : ""; }
+  function classRitual(cls){ return !!(CASTERS[cls] && CASTERS[cls].ritual); }   // class has the Ritual Casting feature (Wizard/Cleric/Druid/Bard)
+  // Can this sheet's caster actually ritual-cast? Class feature, OR the Ritual Caster feat, OR a Warlock's Book of Ancient
+  // Secrets invocation. Ritual-irrelevant casters (Sorcerer, Paladin, Ranger, Artificer, plain Warlock) get no ritual tags.
+  function canRitualCast(inst){
+    if(classRitual(sEl(inst,"spellclass").value)) return true;
+    if((asiChoices||[]).some(s => (s.feat||"") === "Ritual Caster")) return true;
+    return /ritual caster|book of ancient secrets|ritual casting/i.test(($("features") && $("features").value) || "");   // text fallback for invocations/homebrew
+  }
   // Compact, consistent formatting for the right-side info columns (tidies ragged wrapping).
   function abbrevUnits(s){ return String(s||"")
     .replace(/\bfeet\b/gi,"ft").replace(/\bfoot\b/gi,"ft").replace(/\bminutes?\b/gi,"min").replace(/\bhours?\b/gi,"hr")
@@ -3582,24 +3590,33 @@
            `<td class="col-dur sp-dur">${durCell(d)}</td>`+
            `<td class="col-school sp-school">${d?esc(d.school||""):""}</td>`;
   }
-  // Render a Prep-column cell: a gold ★ when the spell is granted/always-prepared (free of the cap), else a checkbox
-  // plus a hover ☆ to grant it. `sp` set → full-list row (data-sp); else write-in row (data-l/data-i).
+  // Render a Prep-column cell. Left → fixed-width ritual slot (only for ritual casters; keeps checkboxes + names aligned).
+  // Right → the prep control: a gold ★ when granted/always-prepared, else a checkbox + hover ☆ to grant. The control is
+  // omitted for casters that don't prepare (e.g. a ritual-casting Bard shows just the ritual R).
+  // `sp` set → full-list row (data-sp); else write-in row (data-l/data-i).
   function prepCellHTML(o){
     const dattr = (o.sp != null) ? `data-inst="${o.inst}" data-sp="${esc(o.sp)}"` : `data-inst="${o.inst}" data-l="${o.l}" data-i="${o.i}"`;
-    if(o.free){
-      const t = o.locked ? "Always prepared by your subclass — doesn't count against your limit"
-                         : "Granted (free): prepared, but doesn't count against your limit. Click to undo.";
-      return `<td class="col-prep"><button type="button" class="sp-free on${o.locked?' locked':''}" ${dattr} tabindex="-1" title="${t}">★</button></td>`;
+    const ritSlot = o.canRitual ? `<span class="sp-rit-slot">${o.ritualHTML || ""}</span>` : "";
+    let control = "";
+    if(o.prepares){
+      if(o.free){
+        const t = o.locked ? "Always prepared by your subclass — doesn't count against your limit"
+                           : "Granted (free): prepared, but doesn't count against your limit. Click to undo.";
+        control = `<button type="button" class="sp-free on${o.locked?' locked':''}" ${dattr} tabindex="-1" title="${t}">★</button>`;
+      } else {
+        const chk = (o.sp != null)
+          ? `<input type="checkbox" class="prep-spell" ${dattr} ${o.prepared ? "checked" : ""}>`
+          : `<input type="checkbox" class="sp-prep" ${dattr} ${o.prepared ? "checked" : ""}>`;
+        control = `${chk}<button type="button" class="sp-free" ${dattr} tabindex="-1" title="Mark granted (free) — prepared, doesn't count against your limit">☆</button>`;
+      }
     }
-    const chk = (o.sp != null)
-      ? `<input type="checkbox" class="prep-spell" ${dattr} ${o.prepared ? "checked" : ""}>`
-      : `<input type="checkbox" class="sp-prep" ${dattr} ${o.prepared ? "checked" : ""}>`;
-    return `<td class="col-prep">${chk}<button type="button" class="sp-free" ${dattr} tabindex="-1" title="Mark granted (free) — prepared, doesn't count against your limit">☆</button></td>`;
+    return `<td class="col-prep">${ritSlot}${control}</td>`;
   }
   function renderSpellTable(inst=0){
     const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], spellEntries = spellEntriesOf(inst), preparedSpells = preparedOf(inst);
     const alwaysSet = alwaysPreparedNames(cls), isPrepCaster = !!(info && info.prepares), F = freeOf(inst);   // "granted/free" denotation context
-    sEl(inst,"spelltable").classList.toggle("hide-prep", !(info ? info.prepares : true));   // blank/Other shows Prep
+    const canRit = canRitualCast(inst);   // only ritual casters get the left-hand "R" tag
+    sEl(inst,"spelltable").classList.toggle("hide-prep", !!(info && !info.prepares && !canRit));   // hide the Prep column only for casters that neither prepare nor ritual-cast
     if(info && info.fixed){                      // fixed-list caster (e.g. Shadow Monk) — exactly these spells, no blank rows
       // these spells live ONLY in the fixed list — scrub any copies out of the write-in rows so they don't linger when you switch class
       const fixedNames = new Set(Object.values(info.fixed).flat().map(n => n.toLowerCase()));
@@ -3627,8 +3644,8 @@
           const d = spellData(sp.n), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           const locked = alwaysSet.has((sp.n||"").toLowerCase()), free = locked || !!F[sp.n];
           body += `<tr>`+
-            prepCellHTML({inst, sp:sp.n, prepared:!!preparedSpells[sp.n] || free, free, locked})+
-            `<td class="col-name"${titleAttr}><span class="sp-rit-slot">${ritualLeft(d)}</span>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
+            prepCellHTML({inst, sp:sp.n, prepared:!!preparedSpells[sp.n] || free, free, locked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)})+
+            `<td class="col-name"${titleAttr}>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
         });
       } else {                                   // learn-spells rows (cantrips never show Prep)
         const names = classSpellNamesAt(cls, l);   // dropdown of this class's spells at this level (null → free-text)
@@ -3642,13 +3659,12 @@
           const mFree = isPrepCaster && ((!!m.free) || alwaysSet.has((m.name||"").toLowerCase()));
           const mLocked = mFree && alwaysSet.has((m.name||"").toLowerCase());
           const prepCell = l===0 ? `<td class="col-prep"></td>`
-                                  : isPrepCaster ? prepCellHTML({inst, l, i, prepared: !!m.prep || mFree, free:mFree, locked:mLocked})
-                                                 : `<td class="col-prep"><input type="checkbox" class="sp-prep" data-inst="${inst}" data-l="${l}" data-i="${i}" ${m.prep ? "checked" : ""}></td>`;
+                                  : prepCellHTML({inst, l, i, prepared: !!m.prep || mFree, free:mFree, locked:mLocked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)});
           const nameField = names ? spellRowSelect(l, i, m.name, names, inst)
                                   : `<input class="sp-name" data-inst="${inst}" data-l="${l}" data-i="${i}" value="${esc(m.name||'')}">`;
           const delBtn = l>0 ? `<button type="button" class="sp-del noprint" data-inst="${inst}" data-l="${l}" data-i="${i}" tabindex="-1" title="Delete this spell row">✕</button>` : "";   // cantrips are count-managed (no delete), matching the add-row rule
           const rowClass = (m.name||"").trim() ? ` class="has-spell"` : "";
-          body += `<tr${rowClass}>${prepCell}<td class="col-name col-name-edit"${titleAttr}><span class="sp-rit-slot">${ritualLeft(d)}</span>${nameField}${delBtn}</td>`+ propCells(d) +`</tr>`;
+          body += `<tr${rowClass}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${delBtn}</td>`+ propCells(d) +`</tr>`;
         });
         if(l>0) body += `<tr class="sp-addrow noprint"><td colspan="7"><button type="button" class="sp-add" data-inst="${inst}" data-l="${l}">+ add blank row</button></td></tr>`;   // grow this level on demand (cantrips are a fixed count, so no add-row there)
       }
@@ -3783,7 +3799,7 @@
             `<div id="${S('spell-results')}" class="item-results" hidden></div>`+
           `</div>`+
           `<table class="spelltable" id="${S('spelltable')}">`+
-            `<thead><tr><th class="col-prep" style="width:46px">Prep</th><th class="col-name">Name</th><th class="col-comp" style="width:44px">Comp</th><th class="col-time" style="width:62px">Cast Time</th><th class="col-range" style="width:62px">Range</th><th class="col-dur" style="width:70px">Duration</th><th class="col-school" style="width:80px">School</th></tr></thead>`+
+            `<thead><tr><th class="col-prep" style="width:54px">Prep</th><th class="col-name">Name</th><th class="col-comp" style="width:44px">Comp</th><th class="col-time" style="width:62px">Cast Time</th><th class="col-range" style="width:62px">Range</th><th class="col-dur" style="width:70px">Duration</th><th class="col-school" style="width:80px">School</th></tr></thead>`+
             `<tbody id="${S('spells')}"></tbody>`+
           `</table>`+
         `</div>`+
@@ -4768,7 +4784,7 @@
     if(!casters.length){ box.innerHTML = ""; return; }
     const cb = (key, kind, n, l, on, maxed) => {
       return `<div class="pick-item${(maxed&&!on)?' maxed':''}"><input type="checkbox" class="sp-pick-cb" data-caster="${esc(key)}" data-kind="${kind}" data-l="${l}" value="${esc(n)}"${on?' checked':''}${(maxed&&!on)?' disabled':''}>`+
-        `<details class="pick-det"><summary>${esc(n)}${ritualBadge(spellData(n))}</summary>${spellPickInfo(n)}</details></div>`; };
+        `<details class="pick-det"><summary>${esc(n)}${classRitual(key) ? ritualBadge(spellData(n)) : ""}</summary>${spellPickInfo(n)}</details></div>`; };
     let html = `<label class="lbl">Spells <span class="wiz-hint" style="font-weight:400; display:inline">— each class picks only from its own spell list; click a spell to read it. The first spellcasting class chosen is listed first.</span></label>`;
     casters.forEach((c, idx) => {
       const plan = spellPlan(c.key, c.level); if(!plan) return;
