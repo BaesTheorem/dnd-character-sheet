@@ -708,6 +708,15 @@
   .hb-row:last-child{border-bottom:none}
   .hb-del{border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 4px}
   .hb-del:hover{color:#b42318}
+  /* Limited Feature detail popup (long-press on mobile) */
+  .feat-detail{position:fixed; inset:0; z-index:55; background:rgba(26,29,35,.45); display:flex; align-items:center; justify-content:center; padding:20px}
+  .fd-card{background:#fff; border:1px solid var(--line2); max-width:440px; width:100%; max-height:80vh; display:flex; flex-direction:column}
+  .fd-head{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line); font-weight:700; font-size:14px; color:var(--accent)}
+  .fd-x{flex:none; border:none; background:none; cursor:pointer; font-size:14px; color:var(--muted); padding:2px 4px}
+  .fd-scroll{padding:14px; overflow:auto}
+  .fd-meta{font-size:12px; color:var(--muted); margin-bottom:8px}
+  .fd-text{font-size:13px; line-height:1.5; white-space:pre-wrap}
+  html.mobile .lftable input[id^="lfname-"]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none}   /* long-press reveals details instead of the text-selection magnifier */
   .spelltable .col-prep input:disabled{opacity:.28; cursor:not-allowed}   /* prep cap reached → unchecked boxes grey out */
   .spelltable .col-prep{white-space:nowrap}                               /* keep the checkbox + granted ★ on one line */
   .sp-free{border:none; background:none; cursor:pointer; font-size:12px; line-height:1; padding:0 1px; color:var(--muted); visibility:hidden; vertical-align:middle}
@@ -1885,7 +1894,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v210 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v211 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 19;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v19: race limited-use innate spells (spellUses).
@@ -4403,25 +4412,43 @@
   }
   // Touch has no double-click and no Alt key, so on touch/pen a long-press opens the same inline editor.
   // (To revert on touch: long-press the pinned field, clear it, and commit — an empty value reverts to calculated.)
-  let _lpTimer = null, _lpEl = null, _lpReady = false, _lpX = 0, _lpY = 0;
-  function clearLongPress(){ if(_lpTimer){ clearTimeout(_lpTimer); _lpTimer = null; } _lpEl = null; _lpReady = false; }
+  let _lpTimer = null, _lpEl = null, _lpReady = false, _lpX = 0, _lpY = 0, _lpKind = "";
+  function clearLongPress(){ if(_lpTimer){ clearTimeout(_lpTimer); _lpTimer = null; } _lpEl = null; _lpReady = false; _lpKind = ""; }
   function onOvPointerDown(e){
-    if(e.pointerType === "mouse") return;                                       // mouse keeps double-click / Alt-click
-    const el = e.target.closest(".ovf"); if(!el || !el.id || !overrideIds().includes(el.id)) return;
-    _lpEl = el; _lpReady = false; _lpX = e.clientX; _lpY = e.clientY;
+    if(e.pointerType === "mouse") return;                                       // mouse keeps double-click / Alt-click + hover tooltips
+    let el = e.target.closest(".ovf"), kind = "";
+    if(el && el.id && overrideIds().includes(el.id)) kind = "override";          // long-press a computed value → pin it
+    else { const lf = e.target.closest('input[id^="lfname-"]'); if(lf && (lf.value||"").trim()){ el = lf; kind = "lfdetail"; } else return; }   // long-press a limited feature → show its details
+    _lpEl = el; _lpKind = kind; _lpReady = false; _lpX = e.clientX; _lpY = e.clientY;
     clearTimeout(_lpTimer);
-    _lpTimer = setTimeout(() => { _lpTimer = null; if(_lpEl === el){ _lpReady = true; if(navigator.vibrate){ try{ navigator.vibrate(10); }catch(_){} } } }, 450);   // mark ready + buzz; the edit itself fires on pointerup
+    _lpTimer = setTimeout(() => { _lpTimer = null; if(_lpEl === el){ _lpReady = true; if(navigator.vibrate){ try{ navigator.vibrate(10); }catch(_){} } } }, 450);   // mark ready + buzz; the action itself fires on pointerup
   }
   function onOvPointerMove(e){ if(_lpEl && (Math.abs(e.clientX - _lpX) > 10 || Math.abs(e.clientY - _lpY) > 10)) clearLongPress(); }   // moved → it's a scroll, not a long-press
   function onOvPointerUp(e){
-    const el = _lpEl, ready = _lpReady;
+    const el = _lpEl, ready = _lpReady, kind = _lpKind;
     if(_lpTimer){ clearTimeout(_lpTimer); _lpTimer = null; }
-    _lpEl = null; _lpReady = false;
+    _lpEl = null; _lpReady = false; _lpKind = "";
     if(!ready || !el) return;                                                    // released too early or scrolled → normal tap
+    if(kind === "lfdetail"){ const nm = (el.value||"").trim();
+      if(spellData(nm) || el.title){ e.preventDefault(); try{ el.blur(); }catch(_){} showFeatureDetail(nm, el.title || ""); } return; }   // nothing to show → leave it as a normal tap (edit)
     e.preventDefault();                                                          // open the editor inside this pointerup gesture, so iOS shows the keyboard (a focus() from the timer wouldn't)
     const wasPinned = hasOv(el.id);
     beginOverride(el);
     flashStatus(wasPinned ? "Editing a pinned value — clear it to revert to calculated." : "Pinning a manual value.");
+  }
+  // Read-only detail popup for a Limited Feature: full spell stats if the name is a known spell, else its stored description.
+  function closeFeatureDetail(){ const m = $("feat-detail"); if(m) m.remove(); }
+  function showFeatureDetail(name, fallback){
+    const d = spellData(name);
+    let body = "";
+    if(d) body = `<div class="fd-meta">${esc(spellMetaLine(d))}</div><div class="fd-text">${esc(spellTitle(d) || d.text || "")}</div>`;
+    else if(fallback) body = `<div class="fd-text">${esc(fallback)}</div>`;
+    else return;
+    closeFeatureDetail();
+    const m = document.createElement("div"); m.id = "feat-detail"; m.className = "feat-detail noprint";
+    m.innerHTML = `<div class="fd-card"><div class="fd-head"><span>${esc(name)}</span><button type="button" class="fd-x" aria-label="Close">✕</button></div><div class="fd-scroll">${body}</div></div>`;
+    document.body.appendChild(m);
+    m.addEventListener("click", ev => { if(ev.target === m || ev.target.closest(".fd-x")) closeFeatureDetail(); });
   }
   function resetAllOverrides(){
     if(!Object.keys(overrides).length){ flashStatus("No manual overrides to clear."); return; }
