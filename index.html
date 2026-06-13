@@ -639,8 +639,9 @@
   .atk-top h2{margin:0}
   .atk-per-box{min-width:96px; flex:none}
   .atk-per-box .calc{min-height:24px; display:flex; align-items:center; justify-content:center}   /* writable on a blank sheet */
-  .sp-tag{display:inline-block; font-size:8px; font-weight:700; line-height:1; padding:1px 3px; border-radius:3px;
-    background:var(--accent-soft); color:var(--accent); vertical-align:middle; margin-left:2px}
+  .sp-tag{display:inline-block; font-size:9px; font-weight:800; line-height:1; padding:2px 4px; border-radius:0;
+    background:var(--accent); color:#fff; vertical-align:middle; margin-left:3px; letter-spacing:.04em}   /* Ritual marker — filled so it actually stands out */
+  .sp-tag-lg{font-size:10px; padding:2px 6px; letter-spacing:.06em}   /* roomier "RITUAL" badge for the creation-wizard picker */
   .sp-addrow td{padding:2px 4px; border-top:none}
   .sp-add{font:inherit; font-size:12px; font-weight:600; color:var(--muted); background:none; border:none; cursor:pointer; padding:3px 2px}
   .sp-add:hover{color:var(--accent); text-decoration:underline}
@@ -1829,7 +1830,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v199 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v200 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -3555,8 +3556,11 @@
     if(d.higher)   body += (body ? "\n\n" : "") + "At Higher Levels. " + d.higher;
     return `<div class="sp-meta">${esc(spellMetaLine(d))}</div><div class="pick-desc">${esc(body)}</div>`;
   }
+  // Ritual marker. Compact "R" badge for the dense spell table; full "RITUAL" badge for the roomier creation picker.
+  function ritualTag(d){ return (d && d.ritual) ? ` <span class="sp-tag" title="Ritual — can be cast as a ritual (no spell slot; +10 minutes)">R</span>` : ""; }
+  function ritualBadge(d){ return (d && d.ritual) ? ` <span class="sp-tag sp-tag-lg" title="Ritual — can be cast as a ritual (no spell slot; +10 minutes)">RITUAL</span>` : ""; }
   function propCells(d){                         // Comp / Cast Time / Range / Duration / School
-    const comp = d ? esc(d.components||"") + (d.ritual ? ` <span class="sp-tag" title="Ritual">R</span>` : "") : "";
+    const comp = d ? esc(d.components||"") + ritualTag(d) : "";
     return `<td class="col-comp sp-comp">${comp}</td>`+
            `<td class="col-time sp-time">${d?esc(d.time||""):""}</td>`+
            `<td class="col-range sp-range">${d?esc(d.range||""):""}</td>`+
@@ -4477,7 +4481,7 @@
         if(tr){
           const set = (sel,v)=>{ const c = tr.querySelector(sel); if(c) c.textContent = v; };
           const comp = tr.querySelector(".sp-comp");
-          if(comp) comp.innerHTML = (d ? esc(d.components||"") + (d.ritual ? ` <span class="sp-tag" title="Ritual">R</span>` : "") : "");
+          if(comp) comp.innerHTML = (d ? esc(d.components||"") + ritualTag(d) : "");
           set(".sp-time", d?d.time||"":""); set(".sp-range", d?d.range||"":"");
           set(".sp-dur", d?d.duration||"":""); set(".sp-school", d?d.school||"":"");
         }
@@ -4750,7 +4754,7 @@
     if(!casters.length){ box.innerHTML = ""; return; }
     const cb = (key, kind, n, l, on, maxed) => {
       return `<div class="pick-item${(maxed&&!on)?' maxed':''}"><input type="checkbox" class="sp-pick-cb" data-caster="${esc(key)}" data-kind="${kind}" data-l="${l}" value="${esc(n)}"${on?' checked':''}${(maxed&&!on)?' disabled':''}>`+
-        `<details class="pick-det"><summary>${esc(n)}</summary>${spellPickInfo(n)}</details></div>`; };
+        `<details class="pick-det"><summary>${esc(n)}${ritualBadge(spellData(n))}</summary>${spellPickInfo(n)}</details></div>`; };
     let html = `<label class="lbl">Spells <span class="wiz-hint" style="font-weight:400; display:inline">— each class picks only from its own spell list; click a spell to read it. The first spellcasting class chosen is listed first.</span></label>`;
     casters.forEach((c, idx) => {
       const plan = spellPlan(c.key, c.level); if(!plan) return;
