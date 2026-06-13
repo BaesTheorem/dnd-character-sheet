@@ -521,6 +521,14 @@
   .inv-del{flex:none; display:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px}
   .inv-del:hover{color:#b42318}
   .invtable tr.has-item .inv-del{display:block}   /* delete ✕ shows only on filled rows */
+  .xeq-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px; visibility:hidden}
+  .xeqtable tr:hover .xeq-del{visibility:visible}
+  .xeq-del:hover{color:#b42318}
+  .xeqtable td:nth-child(2) input{text-align:center}                     /* Qty centered */
+  .xeqtable td:nth-child(3) input{text-align:left}                       /* Location left-aligned (free text) */
+  .ctx-menu{position:fixed; z-index:60; background:#fff; border:1px solid var(--line2); min-width:150px; padding:2px}
+  .ctx-item{display:block; width:100%; text-align:left; border:none; background:none; padding:7px 12px; font:inherit; font-size:13px; cursor:pointer; color:inherit}
+  .ctx-item:hover{background:var(--accent-soft)}
   .cont-caret{flex:none; width:0; overflow:hidden; text-align:center; color:var(--muted); font-size:12px; user-select:none}
   .cont-caret.show{width:15px}                                           /* the ↳ marker, only on nested rows */
   .invtable tr.in-container td.invitem{padding-left:14px}                /* nested rows indent; top-level containers stay flush */
@@ -1377,7 +1385,8 @@
             </tr></thead>
             <tbody id="limited"><tr><td><input data-save="" id="lfname-0"></td><td><input data-save="" id="lfmax-0"></td><td><input data-save="" id="lfrec-0" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-0"></td></tr><tr><td><input data-save="" id="lfname-1"></td><td><input data-save="" id="lfmax-1"></td><td><input data-save="" id="lfrec-1" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-1"></td></tr><tr><td><input data-save="" id="lfname-2"></td><td><input data-save="" id="lfmax-2"></td><td><input data-save="" id="lfrec-2" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-2"></td></tr><tr><td><input data-save="" id="lfname-3"></td><td><input data-save="" id="lfmax-3"></td><td><input data-save="" id="lfrec-3" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-3"></td></tr><tr><td><input data-save="" id="lfname-4"></td><td><input data-save="" id="lfmax-4"></td><td><input data-save="" id="lfrec-4" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-4"></td></tr><tr><td><input data-save="" id="lfname-5"></td><td><input data-save="" id="lfmax-5"></td><td><input data-save="" id="lfrec-5" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-5"></td></tr><tr><td><input data-save="" id="lfname-6"></td><td><input data-save="" id="lfmax-6"></td><td><input data-save="" id="lfrec-6" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-6"></td></tr><tr><td><input data-save="" id="lfname-7"></td><td><input data-save="" id="lfmax-7"></td><td><input data-save="" id="lfrec-7" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-7"></td></tr></tbody>
           </table>
-          <p class="help noprint">Track uses per rest — Recover: LR (long rest), SR (short rest), or Dawn.</p>
+          <p class="help noprint">Track uses per rest — Recover: LR (long rest), SR (short rest), or Dawn. Right-click a feature to move it to/from an Overflow page.</p>
+          <button class="btn noprint" data-openoverflow type="button" style="font-size:11px; padding:4px 10px">+ Overflow page</button>
         </div>
 
         <div class="card">
@@ -1471,7 +1480,8 @@
         </div>
         <div class="rowtotal"><span class="k">Total weight (items + coins)</span><span class="v" id="totalwt"></span></div>
         <div id="inv-ac" class="item-results" hidden=""></div>
-        <p class="help noprint">Search the box above (or type in any row) to add items from your loaded sourcebooks — weight auto-fills. Check <strong>Equip</strong> on a weapon (→ Attacks), armor or attunement item (→ their pickers). Carry a <strong>Bag of Holding</strong> or <strong>Handy Haversack</strong> and an <strong>In</strong> dropdown appears on each row; assign an item to one (or <strong>drag its row onto the container</strong>) and its weight stops counting.</p>
+        <p class="help noprint">Search the box above (or type in any row) to add items from your loaded sourcebooks — weight auto-fills. Check <strong>Equip</strong> on a weapon (→ Attacks), armor or attunement item (→ their pickers). Carry a <strong>Bag of Holding</strong> or <strong>Handy Haversack</strong> and an <strong>In</strong> dropdown appears on each row; assign an item to one (or <strong>drag its row onto the container</strong>) and its weight stops counting. <strong>Right-click</strong> any item to move it to/from an Overflow page.</p>
+        <button class="btn noprint" data-openoverflow type="button" style="font-size:11px; padding:4px 10px">+ Overflow page</button>
       </div>
       <div class="card grow"><h2>Equipment Notes</h2>
         <textarea data-save="" id="equipment" placeholder="Containers, mounts, misc notes…" style="height: 0px;"></textarea><div class="ta-print"></div>
@@ -1588,6 +1598,10 @@
 
     <!-- PAGE: NOTES -->
     <section class="page" id="page-notes" data-page="notes">
+      <div class="card"><h2>Extra Equipment</h2>
+        <p class="help noprint">Gear that exists somewhere other than on your person — stored on a mount, in a stronghold, at a bank, etc. Separate from your Inventory: it doesn't count toward carry weight and has no Equip toggle.</p>
+        <table class="invtable xeqtable"><thead><tr><th>Item</th><th style="width:70px">Qty</th><th>Location</th></tr></thead><tbody id="xeq"></tbody></table>
+      </div>
       <div class="card grow"><h2>Notes</h2><textarea data-save="" id="notes" style="height: 0px;"></textarea><div class="ta-print"></div></div>
     </section>
 
@@ -1842,7 +1856,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v203 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v204 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -1878,6 +1892,11 @@
     `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
     `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
     `<td class="noprint" style="text-align:center"><input type="checkbox" class="invequip" id="invequip-${i}" data-r="${i}" title="Equipped — weapons are added to Attacks; equipped armor & attunement items become selectable in their pickers" style="display:none"></td></tr>`;
+  const XEQ_ROWS = 24;   // "Extra Equipment" on the Notes tab — gear stored elsewhere (mount/HQ/bank); no weight, no equip, separate from Inventory
+  const xeqRowHTML = i =>
+    `<tr><td class="invitem"><button class="xeq-del noprint" data-x="${i}" type="button" tabindex="-1" title="Delete">✕</button><input data-save id="xeqname-${i}" autocomplete="off"></td>`+
+    `<td><input data-save type="number" id="xeqqty-${i}" min="0"></td>`+
+    `<td><input data-save id="xeqloc-${i}" placeholder="mount / HQ / bank…"></td></tr>`;
   const limitedRowHTML = i =>
     `<tr><td><input data-save id="lfname-${i}"></td>`+
     `<td><input data-save id="lfmax-${i}"></td>`+
@@ -1896,8 +1915,11 @@
   }
   function appendOverflowPage(){
     const k = overflowPages;
-    $("page-mini").insertAdjacentHTML("beforebegin", overflowPageHTML(k));
-    document.querySelector('#pagetabs .ptab[data-page="mini"]').insertAdjacentHTML("beforebegin", `<button class="ptab ov-tab" data-page="overflow-${k}" type="button">Overflow${k?(" "+(k+1)):""}</button>`);
+    const ovPages = document.querySelectorAll('.page[data-page^="overflow-"]');               // sit Overflow pages immediately to the right of Inventory
+    (ovPages.length ? ovPages[ovPages.length-1] : $("page-inv")).insertAdjacentHTML("afterend", overflowPageHTML(k));
+    const ovTabs = document.querySelectorAll('#pagetabs .ptab[data-page^="overflow-"]');
+    (ovTabs.length ? ovTabs[ovTabs.length-1] : document.querySelector('#pagetabs .ptab[data-page="inv"]'))
+      .insertAdjacentHTML("afterend", `<button class="ptab ov-tab" data-page="overflow-${k}" type="button">Overflow${k?(" "+(k+1)):""}</button>`);
     let li=""; for(let i=LIM_MAIN+k*OV_LIM;i<LIM_MAIN+(k+1)*OV_LIM;i++) li += limitedRowHTML(i); $("limov-"+k).innerHTML = li;
     let iv=""; for(let i=INV_MAIN+k*OV_INV;i<INV_MAIN+(k+1)*OV_INV;i++) iv += invRowHTML(i); $("invov-"+k).innerHTML = iv;
     overflowPages++; NLIMITED += OV_LIM; NINV += OV_INV;
@@ -1908,6 +1930,12 @@
     overflowPages = 0; NINV = INV_MAIN; NLIMITED = LIM_MAIN;
   }
   function setOverflowPages(n){ removeOverflowPages(); for(let i=0;i<Math.max(1, n||1);i++) appendOverflowPage(); }
+  function openOverflow(){   // manual "create / open Overflow": reuse the first empty Overflow page, else make a fresh one, then jump to it
+    let k = -1;
+    for(let i=0;i<overflowPages;i++){ if(!overflowPageUsed(i)){ k = i; break; } }
+    if(k < 0){ appendOverflowPage(); k = overflowPages-1; }
+    applyLayout(); showPage("overflow-"+k); save(); compute();
+  }
   function overflowPageUsed(k){
     const ia = INV_MAIN + k*OV_INV; for(let i=ia;i<ia+OV_INV;i++){ const e=$("invname-"+i); if(e && (e.value||"").trim()) return true; }
     const la = LIM_MAIN + k*OV_LIM; for(let i=la;i<la+OV_LIM;i++){ const e=$("lfname-"+i); if(e && (e.value||"").trim()) return true; }
@@ -2084,6 +2112,7 @@
     const h1 = Math.ceil(INV_MAIN/2);                                // Inventory page: rows 0..INV_MAIN-1, two columns
     let invL="", invR=""; for(let i=0;i<h1;i++) invL += invRowHTML(i); for(let i=h1;i<INV_MAIN;i++) invR += invRowHTML(i);
     $("inv").innerHTML = invL; $("inv2").innerHTML = invR;
+    let xe=""; for(let i=0;i<XEQ_ROWS;i++) xe += xeqRowHTML(i); $("xeq").innerHTML = xe;   // Notes-tab Extra Equipment
 
     $("slots").innerHTML = slotsHTML(0);
     // spell rows are built by renderSpellTable() (class-dependent), called from renderSpellStyle()
@@ -5810,6 +5839,38 @@
   function getInvData(){ const a = []; for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i); a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||""), cont:rowCont(i), equip:!!(cb&&cb.checked)}); } return a; }
   function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); setRowCont(i, a[i].cont||""); const cb=$("invequip-"+i); if(cb) cb.checked = !!a[i].equip; refreshRowWeight(i); } renderContainers(); }
   function moveInvRow(from, to){ if(from === to || from == null || to == null) return; const a = getInvData(); const [row] = a.splice(from,1); a.splice(to,0,row); setInvData(a); save(); compute(); }
+  // ---- move an inventory item or a limited feature between the main section and an Overflow page (right-click) ----
+  function firstEmptyInv(lo, hi){ for(let i=lo;i<hi;i++){ const e=$("invname-"+i); if(e && !(e.value||"").trim()) return i; } return -1; }
+  function firstEmptyLim(lo, hi){ for(let i=lo;i<hi;i++){ const e=$("lfname-"+i); if(e && !(e.value||"").trim()) return i; } return -1; }
+  function moveInvAcross(i, toOverflow){
+    if(toOverflow && firstEmptyInv(INV_MAIN, NINV) < 0) appendOverflowPage();     // no room → spill onto a new Overflow page (grows NINV)
+    const dst = firstEmptyInv(toOverflow ? INV_MAIN : 0, toOverflow ? NINV : INV_MAIN);
+    if(dst < 0){ flashStatus("No room in " + (toOverflow ? "Overflow" : "main Inventory")); return; }
+    if(dst === i) return;
+    const a = getInvData(); a[dst] = a[i]; a[i] = {name:"",qty:"",unit:"",cont:"",equip:false}; setInvData(a);
+    applyLayout(); save(); compute();
+    showPage(toOverflow ? "overflow-"+Math.floor((dst-INV_MAIN)/OV_INV) : "inv");
+  }
+  function lfMoveAcross(i, toOverflow){
+    if(toOverflow && firstEmptyLim(LIM_MAIN, NLIMITED) < 0) appendOverflowPage();
+    const dst = firstEmptyLim(toOverflow ? LIM_MAIN : 0, toOverflow ? NLIMITED : LIM_MAIN);
+    if(dst < 0){ flashStatus("No room in " + (toOverflow ? "Overflow" : "main Limited Features")); return; }
+    if(dst === i) return;
+    ["lfname","lfmax","lfrec","lfused"].forEach(f => { const s=$(f+"-"+i), d=$(f+"-"+dst); if(s&&d){ d.value = s.value; s.value = ""; } });
+    const sn=$("lfname-"+i), dn=$("lfname-"+dst); if(dn){ if(sn && sn.title) dn.title = sn.title; else dn.removeAttribute("title"); } if(sn) sn.removeAttribute("title");   // carry the tooltip
+    applyLayout(); save(); compute();
+    showPage(toOverflow ? "overflow-"+Math.floor((dst-LIM_MAIN)/OV_LIM) : "core");
+  }
+  function closeCtxMenu(){ const m=$("ctx-menu"); if(m) m.remove(); }
+  function openCtxMenu(x, y, items){
+    closeCtxMenu();
+    const m = document.createElement("div"); m.id="ctx-menu"; m.className="ctx-menu noprint";
+    items.forEach(it => { const btn=document.createElement("button"); btn.type="button"; btn.className="ctx-item"; btn.textContent=it.label;
+      btn.addEventListener("click", ev => { ev.preventDefault(); closeCtxMenu(); it.fn(); }); m.appendChild(btn); });
+    document.body.appendChild(m);
+    m.style.left = Math.max(4, Math.min(x, window.innerWidth - m.offsetWidth - 6)) + "px";
+    m.style.top  = Math.max(4, Math.min(y, window.innerHeight - m.offsetHeight - 6)) + "px";
+  }
   function deleteInvRow(i){   // clear a row fully and push the empty box to the bottom; equip/Attacks/AC/container references drop via compute
     i = +i;
     const cb = $("invequip-"+i); if(cb) cb.checked = false;
@@ -6969,8 +7030,21 @@
     document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidden") flushSave(); });
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
     document.addEventListener("click", e => { if(e.target.closest("[data-addoverflow]")){ appendOverflowPage(); applyLayout(); showPage("overflow-"+(overflowPages-1)); save(); compute(); } });
+    document.addEventListener("click", e => { if(e.target.closest("[data-openoverflow]")){ openOverflow(); } });   // "+ Overflow page" from Inventory / Limited Features
     document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
     document.addEventListener("click", e => { const b = e.target.closest(".inv-del"); if(b) deleteInvRow(b.dataset.r); });   // ✕ delete an inventory item
+    document.addEventListener("click", e => { const b = e.target.closest(".xeq-del"); if(b){ const i = b.dataset.x; ["xeqname","xeqqty","xeqloc"].forEach(p => { const el = $(p+"-"+i); if(el) el.value = ""; }); save(); } });   // ✕ clear an Extra Equipment row
+    document.addEventListener("contextmenu", e => {   // right-click an inventory item or limited feature → move it to/from Overflow
+      const invEl = e.target.closest('input[id^="invname-"]'), lfEl = e.target.closest('input[id^="lfname-"]'), el = invEl || lfEl;
+      if(!el || !(el.value||"").trim()) return;
+      const i = +el.id.split("-").pop(), isInv = !!invEl, inOverflow = isInv ? (i >= INV_MAIN) : (i >= LIM_MAIN);
+      e.preventDefault();
+      openCtxMenu(e.clientX, e.clientY, [{ label: inOverflow ? "← Move to main" : "Move to Overflow →",
+        fn: () => isInv ? moveInvAcross(i, !inOverflow) : lfMoveAcross(i, !inOverflow) }]);
+    });
+    document.addEventListener("click", closeCtxMenu);
+    document.addEventListener("scroll", closeCtxMenu, true);
+    window.addEventListener("blur", closeCtxMenu);
     document.addEventListener("click", e => { const b = e.target.closest(".sp-add"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l;   // add another blank spell row to this level
       const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l].push({name:"", prep:false}); renderSpellTable(inst); save(); } });
     document.addEventListener("click", e => { const b = e.target.closest(".sp-del"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l, i = +b.dataset.i;   // remove a write-in spell row (rows are sorted in place before render, so data-i matches the array index)
