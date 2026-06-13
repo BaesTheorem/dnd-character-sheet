@@ -684,6 +684,13 @@
   .prep-cur.over{color:#b42318}                                           /* over the cap (e.g. after a level/Int drop) */
   .prep-sep{color:var(--muted); font-weight:400}
   .prep-free-note{color:#d4a017; font-size:11px; font-weight:600; white-space:nowrap}
+  /* Floating "Can Prepare" readout — sticks to the left margin so you can see your count while scrolling the spell list */
+  .prep-float{position:fixed; left:12px; top:50%; transform:translateY(-50%); z-index:15;
+    background:#fff; border:1px solid var(--line2); padding:8px 10px; text-align:center; min-width:60px}
+  .prep-float .pf-label{display:block; font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:4px}
+  .prep-float .pf-val{font-size:17px; font-weight:700; color:var(--accent)}
+  .prep-float .prep-free-note{display:block; margin-top:3px}
+  @media (max-width:880px){ .prep-float{display:none} }                   /* no room in the margin on narrow screens */
   .spelltable .sp-section td{background:var(--field); font-weight:800; font-size:10px; letter-spacing:.07em;
     text-transform:uppercase; color:var(--accent); padding:6px 8px; border-top:2px solid var(--line2)}
 
@@ -1835,7 +1842,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v202 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v203 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -2395,6 +2402,7 @@
     document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.dataset.page === name));
     document.querySelectorAll(".ptab").forEach(t => t.classList.toggle("active", t.dataset.page === name));
     document.querySelectorAll("#page-"+name+" textarea").forEach(autoGrow);   // re-fit now that it's visible
+    if(typeof updatePrepFloat === "function") updatePrepFloat();
   }
   // ---- Layout: which pages/tabs are shown (Settings) ----
   const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["spells","Spells"],
@@ -3715,6 +3723,24 @@
     const atMax = cur >= max;
     boxes.forEach(cb => { cb.disabled = atMax && !cb.checked; });
     tbody.classList.toggle("prep-full", atMax);
+    updatePrepFloat();   // keep the floating left-margin readout in sync
+  }
+  // The spell sheet shown on the active page (0, 1, …), or -1 if a non-spell page is active.
+  function activeSpellInst(){
+    const ap = document.querySelector(".page.active"); if(!ap) return -1;
+    const m = String(ap.dataset.page||"").match(/^spells(?:__(\d+))?$/);
+    return m ? (m[1] ? +m[1] : 0) : -1;
+  }
+  // Floating "Can Prepare" readout: pinned to the left margin so the count follows you down a long spell list.
+  // Only for prepared casters, only on a spell page, and only once you've scrolled past the header (so it's not redundant).
+  function updatePrepFloat(){
+    const el = $("prep-float"); if(!el) return;
+    const inst = activeSpellInst(), max = inst >= 0 ? preparedMax(inst) : null;
+    const scrolled = ((document.scrollingElement || document.documentElement).scrollTop || 0) > 180;
+    if(inst < 0 || max == null || !scrolled){ el.hidden = true; return; }
+    const pc = sEl(inst,"prepcount"), val = $("prep-float-val");
+    if(val) val.innerHTML = pc ? pc.innerHTML : "";
+    el.hidden = false;
   }
   // Cantrips the class knows: the exact count at the given level, or — class chosen but no level — the class's MAXIMUM.
   function cantripCount(cls, lvl){
@@ -6962,6 +6988,13 @@
     setupItemSearch();
     setupSpellSearch(0);
     setupInvAutocomplete();
+    (function setupPrepFloat(){   // left-margin "Can Prepare" readout that follows the spell-list scroll
+      const pf = document.createElement("div"); pf.id = "prep-float"; pf.className = "prep-float noprint"; pf.hidden = true;
+      pf.innerHTML = `<span class="pf-label">Can Prepare</span><span class="pf-val" id="prep-float-val"></span>`;
+      document.body.appendChild(pf);
+      window.addEventListener("scroll", updatePrepFloat, {passive:true});
+      window.addEventListener("resize", updatePrepFloat);
+    })();
 
     // --- inventory drag-to-reorder (across both columns) ---
     let invDrag = null;
