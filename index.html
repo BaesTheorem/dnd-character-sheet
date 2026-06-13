@@ -321,6 +321,7 @@
   .cm-port .cm-init{font-size:34px; font-weight:700; color:var(--accent)}
   .cm-meta{padding:8px 10px; flex:1; min-width:0; cursor:pointer}
   .cm-name{font-weight:700; font-size:14px; overflow-wrap:anywhere}  /* always show the full name, wrap if long */
+  .cm-tag-sim{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.04em; color:var(--accent); border:1px solid var(--line2); padding:0 5px; vertical-align:middle; white-space:nowrap}
   .cm-sub{color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .cm-camp{color:var(--accent); font-size:11px; margin-top:2px; overflow-wrap:anywhere}
   .cm-when{color:var(--muted); font-size:11px; margin-top:2px}
@@ -1808,7 +1809,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v193 (2026-06-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v194 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -4319,8 +4320,9 @@
     if(!(doc && doc.querySelector("#embedded-data"))){ flashStatus("That download didn't look like the sheet — update cancelled."); restore(); return; }
     flushSave();
     const n = await bakeAllInto(doc.documentElement);                                                    // all your characters + sourcebooks travel into the new file
-    download("<!DOCTYPE html>\n" + doc.documentElement.outerHTML, versionedFileName(), "text/html");
-    flashStatus("Downloaded the latest version with all "+n+" character"+(n===1?"":"s")+" baked in — replace your old file with this download.");
+    const newVer = versionFromHtml(html) || APP_VERSION;                                                  // name the file after the DOWNLOADED build, not the one we're running
+    download("<!DOCTYPE html>\n" + doc.documentElement.outerHTML, versionedFileName(newVer), "text/html");
+    flashStatus("Downloaded " + versionedFileName(newVer) + " (was " + APP_VERSION.split(" ")[0] + ") with all "+n+" character"+(n===1?"":"s")+" baked in — replace your old file with this download.");
     restore();
   }
   let _suppressSave = false;   // set when we've just deleted the current character and are navigating away — don't resurrect it
@@ -4432,9 +4434,13 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 1000);
   }
-  function versionedFileName(){   // "Character Sheet v172.html" — stamps just the app version (no date) so saved/updated backups are identifiable
-    const ver = APP_VERSION.split(" ")[0];   // "v172 (2026-06-11)" -> "v172"
-    return "Character Sheet " + ver + ".html";
+  function versionFromHtml(html){   // pull "v193 (2026-06-11)" out of another build's source (its baked APP_VERSION)
+    const m = String(html||"").match(/APP_VERSION\s*=\s*"([^"]+)"/);
+    return m ? m[1] : null;
+  }
+  function versionedFileName(ver){   // "Character Sheet v172.html" — stamps just the app version (no date) so saved/updated backups are identifiable
+    const v = (ver || APP_VERSION).split(" ")[0];   // "v172 (2026-06-11)" -> "v172"
+    return "Character Sheet " + v + ".html";
   }
   function charLabel(){
     const n = ($("charname").value || "character").trim();
@@ -7140,7 +7146,7 @@
       let d = null; try{ d = JSON.parse(localStorage.getItem(k)); }catch(e){}
       if(!d || typeof d !== "object") continue;
       const slot = (k === BASE_KEY) ? "" : k.slice((BASE_KEY + "::").length);
-      out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), campaign:(d.campaign||"").trim(), savedAt:+d.savedAt||0 });
+      out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), campaign:(d.campaign||"").trim(), savedAt:+d.savedAt||0, sim:!!d.simulacrum });
       seen.add(slot);
     }
     if(!seen.has(SLOT)){   // the character we're viewing may not be saved yet — show it live so it's never invisible
@@ -7276,7 +7282,7 @@
       card.innerHTML =
         (c.slot === SLOT ? `<span class="cm-badge">Current</span>` : ``) +
         `<div class="cm-port"></div>` +
-        `<div class="cm-meta"><div class="cm-name">${esc(c.name||"Unnamed character")}</div>` +
+        `<div class="cm-meta"><div class="cm-name">${esc(c.name||"Unnamed character")}${c.sim ? ` <span class="cm-tag-sim">❄ Simulacrum</span>` : ``}</div>` +
           `<div class="cm-sub">${esc(c.sub||"No class set")}</div>` +
           (c.campaign ? `<div class="cm-camp">⚔ ${esc(c.campaign)}</div>` : ``) +
           `<div class="cm-when">${c.unsaved ? "unsaved" : "edited " + esc(relTime(c.savedAt))}</div></div>` +
@@ -7284,6 +7290,7 @@
           `<button type="button" class="cm-open">Open</button>` +
           `<button type="button" class="cm-rename">Rename</button>` +
           `<button type="button" class="cm-dupe">Duplicate</button>` +
+          `<button type="button" class="cm-sim" title="Create a Simulacrum: a full duplicate with half HP, no equipment, and (for Wizards) only the spells prepared now">Simulacrum</button>` +
           `<button type="button" class="cm-del">Delete</button>` +
         `</div>`;
       const portEl = card.querySelector(".cm-port");
@@ -7304,6 +7311,7 @@
       card.querySelector(".cm-open").addEventListener("click", e=>{ e.stopPropagation(); open(); });
       card.querySelector(".cm-rename").addEventListener("click", e=>{ e.stopPropagation(); renameSlot(c); });
       card.querySelector(".cm-dupe").addEventListener("click", e=>{ e.stopPropagation(); duplicateSlot(c); });
+      card.querySelector(".cm-sim").addEventListener("click", e=>{ e.stopPropagation(); simulacrumSlot(c); });
       card.querySelector(".cm-del").addEventListener("click", e=>{ e.stopPropagation(); deleteSlot(c); });
       grid.appendChild(card);
     });
@@ -7341,6 +7349,67 @@
     idbPortraitGet(c.key).then(p => { if(p && p.data) idbPortraitPut(nk, p).catch(()=>{}); });   // copy the portrait (IndexedDB)
     try{ const th = localStorage.getItem(c.key + "_thumb"); if(th) localStorage.setItem(nk + "_thumb", th); }catch(e){}
     renderCharMgr();
+  }
+  // Turn a character's saved-data blob into a Simulacrum (Simulacrum spell): an identical duplicate with HALF the
+  // hit point maximum, NO equipment, and — for any Wizard spell sheet — only the cantrips and the leveled spells that
+  // were prepared at creation (the rest lived only in the physical spellbook). Mutates and returns the blob.
+  function makeSimulacrumData(d){
+    d.charname = ((d.charname||"Character").trim() || "Character") + " (Simulacrum)";
+    d.simulacrum = true;
+    d.savedAt = Date.now();
+    // half hit points — force manual HP so the halved maximum sticks no matter how the source computed its HP
+    const maxhp = parseInt(d.hpmax, 10);
+    if(!isNaN(maxhp)){
+      const half = String(Math.floor(maxhp / 2));
+      d.hpMode = "manual"; d.hpRolls = [];
+      d.hpmax = half; d.hpcur = half; d.hptmp = "";
+      if(d.overrides){ delete d.overrides.hpmax; delete d.overrides.hpcur; }
+    }
+    // no equipment — clear inventory rows, armor, attunement, currency, and any weapon-linked attack rows
+    Object.keys(d).forEach(k => { if(/^(invname|invqty)-\d+$/.test(k)) d[k] = ""; });
+    ["armorsel","armor-custom","armormod","attune-0","attune-1","attune-2","equipment","pp","gp","ep","sp","cp"].forEach(k => { if(k in d) d[k] = ""; });
+    if(Array.isArray(d.invUnits)) d.invUnits = d.invUnits.map(()=> "");
+    if(Array.isArray(d.invConts)) d.invConts = d.invConts.map(()=> "");
+    if(Array.isArray(d.invEquip)) d.invEquip = d.invEquip.map(()=> false);
+    d.collapsed = [];
+    if(Array.isArray(d.atkLinks)){
+      d.atkLinks.forEach((lk, i) => { if(lk){ d["atkname-"+i] = ""; d["atkbonus-"+i] = ""; d["atkdmg-"+i] = ""; } });   // drop attacks that came from carried weapons
+      d.atkLinks = d.atkLinks.map(()=> "");
+    }
+    // Wizard spellbook rule — each Wizard sheet keeps its cantrips plus only the leveled spells prepared at creation
+    const sheets = Math.max(1, d.spellSheets || (Array.isArray(d.spellEntriesByInst) ? d.spellEntriesByInst.length : 1));
+    if(Array.isArray(d.spellEntriesByInst)){
+      for(let i=0; i<sheets; i++){
+        if(d["spellclass" + (i ? "__"+i : "")] !== "Wizard") continue;
+        const e = d.spellEntriesByInst[i]; if(!e) continue;
+        for(let l=0; l<=9; l++){
+          const rows = Array.isArray(e[l]) ? e[l] : [];
+          const kept = (l === 0)
+            ? rows.filter(r => r && (r.name||"").trim()).map(r => ({name:r.name, prep:!!r.prep}))          // all cantrips
+            : rows.filter(r => r && r.prep && (r.name||"").trim()).map(r => ({name:r.name, prep:true}));    // only prepared leveled spells
+          const min = (l === 0) ? CANTRIP_COUNT : PER_LEVEL;
+          while(kept.length < min) kept.push({name:"", prep:false});
+          e[l] = kept;
+        }
+      }
+      d.spellEntries = d.spellEntriesByInst[0];   // keep the legacy single-sheet mirror consistent
+    }
+    return d;
+  }
+  function simulacrumSlot(c){           // create a Simulacrum of a character as a new, independent character slot
+    if(c.slot === SLOT) flushSave();    // copy the latest if it's the one we're viewing
+    let d; try{ d = JSON.parse(localStorage.getItem(c.key)); }catch(e){ d = null; }
+    if(!d){ flashStatus("Couldn't read that character to copy."); return; }
+    makeSimulacrumData(d);
+    const sheets = Math.max(1, d.spellSheets || 1);
+    let anyWiz = false; for(let i=0; i<sheets; i++) if(d["spellclass" + (i ? "__"+i : "")] === "Wizard") anyWiz = true;
+    const nk = BASE_KEY + "::" + newSlotId();
+    try{ localStorage.setItem(nk, JSON.stringify(d)); }
+    catch(e){ alert("Not enough browser storage to create the simulacrum.\nTry removing a portrait or deleting an old character first."); return; }
+    idbPortraitGet(c.key).then(p => { if(p && p.data) idbPortraitPut(nk, p).catch(()=>{}); });   // identical appearance → copy the portrait
+    try{ const th = localStorage.getItem(c.key + "_thumb"); if(th) localStorage.setItem(nk + "_thumb", th); }catch(e){}
+    renderCharMgr();
+    flashStatus("Created “" + d.charname + "” — half HP, no equipment" + (anyWiz ? ", Wizard spells trimmed to those prepared" : "") + ". Open it to equip and adjust.");
   }
   function deleteSlot(c){
     const label = c.name ? "“" + c.name + "”" : "this character";
