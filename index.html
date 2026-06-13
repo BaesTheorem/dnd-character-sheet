@@ -1885,10 +1885,10 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v209 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v210 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
-  const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
+  const DATA_VERSION = 19;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v19: race limited-use innate spells (spellUses).
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
@@ -2739,22 +2739,25 @@
     (raw.race||[]).forEach(r => {
       const ab = (r.ability||[]).slice(), fg = etFeatGrants(r), pf = etProfBlock(r), rs = etDamageResist(r);
       const dv = r.darkvision||0, lc = etLangChoose(r.languageProficiencies);
-      const rsp = etRaceSpellNames(r), rexp = etAdditionalSpells(r).expanded, fl = flavor[r.name] || [];
-      bases[r.name] = {ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), speedExtra:etSpeedExtra(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc, spells:rsp, expanded:rexp, flavor:fl};   // EVERY race goes in bases (any book), so a subrace whose parent lives in another book still inherits
+      const rsp = etRaceSpellNames(r), rexp = etAdditionalSpells(r).expanded, rsu = etRaceSpellUses(r), fl = flavor[r.name] || [];
+      bases[r.name] = {ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), speedExtra:etSpeedExtra(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc, spells:rsp, expanded:rexp, spellUses:rsu, flavor:fl};   // EVERY race goes in bases (any book), so a subrace whose parent lives in another book still inherits
       if(r.source !== SRC) return;     // ...but only THIS book's races are output
       baseIdx[r.name] = out.length;
       const ro = {name:r.name, ability:ab, size:(r.size||[]).map(s=>ET_SIZE[s]||s).join("/")||"Medium", speed:etSpeed(r), speedExtra:etSpeedExtra(r), traits:etTraits(r.entries||[]), featGrants:fg, prof:pf, resist:rs, darkvision:dv, langChoose:lc, spells:rsp, flavor:fl};
       if(rexp.length) ro.expanded = rexp;   // e.g. dragonmark "Spells of the Mark"
+      if(rsu.length) ro.spellUses = rsu;    // limited-use innate spells → Limited Features rows
       out.push(ro);
     });
     (raw.subrace||[]).forEach(s => {
       if(s.source !== SRC) return;
       const parent = s.raceName, sdv = s.darkvision||0, slc = etLangChoose(s.languageProficiencies);
-      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); out[i].prof = etMergeProf(out[i].prof, etProfBlock(s)); out[i].resist = (out[i].resist||[]).concat(etDamageResist(s)); out[i].darkvision = Math.max(out[i].darkvision||0, sdv); out[i].langChoose = (out[i].langChoose||0) + slc; out[i].spells = (out[i].spells||[]).concat(etRaceSpellNames(s)); } return; }
+      if(!s.name){ const i = baseIdx[parent]; if(i != null){ out[i].ability = (out[i].ability||[]).concat(s.ability||[]); out[i].traits = (out[i].traits||[]).concat(etTraits(s.entries||[])); out[i].featGrants = (out[i].featGrants||0) + etFeatGrants(s); out[i].prof = etMergeProf(out[i].prof, etProfBlock(s)); out[i].resist = (out[i].resist||[]).concat(etDamageResist(s)); out[i].darkvision = Math.max(out[i].darkvision||0, sdv); out[i].langChoose = (out[i].langChoose||0) + slc; out[i].spells = (out[i].spells||[]).concat(etRaceSpellNames(s)); out[i].spellUses = (out[i].spellUses||[]).concat(etRaceSpellUses(s)); } return; }
       const base = bases[parent] || {};
       const sexp = (base.expanded||[]).concat(etAdditionalSpells(s).expanded);   // dragonmark subraces add a "Spells of the Mark" expanded list
+      const ssu = (base.spellUses||[]).concat(etRaceSpellUses(s));   // inherit parent's limited-use innate spells + the subrace's own
       const so = {name:parent+" ("+s.name+")", ability:(base.ability||[]).concat(s.ability||[]), size:(base.size||""), speed:(s.speed != null ? etSpeed(s) : (base.speed||30)), speedExtra:(s.speed != null ? etSpeedExtra(s) : (base.speedExtra||"")), subraceOf:parent, traits:(base.traits||[]).concat(etTraits(s.entries||[])), featGrants:(base.featGrants||0) + etFeatGrants(s), prof:etMergeProf(base.prof, etProfBlock(s)), resist:(base.resist||[]).concat(etDamageResist(s)), darkvision:Math.max(base.darkvision||0, sdv), langChoose:(base.langChoose||0)+slc, spells:(base.spells||[]).concat(etRaceSpellNames(s)), flavor:(flavor[parent+" ("+s.name+")"] || base.flavor || [])};
       if(sexp.length) so.expanded = sexp;
+      if(ssu.length) so.spellUses = ssu;
       out.push(so);
     });
     out.forEach(o => { if(/custom lineage/i.test(o.name)) o.variableSkillDarkvision = true; });   // TCE Custom Lineage: skill proficiency OR darkvision (5etools lists both; the rule is a choice)
@@ -2846,6 +2849,19 @@
       if(blk[k]){ const names = []; _collectSpellNames(blk[k], names); names.forEach(n => set.add(_titlecase(_clean(n)))); }
     }));
     return [...set];
+  }
+  // LIMITED-USE racial spells (Tiefling's Infernal Legacy: Hellish Rebuke 1/LR at L3, Darkness 1/LR at L5).
+  // additionalSpells stores these as innate.<charLevel>.{daily|rest}.<count>:[spells]. At-will/cantrip grants (plain arrays, #c) are excluded.
+  function etRaceSpellUses(r){
+    const out = [], seen = new Set();
+    (r.additionalSpells||[]).forEach(blk => ["innate","known","prepared"].forEach(grp => { const g = blk[grp]; if(!g || typeof g !== "object") return;
+      for(const lv in g){ const entry = g[lv]; if(!entry || typeof entry !== "object" || Array.isArray(entry)) continue;   // arrays = at-will; only {daily|rest:{...}} is limited-use
+        const charLevel = parseInt(String(lv).replace(/^s/i, ""), 10) || 1;
+        [["daily","LR"],["rest","SR"]].forEach(([rk, rec]) => { const bucket = entry[rk]; if(!bucket || typeof bucket !== "object") return;
+          for(const cnt in bucket){ const m = String(cnt).match(/^(\d+)/), max = m ? +m[1] : 1, names = []; _collectSpellNames(bucket[cnt], names);
+            names.forEach(nm => { if(/#c\b/i.test(nm)) return; const n = _titlecase(_clean(nm)), k = n.toLowerCase(); if(n && !seen.has(k)){ seen.add(k); out.push({n, l:charLevel, max, rec}); } }); } });
+      } }));
+    return out;
   }
   function _chooserOptionBlocks(entries){     // every `options` block referencing sub-features → {options:[names], count}. The caller decides which are real "choose one" choosers (see buildFeatsChoosers).
     const out = [];
@@ -6931,6 +6947,10 @@
         return; }
       const r = limitedFromText(b.name, b.text); if(r) addLimitedRow(r.name, r.max, r.rec, b.text.slice(0,300));
     });
+    // racial innate spells with limited uses (e.g. Tiefling Infernal Legacy → Hellish Rebuke 1/LR, Darkness 1/LR) — one row per spell, once you've reached its level
+    const rn = ($("race").value||"").trim(), ro = rn && DATA && DATA.races && findBy(DATA.races, rn);
+    if(ro && Array.isArray(ro.spellUses)){ const lvl = charLevel() || 1;
+      ro.spellUses.forEach(su => { if((su.l||1) <= lvl) addLimitedRow(su.n, su.max, su.rec, `Racial innate spell — ${rn} (recharges on a ${su.rec === "SR" ? "short" : "long"} rest)`); }); }
     const txt = (DATA && DATA.itemText) || {};
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
       const d = txt[nm]; if(!d) continue;
