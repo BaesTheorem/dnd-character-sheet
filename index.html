@@ -1873,7 +1873,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v206 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v207 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 18;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v18: race flavor (lore) text.
@@ -4386,7 +4386,12 @@
     data.spellSheets = spellSheets;                       // multi-sheet spell state
     data.spellSheetKind = spellSheetKind;
     data.spellEntriesByInst = spellEntriesByInst;
-    data.customSpells = customSpells;   // user-defined spells
+    // Custom spells are saved as character data — but only the ones still written on a spell row. Clearing the rows (or
+    // starting a blank sheet) drops the orphaned homebrew, so a shared blank carries none of it.
+    const usedSpellNames = new Set();
+    (spellEntriesByInst||[]).forEach(sheet => { if(sheet) for(let l=0;l<=9;l++) (sheet[l]||[]).forEach(r => { const n=(r&&r.name||"").trim().toLowerCase(); if(n) usedSpellNames.add(n); }); });
+    const prunedCustom = {}; Object.keys(customSpells).forEach(k => { if(usedSpellNames.has(k)) prunedCustom[k] = customSpells[k]; });
+    data.customSpells = prunedCustom;
     data.preparedByInst = preparedByInst;
     data.freeByInst = freeByInst;
     data.spellMaxByInst = spellMaxByInst;
