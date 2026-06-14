@@ -1906,7 +1906,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v219 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v220 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -6251,17 +6251,19 @@
       if(w){ const r = weaponAtkRow(w); if(!hasOv(bId)) $(bId).value = r.bonus; if(!hasOv(dId)) $(dId).value = r.dmg; }
     }
   }
-  function refreshEquipToggles(){             // show the Equipped box on weapon/armor/magic/attunement rows
+  function refreshEquipToggles(){             // show the Equipped box ONLY where equipping does something
     const active = new Set();
     for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(el && el.dataset.weapon) active.add(el.dataset.weapon.toLowerCase()); }
-    const mset = magicSet(), aset = attuneSet();
+    // equipping matters for: weapons (→ Attacks), armor / AC-bonus items (→ AC), attunement items, spell-bonus items,
+    // and charged items (→ Limited Features). Consumables (potions/scrolls/ammo) and otherwise-inert items get no box.
+    const aset = attuneSet(), acm = acItemMap(), sbm = spellBonusItemMap(), itext = (DATA && DATA.itemText) || {};
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !nm) continue;
       const name = (nm.value||"").trim(), lc = name.toLowerCase(), w = weaponByName(name);
-      const eq = !!w || !!armorByName(name) || mset.has(lc) || aset.has(lc);
+      const eq = !!w || !!armorByName(name) || aset.has(lc) || (lc in acm) || (lc in sbm) || (name in itext);
       cb.style.display = eq ? "" : "none";
       if(!eq) cb.checked = false;                 // not equippable → no box, not equipped
       else if(w) cb.checked = active.has(lc);     // weapons: equipped ⇔ present in the Attacks table
-      // armor / magic / attunement keep their user-set checked state (persisted)
+      // armor / AC / attunement / spell-bonus / charged items keep their user-set checked state (persisted)
     }
   }
   function addInvItem(name, qty){            // place in next empty inventory row + auto-fill qty/weight
