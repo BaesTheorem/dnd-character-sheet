@@ -1863,20 +1863,20 @@
         </nav>
         <div class="settings-content">
           <section class="set-sec active" data-sec="general">
-            <label class="lbl" style="display:block; margin-bottom:6px">Portrait</label>
+            <div id="update-block">
+              <label class="lbl" style="display:block; margin-bottom:6px">Update</label>
+              <button class="btn" id="btn-update" type="button" title="Fetch the latest version of the sheet from the web">Update to the latest version</button>
+              <p class="wiz-hint" id="update-note">Fetches the newest version of the whole app from the web and reloads. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.</p>
+            </div>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Import characters</label>
+            <button class="btn" id="btn-import-chars" type="button" title="Load characters from a saved Character Sheet file">Import from a file…</button>
+            <p class="wiz-hint">Pick a “Character Sheet.html” you saved with the <strong>Save</strong> button (or a character <code>.json</code>). You'll see every character in it and can untick any you don't want. Imported characters are added alongside your current ones — nothing is overwritten, so a second copy of a character you already have just becomes another version.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Portrait</label>
             <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
             <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
             <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
             <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
-            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Import characters</label>
-            <button class="btn" id="btn-import-chars" type="button" title="Load characters from a saved Character Sheet file">Import from a file…</button>
-            <p class="wiz-hint">Pick a “Character Sheet.html” you saved with the <strong>Save</strong> button (or a character <code>.json</code>). You'll see every character in it and can untick any you don't want. Imported characters are added alongside your current ones — nothing is overwritten, so a second copy of a character you already have just becomes another version.</p>
-            <div id="update-block">
-              <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Update</label>
-              <button class="btn" id="btn-update" type="button" title="Fetch the latest version of the sheet from the web">Update to the latest version</button>
-              <p class="wiz-hint" id="update-note">Fetches the newest version of the whole app from the web and reloads. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.</p>
-            </div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
             <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
             <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
@@ -1946,7 +1946,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v221 (2026-06-14)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v222 (2026-06-14)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -7269,6 +7269,10 @@
     if(f){ try{ f.focus(); }catch(e){} }
   }
   function restoreFocus(){ const el = _modalReturn; _modalReturn = null; if(el && el.focus){ try{ el.focus(); }catch(e){} } }
+  // Android/desktop Chrome fire beforeinstallprompt and would pop their own "Install / Add to
+  // Home screen" banner. Those users can just open the file, so suppress it — only iOS (which
+  // never fires this event) should get the manual Home-Screen nudge in setupInstallHelper below.
+  window.addEventListener("beforeinstallprompt", e => e.preventDefault());
   function setupInstallHelper(){   // hosted → register the offline service worker + manifest; then nudge the user to keep an offline copy (Add to Home Screen on iOS, Save a copy elsewhere)
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     const ua = navigator.userAgent || "";
