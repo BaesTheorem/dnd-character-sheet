@@ -1010,6 +1010,46 @@
   html.mobile .invtable th:nth-child(5){ width:36px !important; }   /* Equip (just a checkbox) */
   html.mobile .invtable td:nth-child(3) input,
   html.mobile .invtable td:nth-child(4) input{ width:100%; padding-left:2px; padding-right:2px; }
+
+  /* --- Mobile Core: collapsible sections + reorder ----------------------------
+     The long-form Core page is a lot to scroll on a phone. Flatten the two
+     desktop columns (display:contents drops the .stack/.topblock wrappers so
+     every card becomes a direct flex item) and reorder so the most-glanced
+     cards — Abilities and Combat/HP — sit at the very top. Then make each
+     section's heading a tap-to-collapse toggle. The most-used start open;
+     everything else starts collapsed to a one-line header.
+     Print-safe by construction: this whole block lives in @media screen, so a
+     collapsed card still prints in full — no beforeprint handling needed. */
+  html.mobile #page-core .columns{ display:flex; flex-direction:column; gap:13px; }
+  html.mobile #page-core .columns > .stack,
+  html.mobile #page-core .topblock,
+  html.mobile #page-core .topblock-left{ display:contents; }
+  html.mobile #page-core .columns .card{ order:50; margin-bottom:0; }   /* gap owns spacing; baseline order falls after the prioritized few */
+  html.mobile #page-core .columns .card.grow{ flex:0 0 auto; }          /* don't let grow cards stretch in the new flex column */
+  html.mobile #page-core .card[data-csec="abilities"]{ order:1; }
+  html.mobile #page-core .card[data-csec="combat"]{ order:2; }
+  html.mobile #page-core .card[data-csec="topstats"]{ order:3; }
+  html.mobile #page-core .card[data-csec="saves"]{ order:4; }
+  html.mobile #page-core .card[data-csec="skills"]{ order:5; }
+  html.mobile #page-core .card[data-csec="attacks"]{ order:6; }
+  html.mobile #page-core .card[data-csec="limited"]{ order:7; }
+  html.mobile #page-core .card[data-csec="hitdice"]{ order:8; }
+  html.mobile #page-core .card[data-csec="senses"]{ order:9; }
+  html.mobile #page-core .card[data-csec="defenses"]{ order:10; }
+  html.mobile #page-core .card[data-csec="proficiencies"]{ order:11; }
+  /* the heading (h2, or the .atk-top row on Attacks) becomes the toggle */
+  html.mobile #page-core .card.collapsible > :first-child{
+    cursor:pointer; -webkit-user-select:none; user-select:none;
+  }
+  html.mobile #page-core .card.collapsible > :first-child::before{
+    content:"\25BE  "; color:var(--muted); font-weight:400;   /* ▾ open */
+  }
+  html.mobile #page-core .card.collapsible.collapsed > :first-child::before{
+    content:"\25B8  ";   /* ▸ collapsed */
+  }
+  html.mobile #page-core .card.collapsible.collapsed > *:not(:first-child){ display:none; }
+  html.mobile #page-core .card.collapsible.collapsed .atk-per-box{ display:none; }   /* Attacks: clean single-line header when collapsed (the per-action box rides in the heading row) */
+  html.mobile #page-core .card.collapsible.collapsed > .atk-top{ justify-content:flex-start; margin-bottom:0; }   /* left-align the lone heading like every other collapsed section */
   }   /* end @media screen — mobile rules never apply to print */
 </style>
 </head>
@@ -1153,13 +1193,13 @@
     <div class="columns">
       <!-- LEFT COLUMN -->
       <div class="stack">
-        <div class="card">
+        <div class="card" data-csec="abilities" data-open>
           <h2>Abilities</h2>
           <div class="ability-head"><span class="name"></span><span class="col">Score</span><span class="col">Mod</span></div>
           <div id="abilities"><div class="ability"><span class="name">Strength</span><span class="score-out" id="score-str-out"></span><span class="mod" id="mod-str"></span></div><div class="ability"><span class="name">Dexterity</span><span class="score-out" id="score-dex-out"></span><span class="mod" id="mod-dex"></span></div><div class="ability"><span class="name">Constitution</span><span class="score-out" id="score-con-out"></span><span class="mod" id="mod-con"></span></div><div class="ability"><span class="name">Intelligence</span><span class="score-out" id="score-int-out"></span><span class="mod" id="mod-int"></span></div><div class="ability"><span class="name">Wisdom</span><span class="score-out" id="score-wis-out"></span><span class="mod" id="mod-wis"></span></div><div class="ability"><span class="name">Charisma</span><span class="score-out" id="score-cha-out"></span><span class="mod" id="mod-cha"></span></div></div>
         </div>
 
-        <div class="card">
+        <div class="card" data-csec="saves">
           <h2>Saving Throws</h2>
           <div id="saves">
       <div class="row">
@@ -1194,7 +1234,7 @@
       </div></div>
         </div>
 
-        <div class="card">
+        <div class="card" data-csec="skills">
           <h2>Skills</h2>
           <div id="skills">
       <div class="row">
@@ -1342,7 +1382,7 @@
         <span class="rname">Survival <span class="ab">Wis</span></span>
       </div></div>
         </div>
-        <div class="card grow">
+        <div class="card grow" data-csec="senses">
           <h2>Senses</h2>
           <div class="passive">
             <span class="v" id="passive"></span>
@@ -1356,13 +1396,13 @@
       <div class="stack">
         <div class="topblock">
           <div class="topblock-left">
-            <div class="card">
+            <div class="card" data-csec="topstats">
               <div class="topstats">
                 <div class="stat"><div class="k">Proficiency Bonus</div><div class="calc" id="pb"></div></div>
                 <div class="stat toggle-stat" id="inspiration"><div class="k">Inspiration</div><div class="calc" id="insp-mark">○</div></div>
               </div>
             </div>
-            <div class="card">
+            <div class="card" data-csec="combat" data-open>
               <h2>Combat</h2>
               <div class="combat-top">
                 <div class="stat"><div class="k">Armor Class</div><div class="calc" id="ac-calc"></div></div>
@@ -1383,13 +1423,13 @@
               </div>
             </div>
           </div>
-          <div class="card grow defenses-card">
+          <div class="card grow defenses-card" data-csec="defenses">
             <h2>Resistances / Immunities / Defenses</h2>
             <textarea data-save="" id="defnotes" placeholder="Damage resistances/immunities/vulnerabilities, condition immunities, and other defenses…" style="height: 286px;"></textarea><div class="ta-print"></div>
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" data-csec="attacks">
           <div class="atk-top">
             <h2>Attacks</h2>
             <div class="stat atk-per-box"><div class="k">Attacks / Action</div><div class="calc" id="attacks-per"></div></div>
@@ -1421,7 +1461,7 @@
           <p class="help noprint">Toggle a weapon's <strong>Atk</strong> box in Inventory to auto-fill a row. "Per action" counts Extra Attack; bonus-action attacks (Monk, two-weapon, Crossbow Expert) and invocations like Thirsting Blade are separate.</p>
         </div>
 
-        <div class="card">
+        <div class="card" data-csec="limited">
           <h2>Limited Features</h2>
           <table class="lftable">
             <thead><tr>
@@ -1436,7 +1476,7 @@
           <button class="btn noprint" data-openoverflow type="button" style="font-size:11px; padding:4px 10px">+ Overflow page</button>
         </div>
 
-        <div class="card">
+        <div class="card" data-csec="hitdice">
           <h2>Hit Dice</h2>
           <div class="combat-top hd-grid">
             <div class="stat">
@@ -1459,7 +1499,7 @@
           <p class="help noprint">Spend a hit die on a short rest to heal: roll the die + your CON modifier, then mark it under Used. Regain spent dice on a long rest (up to half your total).</p>
         </div>
 
-        <div class="card grow">
+        <div class="card grow" data-csec="proficiencies">
           <h2>Proficiencies and Languages</h2>
           <textarea data-save="" id="proficiencies" placeholder="Armor, weapons, tools, languages…" style="height: 72px;"></textarea><div class="ta-print"></div>
         </div>
@@ -1906,7 +1946,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v220 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v221 (2026-06-14)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -8181,6 +8221,37 @@
       window.scrollTo({top:0, behavior:"smooth"});
     });
     apply();
+  })();
+  </script>
+
+  <script>
+  /* Mobile Core: make each section heading a tap-to-collapse toggle.
+     Pure view state (a class on the card) — no data-save, no localStorage —
+     so it can never touch the character blob. Cards flagged [data-open] start
+     expanded; the rest start collapsed to a one-line header. The handler is a
+     no-op unless the mobile layout is active: in the desktop column layout the
+     headings are inert chrome and the collapse CSS doesn't apply. */
+  (function(){
+    var cards = document.querySelectorAll("#page-core .columns .card");
+    Array.prototype.forEach.call(cards, function(card){
+      if(!card.querySelector("h2")) return;        // skip the Prof-Bonus/Inspiration card (no heading)
+      var head = card.firstElementChild;           // the <h2>, or the .atk-top row on Attacks
+      if(!head) return;
+      card.classList.add("collapsible");
+      if(!card.hasAttribute("data-open")) card.classList.add("collapsed");
+      head.setAttribute("role", "button");
+      head.setAttribute("tabindex", "0");
+      head.setAttribute("aria-expanded", card.classList.contains("collapsed") ? "false" : "true");
+      function toggle(){
+        if(!document.documentElement.classList.contains("mobile")) return;
+        var collapsed = card.classList.toggle("collapsed");
+        head.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      }
+      head.addEventListener("click", toggle);
+      head.addEventListener("keydown", function(e){
+        if(e.key === "Enter" || e.key === " "){ e.preventDefault(); toggle(); }
+      });
+    });
   })();
   </script>
 
