@@ -721,6 +721,7 @@
   html.mobile .lftable input[id^="lfname-"], html.mobile .spelltable .sp-name{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none}   /* long-press reveals details instead of the text-selection magnifier */
   .spelltable .col-prep input:disabled{opacity:.28; cursor:not-allowed}   /* prep cap reached → unchecked boxes grey out */
   .spelltable .col-prep{white-space:nowrap}                               /* keep the checkbox + granted ★ on one line */
+  .prep-inner{display:inline-flex; align-items:center; justify-content:center; gap:1px}   /* vertically center the ritual R with the checkbox + ★ (R was sitting a hair low) */
   .sp-free{border:none; background:none; cursor:pointer; font-size:12px; line-height:1; padding:0 1px; color:var(--muted); visibility:hidden; vertical-align:middle}
   .spelltable tr:hover .sp-free, .sp-free.on{visibility:visible}          /* ☆ shows on hover; granted ★ is always visible */
   .sp-free.on{color:#d4a017}                                             /* gold = granted / always-prepared, free of the cap */
@@ -1904,10 +1905,10 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v215 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v216 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
-  const DATA_VERSION = 19;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v19: race limited-use innate spells (spellUses).
+  const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
@@ -3107,6 +3108,17 @@
     out.sort((a,b) => a.n.localeCompare(b.n));
     return out;
   }
+  function etSpellBonusItems(itemsBase, itemsData){   // items granting a flat bonus to spell attack and/or spell save DC (Robe of the Archmagi, Rod of the Pact Keeper, Staff of Power, …)
+    const out = [], seen = {};
+    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => {
+      const atk = parseInt(String(it.bonusSpellAttack||"").replace("+","").trim(), 10) || 0;
+      const dc  = parseInt(String(it.bonusSpellSaveDc||"").replace("+","").trim(), 10) || 0;
+      if((!atk && !dc) || !it.name || seen[it.name]) return;
+      seen[it.name] = 1; out.push({n:it.name, atk, dc});
+    }));
+    out.sort((a,b) => a.n.localeCompare(b.n));
+    return out;
+  }
   const ET_TOOL_TYPES = ["AT","GS","INS","T"];
   function etLanguages(raw, SRC){ return [...new Set((raw.language||[]).filter(l => l.source === SRC && l.name).map(l => l.name))].sort(); }
   function etItemWeights(itemsBase, itemsData, SRC){
@@ -3212,7 +3224,7 @@
     return {races:etRaces(races,srcCode,raceFluff), backgrounds:etBackgrounds(bg,srcCode), classes:cls.classes, subclasses:cls.subclasses, subAug:cls.subAug,
       feats:etFeats(feats,srcCode), spells:etSpells(spellsData,srcCode), classSpells:etClassSpells(spellsData,sourcesForSrc,srcCode),
       monsters,
-      acItems:etAcItems(itemsData), weapons:items.weapons, armor:items.armor,
+      acItems:etAcItems(itemsData), spellBonusItems:etSpellBonusItems(itemsBase,itemsData), weapons:items.weapons, armor:items.armor,
       languages:etLanguages(langs,srcCode), tools:etTools(itemsBase,itemsData,srcCode), toolCats:etToolCats(itemsBase,itemsData,srcCode), packs:etPacks(itemsData,srcCode),
       itemWeights:etItemWeights(itemsBase,itemsData,srcCode),
       itemNames:etItemNames(itemsBase,itemsData,srcCode), futuristic:etFuturistic(itemsBase,itemsData,srcCode), modern:etModern(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode),
@@ -3271,6 +3283,10 @@
       const idx = new Map(into.acItems.map((x,i) => [x.n, i]));
       (add.acItems||[]).forEach(x => { if(idx.has(x.n)) into.acItems[idx.get(x.n)] = x; else { idx.set(x.n, into.acItems.length); into.acItems.push(x); } });
       into.acItems.sort((a,b) => a.n.localeCompare(b.n)); }
+    { into.spellBonusItems = into.spellBonusItems || [];
+      const idx = new Map(into.spellBonusItems.map((x,i) => [x.n, i]));
+      (add.spellBonusItems||[]).forEach(x => { if(idx.has(x.n)) into.spellBonusItems[idx.get(x.n)] = x; else { idx.set(x.n, into.spellBonusItems.length); into.spellBonusItems.push(x); } });
+      into.spellBonusItems.sort((a,b) => a.n.localeCompare(b.n)); }
     into.classSpells = into.classSpells || {};
     for(const cn in (add.classSpells||{})){
       const ex = into.classSpells[cn] = into.classSpells[cn] || [];
@@ -3816,7 +3832,7 @@
         control = `${chk}<button type="button" class="sp-free" ${dattr} tabindex="-1" title="Mark granted (free) — prepared, doesn't count against your limit">☆</button>`;
       }
     }
-    return `<td class="col-prep">${ritSlot}${control}</td>`;
+    return `<td class="col-prep"><span class="prep-inner">${ritSlot}${control}</span></td>`;
   }
   function renderSpellTable(inst=0){
     const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], spellEntries = spellEntriesOf(inst), preparedSpells = preparedOf(inst);
@@ -4297,11 +4313,15 @@
       $("speed").value = (baseSpeed == null) ? "" : Math.max(0, baseSpeed - speedPenalty + speedBonus) + " ft";
 
     // --- spellcasting (DC/attack/prepared count) — computed per spell sheet ---
+    const sib = spellItemBonus();   // Robe of the Archmagi, Rod of the Pact Keeper, Staff of Power, … (equipped + attuned)
+    const sibTip = sib.from.length ? ("Includes item bonuses — " + sib.from.join("; ")) : "";
     for(let inst=0; inst<spellSheets; inst++){
       const sa = sEl(inst,"spellability").value;
       if(sa && pb != null && mods[sa] != null){
-        sEl(inst,"spelldc").textContent = 8 + pb + mods[sa];
-        sEl(inst,"spellatk").textContent = sgn(pb + mods[sa] + infusionArcaneFocusBonus());   // Artificer Enhanced Arcane Focus infusion → +1/+2 spell attack
+        const dcEl = sEl(inst,"spelldc"), atkEl = sEl(inst,"spellatk");
+        dcEl.textContent = 8 + pb + mods[sa] + sib.dc;
+        atkEl.textContent = sgn(pb + mods[sa] + infusionArcaneFocusBonus() + sib.atk);   // Artificer Enhanced Arcane Focus infusion + spell-bonus items
+        if(sibTip){ dcEl.title = sibTip; atkEl.title = sibTip; } else { dcEl.removeAttribute("title"); atkEl.removeAttribute("title"); }
       } else { sEl(inst,"spelldc").textContent = ""; sEl(inst,"spellatk").textContent = ""; }
       // prepared casters: spells they can prepare; known casters: spells known (from class progression)
       const spName = sEl(inst,"spellclass").value, spInfo = CASTERS[spName], spLbl = sEl(inst,"prep-stat-label");
@@ -5893,6 +5913,16 @@
       s.value = cur; });
   }
   function acItemMap(){ const m = {}; ((DATA && DATA.acItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = it.b); return m; }
+  function spellBonusItemMap(){ const m = {}; ((DATA && DATA.spellBonusItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = {atk:it.atk||0, dc:it.dc||0}); return m; }
+  function spellItemBonus(){   // total spell-attack / spell-DC bonus from EQUIPPED (and, where required, ATTUNED) items — Robe of the Archmagi, etc.
+    const map = spellBonusItemMap(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(); let atk = 0, dc = 0; const from = [];
+    for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !cb.checked || !nm) continue;
+      const name = (nm.value||"").trim(), lc = name.toLowerCase(); if(!lc || !(lc in map) || seen.has(lc)) continue; seen.add(lc);
+      if(aset.has(lc) && !attuned.has(lc)) continue;   // needs attunement but isn't attuned → no bonus yet
+      const b = map[lc]; atk += b.atk; dc += b.dc; from.push(name + (b.atk||b.dc ? ` (${[b.atk?`+${b.atk} atk`:"", b.dc?`+${b.dc} DC`:""].filter(Boolean).join(", ")})` : ""));
+    }
+    return {atk, dc, from};
+  }
   function attunedNames(){ const s = new Set(); ["0","1","2"].forEach(k => { const v = ($("attune-"+k)||{}).value; if(v) s.add(String(v).toLowerCase()); }); return s; }   // items actually in an attunement slot
   function acItemsState(){   // equipped AC-bonus items; attunement items count only once attuned
     const map = acItemMap(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(), items = []; let bonus = 0;
