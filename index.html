@@ -1075,15 +1075,12 @@
     <div class="intro-card" role="dialog" aria-modal="true" aria-labelledby="intro-title">
       <h2 id="intro-title">⬢ Universal Character Sheet</h2>
       <p class="intro-sub">D&amp;D 5e · offline · one file</p>
-      <p>This character sheet serves as both a pretty blank character sheet you can print off, for pen-and-paper use, and a D&amp;D-Beyond / MPMB style sheet that walks you through the character creation process and auto calculates everything. It also lets you pick what sources are available and what optional rules are being used.</p>
-      <p>Also, if you upload a portrait image, it will generate a cut-out page with instructions to turn it into a physical mini. 🙂</p>
-      <p>Instead of being some fancy PDF you need Adobe for, or an ugly Excel file, or someone else's hosted web app, it's an HTML file. Offline-first. Everyone with a browser can open it with no extra software or tricks (with a special case for iOS; you still have to originally open it from this link and add it as a web app to your home screen in order to use it offline, because Apple is scared of HTML files).</p>
-      <p>It caches all your character data in the browser, so it has a kind of autosave, though I always recommend manually saving a copy to your drive to be safe.</p>
-      <p>You can keep <strong>more than one character</strong> in here. Each one is its own siloed sheet, with its own sources, optional rules, pages, and portrait. Click "Manage Characters" in the top bar any time to see them all as cards and switch between them.</p>
+      <p>This is your whole character sheet in a single file. No Adobe, no login, no hosted app. It works offline in any browser, and it autosaves in this one, though it's worth pressing <strong>Save</strong> now and then for a backup.</p>
+      <p>Print it blank for the table, or let it build your character and auto-calculate everything as you play. You can keep several characters in here and switch between them from <strong>Manage Characters</strong> up top. Upload a portrait and it even makes a printable paper mini.</p>
       <div class="intro-note">
-        <strong>Best way to fill it in:</strong> use <strong>Create Character</strong> and let the sheet do the math. It walks you through race, class, background, and feats, then keeps everything (modifiers, AC, saves, spell DC, attacks, HP, and more) calculated and correct as you go. Unless you really know your way around the rules, this is the way to go.
+        <strong>Fill it in with Create Character.</strong> This sheet is built to be filled out by the Create Character process, not typed in by hand. It walks you through race, class, background, and feats, then keeps everything (modifiers, AC, saves, spell DC, attacks, HP, and more) calculated and correct as you go. Unless you really know the rules, start there.
         <br><br>
-        <strong>Manual overrides (advanced):</strong> if you ever need to, you can pin any calculated value by hand. On a computer, <strong>double-click</strong> a value to set your own; on a phone or tablet, <strong>long-press</strong> it. It's meant for homebrew, table rulings, and the odd magic item the rules engine doesn't know about. Use it carefully: a pinned value stops auto-updating, so if you later change something it depends on, it can quietly fall out of date or stop matching the rest of the sheet. To undo one, Alt-click it (or long-press and clear it) to go back to calculated, or clear them all under Settings → Manual overrides.
+        <strong>Manual overrides (advanced).</strong> You can still pin any calculated value by hand: double-click it on a computer, or long-press it on a phone or tablet. It's meant for homebrew, table rulings, and the odd item the rules engine doesn't know about. A pinned value stops auto-updating, so use it sparingly. To undo one, Alt-click it (or long-press and clear it), or clear them all under Settings → Manual overrides.
       </div>
       <p class="intro-cta">Click "Create Character" to get started!</p>
       <div class="intro-actions">
@@ -1946,7 +1943,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v222 (2026-06-14)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v223 (2026-06-14)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
