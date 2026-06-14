@@ -1902,7 +1902,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v212 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v213 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 19;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v19: race limited-use innate spells (spellUses).
@@ -4991,6 +4991,10 @@
            nSpells = (prog && prog.length) ? (prog[L-1]||0) : 0; }
     return {ability:info.ability, nCantrips, nSpells, mode, listFrom:SPELL_LIST_FROM[cls] || cls};
   }
+  // Hard pick cap for the SPELLS group. A Wizard's spellbook is open-ended once the character exists: you scribe/copy
+  // spells freely and gain 2 more each level, so editing/leveling must never count the spells already in the book against
+  // you. nSpells stays the "free" target shown as a hint. (Cantrips are always a fixed known count — capped normally.)
+  function spellCap(plan){ return (plan.mode === "spellbook" && characterCreated) ? Infinity : plan.nSpells; }
   function buildClassLevelStr(list){ return (list||[]).map(c => `${c.name} ${c.level}${c.sub?` (${c.sub})`:""}`).join(", "); }
   function reqStr(req){          // "Str 13", "Str 13 or Dex 13", "Str 13 and Cha 13"
     if(!req) return "";
@@ -5055,7 +5059,8 @@
       const picks = wizSpells[c.key] || (wizSpells[c.key] = {cantrips:[], spells:[]});
       const maxL = maxSpellLevel(c.key, c.level), cantripNames = classSpellNamesAt(c.key, 0) || [], leveled = [];
       for(let l=1;l<=maxL;l++){ const ns = classSpellNamesAt(c.key, l); if(ns && ns.length) leveled.push({l, names:ns}); }
-      const cset = new Set(picks.cantrips), sset = new Set(picks.spells), cMax = cset.size >= plan.nCantrips, sMax = sset.size >= plan.nSpells;
+      const cset = new Set(picks.cantrips), sset = new Set(picks.spells), sCap = spellCap(plan);
+      const cMax = cset.size >= plan.nCantrips, sMax = sset.size >= sCap, openBook = sCap === Infinity;
       let body = "";
       if(!cantripNames.length && !leveled.length){ body = `<p class="wiz-hint" style="margin:0">No spell list loaded for ${esc(c.key)} — load its spells sourcebook.</p>`; }
       else {
@@ -5063,7 +5068,8 @@
           `<div class="sp-pick-list">`+ cantripNames.map(n => cb(c.key, "cantrip", n, 0, cset.has(n), cMax)).join("") +`</div>`;
         if(plan.nSpells && leveled.length){ const verb = plan.mode==="prepare" ? "Prepare" : plan.mode==="spellbook" ? "Spellbook" : "Spells known"; let inner = "";
           leveled.forEach(g => { inner += `<div class="sp-lvl">Level ${g.l}</div>` + g.names.map(n => cb(c.key, "spell", n, g.l, sset.has(n), sMax)).join(""); });
-          body += `<p class="sp-pick-grp">${verb} — <span class="sp-pick-count${sset.size>plan.nSpells?' over':''}" data-caster="${esc(c.key)}" data-kind="spell">${sset.size}/${plan.nSpells}</span></p>`+
+          const countTxt = openBook ? `${sset.size} <span style="font-weight:400; color:var(--muted)">in spellbook · +2/level</span>` : `${sset.size}/${plan.nSpells}`;
+          body += `<p class="sp-pick-grp">${verb} — <span class="sp-pick-count${(!openBook && sset.size>plan.nSpells)?' over':''}" data-caster="${esc(c.key)}" data-kind="spell">${countTxt}</span></p>`+
             `<div class="sp-pick-list">${inner}</div>`; }
       }
       const head = `${esc(c.key)} <span class="wiz-hint" style="font-weight:400; display:inline">(${plan.ability.toUpperCase()}${idx===0?" · primary — shown first":""})</span>`;
@@ -5074,10 +5080,10 @@
   function updateSpellPickCounts(){   // in-place per-caster count + maxed-state update (no full re-render)
     const box = $("wiz-spells"); if(!box) return;
     wizCasters().forEach(c => { const plan = spellPlan(c.key, c.level); if(!plan) return; const picks = wizSpells[c.key] || {cantrips:[], spells:[]};
-      [["cantrip", picks.cantrips, plan.nCantrips], ["spell", picks.spells, plan.nSpells]].forEach(([kind, arr, cap]) => {
-        const sel = `[data-caster="${c.key}"][data-kind="${kind}"]`;
-        const span = box.querySelector(`.sp-pick-count${sel}`); if(span){ span.textContent = arr.length+"/"+cap; span.classList.toggle("over", arr.length>cap); }
-        const maxed = arr.length >= cap;
+      [["cantrip", picks.cantrips, plan.nCantrips], ["spell", picks.spells, spellCap(plan)]].forEach(([kind, arr, cap]) => {
+        const sel = `[data-caster="${c.key}"][data-kind="${kind}"]`, open = cap === Infinity;
+        const span = box.querySelector(`.sp-pick-count${sel}`); if(span){ span.innerHTML = open ? `${arr.length} <span style="font-weight:400; color:var(--muted)">in spellbook · +2/level</span>` : arr.length+"/"+cap; span.classList.toggle("over", !open && arr.length>cap); }
+        const maxed = arr.length >= cap;   // open spellbook (Infinity) → never maxed, so the new level-up spells are never blocked
         box.querySelectorAll(`.sp-pick-cb${sel}`).forEach(el => { const on = el.checked; el.disabled = maxed && !on; const lab = el.closest(".pick-item"); if(lab) lab.classList.toggle("maxed", maxed && !on); });
       });
     });
