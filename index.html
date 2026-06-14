@@ -531,10 +531,12 @@
   .ctx-item:hover{background:var(--accent-soft)}
   .cont-caret{flex:none; width:0; overflow:hidden; text-align:center; color:var(--muted); font-size:12px; user-select:none}
   .cont-caret.show{width:15px}                                           /* the ↳ marker, only on nested rows */
+  .cont-caret.cont-toggle{width:18px; color:var(--accent); cursor:pointer; font-size:11px; align-self:stretch; display:flex; align-items:center; justify-content:center}   /* dedicated collapse chevron — separate from the drag handle */
+  .cont-caret.cont-toggle:hover{background:var(--accent-soft)}
   .invtable tr.in-container td.invitem{padding-left:14px}                /* nested rows indent; top-level containers stay flush */
-  .invtable tr.in-container input{color:var(--muted)}   /* an item stored in a weightless container: weight not counted */
+  .invtable tr.in-weightless input{color:var(--muted)}                  /* item in a weightless container (Bag of Holding): weight not counted */
+  .invtable tr.is-container .invname-ac{font-weight:600}                 /* a container's name reads a little heavier */
   .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px}
-  .invdrag.cont-toggle{color:var(--accent); cursor:pointer}             /* container rows: drag handle doubles as collapse toggle */
   .ac-items-auto{display:flex; flex-direction:column; gap:4px; margin-top:4px}
   .ac-items-auto .aci{display:flex; justify-content:space-between; align-items:center; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:13px}
   .ac-items-auto .aci .b{font-weight:700; color:var(--accent)}
@@ -1902,7 +1904,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v214 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v215 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 19;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v19: race limited-use innate spells (spellUses).
@@ -6034,22 +6036,24 @@
   }
   function presentContainers(){ return presentContainerNames(containerSet()); }                       // all containers present (nesting)
   function presentWeightlessContainers(){ return presentContainerNames(weightlessContainerSet()); }   // only the weightless ones (weight calc)
-  function renderContainers(){   // collapse toggle on the drag handle; ↳ indent only on nested rows
-    const conts = presentContainers(), have = new Set(conts);
+  function renderContainers(){   // dedicated ▸/▾ chevron toggles collapse; the ⠿ drag handle stays a drag handle
+    const conts = presentContainers(), have = new Set(conts), weightless = weightlessContainerSet();
     const counts = {};   // container name → number of nested items
     for(let i=0;i<NINV;i++){ let c = rowCont(i); if(c && !have.has(c)){ setRowCont(i, ""); c = ""; } if(c) counts[c] = (counts[c]||0)+1; }
     for(let i=0;i<NINV;i++){
       const nm = $("invname-"+i), caret = $("contcaret-"+i), tr = nm && nm.closest("tr"); if(!nm || !caret || !tr) continue;
       const drag = tr.querySelector(".invdrag");
-      const name = (nm.value||"").trim(), cont = rowCont(i), isCont = name && have.has(name);
-      caret.className = "cont-caret"; caret.textContent = ""; tr.style.display = ""; tr.classList.toggle("in-container", !!cont); tr.classList.toggle("has-item", !!name);   // show the delete ✕ only on filled rows
-      if(drag){ drag.textContent = "⠿"; delete drag.dataset.cont; drag.classList.remove("cont-toggle"); drag.title = "Drag to reorder"; }
-      if(isCont && counts[name] && drag){                          // a container holding items → drag handle becomes a collapse toggle
+      const name = (nm.value||"").trim(), cont = rowCont(i), isCont = !!(name && have.has(name) && counts[name]);
+      caret.className = "cont-caret"; caret.textContent = ""; caret.title = ""; delete caret.dataset.cont;
+      tr.style.display = ""; tr.classList.toggle("in-container", !!cont); tr.classList.toggle("in-weightless", !!(cont && weightless.has(cont.toLowerCase()))); tr.classList.toggle("has-item", !!name); tr.classList.toggle("is-container", isCont);   // show the delete ✕ only on filled rows
+      if(drag){ drag.textContent = "⠿"; delete drag.dataset.cont; drag.classList.remove("cont-toggle"); drag.title = "Drag to reorder"; }   // drag handle is ALWAYS just for dragging now
+      if(isCont){                                                    // a container holding items → a click-to-collapse chevron (its own control)
         const open = !collapsedContainers.has(name);
-        drag.textContent = open ? "▾" : "▸"; drag.dataset.cont = name; drag.classList.add("cont-toggle");
-        drag.title = (open ? "Collapse" : "Expand") + " contents • drag to move";
+        caret.className = "cont-caret show cont-toggle"; caret.textContent = open ? "▾" : "▸"; caret.dataset.cont = name; caret.title = (open ? "Collapse" : "Expand") + " contents";
+      } else if(cont){                                               // a plain nested item → ↳ marker
+        caret.className = "cont-caret show"; caret.textContent = "↳";
       }
-      if(cont){ caret.className = "cont-caret show"; caret.textContent = "↳"; if(collapsedContainers.has(cont)) tr.style.display = "none"; }   // nested → indent (+ hide if its container is collapsed)
+      if(cont && collapsedContainers.has(cont)) tr.style.display = "none";   // hide when its parent container is collapsed (applies to nested containers too)
     }
   }
   function moveInvBlock(contIdx, to){   // move a container together with its contents
@@ -7310,8 +7314,8 @@
     let invDrag = null;
     const clearDrop = () => document.querySelectorAll(".inv-cols tr.drop-target, .inv-cols tr.drop-into").forEach(r => r.classList.remove("drop-target","drop-into"));
     document.querySelectorAll(".inv-cols").forEach(invCols => {   // main Inventory page + Overflow page share one drag system (invDrag is global)
-    invCols.addEventListener("click", e => {   // clicking a container's drag handle toggles its contents (dragging it still reorders)
-      const c = e.target.closest(".invdrag.cont-toggle"); if(!c) return;
+    invCols.addEventListener("click", e => {   // click the ▸/▾ chevron to collapse/expand a container's contents
+      const c = e.target.closest(".cont-caret.cont-toggle"); if(!c) return;
       const nm = c.dataset.cont; if(!nm) return;
       if(collapsedContainers.has(nm)) collapsedContainers.delete(nm); else collapsedContainers.add(nm);
       save(); renderContainers();
