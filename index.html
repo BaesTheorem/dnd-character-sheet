@@ -1523,7 +1523,7 @@
         </div>
         <div class="rowtotal"><span class="k">Total weight (items + coins)</span><span class="v" id="totalwt"></span></div>
         <div id="inv-ac" class="item-results" hidden=""></div>
-        <p class="help noprint">Search the box above (or type in any row) to add items from your loaded sourcebooks — weight auto-fills. Check <strong>Equip</strong> on a weapon (→ Attacks), armor or attunement item (→ their pickers). Carry a <strong>Bag of Holding</strong> or <strong>Handy Haversack</strong> and an <strong>In</strong> dropdown appears on each row; assign an item to one (or <strong>drag its row onto the container</strong>) and its weight stops counting. <strong>Right-click</strong> any item to move it to/from an Overflow page.</p>
+        <p class="help noprint">Search the box above (or type in any row) to add items from your loaded sourcebooks — weight auto-fills. Check <strong>Equip</strong> on a weapon (→ Attacks), armor or attunement item (→ their pickers). Carry a <strong>Bag of Holding</strong> or <strong>Handy Haversack</strong> and items dropped into it stop counting toward weight. <strong>Right-click</strong> any item to move it to/from an Overflow page or to <strong>make it a container</strong> (then drag rows onto it to nest them — a normal container's contents still weigh).</p>
         <button class="btn noprint" data-openoverflow type="button" style="font-size:11px; padding:4px 10px">+ Overflow page</button>
       </div>
       <div class="card grow"><h2>Equipment Notes</h2>
@@ -1902,7 +1902,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v213 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v214 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 19;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v19: race limited-use innate spells (spellUses).
@@ -4228,7 +4228,7 @@
     const coinWt = coins/50;                                   // 50 coins = 1 lb
     $("coinwt").textContent = coins ? round1(coinWt) + " lb" : "";
     let invWt = 0;
-    const presentC = new Set(presentContainers());   // items in a weightless container (Bag of Holding etc.) don't count
+    const presentC = new Set(presentWeightlessContainers());   // only a weightless container (Bag of Holding etc.) makes its contents stop counting; a normal/user container's contents still weigh
     for(let i=0;i<NINV;i++){
       const u = rowUnit(i);
       if(u == null) continue;
@@ -4525,6 +4525,7 @@
     data.invUnits = []; for(let i=0;i<NINV;i++) data.invUnits.push($("invwt-"+i).dataset.unit || "");   // per-item inventory weights
     data.invConts = []; for(let i=0;i<NINV;i++) data.invConts.push(rowCont(i));   // per-row container assignment
     data.collapsed = [...collapsedContainers];   // collapsed container groups
+    data.userContainers = [...userContainers];   // items the user turned into containers
     data.overflowPages = overflowPages;          // how many Overflow pages exist
     data.invEquip = []; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i); data.invEquip.push(!!(cb && cb.checked)); }   // per-row equipped state
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
@@ -4638,6 +4639,7 @@
     refreshAllWeights();
     for(let i=0;i<NINV;i++) setRowCont(i, (data && Array.isArray(data.invConts)) ? (data.invConts[i]||"") : "");   // restore container assignments
     collapsedContainers = new Set((data && Array.isArray(data.collapsed)) ? data.collapsed : []);
+    userContainers = new Set((data && Array.isArray(data.userContainers) ? data.userContainers : []).map(n => String(n).toLowerCase()));
     renderContainers();
     for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(!el) continue;   // restore active-weapon links on the Attacks rows
       const lk = (data && Array.isArray(data.atkLinks)) ? data.atkLinks[i] : "";
@@ -6013,16 +6015,25 @@
     document.addEventListener("focusout", e => { if(isInv(e.target)) setTimeout(() => { if(!pop.contains(document.activeElement)) close(); }, 120); });
     window.addEventListener("scroll", () => { if(!pop.hidden) close(); }, true);
   }
-  function containerSet(){ const s = new Set(); ((DATA && DATA.containers)||[]).forEach(n => s.add(String(n).toLowerCase())); return s; }
+  let userContainers = new Set();   // item names (lowercased) the user turned into containers via right-click — they nest items but, unlike a Bag of Holding, their contents STILL count toward weight
+  function weightlessContainerSet(){ const s = new Set(); ((DATA && DATA.containers)||[]).forEach(n => s.add(String(n).toLowerCase())); return s; }   // Bag of Holding / Handy Haversack — contents weigh nothing
+  function containerSet(){ const s = weightlessContainerSet(); userContainers.forEach(n => s.add(n)); return s; }   // everything that can hold items (nesting)
   function rowCont(i){ const el = $("invname-"+i); return (el && el.dataset.cont) || ""; }                    // which container this row is stored in
   function setRowCont(i, v){ const el = $("invname-"+i); if(el){ if(v) el.dataset.cont = v; else delete el.dataset.cont; } }
   function isContainerRow(i){ const nm = ($("invname-"+i).value||"").trim(); return !!nm && containerSet().has(nm.toLowerCase()); }
+  function toggleUserContainer(i){   // right-click → turn any item into a container (or back)
+    const nm = ($("invname-"+i).value||"").trim(); if(!nm) return; const lc = nm.toLowerCase();
+    if(userContainers.has(lc)) userContainers.delete(lc); else userContainers.add(lc);
+    renderContainers(); save(); compute();
+  }
   let collapsedContainers = new Set();   // container names whose contents are collapsed (hidden)
-  function presentContainers(){   // distinct weightless-container item names currently sitting in the inventory
-    const cs = containerSet(), seen = new Set(), out = [];
-    for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value||"").trim(); if(nm && cs.has(nm.toLowerCase()) && !seen.has(nm)){ seen.add(nm); out.push(nm); } }
+  function presentContainerNames(set){   // distinct container item names currently in the inventory, matched against `set`
+    const seen = new Set(), out = [];
+    for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value||"").trim(); if(nm && set.has(nm.toLowerCase()) && !seen.has(nm)){ seen.add(nm); out.push(nm); } }
     return out;
   }
+  function presentContainers(){ return presentContainerNames(containerSet()); }                       // all containers present (nesting)
+  function presentWeightlessContainers(){ return presentContainerNames(weightlessContainerSet()); }   // only the weightless ones (weight calc)
   function renderContainers(){   // collapse toggle on the drag handle; ↳ indent only on nested rows
     const conts = presentContainers(), have = new Set(conts);
     const counts = {};   // container name → number of nested items
@@ -7260,8 +7271,11 @@
       if(!el || !(el.value||"").trim()) return;
       const i = +el.id.split("-").pop(), isInv = !!invEl, inOverflow = isInv ? (i >= INV_MAIN) : (i >= LIM_MAIN);
       e.preventDefault();
-      openCtxMenu(e.clientX, e.clientY, [{ label: inOverflow ? "← Move to main" : "Move to Overflow →",
-        fn: () => isInv ? moveInvAcross(i, !inOverflow) : lfMoveAcross(i, !inOverflow) }]);
+      const items = [{ label: inOverflow ? "← Move to main" : "Move to Overflow →", fn: () => isInv ? moveInvAcross(i, !inOverflow) : lfMoveAcross(i, !inOverflow) }];
+      if(isInv){ const lc = (el.value||"").trim().toLowerCase();
+        if(!weightlessContainerSet().has(lc))   // magical containers are already containers
+          items.push({ label: userContainers.has(lc) ? "No longer a container" : "Make a container", fn: () => toggleUserContainer(i) }); }
+      openCtxMenu(e.clientX, e.clientY, items);
     });
     document.addEventListener("click", closeCtxMenu);
     document.addEventListener("scroll", closeCtxMenu, true);
