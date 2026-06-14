@@ -530,8 +530,9 @@
   .ctx-item{display:block; width:100%; text-align:left; border:none; background:none; padding:7px 12px; font:inherit; font-size:13px; cursor:pointer; color:inherit}
   .ctx-item:hover{background:var(--accent-soft)}
   .cont-caret{flex:none; width:0; overflow:hidden; text-align:center; color:var(--muted); font-size:12px; user-select:none}
-  .cont-caret.show{width:15px}                                           /* the ↳ marker, only on nested rows */
-  .cont-caret.cont-toggle{width:18px; color:var(--accent); cursor:pointer; font-size:11px; align-self:stretch; display:flex; align-items:center; justify-content:center}   /* dedicated collapse chevron — separate from the drag handle */
+  .invtable tr.has-item .cont-caret{width:15px}                          /* reserve the chevron/↳ gutter on EVERY filled row so container & item names line up (no lone indent) */
+  .cont-caret.show{width:15px}
+  .cont-caret.cont-toggle{color:var(--accent); cursor:pointer; font-size:11px; align-self:stretch; display:flex; align-items:center; justify-content:center}   /* collapse chevron, sits in the shared gutter — adds no extra indent */
   .cont-caret.cont-toggle:hover{background:var(--accent-soft)}
   .invtable tr.in-container td.invitem{padding-left:14px}                /* nested rows indent; top-level containers stay flush */
   .invtable tr.in-weightless input{color:var(--muted)}                  /* item in a weightless container (Bag of Holding): weight not counted */
@@ -1905,7 +1906,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v216 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v217 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
