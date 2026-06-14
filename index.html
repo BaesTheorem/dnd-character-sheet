@@ -1585,12 +1585,12 @@
 
     <!-- PAGE 3: FEATURES & TRAITS -->
     <section class="page" id="page-feat" data-page="feat">
+      <div class="card" id="infusions-inner" style="display:none"></div>
       <details class="feat-editor noprint" id="feat-editor" open="">
         <summary>Features &amp; Traits — edit text (one feature per block, blank line between)</summary>
         <textarea data-save="" id="features" placeholder="Class features, racial traits, feats…" style="height: 0px;"></textarea><div class="ta-print"></div>
       </details>
       <div id="feat-cards" class="feat-cards"><div class="card feat-blank"><h2>Features &amp; Traits</h2></div></div>
-      <div class="card" id="infusions-inner" style="display:none"></div>
     </section>
 
     <!-- SPELL SHEET -->
@@ -1943,7 +1943,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v223 (2026-06-14)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v224 (2026-06-14)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -2316,6 +2316,33 @@
     "blindsense": "Blindsense 10 ft.",
     "feral senses": "Feral Senses (blindsight 30 ft. vs. unseen attackers within range)",
     "ear for deceit": "Ear for Deceit (Insight floor of 8)" };
+  // Subclass features grant armor/weapon/tool proficiencies in their PROSE (e.g. Armorer's "Tools of the
+  // Trade" → heavy armor + smith's tools; a Cleric domain's "Bonus Proficiency" → heavy armor). The structured
+  // startingProficiencies block only covers the BASE class, so parse the feature text here and hand it to
+  // applyProficiencies in the same shape the class prof uses. Returns null when nothing is granted.
+  function scanFeatureProf(text){
+    if(!text) return null;
+    const armor = new Set(), weapons = new Set(), tools = new Set();
+    const ARMOR = [[/heavy armor/,"Heavy armor"],[/medium armor/,"Medium armor"],[/light armor/,"Light armor"],[/all armor/,"All armor"],[/shields?/,"Shields"]];
+    const WEAPONS = [[/martial weapons/,"Martial weapons"],[/simple weapons/,"Simple weapons"]];
+    text.split(/\n+|\.\s+/).forEach(sent => {
+      const s = sent.trim();
+      if(/^if\b/i.test(s)) return;                                    // conditional ("If you already have…") = an ALTERNATE grant, not a base one
+      const clauses = s.match(/proficien\w*\s+(?:with|in)\s+[^.;]+/gi) || [];   // only the parts that actually grant a proficiency
+      clauses.forEach(c => {
+        const cl = c.toLowerCase();
+        ARMOR.forEach(([rx,l]) => { if(rx.test(cl)) armor.add(l); });
+        WEAPONS.forEach(([rx,l]) => { if(rx.test(cl)) weapons.add(l); });
+        let tm; const tre = /\b([a-z]+(?:'s)?)\s+(tools|supplies|kit)\b/gi;     // specific named tools (smith's tools, …)
+        while((tm = tre.exec(cl))){
+          if(/^(artisan|musical|this|that|other)$/i.test(tm[1].replace(/'s$/,""))) continue;   // generic kinds / back-references are handled elsewhere
+          tools.add((tm[1]+" "+tm[2]).split(" ").map(w => w.charAt(0).toUpperCase()+w.slice(1)).join(" "));
+        }
+      });
+    });
+    if(!armor.size && !weapons.size && !tools.size) return null;
+    return { armor:armor.size?[...armor]:null, weapons:weapons.size?[...weapons]:null, tools:tools.size?[...tools]:null };
+  }
   function featInitBonus(){ let b = 0; (asiChoices||[]).forEach(s => { if(s.type === "feat" && s.feat && FEAT_INIT[s.feat]) b += FEAT_INIT[s.feat]; }); return b; }
   // The attention flag: shown until every owed ASI / racial feat has a complete choice.
   function updateAsiFlag(){
@@ -7145,6 +7172,7 @@
           const sf = (subObj.features||[]).filter(f => (f.level||1) <= w.level && (!f.opt || opts.has(f.opt)));
           sf.forEach(f => featLines.push(`${f.opt ? (f.optGroup ? f.optGroup+": " : "")+f.name : f.name} (${w.sub} ${f.level}). ${f.text}`));
           sf.forEach(f => { const s = FEATURE_SENSES[(f.name||"").toLowerCase()]; if(s) addSense(s); });
+          sf.forEach(f => { const pr = scanFeatureProf(f.text); if(pr) applyProficiencies(pr, w.sub); });   // subclass-granted armor/weapon/tool profs (e.g. Armorer → heavy armor + smith's tools)
           if(subObj.spells && subObj.spells.length){
             const subCantrips = subObj.spells.filter(sp => (sp.l||0) === 0);   // granted cantrips (e.g. Star Map's Guidance) — always known, don't count against cantrips known
             const subLeveled  = subObj.spells.filter(sp => (sp.l||0) > 0);     // always-prepared leveled spells (e.g. Star Map's Guiding Bolt)
