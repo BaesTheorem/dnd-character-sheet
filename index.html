@@ -716,7 +716,7 @@
   .fd-scroll{padding:14px; overflow:auto}
   .fd-meta{font-size:12px; color:var(--muted); margin-bottom:8px}
   .fd-text{font-size:13px; line-height:1.5; white-space:pre-wrap}
-  html.mobile .lftable input[id^="lfname-"]{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none}   /* long-press reveals details instead of the text-selection magnifier */
+  html.mobile .lftable input[id^="lfname-"], html.mobile .spelltable .sp-name{-webkit-user-select:none; user-select:none; -webkit-touch-callout:none}   /* long-press reveals details instead of the text-selection magnifier */
   .spelltable .col-prep input:disabled{opacity:.28; cursor:not-allowed}   /* prep cap reached → unchecked boxes grey out */
   .spelltable .col-prep{white-space:nowrap}                               /* keep the checkbox + granted ★ on one line */
   .sp-free{border:none; background:none; cursor:pointer; font-size:12px; line-height:1; padding:0 1px; color:var(--muted); visibility:hidden; vertical-align:middle}
@@ -917,6 +917,14 @@
 
   @media screen {
   html.mobile input, html.mobile select, html.mobile textarea{ font-size:16px; }   /* iOS won't zoom a focused field at >=16px */
+  /* Spell table on a phone: the fixed info columns crush the name to ~36px. Hide them (long-press a spell for full
+     details) so the name gets the room. Keep the "Set spell properties" button (a col-comp cell) visible. */
+  html.mobile .spelltable th.col-comp, html.mobile .spelltable th.col-time, html.mobile .spelltable th.col-range,
+  html.mobile .spelltable th.col-dur, html.mobile .spelltable th.col-school,
+  html.mobile .spelltable td.col-time, html.mobile .spelltable td.col-range,
+  html.mobile .spelltable td.col-dur, html.mobile .spelltable td.col-school,
+  html.mobile .spelltable td.col-comp:not(.prop-setbtn){ display:none; }
+  html.mobile .spelltable td.col-name{ font-size:14px; }   /* a touch larger now that there's room */
   html.mobile body{ padding-bottom:calc(16px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar so it doesn't cover the last card */
 
   /* kill the legacy ~300ms double-tap delay on tap targets (keeps pinch-zoom + scroll) */
@@ -1894,7 +1902,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v211 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v212 (2026-06-13)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 19;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v19: race limited-use innate spells (spellUses).
@@ -4412,13 +4420,21 @@
   }
   // Touch has no double-click and no Alt key, so on touch/pen a long-press opens the same inline editor.
   // (To revert on touch: long-press the pinned field, clear it, and commit — an empty value reverts to calculated.)
-  let _lpTimer = null, _lpEl = null, _lpReady = false, _lpX = 0, _lpY = 0, _lpKind = "";
-  function clearLongPress(){ if(_lpTimer){ clearTimeout(_lpTimer); _lpTimer = null; } _lpEl = null; _lpReady = false; _lpKind = ""; }
+  let _lpTimer = null, _lpEl = null, _lpReady = false, _lpX = 0, _lpY = 0, _lpKind = "", _lpName = "";
+  function clearLongPress(){ if(_lpTimer){ clearTimeout(_lpTimer); _lpTimer = null; } _lpEl = null; _lpReady = false; _lpKind = ""; _lpName = ""; }
+  function spellNameFromEl(target){   // resolve the spell on a long-pressed spell row (write-in input or full-list/fixed catalog cell)
+    const inp = target.closest(".sp-name"); if(inp) return (inp.value||"").trim();
+    const cell = target.closest(".spelltable td.col-name"); if(cell && !cell.querySelector(".sp-name")) return (cell.textContent||"").trim();
+    return "";
+  }
   function onOvPointerDown(e){
     if(e.pointerType === "mouse") return;                                       // mouse keeps double-click / Alt-click + hover tooltips
     let el = e.target.closest(".ovf"), kind = "";
     if(el && el.id && overrideIds().includes(el.id)) kind = "override";          // long-press a computed value → pin it
-    else { const lf = e.target.closest('input[id^="lfname-"]'); if(lf && (lf.value||"").trim()){ el = lf; kind = "lfdetail"; } else return; }   // long-press a limited feature → show its details
+    else { const lf = e.target.closest('input[id^="lfname-"]');
+      if(lf && (lf.value||"").trim()){ el = lf; kind = "lfdetail"; }             // long-press a limited feature → show its details
+      else { const sn = spellNameFromEl(e.target); if(sn && spellData(sn)){ el = e.target; kind = "spdetail"; _lpName = sn; }   // long-press any spell → show its details
+        else return; } }
     _lpEl = el; _lpKind = kind; _lpReady = false; _lpX = e.clientX; _lpY = e.clientY;
     clearTimeout(_lpTimer);
     _lpTimer = setTimeout(() => { _lpTimer = null; if(_lpEl === el){ _lpReady = true; if(navigator.vibrate){ try{ navigator.vibrate(10); }catch(_){} } } }, 450);   // mark ready + buzz; the action itself fires on pointerup
@@ -4427,10 +4443,11 @@
   function onOvPointerUp(e){
     const el = _lpEl, ready = _lpReady, kind = _lpKind;
     if(_lpTimer){ clearTimeout(_lpTimer); _lpTimer = null; }
-    _lpEl = null; _lpReady = false; _lpKind = "";
+    const name = _lpName; _lpEl = null; _lpReady = false; _lpKind = ""; _lpName = "";
     if(!ready || !el) return;                                                    // released too early or scrolled → normal tap
     if(kind === "lfdetail"){ const nm = (el.value||"").trim();
       if(spellData(nm) || el.title){ e.preventDefault(); try{ el.blur(); }catch(_){} showFeatureDetail(nm, el.title || ""); } return; }   // nothing to show → leave it as a normal tap (edit)
+    if(kind === "spdetail"){ e.preventDefault(); try{ if(el.blur) el.blur(); }catch(_){} showFeatureDetail(name, ""); return; }   // any spell → details popup
     e.preventDefault();                                                          // open the editor inside this pointerup gesture, so iOS shows the keyboard (a focus() from the timer wouldn't)
     const wasPinned = hasOv(el.id);
     beginOverride(el);
