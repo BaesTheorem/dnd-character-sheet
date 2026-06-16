@@ -1081,6 +1081,19 @@
   html.mobile #page-core .card.collapsible.collapsed .atk-per-box{ display:none; }   /* Attacks: clean single-line header when collapsed (the per-action box rides in the heading row) */
   html.mobile #page-core .card.collapsible.collapsed > .atk-top{ justify-content:flex-start; margin-bottom:0; }   /* left-align the lone heading like every other collapsed section */
   }   /* end @media screen — mobile rules never apply to print */
+  /* ---- Global search palette ---- */
+  .search-panel{max-width:600px; width:100%; margin:7vh auto auto; align-self:flex-start}
+  #search-input{width:100%; font-size:15px; padding:13px 15px; border:none; border-bottom:1px solid var(--line2);
+    background:var(--card); color:var(--ink); outline:none; font-family:inherit}
+  .search-results{max-height:62vh; overflow:auto}
+  .sr-row{display:flex; flex-direction:column; gap:2px; padding:9px 15px; border-top:1px solid var(--line); cursor:pointer}
+  .sr-row.sel, .sr-row:hover{background:var(--accent-soft)}
+  .sr-text{font-size:14px; color:var(--ink); line-height:1.35}
+  .sr-text mark{background:var(--accent); color:#fff; padding:0 1px}
+  .sr-meta{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+  .sr-empty{padding:16px 15px; color:var(--muted); font-size:13px}
+  @keyframes search-flash{0%,55%{background:var(--accent-soft)} 100%{background:transparent}}
+  .flash-hit{animation:search-flash 1.3s ease-out}
 </style>
 </head>
 <body>
@@ -1090,6 +1103,7 @@
     <button class="btn primary" id="btn-create" title="">Create Character</button>
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file (your character plus all loaded sourcebooks baked in — works offline, no localStorage needed)">Save</button>
     <button class="btn" onclick="window.print()">Print / PDF</button>
+    <button class="btn" id="btn-search" title="Search this character (⌘K / Ctrl-K)">Search</button>
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
     <button class="btn ghost" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
@@ -1122,6 +1136,12 @@
   </div>
 
   <!-- Character Manager: card view of every character saved in this browser; switch / create / rename / duplicate / delete -->
+  <div class="modal noprint" id="search-modal">
+    <div class="modal-panel search-panel">
+      <input type="text" id="search-input" placeholder="Search this character — feats, spells, items, stats, notes…" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div id="search-results" class="search-results"></div>
+    </div>
+  </div>
   <div class="modal noprint" id="charmgr">
     <div class="modal-panel">
       <div class="modal-head">
@@ -2002,7 +2022,7 @@
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v231 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v232 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -5727,6 +5747,74 @@
       `<td class="inf-ctr"><button type="button" class="inf-rm" data-ii="${i}" title="Remove">✕</button></td>`+
     `</tr>`;
   }
+  // ---- Global search: find anything written in the open character ----
+  function _searchContextLabel(el){
+    const card = el.closest(".card"); const h = card && card.querySelector("h2");
+    if(h && h.textContent.trim()) return h.textContent.trim();
+    let p = el.previousElementSibling;
+    while(p){ if(p.classList && (p.classList.contains("lbl") || p.tagName === "LABEL")) return p.textContent.trim().slice(0,42); p = p.previousElementSibling; }
+    const lab = el.closest("label"); if(lab) return lab.textContent.trim().slice(0,42);
+    return "";
+  }
+  function _searchItems(){
+    const items = [], pageName = k => (PAGES.find(p=>p[0]===k)||[k,k])[1];
+    document.querySelectorAll(".page[data-page]").forEach(page => {
+      const pk = page.dataset.page;
+      page.querySelectorAll("input[type=text], input:not([type]), textarea, select").forEach(el => {
+        if(el.type === "hidden") return;
+        let val = "";
+        if(el.tagName === "SELECT"){ if(!el.value) return; const o = el.options[el.selectedIndex]; val = o ? o.textContent.trim() : ""; }
+        else val = (el.value||"").trim();
+        if(!val) return;
+        const ctx = _searchContextLabel(el);
+        if(el.tagName === "TEXTAREA" && val.length > 60){
+          val.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach(line => items.push({text:line, page:pk, pageName:pageName(pk), ctx, el}));
+        } else items.push({text:val, page:pk, pageName:pageName(pk), ctx, el});
+      });
+    });
+    // a few by-name stats so "strength", "armor class", etc. land somewhere useful
+    const STAT_HINTS = [["abilities","Strength Dexterity Constitution Intelligence Wisdom Charisma ability scores","core","Abilities"],
+      ["combat-ac","Armor Class AC","core","Combat"],["combat-hp","Hit Points HP","core","Combat"],
+      ["skills","Skills","core","Skills"],["senses","Passive Perception senses","core","Senses"]];
+    STAT_HINTS.forEach(([id,text,pk,ctx]) => { const el = $(id); if(el) items.push({text, page:pk, pageName:"Core", ctx, el, stat:true}); });
+    return items;
+  }
+  let _searchHits = [], _searchSel = 0;
+  function _searchHi(text,q){ const i=text.toLowerCase().indexOf(q); if(i<0) return esc(text); return esc(text.slice(0,i))+"<mark>"+esc(text.slice(i,i+q.length))+"</mark>"+esc(text.slice(i+q.length)); }
+  function runSearch(q){
+    q = (q||"").trim().toLowerCase(); const box = $("search-results");
+    if(!q){ box.innerHTML = `<div class="sr-empty">Type to search feats, spells, items, proficiencies, notes…</div>`; _searchHits = []; return; }
+    const seen = new Set();
+    _searchHits = _searchItems().filter(it => it.text.toLowerCase().includes(q))
+      .filter(it => { const k = it.page+"|"+it.text+"|"+it.ctx; if(seen.has(k)) return false; seen.add(k); return true; }).slice(0,60);
+    _searchSel = 0;
+    if(!_searchHits.length){ box.innerHTML = `<div class="sr-empty">No matches in this character.</div>`; return; }
+    box.innerHTML = _searchHits.map((it,i) => `<div class="sr-row${i===0?" sel":""}" data-i="${i}"><div class="sr-text">${_searchHi(it.text,q)}</div><div class="sr-meta">${esc(it.pageName)}${it.ctx && it.ctx!==it.pageName?" · "+esc(it.ctx):""}</div></div>`).join("");
+  }
+  function jumpToHit(i){
+    const it = _searchHits[i]; if(!it) return;
+    closeSearch();
+    if(it.page) showPage(it.page);
+    setTimeout(()=>{ try{ it.el.scrollIntoView({block:"center", behavior:"smooth"}); it.el.classList.add("flash-hit"); setTimeout(()=>it.el.classList.remove("flash-hit"), 1400);
+      if(!it.stat && it.el.focus && it.el.tagName !== "SELECT"){ try{ it.el.focus({preventScroll:true}); }catch(e){} } }catch(e){} }, 70);
+  }
+  function _searchPaintSel(){ const rows = document.querySelectorAll(".sr-row"); rows.forEach((r,i)=>r.classList.toggle("sel", i===_searchSel)); const s = rows[_searchSel]; if(s) s.scrollIntoView({block:"nearest"}); }
+  function openSearch(){ $("search-modal").classList.add("open"); const inp = $("search-input"); inp.value = ""; runSearch(""); setTimeout(()=>inp.focus(), 30); }
+  function closeSearch(){ $("search-modal").classList.remove("open"); }
+  function setupSearch(){
+    const btn = $("btn-search"); if(btn) btn.addEventListener("click", openSearch);
+    const inp = $("search-input"), box = $("search-results"); if(!inp) return;
+    inp.addEventListener("input", ()=> runSearch(inp.value));
+    inp.addEventListener("keydown", e => {
+      if(e.key === "Escape"){ closeSearch(); }
+      else if(e.key === "ArrowDown"){ e.preventDefault(); _searchSel = Math.min(_searchHits.length-1, _searchSel+1); _searchPaintSel(); }
+      else if(e.key === "ArrowUp"){ e.preventDefault(); _searchSel = Math.max(0, _searchSel-1); _searchPaintSel(); }
+      else if(e.key === "Enter"){ e.preventDefault(); jumpToHit(_searchSel); }
+    });
+    box.addEventListener("click", e => { const r = e.target.closest(".sr-row"); if(r) jumpToHit(+r.dataset.i); });
+    $("search-modal").addEventListener("click", e => { if(e.target.id === "search-modal") closeSearch(); });
+    document.addEventListener("keydown", e => { if((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")){ e.preventDefault(); openSearch(); } });
+  }
   // ---- Optional features: Eldritch Invocations / Metamagic / Battle Master Maneuvers ----
   // Hand-baked into app code (like FIGHTING_STYLES / ARTIFICER_INFUSIONS) so it works no matter
   // which sourcebooks are loaded and survives a data rebake. Generated from optionalfeatures.json
@@ -7577,6 +7665,7 @@
       renderSpellTable(inst); save(); compute(); });
     setupItemSearch();
     setupOptFeats();
+    setupSearch();
     setupSpellSearch(0);
     setupInvAutocomplete();
     (function setupPrepFloat(){   // left-margin "Can Prepare" readout that follows the spell-list scroll
