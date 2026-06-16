@@ -1943,7 +1943,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v224 (2026-06-14)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v225 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -5993,9 +5993,11 @@
     const map = acItemMap(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(), items = []; let bonus = 0;
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !cb.checked || !nm) continue;
       const name = (nm.value||"").trim(), lc = name.toLowerCase();
-      if(!name || !(lc in map) || seen.has(lc)) continue; seen.add(lc);
+      if(!name || seen.has(lc)) continue;
+      const sb = shieldBonus(name), b = sb || map[lc];   // a shield is +2(+N) by category (overrides a bonusAc-only map entry); otherwise a mapped AC-bonus item
+      if(b == null) continue; seen.add(lc);
       const needsAttune = aset.has(lc), active = !needsAttune || attuned.has(lc);
-      items.push({name, b:map[lc], active, needsAttune}); if(active) bonus += map[lc];
+      items.push({name, b, active, needsAttune}); if(active) bonus += b;
     }
     return {bonus, items};
   }
@@ -6004,6 +6006,12 @@
     box.innerHTML = st.items.length ? st.items.map(it =>
       `<div class="aci${it.active?"":" pending"}"><span>${esc(it.name)}${(it.needsAttune && !it.active)?" (attune to activate)":""}</span><span class="b">+${it.b}</span></div>`).join("")
       : `<div class="none">None — equip a shield, ring/cloak of protection, etc.</div>`;
+  }
+  function shieldBonus(name){   // any item that reads as a shield grants +2 AC (plus any magic "+N" in the name); 0 if not a shield. So "Wooden Shield", "Sentinel Shield", "+1 Shield" all equip, not just the literal "Shield".
+    const lc = String(name||"").trim().toLowerCase();
+    if(!/\bshield\b/.test(lc)) return 0;
+    let b = 2; const m = lc.match(/\+\s*(\d+)/); if(m) b += parseInt(m[1], 10);   // "+1 Shield" → 2 + 1 = +3
+    return b;
   }
   function hasEquippedShield(){ for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i), nm=$("invname-"+i); if(cb && cb.checked && nm && /shield/i.test(nm.value||"")) return true; } return false; }
   function setupItemSearch(){   // substring-searchable picker that adds an item to the next empty row
@@ -6323,7 +6331,7 @@
     const aset = attuneSet(), acm = acItemMap(), sbm = spellBonusItemMap(), itext = (DATA && DATA.itemText) || {};
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !nm) continue;
       const name = (nm.value||"").trim(), lc = name.toLowerCase(), w = weaponByName(name);
-      const eq = !!w || !!armorByName(name) || aset.has(lc) || (lc in acm) || (lc in sbm) || (name in itext);
+      const eq = !!w || !!armorByName(name) || aset.has(lc) || (lc in acm) || (lc in sbm) || (name in itext) || shieldBonus(name) > 0;
       cb.style.display = eq ? "" : "none";
       if(!eq) cb.checked = false;                 // not equippable → no box, not equipped
       else if(w) cb.checked = active.has(lc);     // weapons: equipped ⇔ present in the Attacks table
