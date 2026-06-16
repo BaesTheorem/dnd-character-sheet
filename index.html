@@ -2022,7 +2022,7 @@
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v235 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v236 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -8104,11 +8104,27 @@
     return roster.chars.length;
   }
   // On opening a saved bundle in a FRESH browser, restore the whole library. Returns the active char's portrait (if any).
+  function reclaimFileStorage(){
+    // A saved file carries its sourcebooks AND characters baked into the page, so the localStorage
+    // copies of sourcebook data — and any OTHER file's character partition — are redundant when viewing
+    // it. Clearing them frees room so THIS file's characters unpack even when the browser's file storage
+    // was full (the cause of "Manage Characters is empty", and of a re-save that then drops everyone).
+    if(BASE_KEY.indexOf("dnd-sheet-file-") !== 0) return;          // only when viewing a saved file
+    try{
+      const drop = [];
+      for(let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); if(!k) continue;
+        if(k === SOURCES_KEY || k === SOURCES_RAW_KEY) drop.push(k);                       // sourcebooks are baked in the file
+        else if(k.indexOf("dnd-sheet-file-") === 0 && k.indexOf(BASE_KEY) !== 0) drop.push(k);   // a different file's leftovers
+      }
+      drop.forEach(k => { try{ localStorage.removeItem(k); }catch(e){} });
+    }catch(e){}
+  }
   function restoreRosterIfFresh(){
     if(SLOT) return null;                                          // a "New"-tab slot never restores a bundle
     let roster=null; try{ roster = JSON.parse(($("embedded-roster")||{}).textContent || "null"); }catch(e){}
     if(!roster || !Array.isArray(roster.chars) || !roster.chars.length) return null;
     if(characterSlots().some(s => !s.unsaved)) return null;       // don't clobber a library this browser already has
+    reclaimFileStorage();   // free redundant browser storage so this file's characters can unpack even if it was full
     let chars = roster.chars.slice();
     // If the character that opens by default (slot "") is blank but the file has real characters
     // (e.g. you imported into a fresh sheet), open to the first real one and drop the empty placeholder —
