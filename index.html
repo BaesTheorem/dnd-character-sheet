@@ -2022,7 +2022,7 @@
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v233 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v234 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -8470,6 +8470,19 @@
     let msg = "Imported " + added + " character" + (added===1?"":"s") + ".";
     if(failed) msg += " " + failed + " couldn't fit in this browser's storage.";
     flashStatus(msg);
+    const fromFile = /^dnd-sheet-file-/.test(BASE_KEY);   // opened a saved .html file (vs the hosted app / a fresh tab)
+    if(added && fromFile){
+      // Imported characters live only in THIS browser session when you've opened a saved file — file storage is
+      // per-file and volatile (Safari especially). Bake them into a durable combined file so they're not lost.
+      if(confirm(msg + "\n\nYou opened this as a saved file, so the imported characters live only in this browser "
+        + "session and may not be there next time you open the file.\n\nClick OK to Save a new file containing ALL "
+        + "your characters (recommended) — then open THAT file from now on.")){
+        $("btn-savecopy").click();
+      }
+    } else if(!added && failed){
+      alert("None of the characters could be saved — this browser's storage for opened files is full or restricted.\n\n"
+        + "Open the sheet from the hosted version (or remove a large portrait) and try the import again.");
+    }
   }
   function closeCharImport(){ $("charimport").classList.remove("open"); _impCandidates = []; }
 
