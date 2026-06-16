@@ -2022,7 +2022,7 @@
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v234 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v235 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -8109,8 +8109,19 @@
     let roster=null; try{ roster = JSON.parse(($("embedded-roster")||{}).textContent || "null"); }catch(e){}
     if(!roster || !Array.isArray(roster.chars) || !roster.chars.length) return null;
     if(characterSlots().some(s => !s.unsaved)) return null;       // don't clobber a library this browser already has
+    let chars = roster.chars.slice();
+    // If the character that opens by default (slot "") is blank but the file has real characters
+    // (e.g. you imported into a fresh sheet), open to the first real one and drop the empty placeholder —
+    // otherwise the sheet opens looking empty and the imports seem "missing" (they're in Manage Characters).
+    const _blank = c => { const d = (c && c.data) || {}; return !((d.charname||"").trim()) && !((d.classlevel||"").trim()) && !((d.race||"").trim()); };
+    const _activeI = chars.findIndex(c => (c.slot||"") === "");
+    if(_activeI !== -1 && _blank(chars[_activeI]) && chars.some((c,i) => i !== _activeI && !_blank(c))){
+      chars.splice(_activeI, 1);                                  // remove the empty default character
+      const _realI = chars.findIndex(c => !_blank(c));
+      if(_realI !== -1) chars[_realI] = Object.assign({}, chars[_realI], { slot:"" });   // promote a real one to open by default
+    }
     let activePortrait = null;
-    roster.chars.forEach(ch => {
+    chars.forEach(ch => {
       const slot = ch.slot || "", key = slot ? (BASE_KEY+"::"+slot) : BASE_KEY;
       try{ if(ch.data) localStorage.setItem(key, JSON.stringify(ch.data)); }catch(e){}
       try{ if(ch.thumb) localStorage.setItem(key+"_thumb", ch.thumb); }catch(e){}
