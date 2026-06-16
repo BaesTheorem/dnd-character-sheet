@@ -46,8 +46,8 @@
   body.dark .ability .mod, body.dark .row .total, body.dark .passive, body.dark .chip, body.dark .stat, body.dark .gen-status .chip-val, body.dark .score-out{background:var(--field) !important}
   body.dark .ptab.active, body.dark .cm-card, body.dark .ctx-menu, body.dark .item-results, body.dark .fd-card, body.dark .comp-rm, body.dark .wiz-dot, body.dark .stepper .step{background:var(--card) !important}
   body.dark .ptab.active{border-bottom-color:var(--card)}
-  body.dark .btn{background:var(--field)}
-  body.dark .btn:hover{background:var(--accent-soft)}
+  body.dark .btn:not(.primary):not(.xp-levelup):not(.danger){background:var(--field)}
+  body.dark .btn:not(.primary):not(.xp-levelup):not(.danger):hover{background:var(--accent-soft)}
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
@@ -2022,7 +2022,7 @@
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v232 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v233 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
