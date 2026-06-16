@@ -130,6 +130,11 @@
     background:linear-gradient(100deg, transparent 0%, rgba(255,255,255,.95) 50%, transparent 100%); transform:skewX(-18deg);
     animation:xp-gleam 3.6s ease-in-out infinite}
   @keyframes xp-gleam{0%,50%{left:-80%} 100%{left:180%}}
+  /* Settings → General → Appearance: kill every animation/transition (e.g. the level-up gleam) */
+  body.no-animations *, body.no-animations *::before, body.no-animations *::after{
+    animation:none !important; transition:none !important; scroll-behavior:auto !important}
+  /* drag-and-drop a file onto the portrait box to set it */
+  .portrait.drag-over{outline:2px dashed var(--accent); outline-offset:-3px; background:var(--accent-soft)}
   @media print{ .btn.xp-levelup{display:none} }
   @media (max-width:560px){ .meta-grid{grid-template-columns:repeat(2,1fr)} }
 
@@ -1872,6 +1877,9 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Portrait</label>
             <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
             <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Appearance</label>
+            <label class="lay-row"><input type="checkbox" id="set-noanim"> Disable animations</label>
+            <p class="wiz-hint">Turns off all motion (like the shimmer on the level-up button) for a calmer, distraction-free sheet during play.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
             <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
             <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
@@ -1967,7 +1975,7 @@
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v229 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v230 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -2578,6 +2586,8 @@
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
   let showAddSpell = false;                     // Settings → Advanced: show the "+ Add spell sheet" button (off by default; created sheets are unaffected)
   function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
+  let noAnimations = false;                     // Settings → General → Appearance: disable all animations/transitions
+  function applyAnimSetting(){ document.body.classList.toggle("no-animations", noAnimations); }
   let hidePortrait = false;                     // Settings → General: hide the character portrait box (screen + print)
   function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
   let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
@@ -4620,6 +4630,7 @@
     data.hiddenPages = hiddenPages;
     data.showAddSpell = showAddSpell;
     data.hidePortrait = hidePortrait;
+    data.noAnimations = noAnimations;
     data.variantEncumbrance = variantEncumbrance;
     data.showFuturistic = showFuturistic;
     data.showModern = showModern;
@@ -4732,6 +4743,7 @@
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
+    noAnimations = !!(data && data.noAnimations);   // default off
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     showFuturistic = !!(data && data.showFuturistic);   // default off
     showModern = !!(data && data.showModern);           // default off
@@ -4781,6 +4793,7 @@
     applyLayout();
     applyAddSpellSetting();
     applyPortraitSetting();
+    applyAnimSetting();
     compute();
   }
   let saveTimer = null;
@@ -7619,7 +7632,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -7627,6 +7640,7 @@
     });
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
+    $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; applyAnimSetting(); save(); });
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("set-futuristic").addEventListener("change", e => { showFuturistic = e.target.checked; save(); });   // item autocompletes read availableItemNames() live
     $("set-modern").addEventListener("change", e => { showModern = e.target.checked; save(); });
@@ -7663,13 +7677,20 @@
     $("portrait-dl").addEventListener("click", e=>{ e.stopPropagation(); closeMenu(); downloadPortrait(); });
     $("portrait-rm").addEventListener("click", e=>{ e.stopPropagation(); closeMenu(); portraitData=null; renderPortrait(); clearStoredPortrait(); save(); });
     document.addEventListener("click", e=>{ if(!e.target.closest("#portrait")) closeMenu(); });
-    $("portrait-input").addEventListener("change", ev=>{
-      const f = ev.target.files[0]; if(!f) return;
+    function setPortraitFromFile(f){
+      if(!f) return;
+      const isImg = /^image\//.test(f.type||"") || /\.(heic|heif|png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(f.name||"");
+      if(!isImg){ flashStatus("That doesn't look like an image file."); return; }
       const r = new FileReader();
       r.onload = ()=>{ portraitData = { data:r.result, name:f.name, type:f.type||"" }; renderPortrait(); persistPortrait(portraitData); save(); };   // full image → IndexedDB, thumbnail → localStorage
       r.readAsDataURL(f);
-      ev.target.value = "";
-    });
+    }
+    $("portrait-input").addEventListener("change", ev=>{ setPortraitFromFile(ev.target.files[0]); ev.target.value = ""; });
+    // drag-and-drop an image straight onto the portrait box
+    const _pBox = $("portrait");
+    ["dragenter","dragover"].forEach(t => _pBox.addEventListener(t, e=>{ e.preventDefault(); e.stopPropagation(); _pBox.classList.add("drag-over"); }));
+    ["dragleave","dragend","drop"].forEach(t => _pBox.addEventListener(t, e=>{ e.preventDefault(); e.stopPropagation(); _pBox.classList.remove("drag-over"); }));
+    _pBox.addEventListener("drop", e=>{ const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if(f) setPortraitFromFile(f); });
 
     // Companions & Forms
     $("add-companion").addEventListener("click", ()=>{ companions.push(blankCompanion()); renderCompanions(); applyLayout(); save(); });
