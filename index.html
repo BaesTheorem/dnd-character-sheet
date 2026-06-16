@@ -24,6 +24,30 @@
     --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.05);
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji",sans-serif;
   }
+  /* Settings → General → Appearance: Dark mode. Overrides the surface variables; print always stays light. */
+  body.dark{
+    --bg:#15171c;
+    --card:#1e2128;
+    --ink:#e7e9ed;
+    --muted:#9aa3b0;
+    --line:#2b303a;
+    --line2:#3a414e;
+    --accent:#7e9ad4;
+    --accent-soft:#262d3a;
+    --field:#191c22;
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 6px 18px rgba(0,0,0,.55);
+  }
+  body.dark .btn.primary, body.dark .chip.on, body.dark .stat.on{color:#0f1218}   /* dark text on the light accent fill */
+  /* the flat/sharp theme forces several surfaces to #fff !important — re-point them at dark vars under dark mode */
+  body.dark .toolbar{background:var(--card) !important}
+  body.dark input, body.dark select, body.dark textarea, body.dark .stat input, body.dark .charname input{background:var(--field) !important}
+  body.dark .modes, body.dark .prep-float, body.dark .modal-panel, body.dark .cm-warn, body.dark .wiz-leveltarget-banner{background:var(--card) !important}
+  /* value boxes (flat theme forces #fff !important) → inset dark field; popovers/cards → dark card */
+  body.dark .ability .mod, body.dark .row .total, body.dark .passive, body.dark .chip, body.dark .stat, body.dark .gen-status .chip-val, body.dark .score-out{background:var(--field) !important}
+  body.dark .ptab.active, body.dark .cm-card, body.dark .ctx-menu, body.dark .item-results, body.dark .fd-card, body.dark .comp-rm, body.dark .wiz-dot, body.dark .stepper .step{background:var(--card) !important}
+  body.dark .ptab.active{border-bottom-color:var(--card)}
+  body.dark .btn{background:var(--field)}
+  body.dark .btn:hover{background:var(--accent-soft)}
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
@@ -146,7 +170,7 @@
   .mode-btn{flex:1; font:inherit; font-size:11px; font-weight:700; letter-spacing:.02em;
     border:none; background:transparent; color:var(--muted); padding:6px 4px; border-radius:7px; cursor:pointer}
   .mode-btn:hover{color:var(--ink)}
-  .mode-btn.active{background:#fff; color:var(--accent); box-shadow:var(--shadow)}
+  .mode-btn.active{background:var(--card); color:var(--accent); box-shadow:var(--shadow)}
   .gen-status{font-size:11px; color:var(--muted); margin-bottom:10px; min-height:15px}
   .gen-status .over{color:#b42318; font-weight:700}
   .gen-status .chip-val{display:inline-block; padding:1px 7px; margin:0 2px; border-radius:5px;
@@ -302,7 +326,7 @@
   .modal{position:fixed; inset:0; z-index:50; display:none; background:rgba(26,29,35,.45);
     align-items:flex-start; justify-content:center; padding:48px 16px; overflow:auto; overscroll-behavior:contain}
   .modal.open{display:flex}
-  .modal-panel{background:#fff; border:1px solid var(--line2); width:100%; max-width:460px}
+  .modal-panel{background:var(--card); border:1px solid var(--line2); width:100%; max-width:460px}
   #wizard .modal-panel{max-width:960px}   /* roomy: class list + 1–20 detail + spell/feat pickers */
   #wizard.modal{padding:24px 16px}
   #wizard .modal-body{min-height:420px}
@@ -768,6 +792,7 @@
 
   /* ---- print: dense, standardized, one page ---- */
   @media print{
+    body.dark{ --bg:#fff; --card:#fff; --ink:#1a1d23; --muted:#6b7280; --line:#e3e6ea; --line2:#d6dbe1; --accent:#3b4a63; --accent-soft:#eef1f6; --field:#f7f8fa; }   /* dark mode never bleeds into print */
     :root{--bg:#fff; --shadow:none}
     @page{size:letter; margin:8mm}
     html,body{background:#fff; padding:0; font-size:9px;
@@ -993,8 +1018,8 @@
   }
   html.mobile #wizard.modal{ padding:0; }
   html.mobile .modal-body{ padding:14px; overscroll-behavior:contain; }
-  html.mobile .modal-head{ position:sticky; top:0; z-index:2; background:#fff; }
-  html.mobile .modal-foot{ position:sticky; bottom:0; z-index:2; background:#fff; }
+  html.mobile .modal-head{ position:sticky; top:0; z-index:2; background:var(--card); }
+  html.mobile .modal-foot{ position:sticky; bottom:0; z-index:2; background:var(--card); }
 
   /* --- Settings: keep its section nav as a scrollable row --- */
   html.mobile .settings-wrap{ flex-direction:column; }
@@ -1878,6 +1903,8 @@
             <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
             <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Appearance</label>
+            <label class="lay-row"><input type="checkbox" id="set-dark"> Dark mode</label>
+            <p class="wiz-hint">A dark colour theme for low-light play. Printing always uses the light theme.</p>
             <label class="lay-row"><input type="checkbox" id="set-noanim"> Disable animations</label>
             <p class="wiz-hint">Turns off all motion (like the shimmer on the level-up button) for a calmer, distraction-free sheet during play.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
@@ -1975,7 +2002,7 @@
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v230 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v231 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -2588,6 +2615,8 @@
   function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
   let noAnimations = false;                     // Settings → General → Appearance: disable all animations/transitions
   function applyAnimSetting(){ document.body.classList.toggle("no-animations", noAnimations); }
+  let darkMode = false;                          // Settings → General → Appearance: dark theme
+  function applyDarkSetting(){ document.body.classList.toggle("dark", darkMode); }
   let hidePortrait = false;                     // Settings → General: hide the character portrait box (screen + print)
   function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
   let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
@@ -4631,6 +4660,7 @@
     data.showAddSpell = showAddSpell;
     data.hidePortrait = hidePortrait;
     data.noAnimations = noAnimations;
+    data.darkMode = darkMode;
     data.variantEncumbrance = variantEncumbrance;
     data.showFuturistic = showFuturistic;
     data.showModern = showModern;
@@ -4744,6 +4774,7 @@
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
     noAnimations = !!(data && data.noAnimations);   // default off
+    darkMode = !!(data && data.darkMode);   // default off
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     showFuturistic = !!(data && data.showFuturistic);   // default off
     showModern = !!(data && data.showModern);           // default off
@@ -4794,6 +4825,7 @@
     applyAddSpellSetting();
     applyPortraitSetting();
     applyAnimSetting();
+    applyDarkSetting();
     compute();
   }
   let saveTimer = null;
@@ -7632,7 +7664,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -7641,6 +7673,7 @@
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
     $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; applyAnimSetting(); save(); });
+    $("set-dark").addEventListener("change", e => { darkMode = e.target.checked; applyDarkSetting(); save(); });
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("set-futuristic").addEventListener("change", e => { showFuturistic = e.target.checked; save(); });   // item autocompletes read availableItemNames() live
     $("set-modern").addEventListener("change", e => { showModern = e.target.checked; save(); });
