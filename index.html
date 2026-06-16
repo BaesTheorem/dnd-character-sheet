@@ -2022,7 +2022,7 @@
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v236 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v237 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -4907,10 +4907,8 @@
     if(_suppressSave) return;
     const d = collect();
     delete d.portrait;                                       // the image lives in IndexedDB (persistPortrait), never the main key
-    try{ localStorage.setItem(KEY, JSON.stringify(d)); }
-    catch(e){ flashStatus("⚠ Out of browser storage — NOT autosaved. Use Save to download a copy and keep this character."); return; }
+    csSet(KEY, JSON.stringify(d));   // → IndexedDB (gigabyte quota) via the in-memory cache; no more out-of-space autosave failures
     flashStatus("Saved");
-    storagePressureCheck();   // soft nudge if we've crossed ~90% (only once the cap is known — never probes here)
   }
 
   // ---- Inspiration toggle ----
@@ -5036,12 +5034,43 @@
   function idb(){
     if(_idb) return _idb;
     _idb = new Promise((resolve, reject) => {
-      let req; try{ req = indexedDB.open("dnd-sheet", 1); }catch(e){ reject(e); return; }
-      req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains("portraits")) db.createObjectStore("portraits"); };
+      let req; try{ req = indexedDB.open("dnd-sheet", 2); }catch(e){ reject(e); return; }
+      req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains("portraits")) db.createObjectStore("portraits"); if(!db.objectStoreNames.contains("chars")) db.createObjectStore("chars"); };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
     return _idb;
+  }
+  // ---- Character store: IndexedDB-backed (gigabyte quota) with a synchronous in-memory cache. ----
+  // Replaces localStorage for character data + thumbnails so autosave never hits the ~10MB cap.
+  const _cs = new Map();   // key -> string (character JSON or thumbnail), mirrored to IndexedDB
+  function idbCharsAll(){ return idb().then(db => new Promise(res => {
+      const out = {}; const tx = db.transaction("chars","readonly"); const cur = tx.objectStore("chars").openCursor();
+      cur.onsuccess = e => { const c = e.target.result; if(c){ out[c.key] = c.value; c.continue(); } else res(out); };
+      cur.onerror = () => res(out); })).catch(() => ({})); }
+  function idbCharsPut(key, val){ return idb().then(db => new Promise((res, rej) => {
+      const tx = db.transaction("chars","readwrite"); tx.objectStore("chars").put(val, key);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); })).catch(() => {}); }
+  function idbCharsDel(key){ return idb().then(db => new Promise(res => {
+      const tx = db.transaction("chars","readwrite"); tx.objectStore("chars").delete(key);
+      tx.oncomplete = () => res(); tx.onerror = () => res(); })).catch(() => {}); }
+  function _isCharKey(k){ return /^dnd-sheet-2014-v1(::|_|$)/.test(k) || /^dnd-sheet-file-/.test(k); }
+  function csGet(key){ return _cs.has(key) ? _cs.get(key) : null; }
+  function csSet(key, val){ if(val == null) return csDel(key); _cs.set(key, String(val)); idbCharsPut(key, String(val)); }
+  function csDel(key){ _cs.delete(key); idbCharsDel(key); }
+  function csKeys(){ return [..._cs.keys()]; }
+  async function csInit(){
+    let all = {}; try{ all = await idbCharsAll(); }catch(e){}
+    for(const k in all) _cs.set(k, all[k]);
+    try{
+      const move = [];
+      for(let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); if(k && _isCharKey(k)) move.push(k); }
+      for(const k of move){
+        const v = localStorage.getItem(k);
+        if(v != null && !_cs.has(k)){ _cs.set(k, v); try{ await idbCharsPut(k, v); }catch(e){} }
+        try{ localStorage.removeItem(k); }catch(e){}
+      }
+    }catch(e){}
   }
   function idbPortraitGet(key){ return idb().then(db => new Promise((res, rej) => { const tx = db.transaction("portraits","readonly"); const r = tx.objectStore("portraits").get(key); r.onsuccess = () => res(r.result || null); r.onerror = () => rej(r.error); })).catch(()=>null); }
   function idbPortraitPut(key, val){ return idb().then(db => new Promise((res, rej) => { const tx = db.transaction("portraits","readwrite"); tx.objectStore("portraits").put(val, key); tx.oncomplete = () => res(true); tx.onerror = () => rej(tx.error); })); }
@@ -5051,19 +5080,19 @@
     key = key || KEY;
     if(!p || !p.data){ await clearStoredPortrait(key); return; }
     try{ await idbPortraitPut(key, p); }catch(e){ flashStatus("Couldn't save the portrait — this browser may be out of space."); return; }
-    try{ localStorage.removeItem(key+"_img"); }catch(e){}                               // retire the old (overflow-prone) localStorage slot
+    try{ csDel(key+"_img"); }catch(e){}                               // retire the old (overflow-prone) localStorage slot
     try{ const th = await makeThumb(p.data, THUMB_MAX); if(th) storeThumb(key, th); }catch(e){}
   }
   async function clearStoredPortrait(key){
     key = key || KEY;
     await idbPortraitDel(key);
-    try{ localStorage.removeItem(key+"_img"); localStorage.removeItem(key+"_thumb"); }catch(e){}
+    try{ csDel(key+"_img"); csDel(key+"_thumb"); }catch(e){}
   }
   // After load, pull the current sheet's portrait from the store (migrating a legacy localStorage copy if found).
   async function loadStoredPortrait(){
     if(portraitData && portraitData.data) return;                                       // already supplied (e.g. by an embedded/bundled file)
     let p = await idbPortraitGet(KEY);
-    if(!p){ try{ const legacy = localStorage.getItem(KEY+"_img"); if(legacy){ p = JSON.parse(legacy); if(p && p.data) await persistPortrait(p, KEY); } }catch(e){} }
+    if(!p){ try{ const legacy = csGet(KEY+"_img"); if(legacy){ p = JSON.parse(legacy); if(p && p.data) await persistPortrait(p, KEY); } }catch(e){} }
     if(p && p.data && !(portraitData && portraitData.data)){ portraitData = p; renderPortrait(); }
   }
   function extFromType(t){
@@ -7585,7 +7614,8 @@
     const tb = document.querySelector(".toolbar");          // insert after the toolbar so on mobile (static) it sits at the top; on desktop it's position:fixed so DOM order doesn't matter
     if(tb && tb.parentNode) tb.parentNode.insertBefore(bar, tb.nextSibling); else document.body.appendChild(bar);
   }
-  function init(){
+  async function init(){
+    await csInit();   // load characters from IndexedDB (+ migrate any from localStorage) before anything reads them
     try{ localStorage.removeItem(STORE_PROBE_KEY); }catch(e){}   // sweep a probe temp key if a prior probe was ever interrupted
     buildStatic();
     wireLabels();
@@ -7603,7 +7633,7 @@
     try{ const sv = localStorage.getItem(SERVER_KEY); if(sv) $("server-url").value = sv; }catch(e){}
     const restored = restoreRosterIfFresh();   // opening a saved bundle in a fresh browser → unpack the whole library into storage first
     let data = null;
-    try{ data = JSON.parse(localStorage.getItem(KEY)); }catch(e){}
+    try{ data = JSON.parse(csGet(KEY)); }catch(e){}
     if(!data && !SLOT){ try{ data = JSON.parse($("embedded-data").textContent); }catch(e){} }  // fresh "New" slot / single-char file
     loadHomebrew();   // source-material homebrew (browser-wide) — load before rendering spell sheets so its spells resolve
     populateWizard();
@@ -7924,10 +7954,10 @@
 
     $("btn-reset").addEventListener("click", ()=>{
       if(!confirm("Delete this character and reset the sheet to blank?\n\nThis can't be undone. If you might want it later, cancel and use “Save” first to download a copy.\n\n(Your loaded sourcebooks are kept.)")) return;
-      localStorage.removeItem(KEY);                 // clear this slot's character
+      csDel(KEY);                 // clear this slot's character
       idbPortraitDel(KEY);                          // and its portrait (IndexedDB)
-      localStorage.removeItem(KEY + "_img");        // (legacy localStorage portrait, if any)
-      localStorage.removeItem(KEY + "_thumb");      // and its card thumbnail
+      csDel(KEY + "_img");        // (legacy localStorage portrait, if any)
+      csDel(KEY + "_thumb");      // and its card thumbnail
       $("embedded-data").textContent = "null";      // ignore any baked-in character
       location.reload();                            // re-init blank (sourcebook is kept)
     });
@@ -8054,12 +8084,10 @@
   // The portrait rides alongside at <key>_img. We enumerate storage directly (no separate index to drift out of sync).
   function characterSlots(){
     const out = [], seen = new Set();
-    for(let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(!k || k === SOURCES_KEY || k === SOURCES_RAW_KEY || k === SERVER_KEY) continue;
+    for(const k of csKeys()){
       if(k.slice(-4) === "_img" || k.slice(-6) === "_thumb") continue;      // portrait + thumbnail are tracked with their character
       if(!(k === BASE_KEY || k.indexOf(BASE_KEY + "::") === 0)) continue;   // only this app's character keys
-      let d = null; try{ d = JSON.parse(localStorage.getItem(k)); }catch(e){}
+      let d = null; try{ d = JSON.parse(csGet(k)); }catch(e){}
       if(!d || typeof d !== "object") continue;
       const slot = (k === BASE_KEY) ? "" : k.slice((BASE_KEY + "::").length);
       out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), campaign:(d.campaign||"").trim(), savedAt:+d.savedAt||0, sim:!!d.simulacrum });
@@ -8073,14 +8101,14 @@
     return out;
   }
   function slotPortrait(key){
-    try{ const p = JSON.parse(localStorage.getItem(key + "_img")); if(p && p.data) return p.data; }catch(e){}
+    try{ const p = JSON.parse(csGet(key + "_img")); if(p && p.data) return p.data; }catch(e){}
     if(key === KEY && portraitData && portraitData.data) return portraitData.data;   // current char's portrait may be in memory pre-save
     return null;
   }
   // Read one stored character's full portrait ({data,name,type}) — IndexedDB, then legacy localStorage.
   async function readStoredPortrait(key){
     let p = await idbPortraitGet(key);
-    if(!p){ try{ p = JSON.parse(localStorage.getItem(key+"_img")); }catch(e){} }
+    if(!p){ try{ p = JSON.parse(csGet(key+"_img")); }catch(e){} }
     return (p && p.data) ? p : null;
   }
   // Bake the WHOLE library (active char + every saved character + their portraits + the loaded sourcebooks)
@@ -8094,7 +8122,7 @@
     roster.chars.push({ slot:"", data:curData, portrait:curPort, thumb:slotThumb(KEY) || null });   // the active character opens by default (slot "")
     for(const s of characterSlots()){
       if(s.slot === SLOT || s.unsaved) continue;
-      let d=null; try{ d = JSON.parse(localStorage.getItem(s.key)); }catch(e){}
+      let d=null; try{ d = JSON.parse(csGet(s.key)); }catch(e){}
       if(!d) continue;
       roster.chars.push({ slot:newSlotId(), data:d, portrait:await readStoredPortrait(s.key), thumb:slotThumb(s.key) || null });
     }
@@ -8139,8 +8167,8 @@
     let activePortrait = null;
     chars.forEach(ch => {
       const slot = ch.slot || "", key = slot ? (BASE_KEY+"::"+slot) : BASE_KEY;
-      try{ if(ch.data) localStorage.setItem(key, JSON.stringify(ch.data)); }catch(e){}
-      try{ if(ch.thumb) localStorage.setItem(key+"_thumb", ch.thumb); }catch(e){}
+      try{ if(ch.data) csSet(key, JSON.stringify(ch.data)); }catch(e){}
+      try{ if(ch.thumb) csSet(key+"_thumb", ch.thumb); }catch(e){}
       if(ch.portrait && ch.portrait.data){ idbPortraitPut(key, ch.portrait).catch(()=>{}); if(!slot) activePortrait = ch.portrait; }
     });
     return { activePortrait };
@@ -8148,7 +8176,7 @@
   // Card portraits use a small cached thumbnail, never the full-res original — a grid of multi-MB
   // data URLs would balloon memory. The thumb is derived once and stored at <key>_thumb.
   const THUMB_MAX = 360;   // longest edge in px (covers the ~240px card at 1.5x)
-  function slotThumb(key){ try{ return localStorage.getItem(key + "_thumb") || null; }catch(e){ return null; } }
+  function slotThumb(key){ try{ return csGet(key + "_thumb") || null; }catch(e){ return null; } }
   function makeThumb(dataUrl, maxPx){
     return new Promise(resolve => {
       const img = new Image();
@@ -8165,7 +8193,7 @@
       img.src = dataUrl;
     });
   }
-  function storeThumb(key, dataUrl){ if(!dataUrl) return; try{ localStorage.setItem(key + "_thumb", dataUrl); }catch(e){} }   // best-effort cache; a quota miss just means we re-derive next open
+  function storeThumb(key, dataUrl){ if(!dataUrl) return; try{ csSet(key + "_thumb", dataUrl); }catch(e){} }   // best-effort cache; a quota miss just means we re-derive next open
   function relTime(ts){
     if(!ts) return "";
     const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
@@ -8258,38 +8286,36 @@
       grid.appendChild(card);
     });
     const cap = probeStorageCap();                 // auto-detect this browser's localStorage ceiling (cached after first open)
-    const usedMb = storageChars() * 2 / 1048576, capMb = cap * 2 / 1048576;
-    const pct = storagePct();
-    $("cm-storage").textContent = "Browser storage: ~" + (usedMb < 0.1 ? "<0.1" : usedMb.toFixed(1)) +
-      " MB of ~" + capMb.toFixed(1) + " MB (" + Math.round(pct*100) + "%)";
-    const warn = $("cm-warn");
-    if(pct >= 0.90){
-      warn.hidden = false;
-      warn.innerHTML = "<strong>You're using ~" + Math.round(pct*100) + "% of this browser's storage for the sheet.</strong> " +
-        "This doesn't break anything except <em>autosave</em> — new edits may stop saving to the browser. " +
-        "If you keep a manually-saved copy of each character (the <strong>Save</strong> button → an HTML file, recommended anyway), you can ignore this. " +
-        "Otherwise, delete a character or remove a portrait above to free space.";
-    } else { warn.hidden = true; warn.textContent = ""; }
+    // Characters live in IndexedDB now (gigabytes), so autosave no longer hits the old ~10MB localStorage wall.
+    $("cm-storage").textContent = "Characters are stored in this browser (IndexedDB).";
+    const warn = $("cm-warn"); warn.hidden = true; warn.textContent = "";
+    if(navigator.storage && navigator.storage.estimate){
+      navigator.storage.estimate().then(e => { if(!e || !e.quota) return;
+        const u = (e.usage||0)/1048576, q = e.quota/1048576;
+        const us = u < 1 ? u.toFixed(1)+" MB" : (u > 1024 ? (u/1024).toFixed(1)+" GB" : Math.round(u)+" MB");
+        const qs = q > 1024 ? (q/1024).toFixed(1)+" GB" : Math.round(q)+" MB";
+        $("cm-storage").textContent = "Browser storage (IndexedDB): " + us + " of " + qs + " used"; }).catch(()=>{});
+    }
   }
   function renameSlot(c){
     const nm = prompt("Character name:", c.name || "");
     if(nm == null) return;
     const name = nm.trim();
     if(c.slot === SLOT){ $("charname").value = name; save(); renderCharMgr(); return; }   // live character → go through the normal save path
-    try{ const d = JSON.parse(localStorage.getItem(c.key)) || {}; d.charname = name; d.savedAt = Date.now(); localStorage.setItem(c.key, JSON.stringify(d)); }catch(e){}
+    try{ const d = JSON.parse(csGet(c.key)) || {}; d.charname = name; d.savedAt = Date.now(); csSet(c.key, JSON.stringify(d)); }catch(e){}
     renderCharMgr();
   }
   function duplicateSlot(c){
     if(c.slot === SLOT) flushSave();   // make sure we copy the latest
-    let d; try{ d = JSON.parse(localStorage.getItem(c.key)); }catch(e){ d = null; }
+    let d; try{ d = JSON.parse(csGet(c.key)); }catch(e){ d = null; }
     if(!d){ flashStatus("Couldn't read that character to duplicate."); return; }
     d.charname = ((d.charname||"Character").trim() || "Character") + " (copy)";
     d.savedAt = Date.now();
     const nk = BASE_KEY + "::" + newSlotId();
-    try{ localStorage.setItem(nk, JSON.stringify(d)); }
+    try{ csSet(nk, JSON.stringify(d)); }
     catch(e){ alert("Not enough browser storage to duplicate this character.\nTry removing a portrait or deleting an old character first."); return; }
     idbPortraitGet(c.key).then(p => { if(p && p.data) idbPortraitPut(nk, p).catch(()=>{}); });   // copy the portrait (IndexedDB)
-    try{ const th = localStorage.getItem(c.key + "_thumb"); if(th) localStorage.setItem(nk + "_thumb", th); }catch(e){}
+    try{ const th = csGet(c.key + "_thumb"); if(th) csSet(nk + "_thumb", th); }catch(e){}
     renderCharMgr();
   }
   // Turn a character's saved-data blob into a Simulacrum (Simulacrum spell): an identical duplicate with HALF the
@@ -8340,16 +8366,16 @@
   }
   function simulacrumSlot(c){           // create a Simulacrum of a character as a new, independent character slot
     if(c.slot === SLOT) flushSave();    // copy the latest if it's the one we're viewing
-    let d; try{ d = JSON.parse(localStorage.getItem(c.key)); }catch(e){ d = null; }
+    let d; try{ d = JSON.parse(csGet(c.key)); }catch(e){ d = null; }
     if(!d){ flashStatus("Couldn't read that character to copy."); return; }
     makeSimulacrumData(d);
     const sheets = Math.max(1, d.spellSheets || 1);
     let anyWiz = false; for(let i=0; i<sheets; i++) if(d["spellclass" + (i ? "__"+i : "")] === "Wizard") anyWiz = true;
     const nk = BASE_KEY + "::" + newSlotId();
-    try{ localStorage.setItem(nk, JSON.stringify(d)); }
+    try{ csSet(nk, JSON.stringify(d)); }
     catch(e){ alert("Not enough browser storage to create the simulacrum.\nTry removing a portrait or deleting an old character first."); return; }
     idbPortraitGet(c.key).then(p => { if(p && p.data) idbPortraitPut(nk, p).catch(()=>{}); });   // identical appearance → copy the portrait
-    try{ const th = localStorage.getItem(c.key + "_thumb"); if(th) localStorage.setItem(nk + "_thumb", th); }catch(e){}
+    try{ const th = csGet(c.key + "_thumb"); if(th) csSet(nk + "_thumb", th); }catch(e){}
     renderCharMgr();
     flashStatus("Created “" + d.charname + "” — half HP, no equipment" + (anyWiz ? ", Wizard spells trimmed to those prepared" : "") + ". Open it to equip and adjust.");
   }
@@ -8374,7 +8400,7 @@
     const label = c.name ? "“" + c.name + "”" : "this character";
     if(!confirm("Delete " + label + "? This can't be undone.\n\nIf you might want it later, cancel and use Save to download a copy first.")) return;
     idbPortraitDel(c.key);
-    try{ localStorage.removeItem(c.key); localStorage.removeItem(c.key + "_img"); localStorage.removeItem(c.key + "_thumb"); }catch(e){}
+    try{ csDel(c.key); csDel(c.key + "_img"); csDel(c.key + "_thumb"); }catch(e){}
     if(c.slot === SLOT){   // we deleted the character we're looking at — jump to another (or a fresh blank), without re-saving this one
       _suppressSave = true;
       const next = characterSlots().find(x => !x.unsaved);
@@ -8482,14 +8508,14 @@
     for(const c of picked){
       const nk = BASE_KEY + "::" + newSlotId();   // always a fresh slot → same-name versions coexist, nothing is overwritten
       const d = Object.assign({}, c.data); d.savedAt = Date.now();
-      try{ localStorage.setItem(nk, JSON.stringify(d)); }
+      try{ csSet(nk, JSON.stringify(d)); }
       catch(e){ failed++; continue; }
       let thumb = c.thumb;
       if(c.portrait && c.portrait.data){
         idbPortraitPut(nk, c.portrait).catch(()=>{});
         if(!thumb){ try{ thumb = await makeThumb(c.portrait.data, THUMB_MAX); }catch(e){} }
       }
-      if(thumb){ try{ localStorage.setItem(nk + "_thumb", thumb); }catch(e){} }
+      if(thumb){ try{ csSet(nk + "_thumb", thumb); }catch(e){} }
       added++;
     }
     closeCharImport();
