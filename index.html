@@ -1943,8 +1943,31 @@
 
   <script>
   "use strict";
-  const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v228 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  // A saved/shared .html file carries its characters baked into #embedded-roster (a library)
+  // or #embedded-data (a single character). When such a file is opened, its characters must take
+  // precedence over whatever this browser has cached — otherwise opening a friend's sheet shows
+  // YOUR characters. We do that by giving each shared file its OWN storage partition, keyed by a
+  // hash of its character payload: the file opens showing the FILE's data (seeded by
+  // restoreRosterIfFresh into a partition this browser hasn't seen), edits to it persist per-file,
+  // and it can never read or overwrite your personal library. The hosted app (and a content-free
+  // blank file) carry no baked characters → the normal personal-library key, unchanged.
+  function _embeddedCharPayload(){
+    const rEl = document.getElementById("embedded-roster"), dEl = document.getElementById("embedded-data");
+    const rTxt = (rEl && rEl.textContent || "").trim(), dTxt = (dEl && dEl.textContent || "").trim();
+    try{ const r = JSON.parse(rTxt || "null"); if(r && Array.isArray(r.chars) && r.chars.length) return rTxt; }catch(e){}
+    // embedded-data: the hosted app ships a BLANK default template (all fields present but empty),
+    // which is NOT a character — only treat it as one if it carries real content.
+    try{ const d = JSON.parse(dTxt || "null");
+      const set = v => typeof v === "string" ? !!v.trim() : !!v;
+      if(d && typeof d === "object" && (set(d.charname) || d.created === true || set(d.classlevel) || set(d.race)))
+        return dTxt;
+    }catch(e){}
+    return "";
+  }
+  function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
+  const _EMBEDDED = _embeddedCharPayload();
+  const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
+  const APP_VERSION = "v229 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
