@@ -82,6 +82,7 @@ def render_prof_list(lst):
 def load(*parts):
     return json.load(open(os.path.join(SRC, *parts)))
 def is_src(x): return x.get("source") == SRC_TAG       # belongs to the book we're extracting
+def is_2024(x): return (x.get("edition") or "").lower() == "one"   # XPHB / 2024 entry — out of scope for this 2014-rules sheet
 def book_name(code):                                   # friendly title for _meta.book
     if code in BOOK_NAMES: return BOOK_NAMES[code]
     try:
@@ -187,6 +188,7 @@ def build_races(raw):
     out, bases, base_idx = [], {}, {}
     flavor = _race_flavor_map()
     for r in raw.get("race", []):
+        if is_2024(r): continue   # never ingest XPHB/2024 races: they share races.json with 2014 and, keyed by name, would overwrite the base and leak (e.g. Elf -> "Elven Lineage")
         ab = list(r.get("ability") or [])
         fg = feat_grants(r); pf = prof_block(r); rs = damage_resist(r)
         dv, lc = r.get("darkvision") or 0, lang_choose(r)
@@ -201,7 +203,7 @@ def build_races(raw):
         if rexp: ro["expanded"] = rexp   # e.g. dragonmark "Spells of the Mark"
         out.append(ro)
     for s in raw.get("subrace", []):
-        if not is_src(s): continue
+        if not is_src(s) or is_2024(s): continue
         parent = s.get("raceName")
         sdv, slc = s.get("darkvision") or 0, lang_choose(s)
         if not s.get("name"):                       # unnamed "standard" subrace -> fold into base option
