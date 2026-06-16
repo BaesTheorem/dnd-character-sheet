@@ -1943,7 +1943,7 @@
   <script>
   "use strict";
   const BASE_KEY = "dnd-sheet-2014-v1";
-  const APP_VERSION = "v225 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v226 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -5529,11 +5529,13 @@
           prof.languages = prof.languages.filter(s => !/choose|of your choice/i.test(s) && !(opts.customLang && !/^common$/i.test(s))).concat(opts.languages||[]);
         }
         if(opts.customProf && Array.isArray(opts.profSkills)) prof.skills = opts.profSkills.filter(Boolean);   // Tasha's custom proficiencies: the chosen skills replace the race's fixed ones
+        if(Array.isArray(opts.chosenSkills) && opts.chosenSkills.length) delete prof.skillChoose;   // the player picked them (below) → drop the "choose N" reminder note
       }
       applyProficiencies(prof, name);
       if(opts){
         if(opts.darkvision) addSense("Darkvision " + opts.darkvision + " ft.");   // Custom Lineage: chose darkvision
         if(opts.skill){ const b = $("skp-"+opts.skill); if(b) b.checked = true; }  // Custom Lineage: chose a skill proficiency
+        if(Array.isArray(opts.chosenSkills)) opts.chosenSkills.forEach(k => { const b = $("skp-"+k); if(b) b.checked = true; });   // race "choose N skills" (Half-Elf Skill Versatility)
       }
       if(r.resist && r.resist.length){                // race damage resistances → Resistances/Immunities/Defenses box
         const n = $("defnotes"); if(n){ const line = "Resistance: " + r.resist.join(", ");
@@ -6681,6 +6683,18 @@
         + `<select id="rc-skill">${skillOpts}</select>`
         + `<label class="wiz-radio"><input type="radio" name="rc-skilldv" value="darkvision"> Darkvision ${dv} ft.</label></div>`;
     }
+    // A race's own "choose N skill proficiencies" (Half-Elf's Skill Versatility, etc.) — an interactive picker, not just a text note.
+    const rsc = (r.prof && r.prof.skillChoose) ? r.prof.skillChoose : null;
+    if(rsc && rsc.count && !r.variableSkillDarkvision){
+      const fromKeys = (rsc.from && rsc.from.length)
+        ? rsc.from.map(s => SKILL_KEY[String(s).toLowerCase()] || s).filter(k => SKILLS.some(x => x[0] === k))
+        : SKILLS.map(s => s[0]);   // empty "from" = any skill
+      const opt = sel => `<option value=""></option>` + SKILLS.filter(s => fromKeys.includes(s[0]))
+        .map(s => `<option value="${s[0]}"${sel===s[0]?" selected":""}>${esc(s[1])}</option>`).join("");
+      let sh = `<label class="lbl">Skill proficienc${rsc.count>1?"ies":"y"} — your choice (${rsc.count})</label>`;
+      for(let i=0;i<rsc.count;i++) sh += `<select class="rc-skillchoose" data-i="${i}">${opt("")}</select> `;
+      html += `<div class="wiz-racechoice">${sh}</div>`;
+    }
     // Tasha's custom proficiencies: each fixed racial skill becomes a picker, defaulting to the original (blank = drop it).
     const customProf = tceOn("origin-prof");
     const fixedSkills = (r.prof && r.prof.skills) || [];
@@ -6718,6 +6732,10 @@
     box.innerHTML = html;
     const sk = $("rc-skill");
     if(sk) box.querySelectorAll('input[name="rc-skilldv"]').forEach(radio => radio.addEventListener("change", () => { sk.disabled = box.querySelector('input[name="rc-skilldv"][value="darkvision"]').checked; }));
+    // race skill-choice: stop the same skill being picked in two slots
+    const dedupSkillChoose = () => { const chosen = [...box.querySelectorAll(".rc-skillchoose")].map(s=>s.value).filter(Boolean);
+      box.querySelectorAll(".rc-skillchoose").forEach(sel => [...sel.options].forEach(o => { o.disabled = !!o.value && o.value !== sel.value && chosen.includes(o.value); })); };
+    box.querySelectorAll(".rc-skillchoose").forEach(sel => sel.addEventListener("change", dedupSkillChoose));
     if(characterCreated && $("wiz-race").value === wizOrigRace){          // editing the character's existing race → re-show the "your choice" picks it was built with
       // Ability-bonus picks: derive from the saved Racial column (total − the race's fixed bonuses), then fill the selects, matching each pick to a slot of the same amount. Tasha's custom origin contributes no fixed bonuses.
       const fixed = zeroAb();
@@ -6730,6 +6748,9 @@
         [...box.querySelectorAll(".rc-lang")].forEach((seln,i) => { if(langs[i] != null) seln.value = langs[i]; });
         const profs = charRaceChoices.profSkills || [];
         [...box.querySelectorAll(".rc-prof")].forEach((seln,i) => { if(profs[i] != null) seln.value = profs[i]; });
+        const chosenSk = charRaceChoices.chosenSkills || [];
+        [...box.querySelectorAll(".rc-skillchoose")].forEach((seln,i) => { if(chosenSk[i] != null) seln.value = chosenSk[i]; });
+        dedupSkillChoose();
         if(charRaceChoices.skillDv){
           const radio = box.querySelector('input[name="rc-skilldv"][value="'+charRaceChoices.skillDv+'"]');
           if(radio){ radio.checked = true; if(sk) sk.disabled = (charRaceChoices.skillDv === "darkvision"); }
@@ -7139,14 +7160,15 @@
     if(name) $("charname").value = name;
     if(race){
       const profSkills = [...document.querySelectorAll(".rc-prof")].map(s => s.value).filter(Boolean);   // Tasha's custom proficiencies
+      const chosenSkills = [...new Set([...document.querySelectorAll(".rc-skillchoose")].map(s => s.value).filter(Boolean))];   // race's own "choose N skills" (Half-Elf Skill Versatility)
       const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean),
-        customLang:tceOn("origin-lang"), customProf:tceOn("origin-prof"), profSkills};   // keep the Racial column the wizard already set; pass the Tasha custom-origin picks
+        customLang:tceOn("origin-lang"), customProf:tceOn("origin-prof"), profSkills, chosenSkills};   // keep the Racial column the wizard already set; pass the Tasha custom-origin picks
       if(rObj && rObj.variableSkillDarkvision){
         const useDv = (document.querySelector('input[name="rc-skilldv"]:checked')||{}).value === "darkvision";
         if(useDv) opts.darkvision = rObj.darkvision || 60; else opts.skill = ($("rc-skill")||{}).value || "";
       }
       applyRace(race, opts);
-      charRaceChoices = { languages: opts.languages.slice(), profSkills: profSkills.slice(),               // remember the race's "your choice" sub-picks so Edit can show them again
+      charRaceChoices = { languages: opts.languages.slice(), profSkills: profSkills.slice(), chosenSkills: chosenSkills.slice(),   // remember the race's "your choice" sub-picks so Edit can show them again
         skillDv: (rObj && rObj.variableSkillDarkvision) ? ((document.querySelector('input[name="rc-skilldv"]:checked')||{}).value || "skill") : null,
         skill: opts.skill || "" };
       syncAsiSlots();                                                              // race feats become ASI slots now that the race is on the sheet
