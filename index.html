@@ -443,6 +443,15 @@
   .intro-cta{font-weight:700}
   .intro-note{border:1px solid var(--line2); border-left:3px solid var(--accent); padding:12px 14px; margin:16px 0; font-size:14px; line-height:1.5}
   .intro-ver{margin:16px 0 0; font-size:11px; letter-spacing:.04em; color:var(--muted)}
+  .intro-changelog{border:1px solid var(--line2); padding:10px 14px; margin:16px 0; font-size:13px; line-height:1.45}
+  .intro-changelog[hidden]{display:none}
+  .intro-changelog > summary{cursor:pointer; font-weight:700; letter-spacing:.02em; color:var(--accent); list-style:none}
+  .intro-changelog > summary::-webkit-details-marker{display:none}
+  .intro-changelog > summary::before{content:"▸ "; font-size:11px}
+  .intro-changelog[open] > summary::before{content:"▾ "}
+  .intro-changelog h4{margin:12px 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+  .intro-changelog ul{margin:0 0 4px; padding-left:18px}
+  .intro-changelog li{margin:0 0 4px}
   .intro-actions{display:flex; gap:14px; align-items:center; margin-top:20px; flex-wrap:wrap}
   .intro-actions .btn{flex:none}
   .intro-skip{background:none; border:none; color:var(--muted); cursor:pointer; font:inherit;
@@ -1126,6 +1135,7 @@
         <br><br>
         <strong>Manual overrides (advanced).</strong> You can still pin any calculated value by hand: double-click it on a computer, or long-press it on a phone or tablet. It's meant for homebrew, table rulings, and the odd item the rules engine doesn't know about. A pinned value stops auto-updating, so use it sparingly. To undo one, Alt-click it (or long-press and clear it), or clear them all under Settings → Manual overrides.
       </div>
+      <details class="intro-changelog" id="intro-changelog" hidden=""></details>
       <p class="intro-cta">Click "Create Character" to get started!</p>
       <div class="intro-actions">
         <button class="btn primary" type="button" id="intro-create">Create Character</button>
@@ -1905,8 +1915,7 @@
       <div class="settings-wrap">
         <nav class="settings-nav" id="settings-nav">
           <button class="set-tab active" data-sec="general" type="button">General</button>
-          <button class="set-tab" data-sec="pages" type="button">Pages</button>
-          <button class="set-tab" data-sec="optional" type="button">Optional rules</button>
+          <button class="set-tab" data-sec="pages" type="button">Character Settings</button>
           <button class="set-tab" data-sec="advanced" type="button">Advanced</button>
         </nav>
         <div class="settings-content">
@@ -1919,20 +1928,14 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Import characters</label>
             <button class="btn" id="btn-import-chars" type="button" title="Load characters from a saved Character Sheet file">Import from a file…</button>
             <p class="wiz-hint">Pick a “Character Sheet.html” you saved with the <strong>Save</strong> button (or a character <code>.json</code>). You'll see every character in it and can untick any you don't want. Imported characters are added alongside your current ones — nothing is overwritten, so a second copy of a character you already have just becomes another version.</p>
-            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Portrait</label>
-            <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
-            <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Appearance</label>
             <label class="lay-row"><input type="checkbox" id="set-dark"> Dark mode</label>
-            <p class="wiz-hint">A dark colour theme for low-light play. Printing always uses the light theme.</p>
+            <p class="wiz-hint">A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.</p>
             <label class="lay-row"><input type="checkbox" id="set-noanim"> Disable animations</label>
-            <p class="wiz-hint">Turns off all motion (like the shimmer on the level-up button) for a calmer, distraction-free sheet during play.</p>
+            <p class="wiz-hint">Turns off all motion (like the shimmer on the level-up button) for a calmer, distraction-free sheet during play. This applies across all of your characters.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
             <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
             <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
-            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Reset</label>
-            <button class="btn danger" id="btn-reset" type="button" title="Clear this sheet and reset to defaults">Reset character</button>
-            <p class="wiz-hint">Clears this sheet's character and portrait and starts fresh. Your loaded sourcebooks are kept. This can't be undone, so Save a copy first if you want to keep this character.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Manual overrides</label>
             <button class="btn" id="btn-reset-overrides" type="button" title="Clear every hand-pinned value and return to calculated values">Clear all manual overrides</button>
             <p class="wiz-hint">Double-click any calculated value on the sheet (ability scores, modifiers, proficiency, AC, initiative, saves, skills, spell DC, attacks, HP…) to pin a custom value. A pinned source value still feeds everything below it. Pinned fields are outlined with a small marker and their tooltip shows the calculated value; Alt-click one to revert. <strong>On a phone or tablet, long-press a field to edit it</strong>, and clear the value to revert it to calculated. This button clears them all at once.</p>
@@ -1941,9 +1944,10 @@
             <label class="lbl" style="display:block; margin-bottom:6px">Visible pages</label>
             <div id="layout-toggles"><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="core" checked=""> Core</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="inv" checked=""> Inventory</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="feat" checked=""> Features</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="spells" checked=""> Spells</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="companion" checked=""> Companions</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="bg" checked=""> Background</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="story" checked=""> Backstory</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="notes" checked=""> Notes</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="mini" checked=""> Mini</label></div>
             <p class="wiz-hint">Unchecked pages are removed from the tab bar and won't print. (The Mini page also needs a portrait.)</p>
-          </section>
-          <section class="set-sec" data-sec="optional">
-            <label class="lbl" style="display:block; margin-bottom:6px">Encumbrance</label>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Portrait</label>
+            <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
+            <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Encumbrance</label>
             <label class="lay-row"><input type="checkbox" id="set-variant-enc"> Use the variant Encumbrance rule</label>
             <p class="wiz-hint">Off by default. When on, the Carrying Capacity card adds the Encumbered (×5) and Heavily Encumbered (×10) thresholds and applies their speed penalties. When off, only your Max Carry (×15) and Push/Drag/Lift (×30) are shown.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Item filters</label>
@@ -2020,9 +2024,41 @@
     return "";
   }
   function _hashStr(s){ let h = 5381; for(let i=0;i<s.length;i++) h = ((h*33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); }
+  // Stable JSON: object keys sorted recursively so two characters with identical CONTENT hash the same
+  // regardless of key insertion order (which differs between collect() and a re-parsed file).
+  function _stableStringify(v){
+    if(v === null || typeof v !== "object") return JSON.stringify(v);
+    if(Array.isArray(v)) return "[" + v.map(_stableStringify).join(",") + "]";
+    return "{" + Object.keys(v).sort().map(k => JSON.stringify(k) + ":" + _stableStringify(v[k])).join(",") + "}";
+  }
+  // Content fingerprint of a character, used to skip importing an exact duplicate of one already in the
+  // library. Excludes volatile/non-identity fields: the save timestamp, the portrait (stored separately),
+  // and any stored hash. Two byte-identical characters share a hash; an in-app duplicate ("… (copy)")
+  // differs in name and so gets a fresh hash and is never deduped away.
+  function charContentHash(d){
+    if(!d || typeof d !== "object") return "";
+    const copy = Object.assign({}, d);
+    delete copy.savedAt; delete copy.portrait; delete copy.contentHash;
+    return _hashStr(_stableStringify(copy));
+  }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v237 (2026-06-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v238 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  // Changelog shown in the welcome guide (which reappears after each update). Add a new entry at the TOP
+  // for every release; `v` is the version number the pre-commit hook will stamp (this commit's number).
+  const CHANGELOG = [
+    {v:"v238", items:[
+      "Warlock: the builder now prompts you to choose a Pact Boon (Pact of the Chain, Blade, or Tome) at level 3, and the chosen boon's rules land on your Features page.",
+      "Dark mode and Disable animations now apply across all of your characters, not just the open one.",
+      "Settings: the “Pages” tab is now “Character Settings” and gathers the page toggles, the Hide-portrait toggle, and all the optional-rules toggles in one place.",
+      "Import from a file now skips any character that's an exact duplicate of one already in your library (the in-app Duplicate still makes copies).",
+      "Removed the “Reset character” setting — use Manage Characters to delete a character instead.",
+      "Added this changelog to the welcome guide."
+    ]},
+    {v:"v237", items:["Character storage moved to IndexedDB so autosave has gigabytes of room and never fills up."]},
+    {v:"v236", items:["Opening a saved file now auto-frees redundant browser storage."]},
+    {v:"v234", items:["Importing into an opened file prompts you to Save a durable combined file so nothing is lost."]}
+  ];
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
   const DATA_VERSION = 20;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems).
@@ -2633,10 +2669,16 @@
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
   let showAddSpell = false;                     // Settings → Advanced: show the "+ Add spell sheet" button (off by default; created sheets are unaffected)
   function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
-  let noAnimations = false;                     // Settings → General → Appearance: disable all animations/transitions
+  // Dark mode + Disable animations are GLOBAL preferences (one setting for the whole browser, shared by
+  // every character) rather than per-character — stored in localStorage, not in the character data.
+  const DARK_KEY = "dnd-sheet-dark", NOANIM_KEY = "dnd-sheet-noanim";
+  function prefBool(k){ try{ return localStorage.getItem(k) === "1"; }catch(e){ return false; } }
+  function setPrefBool(k, v){ try{ localStorage.setItem(k, v ? "1" : "0"); }catch(e){} }
+  let noAnimations = prefBool(NOANIM_KEY);       // Settings → Appearance: disable all animations/transitions (global)
   function applyAnimSetting(){ document.body.classList.toggle("no-animations", noAnimations); }
-  let darkMode = false;                          // Settings → General → Appearance: dark theme
+  let darkMode = prefBool(DARK_KEY);             // Settings → Appearance: dark theme (global)
   function applyDarkSetting(){ document.body.classList.toggle("dark", darkMode); }
+  applyDarkSetting(); applyAnimSetting();        // apply the global prefs right away (independent of which character loads)
   let hidePortrait = false;                     // Settings → General: hide the character portrait box (screen + print)
   function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
   let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
@@ -4679,8 +4721,7 @@
     data.hiddenPages = hiddenPages;
     data.showAddSpell = showAddSpell;
     data.hidePortrait = hidePortrait;
-    data.noAnimations = noAnimations;
-    data.darkMode = darkMode;
+    // darkMode + noAnimations are global prefs (localStorage), not stored per-character.
     data.variantEncumbrance = variantEncumbrance;
     data.showFuturistic = showFuturistic;
     data.showModern = showModern;
@@ -4793,8 +4834,7 @@
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
-    noAnimations = !!(data && data.noAnimations);   // default off
-    darkMode = !!(data && data.darkMode);   // default off
+    // darkMode + noAnimations are global (localStorage), loaded once at startup — not per-character.
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     showFuturistic = !!(data && data.showFuturistic);   // default off
     showModern = !!(data && data.showModern);           // default off
@@ -5449,6 +5489,9 @@
       for(let k = fsHave; k < fsDue; k++)
         out.push({kind:"fstyle", i, slot:k, label:`${w.name}: choose Fighting Style`, cls:c});
       rangerChoicesFor(w).forEach(ch => {                                                     // Favored Enemy / terrain / Deft Explorer skill
+        if(w.level >= ch.level && !(w.classChoices||{})[ch.id])
+          out.push({kind:"classChoice", i, label:`${w.name}: ${ch.prompt}`, choice:ch}); });
+      pactChoicesFor(w).forEach(ch => {                                                       // Warlock Pact Boon (Chain / Blade / Tome) at level 3
         if(w.level >= ch.level && !(w.classChoices||{})[ch.id])
           out.push({kind:"classChoice", i, label:`${w.name}: ${ch.prompt}`, choice:ch}); });
     });
@@ -7211,6 +7254,18 @@
   // Tasha's replacements' choices. Gated by the matching TCE toggle so we never offer a replaced feature's pick. =====
   const FAVORED_ENEMY_OPTS = ["Aberrations","Beasts","Celestials","Constructs","Dragons","Elementals","Fey","Fiends","Giants","Monstrosities","Oozes","Plants","Undead","Two humanoid races"];
   const FAVORED_TERRAIN_OPTS = ["Arctic","Coast","Desert","Forest","Grassland","Mountain","Swamp","Underdark"];
+  // Warlock Pact Boon. It's a base CLASS feature (level 3) whose options are optional-features, so the
+  // data extractor (which only builds choosers for SUBCLASS features) never turns it into a pending decision.
+  // We surface it explicitly here, reusing the same classChoice plumbing as the Ranger picks.
+  const PACT_BOONS = {
+    "Pact of the Chain": "You learn the find familiar spell and can cast it as a ritual. When you cast it, you can choose one of the normal forms for your familiar or one of these special forms: imp, pseudodragon, quasit, or sprite. Additionally, when you take the Attack action, you can forgo one of your own attacks to let your familiar make one attack of its own with its reaction.",
+    "Pact of the Blade": "You can use your action to create a pact weapon in your empty hand. You choose its form each time, and you're proficient with it while you wield it. It counts as magical for overcoming resistance and immunity to nonmagical attacks. The weapon vanishes if it's more than 5 feet away for 1 minute or more, or if you use this feature again, dismiss it (no action), or die. You can also transform a magic weapon into your pact weapon with a 1-hour ritual during a short rest.",
+    "Pact of the Tome": "Your patron gives you a grimoire called a Book of Shadows. Choose three cantrips from any class's spell list; while the book is on your person, you can cast those cantrips at will. They don't count against your number of cantrips known. If you lose the book, you can perform a 1-hour ceremony during a short or long rest to receive a replacement, which destroys the previous book. The book turns to ash when you die."
+  };
+  function pactChoicesFor(w){
+    if(w.name !== "Warlock") return [];
+    return [{id:"pactBoon", level:3, prompt:"choose Pact Boon", options:Object.keys(PACT_BOONS), kind:"feature"}];
+  }
   function rangerChoicesFor(w){
     if(w.name !== "Ranger") return [];
     const out = [];
@@ -7490,6 +7545,10 @@
           else if(ch.id === "deftCanny"){ const key = SKILL_KEY[pick.toLowerCase()];   // Canny: Expertise in the chosen skill (proficiency + expertise)
             if(key){ const pb = $("skp-"+key), ex = $("ske-"+key); if(pb) pb.checked = true; if(ex) ex.checked = true; }
             featLines.push(`Deft Explorer — Canny: Expertise in ${pick}, and you learn two languages of your choice (${w.name} 1).`); }
+        });
+        pactChoicesFor(w).forEach(ch => {                                           // Warlock Pact Boon → a Features line with the chosen boon's rules
+          const pick = (w.classChoices||{})[ch.id]; if(!pick) return;
+          featLines.push(`Pact Boon: ${pick} (${w.name} ${ch.level}). ${PACT_BOONS[pick] || ""}`.trim());
         });
         if(w.name === "Ranger" && tceOn("ranger-primal-awareness") && sInfo){      // Primal Awareness (TCE): always-prepared spells, once each per long rest
           const PA = [[3,"Speak with Animals",1],[5,"Beast Sense",2],[9,"Speak with Plants",3],[13,"Locate Creature",4],[17,"Commune with Nature",5]];
@@ -7791,8 +7850,8 @@
     });
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
-    $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; applyAnimSetting(); save(); });
-    $("set-dark").addEventListener("change", e => { darkMode = e.target.checked; applyDarkSetting(); save(); });
+    $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; setPrefBool(NOANIM_KEY, noAnimations); applyAnimSetting(); });   // global pref — not per-character
+    $("set-dark").addEventListener("change", e => { darkMode = e.target.checked; setPrefBool(DARK_KEY, darkMode); applyDarkSetting(); });               // global pref — not per-character
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("set-futuristic").addEventListener("change", e => { showFuturistic = e.target.checked; save(); });   // item autocompletes read availableItemNames() live
     $("set-modern").addEventListener("change", e => { showModern = e.target.checked; save(); });
@@ -7952,15 +8011,6 @@
     $("btn-showguide").addEventListener("click", ()=>{ $("settings").classList.remove("open"); showIntro(); });   // close Settings, re-run the welcome guide
     $("btn-update").addEventListener("click", updateApp);
 
-    $("btn-reset").addEventListener("click", ()=>{
-      if(!confirm("Delete this character and reset the sheet to blank?\n\nThis can't be undone. If you might want it later, cancel and use “Save” first to download a copy.\n\n(Your loaded sourcebooks are kept.)")) return;
-      csDel(KEY);                 // clear this slot's character
-      idbPortraitDel(KEY);                          // and its portrait (IndexedDB)
-      csDel(KEY + "_img");        // (legacy localStorage portrait, if any)
-      csDel(KEY + "_thumb");      // and its card thumbnail
-      $("embedded-data").textContent = "null";      // ignore any baked-in character
-      location.reload();                            // re-init blank (sourcebook is kept)
-    });
     $("btn-reset-overrides").addEventListener("click", resetAllOverrides);
 
     $("btn-create").addEventListener("click", openWizard);
@@ -8064,8 +8114,19 @@
     if(ver) ver.textContent = isUpdate
       ? ("You're now on " + APP_VERSION + ". This guide reappears after each update so you catch anything new (like the note above).")
       : (APP_VERSION + " · this guide reappears after each update.");
+    renderChangelog(isUpdate);
     ov.hidden = false;
     document.addEventListener("keydown", ov._onKey);
+  }
+  function renderChangelog(isUpdate){
+    const box = $("intro-changelog"); if(!box) return;
+    if(!Array.isArray(CHANGELOG) || !CHANGELOG.length){ box.hidden = true; return; }
+    const body = CHANGELOG.map((entry, i) =>
+      `<h4>${esc(entry.v)}${i === 0 ? " — latest" : ""}</h4><ul>` +
+      (entry.items||[]).map(it => `<li>${esc(it)}</li>`).join("") + `</ul>`).join("");
+    box.innerHTML = `<summary>${isUpdate ? "What's new" : "Changelog"}</summary>${body}`;
+    box.open = !!isUpdate;   // expanded after an update so changes are seen; collapsed on a first-ever visit
+    box.hidden = false;
   }
   function dismissIntro(){
     const ov = $("intro-overlay"); if(!ov) return;
@@ -8309,7 +8370,7 @@
     if(c.slot === SLOT) flushSave();   // make sure we copy the latest
     let d; try{ d = JSON.parse(csGet(c.key)); }catch(e){ d = null; }
     if(!d){ flashStatus("Couldn't read that character to duplicate."); return; }
-    d.charname = ((d.charname||"Character").trim() || "Character") + " (copy)";
+    d.charname = ((d.charname||"Character").trim() || "Character") + " (copy)";   // the renamed copy gets a fresh content hash (charContentHash), so import dedup treats it as a distinct character, never collapsing it back into the original
     d.savedAt = Date.now();
     const nk = BASE_KEY + "::" + newSlotId();
     try{ csSet(nk, JSON.stringify(d)); }
@@ -8504,8 +8565,19 @@
   async function doCharImport(){
     const picked = [...document.querySelectorAll(".imp-cb")].filter(cb => cb.checked).map(cb => _impCandidates[+cb.dataset.i]).filter(Boolean);
     if(!picked.length) return;
-    let added = 0, failed = 0;
+    // Content fingerprints of every character already in this library — used to skip exact duplicates on import.
+    const existing = new Set();
+    for(const k of csKeys()){
+      if(k.slice(-4) === "_img" || k.slice(-6) === "_thumb") continue;
+      if(!(k === BASE_KEY || k.indexOf(BASE_KEY + "::") === 0)) continue;
+      let d = null; try{ d = JSON.parse(csGet(k)); }catch(e){}
+      if(d && typeof d === "object") existing.add(charContentHash(d));
+    }
+    let added = 0, failed = 0, skipped = 0;
     for(const c of picked){
+      const h = charContentHash(c.data);
+      if(existing.has(h)){ skipped++; continue; }   // an identical character is already in the library — don't import a second copy
+      existing.add(h);                              // also dedupe identical characters within this same import batch
       const nk = BASE_KEY + "::" + newSlotId();   // always a fresh slot → same-name versions coexist, nothing is overwritten
       const d = Object.assign({}, c.data); d.savedAt = Date.now();
       try{ csSet(nk, JSON.stringify(d)); }
@@ -8521,6 +8593,7 @@
     closeCharImport();
     if($("charmgr").classList.contains("open")) renderCharMgr();
     let msg = "Imported " + added + " character" + (added===1?"":"s") + ".";
+    if(skipped) msg += " " + skipped + " already in your library (skipped " + (skipped===1?"a duplicate":"duplicates") + ").";
     if(failed) msg += " " + failed + " couldn't fit in this browser's storage.";
     flashStatus(msg);
     const fromFile = /^dnd-sheet-file-/.test(BASE_KEY);   // opened a saved .html file (vs the hosted app / a fresh tab)
