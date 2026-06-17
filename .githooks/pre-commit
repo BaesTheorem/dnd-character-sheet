@@ -26,6 +26,15 @@ if grep -q '@APP_VERSION@' index.html 2>/dev/null; then
     && echo "pre-commit: stamped APP_VERSION = $ver"
 fi
 
+# Stamp the pending "Unreleased" changelog entry with this version (Keep-a-Changelog style), so the
+# welcome guide's notes always carry the right vN automatically — same N as APP_VERSION. A commit with
+# no Unreleased entry (no user-facing notes) is left untouched.
+if grep -q '{v:"Unreleased"' index.html 2>/dev/null; then
+  num="$num" perl -i -pe 's/\{v:"Unreleased"/{v:"v$ENV{num}"/ if /\{v:"Unreleased"/' index.html \
+    && git add index.html \
+    && echo "pre-commit: stamped CHANGELOG Unreleased -> v$num"
+fi
+
 # Tie the service-worker cache to the same version so each deploy busts the offline
 # cache and fresh content lands on the next load (no "reload twice").
 if [ -f sw.js ]; then

@@ -210,6 +210,14 @@ twice." After cloning, activate the hook once:
 git config core.hooksPath .githooks
 ```
 
+### Changelog
+The welcome guide shows a changelog (the `CHANGELOG` array in `index.html`), expanded after each
+update. It follows a *Keep a Changelog* flow: when you make a user-facing change, add its bullet(s) to
+the `{v:"Unreleased"}` entry at the top of the array (create it if it's missing). The same pre-commit
+hook rewrites that `"Unreleased"` tag to this commit's `vN` — the exact version it stamps into
+`APP_VERSION` — so each release's notes always carry the right number with no hand-editing. A commit
+with no `Unreleased` entry just ships without a new changelog line.
+
 ## Design / longevity rules
 Vanilla HTML/CSS/JS only — no frameworks, no build step, no CDN, no web-fetched fonts (uses the
 system font stack). Edit it with any text editor. Data model is plain JSON keyed by field id.

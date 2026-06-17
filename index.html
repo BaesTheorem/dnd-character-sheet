@@ -2055,10 +2055,19 @@
   }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v241 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
-  // Changelog shown in the welcome guide (which reappears after each update). Add a new entry at the TOP
-  // for every release; `v` is the version number the pre-commit hook will stamp (this commit's number).
+  const APP_VERSION = "v242 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
+  // change, add its bullet(s) to the {v:"v242"} entry at the TOP (create it if missing). The
+  // .githooks/pre-commit hook rewrites that "Unreleased" tag to this commit's version number (vN) at commit
+  // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
+  // hand-editing. Leave the "Unreleased" entry in place between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v242", items:[
+      "The welcome guide's changelog now updates itself with every version."
+    ]},
+    {v:"v241", items:["Dark mode no longer flashes the light theme for a moment when you switch characters."]},
+    {v:"v240", items:["Closing the character builder now keeps the selections you made (a resolved Pact Boon, subclass, or any step) instead of discarding them."]},
+    {v:"v239", items:["Dark mode: the “Pending decisions” prompts in the builder are no longer washed out."]},
     {v:"v238", items:[
       "Warlock: the builder now prompts you to choose a Pact Boon (Pact of the Chain, Blade, or Tome) at level 3, and the chosen boon's rules land on your Features page.",
       "Dark mode and Disable animations now apply across all of your characters, not just the open one.",
