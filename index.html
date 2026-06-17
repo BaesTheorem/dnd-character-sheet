@@ -2055,12 +2055,12 @@
   }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v242 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v243 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
-  // change, add its bullet(s) to the {v:"v242"} entry at the TOP (create it if missing). The
-  // .githooks/pre-commit hook rewrites that "Unreleased" tag to this commit's version number (vN) at commit
+  // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
+  // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
-  // hand-editing. Leave the "Unreleased" entry in place between releases so there's always somewhere to jot.
+  // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
     {v:"v242", items:[
       "The welcome guide's changelog now updates itself with every version."
