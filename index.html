@@ -1109,6 +1109,15 @@
 </style>
 </head>
 <body>
+  <script>
+    /* Apply the global Dark mode / Disable animations prefs BEFORE the body paints, so switching
+       characters (a full reload) never flashes the light theme first. Runs synchronously at the top
+       of <body>; the main script below re-applies the same classes idempotently. */
+    try{
+      if(localStorage.getItem("dnd-sheet-dark") === "1") document.body.classList.add("dark");
+      if(localStorage.getItem("dnd-sheet-noanim") === "1") document.body.classList.add("no-animations");
+    }catch(e){}
+  </script>
   <div class="toolbar noprint">
     <div class="brand">⬢ Character Sheet <span>· 5e</span></div>
     <span class="status" id="status"></span>
@@ -2046,7 +2055,7 @@
   }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v240 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v241 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). Add a new entry at the TOP
   // for every release; `v` is the version number the pre-commit hook will stamp (this commit's number).
   const CHANGELOG = [
