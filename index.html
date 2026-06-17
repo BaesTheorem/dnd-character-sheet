@@ -2046,7 +2046,7 @@
   }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v239 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v240 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). Add a new entry at the TOP
   // for every release; `v` is the version number the pre-commit hook will stamp (this commit's number).
   const CHANGELOG = [
@@ -6883,6 +6883,14 @@
     scrollListToActive($("wiz-race-list"));   // now that the modal is laid out, reveal the current race (step 0 rendered before it was visible)
   }
   function closeWizard(){ $("wizard").classList.remove("open"); wizLevelTarget = null; restoreFocus(); }
+  // Closing the builder (✕, backdrop, or Escape) COMMITS the in-progress build rather than discarding it,
+  // so a selection made at any step — a resolved pending decision, a class/race/skill/equipment pick — is
+  // applied and saved exactly as if you'd reached the last step and pressed Save. createCharacter() applies,
+  // saves, and closes the wizard itself. With no class chosen yet there's nothing to build, so we just close.
+  function commitAndCloseWizard(){
+    if(wizClasses.length) createCharacter();   // applies + saves + closes (and re-flags any decision still unmade)
+    else closeWizard();
+  }
   function renderRaceList(){   // left-hand race picker (mirrors the class step's wiz-class-list)
     const box = $("wiz-race-list"); if(!box || !DATA) return;
     const cur = $("wiz-race").value;
@@ -7828,7 +7836,9 @@
     document.addEventListener("keydown", e => {   // Escape closes the topmost open modal/wizard
       if(e.key !== "Escape") return;
       const open = [...document.querySelectorAll(".modal.open")]; if(!open.length) return;
-      const m = open[open.length-1]; m.classList.remove("open"); restoreFocus();
+      const m = open[open.length-1];
+      if(m.id === "wizard"){ commitAndCloseWizard(); return; }   // closing the builder commits in-progress selections (not discard)
+      m.classList.remove("open"); restoreFocus();
       if(m.id === "asimodal") resolveToolChoices();
       if(m.id === "toolmodal") toolPickMatches = [];
     });
@@ -8022,8 +8032,8 @@
     $("btn-addxp").addEventListener("click", addXp);
     $("xp-add").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); addXp(); } });
     $("wiz-levelmethod").addEventListener("change", e => { const r = e.target.closest('input[name="wiz-lvlmethod"]'); if(r){ levelMethod = r.value; save(); renderXpTracker(); } });
-    $("wiz-close").addEventListener("click", closeWizard);
-    $("wizard").addEventListener("click", e=>{ if(e.target.id === "wizard") closeWizard(); });
+    $("wiz-close").addEventListener("click", commitAndCloseWizard);
+    $("wizard").addEventListener("click", e=>{ if(e.target.id === "wizard") commitAndCloseWizard(); });
     $("wiz-back").addEventListener("click", ()=>{ if(wizStep > 0){ wizStep--; renderWizStep(); } });
     $("wiz-next").addEventListener("click", ()=>{ if(wizStep < WIZ_LAST){ wizStep++; renderWizStep(); } else createCharacter(); });
     $("wiz-dots").addEventListener("click", e=>{ const b = e.target.closest(".wiz-dot"); if(b){ wizStep = +b.dataset.goto; renderWizStep(); } });   // jump straight to any section
