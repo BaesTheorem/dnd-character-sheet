@@ -48,6 +48,9 @@
   body.dark .ptab.active{border-bottom-color:var(--card)}
   body.dark .btn:not(.primary):not(.xp-levelup):not(.danger){background:var(--field)}
   body.dark .btn:not(.primary):not(.xp-levelup):not(.danger):hover{background:var(--accent-soft)}
+  /* Pending-decisions rows use warm amber on the light theme; re-point to dark amber so they're not washed out */
+  body.dark .wiz-pend-head{color:#fbbf24}
+  body.dark .wiz-pend-row{border-color:rgba(251,191,36,.4); background:rgba(251,146,60,.12); color:var(--ink)}
   *{box-sizing:border-box}
   html,body{margin:0}
   body{
@@ -2043,7 +2046,7 @@
   }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v238 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v239 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). Add a new entry at the TOP
   // for every release; `v` is the version number the pre-commit hook will stamp (this commit's number).
   const CHANGELOG = [
@@ -5541,7 +5544,7 @@
       });
     });
     // (spell selection is handled by the Spells picker above; secondary multiclass casters can still be filled on the Spells page)
-    let html = rows.length ? `<p class="wiz-pend-head">Pending decisions (you can proceed without these)</p>` + rows.join("") : "";
+    let html = rows.length ? `<p class="wiz-pend-head">Pending decisions</p>` + rows.join("") : "";
     const asiTotal = asiChoices.length, pendingAsi = asiChoices.filter(s => !asiSlotComplete(s)).length;
     if(asiTotal){   // always offer the ASI / feat editor here (not only when one is unassigned) so already-made feat + spell picks can be changed
       const status = pendingAsi ? `${pendingAsi} of ${asiTotal} still to choose` : `all ${asiTotal} assigned ✓`;
