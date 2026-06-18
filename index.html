@@ -1133,10 +1133,15 @@
   <script>
     /* Apply the global Dark mode / Disable animations prefs BEFORE the body paints, so switching
        characters (a full reload) never flashes the light theme first. Runs synchronously at the top
-       of <body>; the main script below re-applies the same classes idempotently. */
+       of <body>; the main script below re-applies the same classes idempotently.
+       A "Share" (blank) export carries a template id and uses its OWN appearance, not this browser's
+       global pref — so it opens in the default look instead of inheriting the exporter's dark mode. */
     try{
-      if(localStorage.getItem("dnd-sheet-dark") === "1") document.body.classList.add("dark");
-      if(localStorage.getItem("dnd-sheet-noanim") === "1") document.body.classList.add("no-animations");
+      var _tpl = JSON.parse((document.getElementById("embedded-template-id")||{}).textContent || "null");
+      var _dk = "dnd-sheet-dark", _nk = "dnd-sheet-noanim";
+      if(_tpl){ _dk += "::tpl:" + _tpl; _nk += "::tpl:" + _tpl; }   // per-file appearance keys; fresh template → default look
+      if(localStorage.getItem(_dk) === "1") document.body.classList.add("dark");
+      if(localStorage.getItem(_nk) === "1") document.body.classList.add("no-animations");
     }catch(e){}
   </script>
   <div class="toolbar noprint">
@@ -2102,13 +2107,16 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v250 (2026-06-18)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v251 (2026-06-18)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v251", items:[
+      "A Shared (blank) sheet now opens in the default light look instead of carrying over your dark mode — it's a fully reset sheet."
+    ]},
     {v:"v250", items:[
       "New Share button (top bar) downloads a truly blank copy of the sheet — no characters, default settings, every loaded sourcebook baked in — for handing to someone else. It now opens empty even on your own computer (it used to show your own characters).",
       "Retired the Settings “Save data file” button; Share does the same thing, more visibly."
@@ -2755,7 +2763,11 @@
   function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
   // Dark mode + Disable animations are GLOBAL preferences (one setting for the whole browser, shared by
   // every character) rather than per-character — stored in localStorage, not in the character data.
-  const DARK_KEY = "dnd-sheet-dark", NOANIM_KEY = "dnd-sheet-noanim";
+  // A "Share" (blank) export keys its appearance per-file (off its template id) so it opens in the default
+  // look rather than inheriting this browser's global dark mode; a recipient's toggles still persist in the
+  // file's own partition. Every other sheet keeps the shared global keys, unchanged.
+  const DARK_KEY = _TPL_ID ? ("dnd-sheet-dark::tpl:" + _TPL_ID) : "dnd-sheet-dark";
+  const NOANIM_KEY = _TPL_ID ? ("dnd-sheet-noanim::tpl:" + _TPL_ID) : "dnd-sheet-noanim";
   function prefBool(k){ try{ return localStorage.getItem(k) === "1"; }catch(e){ return false; } }
   function setPrefBool(k, v){ try{ localStorage.setItem(k, v ? "1" : "0"); }catch(e){} }
   let noAnimations = prefBool(NOANIM_KEY);       // Settings → Appearance: disable all animations/transitions (global)
