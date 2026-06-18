@@ -1939,7 +1939,7 @@
             </div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Import characters</label>
             <button class="btn" id="btn-import-chars" type="button" title="Load characters from a saved Character Sheet file">Import from a file…</button>
-            <p class="wiz-hint">Pick a “Character Sheet.html” you saved with the <strong>Save</strong> button (or a character <code>.json</code>). You'll see every character in it and can untick any you don't want. Imported characters are added alongside your current ones — nothing is overwritten, so a second copy of a character you already have just becomes another version.</p>
+            <p class="wiz-hint">Pick a “Character Sheet.html” you saved with the <strong>Save</strong> button. You'll see every character in it and can untick any you don't want. Imported characters are added alongside your current ones — nothing is overwritten. Any that are an exact duplicate of one you already have are skipped, so re-importing the same file won't pile up copies (use <strong>Duplicate</strong> in Manage Characters if you actually want another copy).</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Appearance</label>
             <label class="lay-row"><input type="checkbox" id="set-dark"> Dark mode</label>
             <p class="wiz-hint">A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.</p>
@@ -2055,7 +2055,7 @@
   }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v244 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v245 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
@@ -8578,7 +8578,7 @@
     if(!res.chars.length){
       alert(res.looksLikeBook
         ? "That's a sourcebook data file, not characters.\nTo load sourcebooks, use Settings → Advanced → Import file."
-        : "Couldn't find any characters in that file.\nPick a “Character Sheet.html” you saved with the Save button (or a character .json).");
+        : "Couldn't find any characters in that file.\nPick a “Character Sheet.html” you saved with the Save button.");
       return;
     }
     _impCandidates = res.chars;
