@@ -2044,6 +2044,10 @@
   <script id="embedded-roster" type="application/json">null</script>
   <!-- Sheet-wide appearance prefs (dark mode / disable animations) so a saved or imported sheet keeps its look. Null in the master file. -->
   <script id="embedded-prefs" type="application/json">null</script>
+  <!-- Unique per-file partition tag stamped into a "Share" (blank) export so it opens to its OWN empty storage,
+       not this browser's personal library — that's why a blank file used to show the exporter's own characters.
+       Null in the master file (which intentionally uses the personal-library key). -->
+  <script id="embedded-template-id" type="application/json">null</script>
   <!-- Homebrew source material, baked into exported "Save" / "Share" downloads so it's shareable. null in the master file. -->
   <script id="embedded-homebrew" type="application/json">null</script>
   <!-- Source-data content baked in by build-data.py (null in the shareable app; do not commit when filled). -->
@@ -2091,14 +2095,24 @@
     return _hashStr(_stableStringify(copy));
   }
   const _EMBEDDED = _embeddedCharPayload();
-  const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v249 (2026-06-18)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  // A "Share" (blank) export carries a unique template id so it opens to its own empty per-file partition
+  // instead of falling back to this browser's personal library (which made a blank file show the exporter's
+  // own characters). The master file has no id and keeps the personal-library key, unchanged.
+  let _TPL_ID = null; try{ _TPL_ID = JSON.parse((document.getElementById("embedded-template-id")||{}).textContent || "null"); }catch(e){}
+  const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
+                 : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
+                 :            "dnd-sheet-2014-v1";
+  const APP_VERSION = "v250 (2026-06-18)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v250", items:[
+      "New Share button (top bar) downloads a truly blank copy of the sheet — no characters, default settings, every loaded sourcebook baked in — for handing to someone else. It now opens empty even on your own computer (it used to show your own characters).",
+      "Retired the Settings “Save data file” button; Share does the same thing, more visibly."
+    ]},
     {v:"v248", items:[
       "Saved sheets now carry their sheet-wide appearance (dark mode, disable animations), so opening or importing a sheet keeps that look."
     ]},
@@ -3690,6 +3704,8 @@
     const ed = clone.querySelector("#embedded-data"); if(ed) ed.textContent = "null";   // a clean data template, no specific character
     const er = clone.querySelector("#embedded-roster"); if(er) er.textContent = "null";   // and no character library
     const ep = clone.querySelector("#embedded-prefs"); if(ep) ep.textContent = "null";   // and no baked appearance prefs → defaults on open
+    const ti = clone.querySelector("#embedded-template-id");                              // unique partition tag → opens to its OWN empty storage,
+    if(ti) ti.textContent = JSON.stringify("tpl-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,10));   // not this browser's library
     bakeHomebrewInto(clone);   // but DO carry your homebrew — it's source material, like the books
     const st = clone.querySelector("#status"); if(st) st.textContent = "";
     download("<!DOCTYPE html>\n" + clone.outerHTML, "Character Sheet (blank).html", "text/html");
