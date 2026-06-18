@@ -365,6 +365,27 @@
   .cm-acts button.cm-del:hover{color:#b42318}
   .cm-foot{margin-top:16px; padding-top:12px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px}
   .cm-empty{padding:30px 10px; text-align:center; color:var(--muted)}
+  /* Character Manager — sort + view controls */
+  .cm-controls{margin-left:auto; display:flex; align-items:center; gap:12px}
+  .cm-controls label{font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; text-transform:uppercase; letter-spacing:.04em}
+  .cm-controls select{font:inherit; font-size:12px; padding:3px 6px; background:var(--field); border:1px solid var(--line2); color:var(--ink)}
+  .cm-view{display:flex; border:1px solid var(--line2)}
+  .cm-view button{font:inherit; font-size:14px; line-height:1; padding:4px 9px; background:none; border:none; border-left:1px solid var(--line2); color:var(--muted); cursor:pointer}
+  .cm-view button:first-child{border-left:none}
+  .cm-view button.active{background:var(--accent); color:#fff}
+  body.dark .cm-view button.active{color:#0f1218}
+  /* List view: one compact row per character */
+  .cm-grid.list-view{display:flex; flex-direction:column; gap:6px}
+  .cm-grid.list-view .cm-card{flex-direction:row; align-items:stretch}
+  .cm-grid.list-view .cm-card.current{border-left:3px solid var(--accent)}
+  .cm-grid.list-view .cm-port{width:46px; height:auto; flex:none; align-self:stretch}
+  .cm-grid.list-view .cm-port .cm-init{font-size:18px}
+  .cm-grid.list-view .cm-meta{padding:6px 12px; display:flex; flex-direction:column; justify-content:center}
+  .cm-grid.list-view .cm-sub{white-space:normal}
+  .cm-grid.list-view .cm-acts{border-top:none; border-left:1px solid var(--line); flex:none}
+  .cm-grid.list-view .cm-acts button{padding:6px 12px}
+  .cm-grid.list-view .cm-badge{display:none}
+  @media (max-width:520px){ .cm-controls label .cm-sort-lbl{display:none} }
   .cm-warn{margin-top:12px; padding:10px 12px; border:1px solid #d9a400; background:#fff8e6; color:#6f5300; font-size:12px; line-height:1.55}
   .cm-warn strong{color:#6f5300}
   /* Import-characters picker: checkbox list of every character found in a saved file */
@@ -1174,6 +1195,20 @@
         <div class="cm-top">
           <button class="btn primary" id="cm-new" type="button">＋ New character</button>
           <span class="cm-count" id="cm-count"></span>
+          <span class="cm-controls">
+            <label><span class="cm-sort-lbl">Sort</span>
+              <select id="cm-sort">
+                <option value="modified">Modified date</option>
+                <option value="created">Created date</option>
+                <option value="name">Name</option>
+                <option value="campaign">Campaign</option>
+              </select>
+            </label>
+            <span class="cm-view" id="cm-view">
+              <button type="button" data-view="card" title="Card view" aria-label="Card view">▦</button>
+              <button type="button" data-view="list" title="List view" aria-label="List view">☰</button>
+            </span>
+          </span>
         </div>
         <div class="cm-grid" id="cm-grid"></div>
         <div class="cm-foot">
@@ -2055,13 +2090,16 @@
   }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v246 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v247 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v247", items:[
+      "Manage Characters: sort your characters by created date, modified date, name, or campaign, and switch between a card view and a compact list view. Your choice is remembered."
+    ]},
     {v:"v246", items:[
       "A duplicated character now stays a distinct character on import even if you rename it to match the original — the copy keeps its own identity."
     ]},
@@ -2711,6 +2749,7 @@
   let dupId = "";   // a persistent per-character identity nonce, set ONLY on an in-app Duplicate / Simulacrum. It rides
                     // in the saved data and is folded into charContentHash, so a copy stays a distinct character for
                     // import dedup even after you edit it (e.g. delete the " (copy)" suffix from its name).
+  let createdAt = 0;   // when this character was first created (ms). Stamped on first save; drives the Manager's "created date" sort.
   let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
   let showFuturistic = false;                   // Settings → General: include futuristic items (laser/antimatter/powered armor) in the item pickers (off by default)
   let showModern = false;                        // Settings → General: include modern items (pistols/rifles/shotguns/dynamite) in the item pickers (off by default)
@@ -4725,6 +4764,7 @@
       data[el.id] = (el.type === "checkbox") ? el.checked : el.value;
     });
     if(dupId) data.dupId = dupId;   // persist the duplicate-identity nonce so a copy stays distinct across edits
+    data.createdAt = createdAt || (createdAt = Date.now());   // stamp creation time on first save; preserved thereafter
     data.inspiration = inspState;
     data.genMode = genMode;
     data.rolledArray = rolledArray;
@@ -4796,6 +4836,7 @@
     rolledArray = (data && Array.isArray(data.rolledArray)) ? data.rolledArray.slice() : null;
     characterCreated = !!(data && data.created); markCharacterCreated();   // toolbar button label reflects whether a character exists
     dupId = (data && data.dupId) || "";   // a duplicate/simulacrum's persistent identity nonce (blank for normal characters)
+    createdAt = (data && +data.createdAt) || 0;   // 0 when absent (legacy) → the Manager falls back to the modified date
     manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
     baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
     bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};
@@ -8032,6 +8073,8 @@
     $("btn-make-sim").addEventListener("click", makeSimulacrumOfCurrent);
     $("cm-close").addEventListener("click", closeCharMgr);
     $("cm-new").addEventListener("click", ()=>{ gotoSlot(newSlotId()); });   // fresh blank character, in place
+    $("cm-sort").addEventListener("change", e => { try{ localStorage.setItem("dnd-sheet-cm-sort", e.target.value); }catch(_){} renderCharMgr(); });
+    $("cm-view").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if(!b) return; try{ localStorage.setItem("dnd-sheet-cm-view", b.dataset.view); }catch(_){} renderCharMgr(); });
     $("charmgr").addEventListener("click", e=>{ if(e.target.id === "charmgr") closeCharMgr(); });   // click backdrop to close
 
     $("btn-import-chars").addEventListener("click", ()=> $("import-chars-input").click());
@@ -8207,16 +8250,36 @@
       let d = null; try{ d = JSON.parse(csGet(k)); }catch(e){}
       if(!d || typeof d !== "object") continue;
       const slot = (k === BASE_KEY) ? "" : k.slice((BASE_KEY + "::").length);
-      out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), campaign:(d.campaign||"").trim(), savedAt:+d.savedAt||0, sim:!!d.simulacrum });
+      out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), campaign:(d.campaign||"").trim(),
+                 savedAt:+d.savedAt||0, createdAt:(+d.createdAt || +d.savedAt || 0), sim:!!d.simulacrum });   // createdAt falls back to savedAt for characters saved before creation tracking
       seen.add(slot);
     }
     if(!seen.has(SLOT)){   // the character we're viewing may not be saved yet — show it live so it's never invisible
       out.push({ key:KEY, slot:SLOT, name:($("charname").value||"").trim(),
-                 sub:($("classlevel").value||$("race").value||"").trim(), campaign:($("campaign").value||"").trim(), savedAt:Date.now(), unsaved:true });
+                 sub:($("classlevel").value||$("race").value||"").trim(), campaign:($("campaign").value||"").trim(),
+                 savedAt:Date.now(), createdAt:(createdAt || Date.now()), unsaved:true });
     }
-    out.sort((a,b)=> (b.savedAt||0) - (a.savedAt||0));   // most-recently-edited first
+    sortSlots(out);
     return out;
   }
+  // Sort the Manager's character list by the user's chosen key (persisted global pref). Within name/campaign,
+  // empty values sink to the bottom and ties break by most-recently-edited.
+  function sortSlots(out){
+    const key = cmSort();
+    const byEdited = (a,b)=> (b.savedAt||0) - (a.savedAt||0);
+    if(key === "created")      out.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0) || byEdited(a,b));
+    else if(key === "name")    out.sort((a,b)=> cmCmpText(a.name, b.name) || byEdited(a,b));
+    else if(key === "campaign")out.sort((a,b)=> cmCmpText(a.campaign, b.campaign) || cmCmpText(a.name, b.name) || byEdited(a,b));
+    else                       out.sort(byEdited);   // "modified" (default): most-recently-edited first
+  }
+  function cmCmpText(a,b){   // case-insensitive A→Z; blanks last
+    a = (a||"").trim(); b = (b||"").trim();
+    if(!a && !b) return 0; if(!a) return 1; if(!b) return -1;
+    return a.localeCompare(b, undefined, {sensitivity:"base"});
+  }
+  // Manager sort/view are global prefs (per browser), remembered across sessions like dark mode.
+  function cmSort(){ try{ return localStorage.getItem("dnd-sheet-cm-sort") || "modified"; }catch(e){ return "modified"; } }
+  function cmView(){ try{ return localStorage.getItem("dnd-sheet-cm-view") || "card"; }catch(e){ return "card"; } }
   function slotPortrait(key){
     try{ const p = JSON.parse(csGet(key + "_img")); if(p && p.data) return p.data; }catch(e){}
     if(key === KEY && portraitData && portraitData.data) return portraitData.data;   // current char's portrait may be in memory pre-save
@@ -8360,6 +8423,10 @@
   }
   function renderCharMgr(){
     const grid = $("cm-grid"); if(!grid) return;
+    const view = cmView();
+    grid.classList.toggle("list-view", view === "list");
+    if($("cm-sort")) $("cm-sort").value = cmSort();
+    document.querySelectorAll("#cm-view button").forEach(b => b.classList.toggle("active", b.dataset.view === view));
     const list = characterSlots();
     $("cm-count").textContent = list.length + (list.length===1 ? " character" : " characters");
     grid.innerHTML = "";
@@ -8428,7 +8495,7 @@
     if(!d){ flashStatus("Couldn't read that character to duplicate."); return; }
     d.charname = ((d.charname||"Character").trim() || "Character") + " (copy)";
     d.dupId = newSlotId();   // fresh identity nonce → import dedup treats the copy as distinct even if you later rename it back to match the original
-    d.savedAt = Date.now();
+    d.savedAt = d.createdAt = Date.now();   // the copy is created now
     const nk = BASE_KEY + "::" + newSlotId();
     try{ csSet(nk, JSON.stringify(d)); }
     catch(e){ alert("Not enough browser storage to duplicate this character.\nTry removing a portrait or deleting an old character first."); return; }
@@ -8443,7 +8510,7 @@
     d.charname = ((d.charname||"Character").trim() || "Character") + " (Simulacrum)";
     d.simulacrum = true;
     d.dupId = newSlotId();   // fresh identity nonce → stays distinct from the source (and from other simulacra) for import dedup, even after edits
-    d.savedAt = Date.now();
+    d.savedAt = d.createdAt = Date.now();
     // half hit points — force manual HP so the halved maximum sticks no matter how the source computed its HP
     const maxhp = parseInt(d.hpmax, 10);
     if(!isNaN(maxhp)){
