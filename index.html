@@ -2055,13 +2055,16 @@
   }
   const _EMBEDDED = _embeddedCharPayload();
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED)) : "dnd-sheet-2014-v1";
-  const APP_VERSION = "v245 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v246 (2026-06-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v246", items:[
+      "A duplicated character now stays a distinct character on import even if you rename it to match the original — the copy keeps its own identity."
+    ]},
     {v:"v244", items:[
       "After an update, the welcome guide now lists only what changed since the version you were last on, not the whole history."
     ]},
@@ -2705,6 +2708,9 @@
   applyDarkSetting(); applyAnimSetting();        // apply the global prefs right away (independent of which character loads)
   let hidePortrait = false;                     // Settings → General: hide the character portrait box (screen + print)
   function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
+  let dupId = "";   // a persistent per-character identity nonce, set ONLY on an in-app Duplicate / Simulacrum. It rides
+                    // in the saved data and is folded into charContentHash, so a copy stays a distinct character for
+                    // import dedup even after you edit it (e.g. delete the " (copy)" suffix from its name).
   let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
   let showFuturistic = false;                   // Settings → General: include futuristic items (laser/antimatter/powered armor) in the item pickers (off by default)
   let showModern = false;                        // Settings → General: include modern items (pistols/rifles/shotguns/dynamite) in the item pickers (off by default)
@@ -4718,6 +4724,7 @@
     document.querySelectorAll("[data-save]").forEach(el => {
       data[el.id] = (el.type === "checkbox") ? el.checked : el.value;
     });
+    if(dupId) data.dupId = dupId;   // persist the duplicate-identity nonce so a copy stays distinct across edits
     data.inspiration = inspState;
     data.genMode = genMode;
     data.rolledArray = rolledArray;
@@ -4788,6 +4795,7 @@
     genMode = (data && data.genMode) || "manual";
     rolledArray = (data && Array.isArray(data.rolledArray)) ? data.rolledArray.slice() : null;
     characterCreated = !!(data && data.created); markCharacterCreated();   // toolbar button label reflects whether a character exists
+    dupId = (data && data.dupId) || "";   // a duplicate/simulacrum's persistent identity nonce (blank for normal characters)
     manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
     baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
     bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};
@@ -8418,7 +8426,8 @@
     if(c.slot === SLOT) flushSave();   // make sure we copy the latest
     let d; try{ d = JSON.parse(csGet(c.key)); }catch(e){ d = null; }
     if(!d){ flashStatus("Couldn't read that character to duplicate."); return; }
-    d.charname = ((d.charname||"Character").trim() || "Character") + " (copy)";   // the renamed copy gets a fresh content hash (charContentHash), so import dedup treats it as a distinct character, never collapsing it back into the original
+    d.charname = ((d.charname||"Character").trim() || "Character") + " (copy)";
+    d.dupId = newSlotId();   // fresh identity nonce → import dedup treats the copy as distinct even if you later rename it back to match the original
     d.savedAt = Date.now();
     const nk = BASE_KEY + "::" + newSlotId();
     try{ csSet(nk, JSON.stringify(d)); }
@@ -8433,6 +8442,7 @@
   function makeSimulacrumData(d){
     d.charname = ((d.charname||"Character").trim() || "Character") + " (Simulacrum)";
     d.simulacrum = true;
+    d.dupId = newSlotId();   // fresh identity nonce → stays distinct from the source (and from other simulacra) for import dedup, even after edits
     d.savedAt = Date.now();
     // half hit points — force manual HP so the halved maximum sticks no matter how the source computed its HP
     const maxhp = parseInt(d.hpmax, 10);
