@@ -1149,7 +1149,6 @@
     <span class="status" id="status"></span>
     <button class="btn primary" id="btn-create" title="">Create Character</button>
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file (your character plus all loaded sourcebooks baked in — works offline, no localStorage needed)">Save</button>
-    <button class="btn" id="btn-share" title="Download a blank copy of this sheet — no character data, default settings, but every loaded sourcebook baked in. Hand it to someone so they can start a character with all your sources ready to go.">Share</button>
     <button class="btn" onclick="window.print()">Print / PDF</button>
     <button class="btn" id="btn-search" title="Search this character (⌘K / Ctrl-K)">Search</button>
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
@@ -1992,6 +1991,9 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Manual overrides</label>
             <button class="btn" id="btn-reset-overrides" type="button" title="Clear every hand-pinned value and return to calculated values">Clear all manual overrides</button>
             <p class="wiz-hint">Double-click any calculated value on the sheet (ability scores, modifiers, proficiency, AC, initiative, saves, skills, spell DC, attacks, HP…) to pin a custom value. A pinned source value still feeds everything below it. Pinned fields are outlined with a small marker and their tooltip shows the calculated value; Alt-click one to revert. <strong>On a phone or tablet, long-press a field to edit it</strong>, and clear the value to revert it to calculated. This button clears them all at once.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Export a blank sheet</label>
+            <button class="btn" id="btn-export-blank" type="button" title="Download a blank copy of this sheet — no character data, default settings, but every loaded sourcebook baked in. Hand it to someone so they can start a character with all your sources ready to go.">Export a blank sheet</button>
+            <p class="wiz-hint">Downloads a fresh copy with no characters and default settings, but with every sourcebook you've loaded baked in. Good for handing someone a ready-to-use sheet. It opens blank for them (and for you), and it keeps your own characters and settings untouched.</p>
           </section>
           <section class="set-sec" data-sec="pages">
             <label class="lbl" style="display:block; margin-bottom:6px">Visible pages</label>
@@ -2032,7 +2034,7 @@
             <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
             <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
             <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
-            <p class="wiz-hint">A browser can't overwrite the open file, so loaded books live in this browser until you bake them into a file. <strong>Save</strong> (top bar) bakes them in alongside your character; <strong>Share</strong> (top bar) bakes them into a blank copy with no character. Keep either to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
+            <p class="wiz-hint">A browser can't overwrite the open file, so loaded books live in this browser until you bake them into a file. <strong>Save</strong> (top bar) bakes them in alongside your character; <strong>Export a blank sheet</strong> (Settings → General) bakes them into a blank copy with no character. Keep either to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
           </section>
         </div>
       </div>
@@ -2107,13 +2109,16 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v251 (2026-06-18)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v252 (2026-06-18)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v252", items:[
+      "Moved the blank-sheet export into Settings → General (at the bottom) and renamed it “Export a blank sheet.”"
+    ]},
     {v:"v251", items:[
       "A Shared (blank) sheet now opens in the default light look instead of carrying over your dark mode — it's a fully reset sheet."
     ]},
@@ -3657,7 +3662,7 @@
       mergeBook(DATA, data, bookName);
       if(defer) return;   // batch loader finalizes once at the end
       if(finalizeSourceLoad() === false) flashStatus(bookName+" loaded (too large to save — stays this session)");
-      else flashStatus(bookName + (reloading ? " reloaded (data refreshed)" : " loaded — press “Save” or “Share” to bake it into a file"));
+      else flashStatus(bookName + (reloading ? " reloaded (data refreshed)" : " loaded — press “Save” to bake it into your sheet"));
     }catch(e){ flashStatus((reloading?"Reload":"Load")+" failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Load"; } }
   }
@@ -3705,7 +3710,7 @@
         n++;
       }
       finalizeSourceLoad();   // single bake + persist + re-render for the whole batch
-      flashStatus("Loaded " + n + " book" + (n===1?"":"s") + " — press “Save” or “Share” to bake them into a file");
+      flashStatus("Loaded " + n + " book" + (n===1?"":"s") + " — press “Save” to bake them into your sheet");
     }catch(e){ flashStatus("Load all failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Load all books"; } }
   }
@@ -8081,7 +8086,7 @@
       });
     }
 
-    $("btn-share").addEventListener("click", shareBlankSheet);
+    $("btn-export-blank").addEventListener("click", shareBlankSheet);
     $("btn-import").addEventListener("click", ()=> $("file-input").click());
     $("btn-clearbooks").addEventListener("click", clearLoadedBooks);
     $("file-input").addEventListener("change", ev=>{
