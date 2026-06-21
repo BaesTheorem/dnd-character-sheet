@@ -1453,7 +1453,8 @@
     body.ddb-layout #ddb-topbar > .card{ margin:0; }
     body.ddb-layout #ddb-topbar .ddb-ident{ flex:1.5 1 380px; min-width:340px; }
     body.ddb-layout #ddb-topbar .ddb-ident .meta-grid{ grid-template-columns:repeat(2,1fr); margin-top:8px; }
-    body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:90px; min-width:90px; flex:0 0 90px; height:auto; }
+    body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:118px; min-width:118px; flex:0 0 118px; height:150px; }   /* keep the portrait box its proper ~4:5 shape, not a collapsed sliver */
+    body.ddb-layout #ddb-rail [data-csec="hitdice"] .hd-grid{ grid-template-columns:1fr 1fr; }   /* 4-across is too tight in the 232px rail — wrap to 2×2 */
     body.ddb-layout #ddb-topbar .ddb-ident .xp-add, body.ddb-layout #ddb-topbar .ddb-ident #btn-addxp,
     body.ddb-layout #ddb-topbar .ddb-ident #btn-levelup, body.ddb-layout #ddb-topbar .ddb-ident .xp-status{ display:none; }
     body.ddb-layout #ddb-topbar [data-csec="abilities"]{ flex:2 1 350px; }
@@ -2518,13 +2519,22 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v267 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v268 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
+  // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
+  // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
+  const APP_SEMVER = "2.0.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v268", semver:"2.0.0", items:[
+      "Version numbers are now proper Semantic Versions (MAJOR.MINOR.PATCH, like 2.0.0) shown in the welcome guide and the update banner, instead of a raw build number. Bug fixes bump the last number, new features the middle one, big changes the first.",
+      "D&D Beyond theme fixes: the Hit Dice box no longer crams four cells into the narrow side rail (it wraps to a tidy 2×2), the character portrait keeps its proper shape instead of collapsing to a sliver, and the Mini tab is back in the tab bar.",
+    ]},
     {v:"v264", items:[
       "The Short Rest and Long Rest buttons now live on the sheet itself, in a small Rest bar at the top, instead of in the app toolbar. This means they show up on every theme — including Classic, where the toolbar is hidden — right where you can reach them while you play.",
     ]},
@@ -5492,8 +5502,8 @@
     const hosted = /^https?:$/.test(location.protocol), btn = $("btn-update"), note = $("update-note");
     if(btn) btn.textContent = hosted ? "Update to the latest version" : "Download the latest version";
     if(note) note.innerHTML = hosted
-      ? 'Fetches the newest version of the whole app from the web and reloads in place. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.<br>You are on version '+APP_VERSION+'.'
-      : 'Downloads the newest version of the app from the web with your <strong>current character baked in</strong> (your sourcebooks come too), so it still works fully offline. Replace your old file with the download. <strong>Save a copy first</strong> in case a new version misbehaves.<br>You are on version '+APP_VERSION+'.';
+      ? 'Fetches the newest version of the whole app from the web and reloads in place. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.<br>You are on version '+appLabel()+'.'
+      : 'Downloads the newest version of the app from the web with your <strong>current character baked in</strong> (your sourcebooks come too), so it still works fully offline. Replace your old file with the download. <strong>Save a copy first</strong> in case a new version misbehaves.<br>You are on version '+appLabel()+'.';
   }
   async function updateApp(){
     const hosted = /^https?:$/.test(location.protocol);
@@ -5533,40 +5543,49 @@
   const VERSION_SRC          = APP_SRC.replace(/index\.html$/, "version.json");
   const VERSION_SRC_FALLBACK = APP_SRC_FALLBACK.replace(/index\.html$/, "version.json");
 
-  async function fetchLatestVersion(){   // → "vN (date)" from the published probe, or null if unreachable
+  async function fetchLatestVersion(){   // → {version:"vN (date)", semver:"X.Y.Z"|null} from the probe, or null if unreachable
     for(const url of [VERSION_SRC, VERSION_SRC_FALLBACK]){
       try{
         const r = await fetch(url + (url.includes("?") ? "&" : "?") + "_v=" + Date.now(), {cache:"no-store"});   // unique URL → bypasses the service-worker cache
-        if(r && r.ok){ const j = await r.json(); if(j && j.version) return String(j.version); }
+        if(r && r.ok){ const j = await r.json(); if(j && j.version) return { version: String(j.version), semver: j.semver ? String(j.semver) : null }; }
       }catch(e){}
     }
     return null;
   }
+  function semverLabel(s){ const m = String(s||"").match(/\d+\.\d+\.\d+/); return m ? m[0] : null; }   // pull a SemVer out of a string
   function showUpdateBanner(latest){
     const bar = $("update-banner"); if(!bar) return;
     const hosted = /^https?:$/.test(location.protocol);
-    $("update-banner-msg").innerHTML = "A newer version (<strong>" + esc(latest.split(" ")[0])
-      + "</strong>) is available — you're on " + esc(APP_VERSION.split(" ")[0])
+    const newLbl = latest.semver || semverLabel(latest.version) || (latest.version||"").split(" ")[0];   // prefer SemVer; fall back to the build id
+    const curLbl = appLabel();
+    $("update-banner-msg").innerHTML = "A newer version (<strong>" + esc(newLbl)
+      + "</strong>) is available — you're on " + esc(curLbl)
       + ". <strong>Save a copy first</strong>, then " + (hosted ? "update." : "download the new file.");
     $("ub-update").textContent = hosted ? "Update now" : "Download update";
-    bar.dataset.ver = latest;
+    bar.dataset.ver = latest.version;   // keep the build id for the dismiss comparison
     bar.hidden = false;
   }
   function maybeShowBanner(latest){
-    const cur = verNum(APP_VERSION), lat = verNum(latest);
+    if(!latest || !latest.version) return;
+    const cur = verNum(APP_VERSION), lat = verNum(latest.version);   // compare by monotonic build id (works across the SemVer switch)
     if(cur == null || lat == null || lat <= cur) return;          // nothing newer
     let dismissed = null; try{ dismissed = localStorage.getItem("cs_update_dismissed"); }catch(e){}
     if(dismissed && verNum(dismissed) != null && verNum(dismissed) >= lat) return;   // already dismissed this (or newer)
     showUpdateBanner(latest);
   }
+  function readCachedLatest(){
+    try{ const c = localStorage.getItem("cs_update_latest"); if(!c) return null;
+      if(c[0] === "{") return JSON.parse(c);                       // new shape {version, semver}
+      return { version: c, semver: null };                         // migrate an older plain-string cache
+    }catch(e){ return null; }
+  }
   async function checkForUpdate(){
-    // Surface the last known result instantly (no flash of delay on reopen)...
-    try{ const cached = localStorage.getItem("cs_update_latest"); if(cached) maybeShowBanner(cached); }catch(e){}
-    // ...then always re-poll the tiny (~32-byte) probe so a fresh release is caught on the next load.
+    maybeShowBanner(readCachedLatest());                            // surface the last known result instantly (no flash on reopen)
+    // ...then always re-poll the tiny (~40-byte) probe so a fresh release is caught on the next load.
     // No persistent throttle: a stale cached version must never suppress re-checking, and the cost is trivial.
     const latest = await fetchLatestVersion();
     if(!latest) return;                                             // offline / unreachable → silent
-    try{ localStorage.setItem("cs_update_latest", latest); }catch(e){}
+    try{ localStorage.setItem("cs_update_latest", JSON.stringify(latest)); }catch(e){}
     maybeShowBanner(latest);
   }
 
@@ -8959,8 +8978,8 @@
     const isUpdate = (seenVer != null && seenVer !== APP_VERSION);   // came back after an update (not first-ever, not a manual reopen)
     const ver = $("intro-ver");
     if(ver) ver.textContent = isUpdate
-      ? ("You're now on " + APP_VERSION + ". This guide reappears after each update so you catch anything new (like the note above).")
-      : (APP_VERSION + " · this guide reappears after each update.");
+      ? ("You're now on " + appLabel() + ". This guide reappears after each update so you catch anything new (like the note above).")
+      : (appLabel() + " · this guide reappears after each update.");
     renderChangelog(seenVer);
     ov.hidden = false;
     document.addEventListener("keydown", ov._onKey);
@@ -8980,7 +8999,7 @@
       }
     }
     const body = entries.map((entry, i) =>
-      `<h4>${esc(entry.v)}${i === 0 ? " — latest" : ""}</h4><ul>` +
+      `<h4>${esc(entry.semver || entry.v)}${i === 0 ? " — latest" : ""}</h4><ul>` +
       (entry.items||[]).map(it => `<li>${esc(it)}</li>`).join("") + `</ul>`).join("");
     box.innerHTML = `<summary>${esc(heading)}</summary>${body}`;
     box.open = isUpdate;   // expanded after an update so the changes are seen; collapsed on first-ever / manual reopen
@@ -9642,7 +9661,7 @@
     var TABS = [
       ['actions','Actions','core'], ['spells','Spells','spells'], ['inv','Inventory','inv'],
       ['feat','Features & Traits','feat'], ['bg','Background','bg'], ['notes','Notes','notes'],
-      ['story','Backstory','story'], ['extras','Extras','companion'],
+      ['story','Backstory','story'], ['extras','Extras','companion'], ['mini','Mini','mini'],
     ];
     function el(id){ return document.getElementById(id); }
     function sheet(){ return document.querySelector('.sheet'); }

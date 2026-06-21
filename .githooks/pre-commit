@@ -3,8 +3,12 @@
 # app always knows which build it is, Save/Update downloads are version-named, and
 # the service-worker cache busts on each deploy.
 #
-#   APP_VERSION in index.html  ->  "v<N> (YYYY-MM-DD)"   N = this commit's number
+#   APP_VERSION in index.html  ->  "v<N> (YYYY-MM-DD)"   N = this commit's number (monotonic build id, drives update comparison)
+#   APP_SEMVER  in index.html  ->  "<X.Y.Z>"             read from the VERSION file (human-facing SemVer, curated by hand)
 #   CACHE       in sw.js       ->  "dnd-sheet-v<N>"      (same N; drops the old cache)
+#   version.json               ->  {"version":"v<N> (date)","semver":"<X.Y.Z>"}   (probe the update banner polls)
+#
+# Bump the SemVer by editing the VERSION file: PATCH for fixes, MINOR for features, MAJOR for big changes.
 #
 # Best-effort: never block a commit. Activate in a fresh clone with:
 #   git config core.hooksPath .githooks
@@ -19,6 +23,10 @@ num=$((have + 1))
 date="$(date +%Y-%m-%d)"
 ver="v${num} (${date})"
 
+# Human-facing SemVer, curated in the VERSION file (default 0.0.0 if absent/blank).
+semver="$(tr -d '[:space:]' < VERSION 2>/dev/null)"
+[ -z "$semver" ] && semver="0.0.0"
+
 # Stamp APP_VERSION on the line carrying the @APP_VERSION@ marker (idempotent).
 if grep -q '@APP_VERSION@' index.html 2>/dev/null; then
   ver="$ver" perl -i -pe 's/(const APP_VERSION = ")[^"]*(";)/$1$ENV{ver}$2/ if /\@APP_VERSION\@/' index.html \
@@ -26,21 +34,29 @@ if grep -q '@APP_VERSION@' index.html 2>/dev/null; then
     && echo "pre-commit: stamped APP_VERSION = $ver"
 fi
 
+# Stamp APP_SEMVER (the human-facing version) from the VERSION file.
+if grep -q '@APP_SEMVER@' index.html 2>/dev/null; then
+  semver="$semver" perl -i -pe 's/(const APP_SEMVER = ")[^"]*(";)/$1$ENV{semver}$2/ if /\@APP_SEMVER\@/' index.html \
+    && git add index.html \
+    && echo "pre-commit: stamped APP_SEMVER = $semver"
+fi
+
 # Stamp the pending "Unreleased" changelog entry with this version (Keep-a-Changelog style), so the
 # welcome guide's notes always carry the right vN automatically — same N as APP_VERSION. A commit with
 # no Unreleased entry (no user-facing notes) is left untouched.
 if grep -q '{v:"Unreleased"' index.html 2>/dev/null; then
-  num="$num" perl -i -pe 's/\{v:"Unreleased"/{v:"v$ENV{num}"/ if /\{v:"Unreleased"/' index.html \
+  num="$num" semver="$semver" perl -i -pe 's/\{v:"Unreleased"/{v:"v$ENV{num}", semver:"$ENV{semver}"/ if /\{v:"Unreleased"/' index.html \
     && git add index.html \
-    && echo "pre-commit: stamped CHANGELOG Unreleased -> v$num"
+    && echo "pre-commit: stamped CHANGELOG Unreleased -> v$num ($semver)"
 fi
 
-# Stamp the tiny version probe the in-app "update available" banner polls, so it can detect a
-# newer build without downloading the multi-MB index.html. Same vN as APP_VERSION above.
+# Write the tiny version probe the in-app "update available" banner polls, so it can detect a
+# newer build without downloading the multi-MB index.html. Carries the build id (for comparison,
+# back-compatible with older clients) plus the SemVer (for display on newer clients).
 if [ -f version.json ]; then
-  ver="$ver" perl -i -pe 's/("version"\s*:\s*")[^"]*(")/$1$ENV{ver}$2/' version.json \
+  printf '{"version":"%s","semver":"%s"}\n' "$ver" "$semver" > version.json \
     && git add version.json \
-    && echo "pre-commit: stamped version.json = $ver"
+    && echo "pre-commit: wrote version.json = $ver / $semver"
 fi
 
 # Tie the service-worker cache to the same version so each deploy busts the offline
