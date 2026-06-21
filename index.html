@@ -1432,8 +1432,12 @@
 
     body.ddb-layout #ddb-topbar{ grid-area:top; display:flex; flex-wrap:wrap; align-items:stretch; gap:12px; }
     body.ddb-layout #ddb-topbar > .card{ margin:0; }
-    body.ddb-layout #ddb-topbar .ddb-ident{ flex:1 1 280px; min-width:240px; }
-    body.ddb-layout #ddb-topbar [data-csec="abilities"]{ flex:2 1 360px; }
+    body.ddb-layout #ddb-topbar .ddb-ident{ flex:1.5 1 380px; min-width:340px; }
+    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid{ grid-template-columns:repeat(2,1fr); margin-top:8px; }
+    body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:90px; min-width:90px; flex:0 0 90px; height:auto; }
+    body.ddb-layout #ddb-topbar .ddb-ident .xp-add, body.ddb-layout #ddb-topbar .ddb-ident #btn-addxp,
+    body.ddb-layout #ddb-topbar .ddb-ident #btn-levelup, body.ddb-layout #ddb-topbar .ddb-ident .xp-status{ display:none; }
+    body.ddb-layout #ddb-topbar [data-csec="abilities"]{ flex:2 1 350px; }
     body.ddb-layout #ddb-topbar .ddb-combatcluster{ flex:2 1 340px; display:flex; gap:12px; align-items:stretch; }
     body.ddb-layout #ddb-topbar .ddb-combatcluster > .card{ margin:0; }
     body.ddb-layout #ddb-topbar [data-csec="topstats"]{ flex:0 0 132px; }
@@ -2464,7 +2468,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v258 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v259 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
@@ -9307,6 +9311,129 @@
     if(typeof window.compute==='function'){ var oc=window.compute;
       window.compute=function(){ var r=oc.apply(this,arguments); try{ if(document.body.classList.contains('classic-layout')) syncClassic(); }catch(e){} return r; }; }
     function boot(){ try{ if(typeof theme!=='undefined' && theme==='classic'){ document.body.classList.add('classic-layout'); buildAll(); } }catch(e){} }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
+  })();
+  </script>
+
+  <!-- ============================================================
+       D&D BEYOND layout engine. When the per-character theme is
+       "dndbeyond", relocate the Core cards (abilities, saves, skills,
+       senses, proficiencies, combat, attacks, limited features) into a
+       landscape #ddb-* scaffold and build a centre tab bar, so the core
+       info wraps around a tabbed panel like D&D Beyond. Real nodes are
+       moved (ids preserved), so every live calculation keeps working;
+       autosave is a JSON blob keyed by field id, untouched by the move.
+       Each move leaves a keyed <template.ddb-ph> placeholder so the DOM
+       can be restored exactly — used to self-heal a file saved while
+       active, and to print with the standard one-page-per-tab layout.
+       ============================================================ -->
+  <script>
+  (function(){
+    var SCAFFOLD_IDS = ['ddb-topbar','ddb-rail','ddb-skills','ddb-tabbar','ddb-main'];
+    // [tabKey, label, page key it drives]. "actions" = the relocated attacks/limited cards (shown via #ddb-main).
+    var TABS = [
+      ['actions','Actions','core'], ['spells','Spells','spells'], ['inv','Inventory','inv'],
+      ['feat','Features & Traits','feat'], ['bg','Background','bg'], ['notes','Notes','notes'],
+      ['story','Backstory','story'], ['extras','Extras','companion'],
+    ];
+    function el(id){ return document.getElementById(id); }
+    function sheet(){ return document.querySelector('.sheet'); }
+    function active(){ return document.body.classList.contains('ddb-layout'); }
+    function isDdb(){ return (typeof theme!=='undefined' && theme==='dndbeyond'); }
+    function findCard(key){
+      if(key==='ident'){ var n=el('charname'); return n ? n.closest('.card') : null; }
+      return document.querySelector('[data-csec="'+key+'"]');
+    }
+    // move a node into dest, leaving a keyed placeholder where it was (so it can be put back exactly)
+    function relocate(node, dest, key){
+      if(!node || !dest) return;
+      if(!node.closest || !node.closest('#ddb-topbar,#ddb-rail,#ddb-skills,#ddb-main')){
+        var ph=document.createElement('template'); ph.className='ddb-ph'; ph.setAttribute('data-ddb-home', key);
+        node.parentNode.insertBefore(ph, node);
+      }
+      dest.appendChild(node);
+    }
+    // put every relocated card back at its placeholder, return the asi flags home, drop the scaffold
+    function restoreCanonical(){
+      Array.prototype.forEach.call(document.querySelectorAll('template.ddb-ph'), function(ph){
+        var key=ph.getAttribute('data-ddb-home');
+        var card = key==='ident' ? (el('charname') && el('charname').closest('.card'))
+                                  : document.querySelector('[data-csec="'+key+'"]');
+        if(card && ph.parentNode) ph.parentNode.insertBefore(card, ph);
+        if(ph.parentNode) ph.parentNode.removeChild(ph);
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.ddb-flag-moved'), function(f){
+        f.classList.remove('ddb-flag-moved');
+        var core=el('page-core'); if(core) core.insertBefore(f, core.querySelector('.columns'));
+      });
+      SCAFFOLD_IDS.forEach(function(id){ var n=el(id); if(n && n.parentNode) n.parentNode.removeChild(n); });
+    }
+    function ensureScaffold(){
+      var s=sheet(); if(!s) return null; var made={};
+      SCAFFOLD_IDS.forEach(function(id){ var n=el(id); if(!n){ n=document.createElement('div'); n.id=id; n.className='noprint'; s.appendChild(n); } made[id]=n; });
+      return made;
+    }
+    function buildTabbar(bar){
+      if(bar.childElementCount) return;
+      TABS.forEach(function(t){
+        var b=document.createElement('button');
+        b.type='button'; b.className='ddb-tab'; b.setAttribute('data-tab', t[0]); b.textContent=t[1];
+        b.addEventListener('click', function(){ if(typeof window.showPage==='function') window.showPage(t[2]); });
+        bar.appendChild(b);
+      });
+    }
+    // reflect the current .page.active in the tab bar + Actions-host visibility
+    function syncFromActive(){
+      if(!active()) return;
+      var ap=(document.querySelector('.sheet > .page.active')||{}).id || 'page-core';
+      var pg=ap.replace(/^page-/,''); var isCore=(pg==='core');
+      var main=el('ddb-main'); if(main) main.style.display = isCore ? '' : 'none';
+      var bar=el('ddb-tabbar');
+      if(bar){
+        var match=TABS.filter(function(t){ return t[2]===pg; })[0];
+        var want = match ? match[0] : (isCore?'actions':null);
+        Array.prototype.forEach.call(bar.children, function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===want); });
+      }
+    }
+    function activate(){
+      if(active()) return;
+      restoreCanonical();                                   // start from a clean canonical DOM
+      var sc=ensureScaffold(); if(!sc) return;
+      relocate(findCard('ident'), sc['ddb-topbar'], 'ident');
+      var idc=findCard('ident'); if(idc) idc.classList.add('ddb-ident');
+      relocate(findCard('abilities'), sc['ddb-topbar'], 'abilities');
+      var cluster=document.createElement('div'); cluster.className='ddb-combatcluster'; sc['ddb-topbar'].appendChild(cluster);
+      relocate(findCard('topstats'), cluster, 'topstats');
+      relocate(findCard('combat'), cluster, 'combat');
+      ['sources-flag','asi-flag','decisions-flag'].forEach(function(id){ var f=el(id); if(f){ f.classList.add('ddb-flag-moved'); sc['ddb-topbar'].appendChild(f); } });
+      ['saves','senses','proficiencies','defenses','hitdice'].forEach(function(k){ relocate(findCard(k), sc['ddb-rail'], k); });
+      relocate(findCard('skills'), sc['ddb-skills'], 'skills');
+      relocate(findCard('attacks'), sc['ddb-main'], 'attacks');
+      relocate(findCard('limited'), sc['ddb-main'], 'limited');
+      buildTabbar(sc['ddb-tabbar']);
+      document.body.classList.add('ddb-layout');
+      syncFromActive();
+    }
+    function deactivate(){
+      if(!active() && !document.querySelector('template.ddb-ph')) return;
+      document.body.classList.remove('ddb-layout');
+      restoreCanonical();
+      if(typeof window.showPage==='function' && !document.querySelector('.sheet > .page.active')) window.showPage('core');
+    }
+
+    if(typeof window.applyThemeSetting==='function'){
+      var oa=window.applyThemeSetting;
+      window.applyThemeSetting=function(){ var r=oa.apply(this,arguments); try{ if(isDdb()) activate(); else deactivate(); }catch(e){} return r; };
+    }
+    if(typeof window.showPage==='function'){
+      var osp=window.showPage;
+      window.showPage=function(){ var r=osp.apply(this,arguments); try{ if(active()) syncFromActive(); }catch(e){} return r; };
+    }
+    window.addEventListener('beforeprint', function(){ if(active()){ window.__ddbPrint=true; deactivate(); } });
+    window.addEventListener('afterprint', function(){ if(window.__ddbPrint){ window.__ddbPrint=false; if(isDdb()) activate(); } });
+
+    restoreCanonical();                                     // self-heal a file saved while the layout was active
+    function boot(){ try{ if(isDdb()) activate(); }catch(e){} }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
   })();
   </script>
