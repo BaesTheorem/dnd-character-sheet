@@ -366,7 +366,9 @@
   .cm-top{display:flex; align-items:center; gap:10px; margin-bottom:14px}
   .cm-top .cm-count{color:var(--muted); font-size:12px}
   .cm-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px}
+  .cm-group{display:flex; flex-direction:column; gap:8px; min-width:0}   /* a character + its nested Simulacra, kept together as one cell */
   .cm-card{border:1px solid var(--line2); background:#fff; display:flex; flex-direction:column; position:relative}
+  .cm-card.cm-child{border-left:3px solid var(--accent)}   /* a Simulacrum, indented under its parent (margin-left set per nesting level) */
   .cm-card:hover{border-color:var(--accent)}
   .cm-card.current{border-color:var(--accent)}
   .cm-port{height:120px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer}
@@ -375,6 +377,7 @@
   .cm-meta{padding:8px 10px; flex:1; min-width:0; cursor:pointer}
   .cm-name{font-weight:700; font-size:14px; overflow-wrap:anywhere}  /* always show the full name, wrap if long */
   .cm-tag-sim{display:inline-block; font-size:10px; font-weight:700; letter-spacing:.04em; color:var(--accent); border:1px solid var(--line2); padding:0 5px; vertical-align:middle; white-space:nowrap}
+  .cm-sim-ico{vertical-align:-1px; margin-right:3px}
   .cm-sub{color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .cm-camp{color:var(--accent); font-size:11px; margin-top:2px; overflow-wrap:anywhere}
   .cm-when{color:var(--muted); font-size:11px; margin-top:2px}
@@ -2123,7 +2126,7 @@
             <div class="stat" id="prep-stat" style=""><div class="k" id="prep-stat-label">Can Prepare</div><div class="calc" id="prepcount"></div></div>
           </div>
           <p class="help" id="cast-note">Flexible layout — fill in as needed. Pick a class to tailor it.</p>
-          <button class="btn noprint" id="btn-make-sim" type="button" style="display:none; margin-top:4px" title="Cast Simulacrum: create a full duplicate of this character (half HP, no equipment, only the spells prepared now) as a new entry in Manage Characters">❄ Create Simulacrum</button>
+          <button class="btn noprint" id="btn-make-sim" type="button" style="display:none; margin-top:4px" title="Cast Simulacrum: create a full duplicate of this character (half HP, no equipment, only the spells prepared now) as a new entry in Manage Characters"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" style="vertical-align:-2px; margin-right:5px"><g stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="8" y1="1.6" x2="8" y2="14.4"/><line x1="2.45" y1="4.8" x2="13.55" y2="11.2"/><line x1="2.45" y1="11.2" x2="13.55" y2="4.8"/><line x1="8" y1="4.3" x2="6.1" y2="2.9"/><line x1="8" y1="4.3" x2="9.9" y2="2.9"/><line x1="8" y1="11.7" x2="6.1" y2="13.1"/><line x1="8" y1="11.7" x2="9.9" y2="13.1"/></g></svg>Create Simulacrum</button>
         </div>
         <div class="card" id="slots-card"><h2>Spell Slots (total &amp; expended per level)</h2><div class="slots" id="slots"><div class="slot" id="slotcell1"><div class="k">Lv 1</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot1" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot1u" min="0"></label></div></div><div class="slot" id="slotcell2"><div class="k">Lv 2</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot2" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot2u" min="0"></label></div></div><div class="slot" id="slotcell3"><div class="k">Lv 3</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot3" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot3u" min="0"></label></div></div><div class="slot" id="slotcell4"><div class="k">Lv 4</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot4" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot4u" min="0"></label></div></div><div class="slot" id="slotcell5"><div class="k">Lv 5</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot5" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot5u" min="0"></label></div></div><div class="slot" id="slotcell6"><div class="k">Lv 6</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot6" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot6u" min="0"></label></div></div><div class="slot" id="slotcell7"><div class="k">Lv 7</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot7" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot7u" min="0"></label></div></div><div class="slot" id="slotcell8"><div class="k">Lv 8</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot8" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot8u" min="0"></label></div></div><div class="slot" id="slotcell9"><div class="k">Lv 9</div><div class="slot-io"><label class="io"><span>Total</span><input data-save="" type="number" id="slot9" min="0"></label><label class="io"><span>Used</span><input data-save="" type="number" id="slot9u" min="0"></label></div></div></div></div>
         <div class="card spell-list"><h2 id="spells-h2">Spells</h2>
@@ -2519,11 +2522,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v268 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v269 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.0.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.1.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2531,6 +2534,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v269", semver:"2.1.0", items:[
+      "Manage Characters: dropped the redundant Open button — tapping or clicking a character already opens it.",
+      "Simulacrum characters are now nested and indented directly under the character they were cast from, and stay grouped there no matter which sort you pick, marked with a snowflake. (Editing a Simulacrum also keeps that marker now, where before it could disappear.)",
+    ]},
     {v:"v268", semver:"2.0.0", items:[
       "Version numbers are now proper Semantic Versions (MAJOR.MINOR.PATCH, like 2.0.0) shown in the welcome guide and the update banner, instead of a raw build number. Bug fixes bump the last number, new features the middle one, big changes the first.",
       "D&D Beyond theme fixes: the Hit Dice box no longer crams four cells into the narrow side rail (it wraps to a tidy 2×2), the character portrait keeps its proper shape instead of collapsing to a sliver, and the Mini tab is back in the tab bar.",
@@ -3261,6 +3268,8 @@
   let dupId = "";   // a persistent per-character identity nonce, set ONLY on an in-app Duplicate / Simulacrum. It rides
                     // in the saved data and is folded into charContentHash, so a copy stays a distinct character for
                     // import dedup even after you edit it (e.g. delete the " (copy)" suffix from its name).
+  let isSimulacrum = false;   // true on a Simulacrum-spawned character; drives the Manager's Simulacrum tag (persisted, so editing one keeps the flag)
+  let simOf = "";   // the dupId of the parent this Simulacrum was cast from; lets the Manager nest it under that character
   let createdAt = 0;   // when this character was first created (ms). Stamped on first save; drives the Manager's "created date" sort.
   let variantEncumbrance = false;               // Settings → General: optional variant Encumbrance rule (off by default)
   let showFuturistic = false;                   // Settings → General: include futuristic items (laser/antimatter/powered armor) in the item pickers (off by default)
@@ -5281,6 +5290,8 @@
       data[el.id] = (el.type === "checkbox") ? el.checked : el.value;
     });
     if(dupId) data.dupId = dupId;   // persist the duplicate-identity nonce so a copy stays distinct across edits
+    if(isSimulacrum) data.simulacrum = true;   // keep the Simulacrum flag across edits (the Manager tag would vanish otherwise)
+    if(simOf) data.simOf = simOf;   // keep the parent link so the Manager keeps nesting this Simulacrum under its source
     data.createdAt = createdAt || (createdAt = Date.now());   // stamp creation time on first save; preserved thereafter
     data.inspiration = inspState;
     data.genMode = genMode;
@@ -5354,6 +5365,8 @@
     rolledArray = (data && Array.isArray(data.rolledArray)) ? data.rolledArray.slice() : null;
     characterCreated = !!(data && data.created); markCharacterCreated();   // toolbar button label reflects whether a character exists
     dupId = (data && data.dupId) || "";   // a duplicate/simulacrum's persistent identity nonce (blank for normal characters)
+    isSimulacrum = !!(data && data.simulacrum);   // restore the Simulacrum flag + parent link so they survive an edit
+    simOf = (data && data.simOf) || "";
     createdAt = (data && +data.createdAt) || 0;   // 0 when absent (legacy) → the Manager falls back to the modified date
     manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
     baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
@@ -9029,16 +9042,40 @@
       if(!d || typeof d !== "object") continue;
       const slot = (k === BASE_KEY) ? "" : k.slice((BASE_KEY + "::").length);
       out.push({ key:k, slot, name:(d.charname||"").trim(), sub:(d.classlevel||d.race||"").trim(), campaign:(d.campaign||"").trim(),
-                 savedAt:+d.savedAt||0, createdAt:(+d.createdAt || +d.savedAt || 0), sim:!!d.simulacrum });   // createdAt falls back to savedAt for characters saved before creation tracking
+                 savedAt:+d.savedAt||0, createdAt:(+d.createdAt || +d.savedAt || 0),
+                 sim:!!d.simulacrum, dupId:(d.dupId||""), simOf:(d.simOf||"") });   // sim flag + identity + parent link for Manager nesting
       seen.add(slot);
     }
     if(!seen.has(SLOT)){   // the character we're viewing may not be saved yet — show it live so it's never invisible
       out.push({ key:KEY, slot:SLOT, name:($("charname").value||"").trim(),
                  sub:($("classlevel").value||$("race").value||"").trim(), campaign:($("campaign").value||"").trim(),
-                 savedAt:Date.now(), createdAt:(createdAt || Date.now()), unsaved:true });
+                 savedAt:Date.now(), createdAt:(createdAt || Date.now()), unsaved:true,
+                 sim:isSimulacrum, dupId:dupId, simOf:simOf });
     }
     sortSlots(out);
-    return out;
+    return nestSimulacra(out);
+  }
+  // Reorder so each Simulacrum sits directly under the character it was cast from (matched by the parent's dupId),
+  // and stays there no matter which sort is chosen. Roots keep the chosen sort; children follow their parent in sort
+  // order; each entry gets a .depth for indentation. Orphans (parent deleted/not present) fall back to the top level.
+  function nestSimulacra(out){
+    const byId = new Map();
+    out.forEach(c => { if(c.dupId) byId.set(c.dupId, c); });
+    const kids = new Map(), roots = [];
+    out.forEach(c => {
+      const parent = (c.simOf && byId.get(c.simOf)) || null;
+      if(parent && parent !== c){ (kids.get(c.simOf) || kids.set(c.simOf, []).get(c.simOf)).push(c); }
+      else roots.push(c);
+    });
+    const ordered = [], seen = new Set();
+    function emit(c, depth){
+      if(seen.has(c)) return;   // guard against a pathological cycle
+      seen.add(c); c.depth = depth; ordered.push(c);
+      (kids.get(c.dupId) || []).forEach(k => emit(k, depth + 1));
+    }
+    roots.forEach(r => emit(r, 0));
+    out.forEach(c => { if(!seen.has(c)){ c.depth = 0; ordered.push(c); } });   // safety: never drop anyone
+    return ordered;
   }
   // Sort the Manager's character list by the user's chosen key (persisted global pref). Within name/campaign,
   // empty values sink to the bottom and ties break by most-recently-edited.
@@ -9211,19 +9248,21 @@
     $("cm-count").textContent = list.length + (list.length===1 ? " character" : " characters");
     grid.innerHTML = "";
     if(!list.length){ grid.innerHTML = `<div class="cm-empty">No characters yet. Click “＋ New character” to begin.</div>`; }
-    list.forEach(c => {
+    // Snowflake indicator for a Simulacrum (inline SVG, currentColor — no emoji).
+    const SIM_ICON = '<svg class="cm-sim-ico" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><g stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="8" y1="1.6" x2="8" y2="14.4"/><line x1="2.45" y1="4.8" x2="13.55" y2="11.2"/><line x1="2.45" y1="11.2" x2="13.55" y2="4.8"/><line x1="8" y1="4.3" x2="6.1" y2="2.9"/><line x1="8" y1="4.3" x2="9.9" y2="2.9"/><line x1="8" y1="11.7" x2="6.1" y2="13.1"/><line x1="8" y1="11.7" x2="9.9" y2="13.1"/></g></svg>';
+    function makeCard(c){
       const card = document.createElement("div");
-      card.className = "cm-card" + (c.slot === SLOT ? " current" : "");
+      card.className = "cm-card" + (c.slot === SLOT ? " current" : "") + (c.depth ? " cm-child" : "");
+      if(c.depth) card.style.marginLeft = (c.depth * 16) + "px";   // indent each nesting level
       const initials = (c.name||"").replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "⬢";
       card.innerHTML =
         (c.slot === SLOT ? `<span class="cm-badge">Current</span>` : ``) +
         `<div class="cm-port"></div>` +
-        `<div class="cm-meta"><div class="cm-name">${esc(c.name||"Unnamed character")}${c.sim ? ` <span class="cm-tag-sim">❄ Simulacrum</span>` : ``}</div>` +
+        `<div class="cm-meta"><div class="cm-name">${esc(c.name||"Unnamed character")}${c.sim ? ` <span class="cm-tag-sim">${SIM_ICON}Simulacrum</span>` : ``}</div>` +
           `<div class="cm-sub">${esc(c.sub||"No class set")}</div>` +
           (c.campaign ? `<div class="cm-camp">⚔ ${esc(c.campaign)}</div>` : ``) +
           `<div class="cm-when">${c.unsaved ? "unsaved" : "edited " + esc(relTime(c.savedAt))}</div></div>` +
         `<div class="cm-acts">` +
-          `<button type="button" class="cm-open">Open</button>` +
           `<button type="button" class="cm-rename">Rename</button>` +
           `<button type="button" class="cm-dupe">Duplicate</button>` +
           `<button type="button" class="cm-del">Delete</button>` +
@@ -9240,15 +9279,23 @@
           if(full) makeThumb(full, THUMB_MAX).then(t => { if(t){ setImg(t); storeThumb(c.key, t); } });
         }).catch(()=>{});
       }
-      const open = ()=>{ if(c.slot === SLOT){ closeCharMgr(); return; } gotoSlot(c.slot); };
+      const open = ()=>{ if(c.slot === SLOT){ closeCharMgr(); return; } gotoSlot(c.slot); };   // tapping the card opens it (no separate Open button)
       portEl.addEventListener("click", open);
       card.querySelector(".cm-meta").addEventListener("click", open);
-      card.querySelector(".cm-open").addEventListener("click", e=>{ e.stopPropagation(); open(); });
       card.querySelector(".cm-rename").addEventListener("click", e=>{ e.stopPropagation(); renameSlot(c); });
       card.querySelector(".cm-dupe").addEventListener("click", e=>{ e.stopPropagation(); duplicateSlot(c); });
       card.querySelector(".cm-del").addEventListener("click", e=>{ e.stopPropagation(); deleteSlot(c); });
-      grid.appendChild(card);
-    });
+      return card;
+    }
+    // Group each root character with its nested Simulacra, so a family stays together as one cell (card view)
+    // / one block (list view) no matter how many columns the grid wraps into or which sort is chosen.
+    for(let i = 0; i < list.length; ){
+      const group = document.createElement("div");
+      group.className = "cm-group";
+      group.appendChild(makeCard(list[i])); i++;            // a depth-0 root character
+      while(i < list.length && list[i].depth > 0){ group.appendChild(makeCard(list[i])); i++; }   // followed by its Simulacra
+      grid.appendChild(group);
+    }
     const cap = probeStorageCap();                 // auto-detect this browser's localStorage ceiling (cached after first open)
     // Characters live in IndexedDB now (gigabytes), so autosave no longer hits the old ~10MB localStorage wall.
     $("cm-storage").textContent = "Characters are stored in this browser (IndexedDB).";
@@ -9334,7 +9381,16 @@
     if(c.slot === SLOT) flushSave();    // copy the latest if it's the one we're viewing
     let d; try{ d = JSON.parse(csGet(c.key)); }catch(e){ d = null; }
     if(!d){ flashStatus("Couldn't read that character to copy."); return; }
-    makeSimulacrumData(d);
+    // Give the source a stable identity (if it lacks one) so the Manager can nest this Simulacrum under it,
+    // and keep that nesting regardless of the chosen sort. Linked by dupId, so it survives export/import too.
+    let parentId = d.dupId;
+    if(!parentId){
+      parentId = newSlotId();
+      try{ const src = JSON.parse(csGet(c.key)); src.dupId = parentId; csSet(c.key, JSON.stringify(src)); }catch(e){}
+      if(c.key === KEY) dupId = parentId;   // keep the live character's in-memory nonce in step
+    }
+    makeSimulacrumData(d);            // → the child (its own fresh dupId, half HP, no gear, …)
+    d.simOf = parentId;              // nest under the source character
     const sheets = Math.max(1, d.spellSheets || 1);
     let anyWiz = false; for(let i=0; i<sheets; i++) if(d["spellclass" + (i ? "__"+i : "")] === "Wizard") anyWiz = true;
     const nk = BASE_KEY + "::" + newSlotId();
