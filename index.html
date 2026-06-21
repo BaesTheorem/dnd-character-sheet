@@ -2518,7 +2518,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v266 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v267 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
@@ -5532,7 +5532,6 @@
      APP_VERSION by .githooks/pre-commit, so the two always match on a given deploy. */
   const VERSION_SRC          = APP_SRC.replace(/index\.html$/, "version.json");
   const VERSION_SRC_FALLBACK = APP_SRC_FALLBACK.replace(/index\.html$/, "version.json");
-  const UPDATE_CHECK_THROTTLE_MS = 3 * 60 * 60 * 1000;   // hit the network at most every 3 hours
 
   async function fetchLatestVersion(){   // → "vN (date)" from the published probe, or null if unreachable
     for(const url of [VERSION_SRC, VERSION_SRC_FALLBACK]){
@@ -5560,20 +5559,14 @@
     if(dismissed && verNum(dismissed) != null && verNum(dismissed) >= lat) return;   // already dismissed this (or newer)
     showUpdateBanner(latest);
   }
-  async function checkForUpdate(force){
-    try{
-      if(!force){
-        const last = +(localStorage.getItem("cs_update_lastcheck") || 0);
-        if(Date.now() - last < UPDATE_CHECK_THROTTLE_MS){            // within the throttle: reuse the last known result
-          const cached = localStorage.getItem("cs_update_latest");
-          if(cached) maybeShowBanner(cached);
-          return;
-        }
-      }
-    }catch(e){}
+  async function checkForUpdate(){
+    // Surface the last known result instantly (no flash of delay on reopen)...
+    try{ const cached = localStorage.getItem("cs_update_latest"); if(cached) maybeShowBanner(cached); }catch(e){}
+    // ...then always re-poll the tiny (~32-byte) probe so a fresh release is caught on the next load.
+    // No persistent throttle: a stale cached version must never suppress re-checking, and the cost is trivial.
     const latest = await fetchLatestVersion();
     if(!latest) return;                                             // offline / unreachable → silent
-    try{ localStorage.setItem("cs_update_lastcheck", String(Date.now())); localStorage.setItem("cs_update_latest", latest); }catch(e){}
+    try{ localStorage.setItem("cs_update_latest", latest); }catch(e){}
     maybeShowBanner(latest);
   }
 
