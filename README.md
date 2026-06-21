@@ -102,7 +102,14 @@ print a blank copy and fill it in by hand. Fill any value digitally and the math
   move a character between devices (auto-save is per-browser localStorage, not written to the file).
 - **Print / PDF** → "Save as PDF". A dense, standardized stylesheet fits a normal character onto
   **one page** (builder UI hidden; text sections render as full-content mirrors; two balanced columns).
-- **Settings** → page-layout toggles (hide/show any tab) and **Source books** (see below).
+- **Settings** → **Themes** (per character), page-layout toggles (hide/show any tab) and **Source books** (see below).
+
+## Themes
+Each character can carry its own **theme** — a named look chosen under **Settings → Character Settings → Theme** and saved with that character. A theme is a swap of the sheet's CSS custom properties (and a few decorative touches); the layout is unchanged. Two ship today:
+- **Universal 5e Character Sheet** (default) — the app's own flat/sharp look.
+- **Classic (Official 5e Sheet)** — the look and feel of the Wizards of the Coast 2014 sheet: ivory paper, black double-ruled boxes, a serif name, ability scores with modifier circles, a shield-shaped Armour Class, with every page reskinned to match.
+
+**Dark mode stays universal.** It lives in **Settings → General → Appearance** as one global toggle and layers on top of whichever theme is active, so every theme defines both a light and a dark palette (light under `body[data-theme="ID"]:not(.dark)`, dark under `body[data-theme="ID"].dark`). Printing always uses the light look. To add a theme: push an entry to the `THEMES` array in `index.html` and add its two CSS blocks (gated on `body[data-theme="ID"]`).
 - **Manage Characters** → a card view of every character saved in this browser (portrait or name
   initials, class/level, last-edited time). Open one to switch to it in place, or create / rename /
   duplicate / delete. Each character is a storage slot keyed by a `#slot=…` URL hash; optional rules
