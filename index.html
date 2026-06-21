@@ -2353,6 +2353,7 @@
           </section>
           <section class="set-sec" data-sec="pages">
             <label class="lbl" style="display:block; margin-bottom:6px">Theme</label>
+            <p class="wiz-hint" style="margin-top:0; color:var(--accent)"><strong>⚠ Highly experimental / work in progress.</strong> Themes (especially Classic and D&amp;D Beyond) are still being built out — expect rough edges, layout quirks, and changes between versions. The Universal theme is the stable default.</p>
             <select id="set-theme"></select>
             <p class="wiz-hint">The look of <strong>this character's</strong> sheet — its colours, borders, and surfaces. Each character can have its own theme. <strong>Dark mode</strong> (Settings → General → Appearance) layers on top of any theme and stays one setting across all your characters. Printing always uses the light look.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Visible pages</label>
@@ -2468,7 +2469,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v260 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v261 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
