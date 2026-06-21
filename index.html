@@ -859,7 +859,8 @@
 
   /* ---- print: dense, standardized, one page ---- */
   @media print{
-    body.dark{ --bg:#fff; --card:#fff; --ink:#1a1d23; --muted:#6b7280; --line:#e3e6ea; --line2:#d6dbe1; --accent:#3b4a63; --accent-soft:#eef1f6; --field:#f7f8fa; }   /* dark mode never bleeds into print */
+    body.dark:not(.print-dark){ --bg:#fff; --card:#fff; --ink:#1a1d23; --muted:#6b7280; --line:#e3e6ea; --line2:#d6dbe1; --accent:#3b4a63; --accent-soft:#eef1f6; --field:#f7f8fa; }   /* dark mode never bleeds into print — UNLESS the user chose "print in dark mode" at the Print prompt (.print-dark) */
+    body.print-dark{ background:#15171c !important; }   /* opted-in dark print: keep the page dark (beats the html,body white-forcing below); surfaces ride the body.dark vars */
     :root{--bg:#fff; --shadow:none}
     @page{size:letter; margin:8mm}
     html,body{background:#fff; padding:0; font-size:9px;
@@ -1546,7 +1547,7 @@
     <span class="status" id="status"></span>
     <button class="btn primary" id="btn-create" title="">Create Character</button>
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file (your character plus all loaded sourcebooks baked in — works offline, no localStorage needed)">Save</button>
-    <button class="btn" onclick="window.print()">Print / PDF</button>
+    <button class="btn" id="btn-print">Print / PDF</button>
     <button class="btn" id="btn-search" title="Search this character (⌘K / Ctrl-K)">Search</button>
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
@@ -2532,11 +2533,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v271 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v272 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.1.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.1.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2544,6 +2545,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v272", semver:"2.1.3", items:[
+      "Print: if Dark mode is on, clicking Print now asks first — keep dark (it eats ink) or switch to light and print.",
+    ]},
     {v:"v271", semver:"2.1.2", items:[
       "Manage Characters, Card view: a Simulacrum now nests to the right of its parent as a smaller card, instead of stacking beneath it. (List view still stacks them, indented under the parent.)",
     ]},
@@ -8744,6 +8748,23 @@
     $("set-theme").addEventListener("change", e => { theme = e.target.value || DEFAULT_THEME; applyThemeSetting(); save(); });   // per-character; dark mode stays a separate global toggle
     $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; setPrefBool(NOANIM_KEY, noAnimations); applyAnimSetting(); });   // global pref — not per-character
     $("set-dark").addEventListener("change", e => { darkMode = e.target.checked; setPrefBool(DARK_KEY, darkMode); applyDarkSetting(); });               // global pref — not per-character
+    // Print: if dark mode is on, ask first — printing dark eats ink. OK = print dark, Cancel = switch to light then print.
+    $("btn-print").addEventListener("click", () => {
+      if(darkMode){
+        const keepDark = confirm("Dark mode is on. Print in dark mode?\n\nOK — print in dark mode (uses a lot of ink)\nCancel — switch to light mode, then print");
+        if(keepDark){
+          document.body.classList.add("print-dark");
+          const cleanup = () => { document.body.classList.remove("print-dark"); window.removeEventListener("afterprint", cleanup); };
+          window.addEventListener("afterprint", cleanup);
+          window.print();
+          return;
+        }
+        // chose light: disable dark mode (global pref, sticks + syncs the Settings checkbox), then print
+        darkMode = false; setPrefBool(DARK_KEY, false); applyDarkSetting();
+        if($("set-dark")) $("set-dark").checked = false;
+      }
+      window.print();
+    });
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("set-futuristic").addEventListener("change", e => { showFuturistic = e.target.checked; save(); });   // item autocompletes read availableItemNames() live
     $("set-modern").addEventListener("change", e => { showModern = e.target.checked; save(); });
