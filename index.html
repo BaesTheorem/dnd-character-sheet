@@ -1253,8 +1253,7 @@
 
   /* ---- Tabs + toolbar ---- */
   body[data-theme="classic"] .toolbar{ background:var(--card); border-bottom:1px solid var(--line2); }
-  body[data-theme="classic"] .toolbar .brand span,
-  body[data-theme="classic"] .ptab.active{ font-family:var(--serif); }
+  body[data-theme="classic"] .toolbar .brand span{ font-family:var(--serif); }   /* tabs keep one font — don't switch the active tab to serif (jarring on click) */
   body[data-theme="classic"] .ptab{ border-color:var(--line2); }
   body[data-theme="classic"] .ptab.active{ background:var(--card); color:var(--ink); border-bottom-color:var(--card); }
 
@@ -2301,7 +2300,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v256 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v257 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
