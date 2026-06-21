@@ -10,6 +10,8 @@
 <title>Character Sheet</title>
 <style>
   /* ---- Clean minimal modern, fully self-contained (no external assets) ---- */
+  /* Theme: "Universal 5e Character Sheet" (default) — light palette. Each theme is a swap of these vars;
+     a new theme defines body[data-theme="ID"]:not(.dark){…} for light and body[data-theme="ID"].dark{…} for dark. */
   :root{
     --bg:#eef0f3;
     --card:#ffffff;
@@ -24,7 +26,9 @@
     --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.05);
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji",sans-serif;
   }
-  /* Settings → General → Appearance: Dark mode. Overrides the surface variables; print always stays light. */
+  /* Theme: "Universal 5e Character Sheet" — DARK palette (Settings → General → Appearance: Dark mode).
+     Dark mode is a universal toggle that layers on top of any theme, so every theme must define its own dark set.
+     Overrides the surface variables; print always stays light. */
   body.dark{
     --bg:#15171c;
     --card:#1e2128;
@@ -1996,7 +2000,10 @@
             <p class="wiz-hint">Downloads a fresh copy with no characters and default settings, but with every sourcebook you've loaded baked in. Good for handing someone a ready-to-use sheet. It opens blank for them (and for you), and it keeps your own characters and settings untouched.</p>
           </section>
           <section class="set-sec" data-sec="pages">
-            <label class="lbl" style="display:block; margin-bottom:6px">Visible pages</label>
+            <label class="lbl" style="display:block; margin-bottom:6px">Theme</label>
+            <select id="set-theme"></select>
+            <p class="wiz-hint">The look of <strong>this character's</strong> sheet — its colours, borders, and surfaces. Each character can have its own theme. <strong>Dark mode</strong> (Settings → General → Appearance) layers on top of any theme and stays one setting across all your characters. Printing always uses the light look.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Visible pages</label>
             <div id="layout-toggles"><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="core" checked=""> Core</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="inv" checked=""> Inventory</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="feat" checked=""> Features</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="spells" checked=""> Spells</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="companion" checked=""> Companions</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="bg" checked=""> Background</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="story" checked=""> Backstory</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="notes" checked=""> Notes</label><label class="lay-row"><input type="checkbox" class="lay-toggle" data-page="mini" checked=""> Mini</label></div>
             <p class="wiz-hint">Unchecked pages are removed from the tab bar and won't print. (The Mini page also needs a portrait.)</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Portrait</label>
@@ -2109,13 +2116,16 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v252 (2026-06-18)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v253 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v253", items:[
+      "New Themes setting (Settings → Character Settings, at the top): each character can have its own sheet look. The original look is now a theme called \u201cUniversal 5e Character Sheet.\u201d Dark mode still applies across all your characters and layers on top of whatever theme you pick.",
+    ]},
     {v:"v252", items:[
       "Moved the blank-sheet export into Settings → General (at the bottom) and renamed it “Export a blank sheet.”"
     ]},
@@ -2794,6 +2804,24 @@
   function sheetPrefsNow(){ return { dark: !!darkMode, noanim: !!noAnimations }; }   // the current sheet-wide prefs, for baking into a saved file
   let hidePortrait = false;                     // Settings → General: hide the character portrait box (screen + print)
   function applyPortraitSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("hide-portrait", hidePortrait); }
+  // ── Themes (per-character) ───────────────────────────────────────────────────────────
+  // A theme is a named CSS-variable palette. Its CSS lives in the stylesheet as
+  //   body[data-theme="ID"]:not(.dark){ … }   (light)  and   body[data-theme="ID"].dark{ … }  (dark)
+  // so the UNIVERSAL Dark-mode toggle (body.dark, a global pref) composes with ANY theme — every
+  // theme must ship both palettes. "universal" is the built-in baseline (the original flat/sharp
+  // look): it rides on the default :root / body.dark palette, so it needs no extra CSS. Add a theme
+  // by pushing an entry here AND adding its two CSS blocks. Theme is stored per-character (data.theme).
+  const THEMES = [
+    { id:"universal", name:"Universal 5e Character Sheet" },   // default — today's :root / body.dark palette
+  ];
+  const DEFAULT_THEME = "universal";
+  let theme = DEFAULT_THEME;                     // Settings → Character Settings → Theme (per-character)
+  function applyThemeSetting(){ document.body.dataset.theme = theme || DEFAULT_THEME; }
+  function renderThemeOptions(){
+    const sel = $("set-theme"); if(!sel) return;
+    sel.innerHTML = THEMES.map(t => `<option value="${t.id}">${t.name}</option>`).join("");
+    sel.value = THEMES.some(t => t.id === theme) ? theme : DEFAULT_THEME;
+  }
   let dupId = "";   // a persistent per-character identity nonce, set ONLY on an in-app Duplicate / Simulacrum. It rides
                     // in the saved data and is folded into charContentHash, so a copy stays a distinct character for
                     // import dedup even after you edit it (e.g. delete the " (copy)" suffix from its name).
@@ -4845,6 +4873,7 @@
     data.hiddenPages = hiddenPages;
     data.showAddSpell = showAddSpell;
     data.hidePortrait = hidePortrait;
+    data.theme = theme;   // per-character sheet theme (default Universal)
     // darkMode + noAnimations are global prefs (localStorage), not stored per-character.
     data.variantEncumbrance = variantEncumbrance;
     data.showFuturistic = showFuturistic;
@@ -4960,6 +4989,7 @@
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
+    theme = (data && typeof data.theme === "string" && data.theme) ? data.theme : DEFAULT_THEME;   // per-character; default Universal
     // darkMode + noAnimations are global (localStorage), loaded once at startup — not per-character.
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     showFuturistic = !!(data && data.showFuturistic);   // default off
@@ -5010,6 +5040,7 @@
     applyLayout();
     applyAddSpellSetting();
     applyPortraitSetting();
+    applyThemeSetting();
     applyAnimSetting();
     applyDarkSetting();
     compute();
@@ -7978,7 +8009,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -7986,6 +8017,7 @@
     });
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
+    $("set-theme").addEventListener("change", e => { theme = e.target.value || DEFAULT_THEME; applyThemeSetting(); save(); });   // per-character; dark mode stays a separate global toggle
     $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; setPrefBool(NOANIM_KEY, noAnimations); applyAnimSetting(); });   // global pref — not per-character
     $("set-dark").addEventListener("change", e => { darkMode = e.target.checked; setPrefBool(DARK_KEY, darkMode); applyDarkSetting(); });               // global pref — not per-character
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
