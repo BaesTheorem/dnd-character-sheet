@@ -35,6 +35,14 @@ if grep -q '{v:"Unreleased"' index.html 2>/dev/null; then
     && echo "pre-commit: stamped CHANGELOG Unreleased -> v$num"
 fi
 
+# Stamp the tiny version probe the in-app "update available" banner polls, so it can detect a
+# newer build without downloading the multi-MB index.html. Same vN as APP_VERSION above.
+if [ -f version.json ]; then
+  ver="$ver" perl -i -pe 's/("version"\s*:\s*")[^"]*(")/$1$ENV{ver}$2/' version.json \
+    && git add version.json \
+    && echo "pre-commit: stamped version.json = $ver"
+fi
+
 # Tie the service-worker cache to the same version so each deploy busts the offline
 # cache and fresh content lands on the next load (no "reload twice").
 if [ -f sw.js ]; then
