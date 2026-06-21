@@ -2522,11 +2522,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v269 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v270 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.1.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.1.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2534,6 +2534,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v270", semver:"2.1.1", items:[
+      "Saved and downloaded backup files are now named by version (e.g. “Character Sheet v2.1.0.html”) instead of the internal build number.",
+    ]},
     {v:"v269", semver:"2.1.0", items:[
       "Manage Characters: dropped the redundant Open button — tapping or clicking a character already opens it.",
       "Simulacrum characters are now nested and indented directly under the character they were cast from, and stay grouped there no matter which sort you pick, marked with a snowflake. (Editing a Simulacrum also keeps that marker now, where before it could disappear.)",
@@ -5543,9 +5546,9 @@
     if(!(doc && doc.querySelector("#embedded-data"))){ flashStatus("That download didn't look like the sheet — update cancelled."); restore(); return; }
     flushSave();
     const n = await bakeAllInto(doc.documentElement);                                                    // all your characters + sourcebooks travel into the new file
-    const newVer = versionFromHtml(html) || APP_VERSION;                                                  // name the file after the DOWNLOADED build, not the one we're running
+    const newVer = semverFromHtml(html) || versionFromHtml(html) || APP_VERSION;                          // name the file after the DOWNLOADED build (SemVer if it has one), not the one we're running
     download("<!DOCTYPE html>\n" + doc.documentElement.outerHTML, versionedFileName(newVer), "text/html");
-    flashStatus("Downloaded " + versionedFileName(newVer) + " (was " + APP_VERSION.split(" ")[0] + ") with all "+n+" character"+(n===1?"":"s")+" baked in — replace your old file with this download.");
+    flashStatus("Downloaded " + versionedFileName(newVer) + " (was " + appLabel() + ") with all "+n+" character"+(n===1?"":"s")+" baked in — replace your old file with this download.");
     restore();
   }
   /* ---- "Update available" banner --------------------------------------------------------------
@@ -5716,8 +5719,19 @@
     const m = String(html||"").match(/APP_VERSION\s*=\s*"([^"]+)"/);
     return m ? m[1] : null;
   }
-  function versionedFileName(ver){   // "Character Sheet v172.html" — stamps just the app version (no date) so saved/updated backups are identifiable
-    const v = (ver || APP_VERSION).split(" ")[0];   // "v172 (2026-06-11)" -> "v172"
+  function semverFromHtml(html){   // pull "2.1.0" out of another build's source (its baked APP_SEMVER)
+    const m = String(html||"").match(/APP_SEMVER\s*=\s*"([^"]+)"/);
+    return (m && m[1] && m[1] !== "0.0.0") ? m[1] : null;
+  }
+  // Name backups by SemVer ("Character Sheet v2.1.0.html") so they're identifiable. `ver` may be a SemVer, a
+  // legacy build id ("v269 …"), or omitted (→ this running build). Falls back to the build id if no SemVer is known.
+  function versionedFileName(ver){
+    const s = String(ver || "");
+    let v;
+    if(/\d+\.\d+\.\d+/.test(s))      v = "v" + s.match(/\d+\.\d+\.\d+/)[0];                    // an explicit SemVer
+    else if(/v\d+/.test(s))          v = s.match(/v\d+/)[0];                                   // a legacy build id
+    else if(APP_SEMVER && APP_SEMVER !== "0.0.0") v = "v" + APP_SEMVER;                        // this build's SemVer
+    else                             v = APP_VERSION.split(" ")[0];                            // last resort: build id
     return "Character Sheet " + v + ".html";
   }
   function charLabel(){
