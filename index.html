@@ -2533,7 +2533,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v273 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v274 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
@@ -8748,22 +8748,30 @@
     $("set-theme").addEventListener("change", e => { theme = e.target.value || DEFAULT_THEME; applyThemeSetting(); save(); });   // per-character; dark mode stays a separate global toggle
     $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; setPrefBool(NOANIM_KEY, noAnimations); applyAnimSetting(); });   // global pref — not per-character
     $("set-dark").addEventListener("change", e => { darkMode = e.target.checked; setPrefBool(DARK_KEY, darkMode); applyDarkSetting(); });               // global pref — not per-character
+    // Run fn ONCE after the print dialog closes — whether the user printed OR cancelled (afterprint fires on
+    // both). The window-focus fallback covers browsers that don't fire afterprint reliably (some Safari/mobile);
+    // the once-guard means whichever lands first wins and the other is a no-op. fn must be idempotent.
+    function afterPrintOnce(fn){
+      let done = false;
+      const run = () => { if(done) return; done = true;
+        window.removeEventListener("afterprint", run); window.removeEventListener("focus", run); fn(); };
+      window.addEventListener("afterprint", run);
+      window.addEventListener("focus", run);
+    }
     // Print: if dark mode is on, ask first — printing dark eats ink. OK = print dark, Cancel = switch to light then print.
     $("btn-print").addEventListener("click", () => {
       if(darkMode){
         const keepDark = confirm("Dark mode is on. Print in dark mode?\n\nOK — print in dark mode (uses a lot of ink)\nCancel — switch to light mode, then print");
         if(keepDark){
           document.body.classList.add("print-dark");
-          const cleanup = () => { document.body.classList.remove("print-dark"); window.removeEventListener("afterprint", cleanup); };
-          window.addEventListener("afterprint", cleanup);
+          afterPrintOnce(() => document.body.classList.remove("print-dark"));
           window.print();
           return;
         }
-        // chose light: drop dark for THIS print only (screen + preview), then restore it once the dialog closes.
-        // Leave the saved pref and the Settings checkbox untouched so dark mode comes back automatically.
+        // chose light: drop dark for THIS print only (screen + preview), then restore it once the dialog closes —
+        // printed or cancelled, either way. Leave the saved pref and Settings checkbox untouched.
         document.body.classList.remove("dark");
-        const restore = () => { applyDarkSetting(); window.removeEventListener("afterprint", restore); };
-        window.addEventListener("afterprint", restore);
+        afterPrintOnce(applyDarkSetting);   // re-applies dark (darkMode pref is still true); idempotent
         window.print();
         return;
       }
