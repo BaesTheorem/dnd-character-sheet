@@ -368,7 +368,17 @@
   .cm-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px}
   .cm-group{display:flex; flex-direction:column; gap:8px; min-width:0}   /* a character + its nested Simulacra, kept together as one cell */
   .cm-card{border:1px solid var(--line2); background:#fff; display:flex; flex-direction:column; position:relative}
-  .cm-card.cm-child{border-left:3px solid var(--accent)}   /* a Simulacrum, indented under its parent (margin-left set per nesting level) */
+  .cm-card.cm-child{border-left:3px solid var(--accent)}   /* a Simulacrum, marked with an accent edge */
+  /* Card view: Simulacra nest to the RIGHT of the parent as smaller cards (the group spans extra columns). */
+  .cm-grid:not(.list-view) .cm-group.has-sim{flex-direction:row; flex-wrap:wrap; align-items:flex-start}
+  .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card:first-child{flex:1 1 190px; min-width:0}   /* parent keeps normal size */
+  .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child{flex:0 0 150px}                   /* Simulacrum: smaller, to the right */
+  .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child .cm-port{height:78px}
+  .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child .cm-port .cm-init{font-size:22px}
+  .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child .cm-name{font-size:12px}
+  .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child .cm-acts button{font-size:11px; padding:5px 3px}
+  /* List view: Simulacra stay stacked under the parent, indented per nesting level. */
+  .cm-grid.list-view .cm-card.cm-child{margin-left:calc(var(--depth,1) * 16px)}
   .cm-card:hover{border-color:var(--accent)}
   .cm-card.current{border-color:var(--accent)}
   .cm-port{height:120px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer}
@@ -2522,11 +2532,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v270 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v271 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.1.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.1.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2534,6 +2544,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v271", semver:"2.1.2", items:[
+      "Manage Characters, Card view: a Simulacrum now nests to the right of its parent as a smaller card, instead of stacking beneath it. (List view still stacks them, indented under the parent.)",
+    ]},
     {v:"v270", semver:"2.1.1", items:[
       "Saved and downloaded backup files are now named by version (e.g. “Character Sheet v2.1.0.html”) instead of the internal build number.",
     ]},
@@ -9267,7 +9280,7 @@
     function makeCard(c){
       const card = document.createElement("div");
       card.className = "cm-card" + (c.slot === SLOT ? " current" : "") + (c.depth ? " cm-child" : "");
-      if(c.depth) card.style.marginLeft = (c.depth * 16) + "px";   // indent each nesting level
+      if(c.depth) card.style.setProperty("--depth", c.depth);   // list view reads this for per-level indent; card view ignores it
       const initials = (c.name||"").replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "⬢";
       card.innerHTML =
         (c.slot === SLOT ? `<span class="cm-badge">Current</span>` : ``) +
@@ -9307,7 +9320,12 @@
       const group = document.createElement("div");
       group.className = "cm-group";
       group.appendChild(makeCard(list[i])); i++;            // a depth-0 root character
-      while(i < list.length && list[i].depth > 0){ group.appendChild(makeCard(list[i])); i++; }   // followed by its Simulacra
+      let kids = 0;
+      while(i < list.length && list[i].depth > 0){ group.appendChild(makeCard(list[i])); i++; kids++; }   // followed by its Simulacra
+      if(kids){                                             // card view: widen the cell so the smaller Simulacrum cards sit to the right
+        group.classList.add("has-sim");
+        group.style.gridColumn = "span " + Math.min(3, 1 + kids);   // ignored in list view (flex column)
+      }
       grid.appendChild(group);
     }
     const cap = probeStorageCap();                 // auto-detect this browser's localStorage ceiling (cached after first open)
