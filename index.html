@@ -110,6 +110,10 @@
 
   /* ---- Sheet layout ---- */
   .sheet{max-width:1120px; margin:22px auto; padding:0 16px}
+  /* In-sheet Rest controls — sit at the top of the sheet on every theme */
+  .rest-bar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 14px}
+  .rest-bar-lbl{font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin-right:2px}
+  body.classic-layout .rest-bar{justify-content:center; margin:6px 0 14px}
   .card{
     background:var(--card); border:1px solid var(--line);
     border-radius:var(--radius); box-shadow:var(--shadow);
@@ -1433,12 +1437,14 @@
       display:grid;
       grid-template-columns:232px 268px minmax(0,1fr);
       grid-template-areas:
+        "rest   rest   rest"
         "top    top    top"
         "rail   skills tabbar"
         "rail   skills main";
-      grid-template-rows:auto auto minmax(0,1fr);
+      grid-template-rows:auto auto auto minmax(0,1fr);
       gap:14px; align-items:start;
     }
+    body.ddb-layout .rest-bar{ grid-area:rest; margin:0; }
     body.ddb-layout #pagetabs{ display:none !important; }
     body.ddb-layout #page-core{ display:none !important; }   /* emptied — its cards live in the scaffold now */
 
@@ -1526,8 +1532,6 @@
     <button class="btn primary" id="btn-create" title="">Create Character</button>
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file (your character plus all loaded sourcebooks baked in — works offline, no localStorage needed)">Save</button>
     <button class="btn" onclick="window.print()">Print / PDF</button>
-    <button class="btn" id="btn-shortrest" type="button" title="Short rest: reset short-rest features and (optionally) spend Hit Dice to heal">🏕️ Short Rest</button>
-    <button class="btn" id="btn-longrest" type="button" title="Long rest: reset features, restore HP to full, and regain spent Hit Dice">🌙 Long Rest</button>
     <button class="btn" id="btn-search" title="Search this character (⌘K / Ctrl-K)">Search</button>
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
@@ -1627,6 +1631,13 @@
   </div>
 
   <div class="sheet no-addspell">
+    <!-- Rest controls, grafted onto the sheet itself so they're present on every theme
+         (the app toolbar is hidden under the Classic theme). -->
+    <div class="rest-bar noprint" id="rest-bar">
+      <span class="rest-bar-lbl">Rest</span>
+      <button class="btn" id="btn-shortrest" type="button" title="Short rest: reset short-rest features and (optionally) spend Hit Dice to heal">🏕️ Short Rest</button>
+      <button class="btn" id="btn-longrest" type="button" title="Long rest: reset features, restore HP to full, and regain spent Hit Dice">🌙 Long Rest</button>
+    </div>
     <nav class="pagetabs noprint" id="pagetabs">
       <button class="ptab active" data-page="core" type="button">Core</button>
       <button class="ptab" data-page="inv" type="button">Inventory</button>
@@ -2506,13 +2517,16 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v263 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v264 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v264", items:[
+      "The Short Rest and Long Rest buttons now live on the sheet itself, in a small Rest bar at the top, instead of in the app toolbar. This means they show up on every theme — including Classic, where the toolbar is hidden — right where you can reach them while you play.",
+    ]},
     {v:"v263", items:[
       "Update-available banner: when a newer version of the sheet has been published, a banner now appears automatically at the top prompting you to save a copy and then update. It checks in the background (needs a connection) by polling a tiny version file, so it won't slow the sheet down, and dismissing it won't nag you again until the next release.",
     ]},
