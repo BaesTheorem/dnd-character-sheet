@@ -1506,6 +1506,8 @@
     <button class="btn primary" id="btn-create" title="">Create Character</button>
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file (your character plus all loaded sourcebooks baked in — works offline, no localStorage needed)">Save</button>
     <button class="btn" onclick="window.print()">Print / PDF</button>
+    <button class="btn" id="btn-shortrest" type="button" title="Short rest: reset short-rest features and (optionally) spend Hit Dice to heal">🏕️ Short Rest</button>
+    <button class="btn" id="btn-longrest" type="button" title="Long rest: reset features, restore HP to full, and regain spent Hit Dice">🌙 Long Rest</button>
     <button class="btn" id="btn-search" title="Search this character (⌘K / Ctrl-K)">Search</button>
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
@@ -2405,6 +2407,21 @@
     </div>
   </div>
 
+  <!-- Short Rest / Long Rest walk-through -->
+  <div class="modal noprint" id="rest-modal">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2 id="rest-title">Rest</h2>
+        <button class="btn ghost" id="rest-close" type="button">✕</button>
+      </div>
+      <div class="modal-body" id="rest-body"></div>
+      <div class="modal-foot">
+        <span class="wiz-hint" style="flex:1; margin:0" id="rest-foot-note"></span>
+        <button class="btn primary" id="rest-primary" type="button">Take Rest</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Embedded character data for "Save copy (HTML)". Leave as null in the master file. -->
   <script id="embedded-data" type="application/json">{"charname":"","classlevel":"","background":"","race":"","alignment":"","player":"","xp":"","savep-str":false,"savep-dex":false,"savep-con":false,"savep-int":false,"savep-wis":false,"savep-cha":false,"skp-acrobatics":false,"ske-acrobatics":false,"skp-animal":false,"ske-animal":false,"skp-arcana":false,"ske-arcana":false,"skp-athletics":false,"ske-athletics":false,"skp-deception":false,"ske-deception":false,"skp-history":false,"ske-history":false,"skp-insight":false,"ske-insight":false,"skp-intimidation":false,"ske-intimidation":false,"skp-investigation":false,"ske-investigation":false,"skp-medicine":false,"ske-medicine":false,"skp-nature":false,"ske-nature":false,"skp-perception":false,"ske-perception":false,"skp-performance":false,"ske-performance":false,"skp-persuasion":false,"ske-persuasion":false,"skp-religion":false,"ske-religion":false,"skp-sleight":false,"ske-sleight":false,"skp-stealth":false,"ske-stealth":false,"skp-survival":false,"ske-survival":false,"senses":"","hpmax":"","hpcur":"","hptmp":"","dss-0":false,"dss-1":false,"dss-2":false,"dsf-0":false,"dsf-1":false,"dsf-2":false,"defnotes":"","atkname-0":"","atkbonus-0":"","atkdmg-0":"","atkname-1":"","atkbonus-1":"","atkdmg-1":"","atkname-2":"","atkbonus-2":"","atkdmg-2":"","atkname-3":"","atkbonus-3":"","atkdmg-3":"","atkname-4":"","atkbonus-4":"","atkdmg-4":"","lfname-0":"","lfmax-0":"","lfrec-0":"","lfused-0":"","lfname-1":"","lfmax-1":"","lfrec-1":"","lfused-1":"","lfname-2":"","lfmax-2":"","lfrec-2":"","lfused-2":"","lfname-3":"","lfmax-3":"","lfrec-3":"","lfused-3":"","lfname-4":"","lfmax-4":"","lfrec-4":"","lfused-4":"","lfname-5":"","lfmax-5":"","lfrec-5":"","lfused-5":"","lfname-6":"","lfmax-6":"","lfrec-6":"","lfused-6":"","lfname-7":"","lfmax-7":"","lfrec-7":"","lfused-7":"","hitdice":"","hd-total":"","hd-used":"","proficiencies":"","pp":"","gp":"","ep":"","sp":"","cp":"","armorsel":"","armor-custom":"","armormod":"","attune-0":"","attune-1":"","attune-2":"","invname-0":"","invqty-0":"","invname-1":"","invqty-1":"","invname-2":"","invqty-2":"","invname-3":"","invqty-3":"","invname-4":"","invqty-4":"","invname-5":"","invqty-5":"","invname-6":"","invqty-6":"","invname-7":"","invqty-7":"","invname-8":"","invqty-8":"","invname-9":"","invqty-9":"","invname-10":"","invqty-10":"","invname-11":"","invqty-11":"","invname-12":"","invqty-12":"","invname-13":"","invqty-13":"","invname-14":"","invqty-14":"","invname-15":"","invqty-15":"","invname-16":"","invqty-16":"","invname-17":"","invqty-17":"","invname-18":"","invqty-18":"","invname-19":"","invqty-19":"","invname-20":"","invqty-20":"","invname-21":"","invqty-21":"","invname-22":"","invqty-22":"","invname-23":"","invqty-23":"","invname-24":"","invqty-24":"","invname-25":"","invqty-25":"","invname-26":"","invqty-26":"","invname-27":"","invqty-27":"","invname-28":"","invqty-28":"","invname-29":"","invqty-29":"","invname-30":"","invqty-30":"","invname-31":"","invqty-31":"","invname-32":"","invqty-32":"","invname-33":"","invqty-33":"","equipment":"","features":"","spellclass":"","spellability":"","slot1":"","slot1u":"","slot2":"","slot2u":"","slot3":"","slot3u":"","slot4":"","slot4u":"","slot5":"","slot5u":"","slot6":"","slot6u":"","slot7":"","slot7u":"","slot8":"","slot8u":"","slot9":"","slot9u":"","age":"","height":"","weight":"","eyes":"","skin":"","hair":"","personality":"","ideals":"","bonds":"","flaws":"","bg-allies":"","bg-enemies":"","backstory":"","notes":"","lfname-8":"","lfmax-8":"","lfrec-8":"","lfused-8":"","lfname-9":"","lfmax-9":"","lfrec-9":"","lfused-9":"","lfname-10":"","lfmax-10":"","lfrec-10":"","lfused-10":"","lfname-11":"","lfmax-11":"","lfrec-11":"","lfused-11":"","lfname-12":"","lfmax-12":"","lfrec-12":"","lfused-12":"","lfname-13":"","lfmax-13":"","lfrec-13":"","lfused-13":"","lfname-14":"","lfmax-14":"","lfrec-14":"","lfused-14":"","lfname-15":"","lfmax-15":"","lfrec-15":"","lfused-15":"","invname-34":"","invqty-34":"","invname-35":"","invqty-35":"","invname-36":"","invqty-36":"","invname-37":"","invqty-37":"","invname-38":"","invqty-38":"","invname-39":"","invqty-39":"","invname-40":"","invqty-40":"","invname-41":"","invqty-41":"","invname-42":"","invqty-42":"","invname-43":"","invqty-43":"","invname-44":"","invqty-44":"","invname-45":"","invqty-45":"","invname-46":"","invqty-46":"","invname-47":"","invqty-47":"","invname-48":"","invqty-48":"","invname-49":"","invqty-49":"","invname-50":"","invqty-50":"","invname-51":"","invqty-51":"","invname-52":"","invqty-52":"","invname-53":"","invqty-53":"","invname-54":"","invqty-54":"","invname-55":"","invqty-55":"","invname-56":"","invqty-56":"","invname-57":"","invqty-57":"","abilitynotes":"","inspiration":false,"genMode":"manual","rolledArray":null,"created":false,"manualScores":{"str":"","dex":"","con":"","int":"","wis":"","cha":""},"baseVals":{"str":null,"dex":null,"con":null,"int":null,"wis":null,"cha":null},"bonusVals":{"asi":{"str":0,"dex":0,"con":0,"int":0,"wis":0,"cha":0},"racial":{"str":0,"dex":0,"con":0,"int":0,"wis":0,"cha":0},"magical":{"str":0,"dex":0,"con":0,"int":0,"wis":0,"cha":0},"misc":{"str":0,"dex":0,"con":0,"int":0,"wis":0,"cha":0}},"portrait":null,"spellSheets":1,"spellSheetKind":["character"],"spellEntriesByInst":[{"0":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"1":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"2":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"3":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"4":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"5":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"6":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"7":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"8":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"9":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}]}],"preparedByInst":[{}],"spellMaxByInst":[9],"spellEntries":{"0":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"1":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"2":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"3":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"4":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"5":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"6":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"7":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"8":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"9":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}]},"spellMaxLevel":9,"preparedSpells":{},"hiddenPages":{},"showAddSpell":false,"hidePortrait":false,"variantEncumbrance":false,"showFuturistic":false,"showModern":false,"hitDieFaces":null,"charClasses":[],"charCustomBg":null,"charBgChoices":null,"charRaceChoices":null,"tceOff":{},"genTce":[],"genTceRemoved":[],"genFeatures":[],"genProf":[],"genDefenses":[],"genSpells":{},"levelMethod":"xp","hpMode":"manual","hpRolls":[],"speedBase":null,"asiChoices":[],"asiFeatsAdded":{},"invUnits":["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],"invConts":["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],"collapsed":[],"overflowPages":1,"invEquip":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"atkLinks":["","","","",""],"companions":[],"lfDesc":["","","","","","","","","","","","","","","",""]}</script>
   <!-- Every character (for "Save" → one file holding your whole library). Null in the master file. -->
@@ -2469,13 +2486,16 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v261 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v262 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v262", items:[
+      "New Short Rest and Long Rest buttons in the top toolbar (available on every theme). Short Rest resets your short-rest Limited Features, then walks you through spending Hit Dice to heal — it rolls the die and adds your Con modifier for you. Long Rest resets your short- and long-rest features, restores your hit points to full, clears temporary HP, and regains spent Hit Dice (up to half your total, rounded down). Each rest reads the Recover column on your Limited Features to decide what comes back — write LR, SR, or Dawn there.",
+    ]},
     {v:"v258", items:[
       "New “D&D Beyond” theme: a landscape character sheet in the style of D&D Beyond — your abilities, saving throws, skills, senses, proficiencies, and combat stats wrap around the edges while a tabbed centre panel switches between Actions, Spells, Inventory, Features & Traits, Background, Notes, Backstory, and Extras. Pick it per character under Settings → Character Settings → Theme. (Printing falls back to the standard one-page-per-tab layout.)",
       "Classic theme: the spell sheet (page 3) is rebuilt too \u2014 the official spellcasting page over its real art (class/ability, save DC and attack, slots total/expended and prepared circles per level), wired to the sheet\u2019s spell engine. The pixel-for-pixel Classic rebuild is now complete across all three pages.",
@@ -8253,6 +8273,200 @@
     window.addEventListener("beforeprint", applyLayout);   // refresh page exclusions (e.g. Overflow only prints when used) right before printing
     document.addEventListener("click", e => { if(e.target.closest("[data-addoverflow]")){ appendOverflowPage(); applyLayout(); showPage("overflow-"+(overflowPages-1)); save(); compute(); } });
     document.addEventListener("click", e => { if(e.target.closest("[data-openoverflow]")){ openOverflow(); } });   // "+ Overflow page" from Inventory / Limited Features
+
+    /* ===== Short Rest / Long Rest ===== */
+    // Read a Limited Feature's "Recover" hint. No canonical format exists — it's free text
+    // (placeholder "LR / SR / Dawn"), so we match the common ways people write each rest type.
+    function lfRecKind(i){
+      const raw = ((($("lfrec-"+i)||{}).value)||"").toLowerCase();
+      return {
+        raw,
+        sr:   /\bsr\b|short/.test(raw),
+        lr:   /\blr\b|long/.test(raw),
+        dawn: /dawn|dusk|daily|\bday\b|per day|\/day/.test(raw)
+      };
+    }
+    // Bucket every used feature for the chosen rest. A long rest recovers SR + LR + Dawn;
+    // a short rest recovers only SR (LR/Dawn features wait, "unknown" = recovery we couldn't read).
+    function restGatherFeatures(kind){
+      const reset = [], pending = [], unknown = [];
+      for(let i = 0; i < NLIMITED; i++){
+        const nameEl = $("lfname-"+i); if(!nameEl) continue;
+        const name = (nameEl.value || "").trim(); if(!name) continue;
+        const usedEl = $("lfused-"+i); const used = usedEl ? num(usedEl.value, 0) : 0;
+        if(used <= 0) continue;                       // nothing spent → nothing to recover
+        const k = lfRecKind(i), recognized = k.sr || k.lr || k.dawn;
+        const recovers = kind === "long" ? recognized : k.sr;
+        if(recovers)         reset.push({ i, name, used, rec: k.raw });
+        else if(recognized)  pending.push({ i, name, used, rec: k.raw });   // short rest only: needs a long rest
+        else                 unknown.push({ i, name, used, rec: k.raw });
+      }
+      return { reset, pending, unknown };
+    }
+    function restHdInfo(){
+      const total = num(($("hd-total")||{}).value, 0);
+      const used  = num(($("hd-used")||{}).value, 0);
+      const m = (($("hitdice")||{}).value || "").toLowerCase().match(/d(\d+)/);
+      const faces = m ? parseInt(m[1], 10) : null;
+      const cm = parseInt(((($("mod-con")||{}).textContent)||"").replace(/[^\-0-9]/g, ""), 10) || 0;
+      return { total, used, avail: Math.max(0, total - used), faces, cm };
+    }
+    function restHp(){
+      const maxRaw = ($("hpmax")||{}).value, curRaw = ($("hpcur")||{}).value;
+      return { max: maxRaw === "" ? null : num(maxRaw, 0), cur: num(curRaw, 0), hasCur: curRaw !== "" };
+    }
+    function restCommit(){ compute(); save(); }       // persist programmatic edits + refresh derived fields
+    // (reuses the existing module-scope `esc` HTML-escaper defined earlier)
+
+    let restState = null;   // { kind:'short'|'long', phase:'overview'|'spend'|'done', log:[] }
+
+    function openRest(kind){
+      restState = { kind, phase: "overview", log: [] };
+      $("rest-title").textContent = (kind === "long" ? "🌙 Long Rest" : "🏕️ Short Rest");
+      $("rest-modal").classList.add("open");
+      renderRest();
+    }
+    function closeRest(){ $("rest-modal").classList.remove("open"); restState = null; }
+
+    function featLines(arr){
+      return arr.map(f => '<li><strong>' + esc(f.name) + '</strong> <span class="wiz-hint" style="display:inline">('
+        + f.used + ' used' + (f.rec ? ' · ' + esc(f.rec) : '') + ')</span></li>').join("");
+    }
+
+    function renderRest(){
+      if(!restState) return;
+      const kind = restState.kind, body = $("rest-body"), prim = $("rest-primary"), foot = $("rest-foot-note");
+      const feats = restGatherFeatures(kind), hd = restHdInfo(), hp = restHp();
+      foot.textContent = ""; prim.style.display = "";
+
+      const logHtml = restState.log.length
+        ? '<div style="margin-top:14px"><label class="lbl">Rest log</label><div style="font-size:12px; line-height:1.6; border:1px solid var(--line); padding:8px 10px; max-height:200px; overflow:auto; white-space:pre-wrap">'
+          + restState.log.map(esc).join("\n") + '</div></div>'
+        : "";
+
+      if(restState.phase === "overview"){
+        let h = "";
+        h += '<p class="wiz-hint" style="margin-top:0">' + (kind === "long"
+          ? "A long rest (~8 hours) recovers every feature that recharges on a short <em>or</em> long rest, restores your hit points to full, and lets you regain spent Hit Dice (up to half your total)."
+          : "A short rest (~1 hour) recovers features that recharge on a short rest. You may also spend Hit Dice to heal — roll the die, add your Con modifier.") + '</p>';
+
+        h += '<label class="lbl" style="display:block; margin:14px 0 6px">Features to recover</label>';
+        h += feats.reset.length
+          ? '<ul style="margin:0 0 4px 18px; padding:0">' + featLines(feats.reset) + '</ul>'
+          : '<p class="wiz-hint" style="margin-top:0">No ' + (kind === "long" ? "" : "short-rest ") + 'features have uses to reset.</p>';
+        if(feats.pending.length)
+          h += '<p class="wiz-hint">Still spent (these need a long rest): ' + feats.pending.map(f => esc(f.name)).join(", ") + '.</p>';
+        if(feats.unknown.length)
+          h += '<p class="wiz-hint" style="color:var(--accent)">Couldn\'t read the recovery for: ' + feats.unknown.map(f => esc(f.name) + (f.rec ? ' ("' + esc(f.rec) + '")' : '')).join(", ") + '. Reset these by hand if they should recover. Tip: write LR, SR, or Dawn in the Recover column.</p>';
+
+        h += '<label class="lbl" style="display:block; margin:16px 0 6px">Hit Dice</label>';
+        if(hd.total > 0){
+          h += '<p class="wiz-hint" style="margin-top:0">' + hd.avail + ' of ' + hd.total + ' available'
+            + (hd.faces ? ' · each heals 1d' + hd.faces + (hd.cm ? (hd.cm > 0 ? "+" + hd.cm : "" + hd.cm) : "") + ' HP' : "") + '.';
+          if(kind === "long"){
+            const regain = hd.used > 0 ? Math.min(hd.used, Math.max(1, Math.floor(hd.total / 2))) : 0;
+            h += regain > 0
+              ? ' You\'ll regain <strong>' + regain + '</strong> spent Hit Dice (used ' + hd.used + ' → ' + (hd.used - regain) + ').'
+              : ' No spent Hit Dice to regain.';
+          } else {
+            h += ' You can spend them after resetting features.';
+          }
+          h += '</p>';
+        } else {
+          h += '<p class="wiz-hint" style="margin-top:0">No Hit Dice set (fill in the Total on the Hit Dice card to track them here).</p>';
+        }
+
+        if(kind === "long"){
+          h += '<label class="lbl" style="display:block; margin:16px 0 6px">Hit Points</label>';
+          h += '<p class="wiz-hint" style="margin-top:0">' + (hp.max != null
+            ? 'Restored to full: ' + (hp.hasCur ? hp.cur + ' → ' : "") + hp.max + ' HP. Temporary HP is cleared.'
+            : 'Set your Max HP to auto-restore it on a long rest.') + '</p>';
+        }
+
+        body.innerHTML = h + logHtml;
+        prim.textContent = (kind === "long" ? "Take Long Rest" : "Take Short Rest");
+        prim.onclick = (kind === "long" ? takeLongRest : takeShortRest);
+        return;
+      }
+
+      if(restState.phase === "spend"){   // short rest: spend Hit Dice to heal
+        let h = '<label class="lbl" style="display:block; margin:0 0 6px">Spend Hit Dice</label>';
+        h += '<p class="wiz-hint" style="margin-top:0">Hit Dice: <strong>' + hd.avail + '</strong> of ' + hd.total + ' available'
+          + '. Current HP: <strong>' + hp.cur + (hp.max != null ? ' / ' + hp.max : "") + '</strong>.</p>';
+        if(!hd.faces)
+          h += '<p class="wiz-hint" style="color:var(--accent)">Enter your class Hit Die (e.g. set a Total so the Hit Dice box shows 1d8) to spend dice here.</p>';
+        else if(hd.avail <= 0)
+          h += '<p class="wiz-hint">No Hit Dice left to spend.</p>';
+        else
+          h += '<button class="btn primary" type="button" data-rest-roll style="margin:2px 0 4px">Spend a Hit Die (1d' + hd.faces + (hd.cm ? (hd.cm > 0 ? "+" + hd.cm : "" + hd.cm) : "") + ')</button>'
+            + (hp.max != null && hp.cur >= hp.max ? '<p class="wiz-hint">You\'re already at full HP.</p>' : "");
+        body.innerHTML = h + logHtml;
+        prim.textContent = "Done"; prim.onclick = closeRest;
+        return;
+      }
+
+      // phase 'done' (long rest summary)
+      body.innerHTML = '<p class="wiz-hint" style="margin-top:0">Long rest complete.</p>' + logHtml;
+      prim.textContent = "Done"; prim.onclick = closeRest;
+    }
+
+    function takeShortRest(){
+      const feats = restGatherFeatures("short");
+      feats.reset.forEach(f => { const el = $("lfused-" + f.i); if(el) el.value = ""; });
+      restCommit();
+      restState.log.push(feats.reset.length
+        ? "Recovered " + feats.reset.length + " short-rest feature(s): " + feats.reset.map(f => f.name).join(", ") + "."
+        : "No short-rest features needed resetting.");
+      restState.phase = "spend";
+      renderRest();
+    }
+
+    function spendHitDie(){
+      const hd = restHdInfo(), hp = restHp();
+      if(!hd.faces || hd.avail <= 0) return;
+      const roll = Math.floor(Math.random() * hd.faces) + 1;
+      const gain = Math.max(0, roll + hd.cm);
+      $("hd-used").value = String(hd.used + 1);
+      let newCur = hp.cur + gain;
+      if(hp.max != null) newCur = Math.min(hp.max, newCur);
+      if($("hpcur")) $("hpcur").value = String(newCur);
+      restCommit();
+      const after = restHdInfo();
+      restState.log.push("d" + hd.faces + " → " + roll
+        + (hd.cm ? (hd.cm > 0 ? " +" + hd.cm : " " + hd.cm) + " Con" : "")
+        + " = +" + gain + " HP   (HP " + newCur + (hp.max != null ? "/" + hp.max : "") + ", " + after.avail + " dice left)");
+      renderRest();
+    }
+
+    function takeLongRest(){
+      const feats = restGatherFeatures("long"), hd = restHdInfo(), hp = restHp();
+      feats.reset.forEach(f => { const el = $("lfused-" + f.i); if(el) el.value = ""; });
+      const regain = hd.used > 0 ? Math.min(hd.used, Math.max(1, Math.floor(hd.total / 2))) : 0;
+      if(regain > 0 && $("hd-used")) $("hd-used").value = String(hd.used - regain);
+      if(hp.max != null){ if($("hpcur")) $("hpcur").value = String(hp.max); if($("hptmp")) $("hptmp").value = ""; }
+      restCommit();
+      const log = [];
+      log.push(feats.reset.length
+        ? "Recovered " + feats.reset.length + " feature(s): " + feats.reset.map(f => f.name).join(", ") + "."
+        : "No features needed resetting.");
+      if(hp.max != null) log.push("Hit points restored to full (" + hp.max + "). Temporary HP cleared.");
+      log.push(regain > 0
+        ? "Regained " + regain + " Hit Dice (used " + hd.used + " → " + (hd.used - regain) + ")."
+        : "No spent Hit Dice to regain.");
+      if(feats.unknown.length)
+        log.push("Not reset (unreadable recovery): " + feats.unknown.map(f => f.name).join(", ") + ". Reset by hand if needed.");
+      restState.log = log;
+      restState.phase = "done";
+      renderRest();
+    }
+
+    $("btn-shortrest").addEventListener("click", () => openRest("short"));
+    $("btn-longrest").addEventListener("click", () => openRest("long"));
+    $("rest-close").addEventListener("click", closeRest);
+    $("rest-modal").addEventListener("click", e => {
+      if(e.target.id === "rest-modal") closeRest();                 // click the backdrop to dismiss
+      else if(e.target.closest("[data-rest-roll]")) spendHitDie();  // delegated: the Spend button is re-rendered
+    });
     document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
     document.addEventListener("click", e => { const b = e.target.closest(".inv-del"); if(b) deleteInvRow(b.dataset.r); });   // ✕ delete an inventory item
     document.addEventListener("click", e => { const b = e.target.closest(".xeq-del"); if(b){ const i = b.dataset.x; ["xeqname","xeqqty","xeqloc"].forEach(p => { const el = $(p+"-"+i); if(el) el.value = ""; }); save(); } });   // ✕ clear an Extra Equipment row
