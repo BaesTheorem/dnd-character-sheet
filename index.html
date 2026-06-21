@@ -2468,7 +2468,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v259 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v260 (2026-06-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
   // The .githooks/pre-commit hook rewrites an Unreleased tag to this commit's version number (vN) at commit
@@ -2477,6 +2477,7 @@
   const CHANGELOG = [
     {v:"v258", items:[
       "New “D&D Beyond” theme: a landscape character sheet in the style of D&D Beyond — your abilities, saving throws, skills, senses, proficiencies, and combat stats wrap around the edges while a tabbed centre panel switches between Actions, Spells, Inventory, Features & Traits, Background, Notes, Backstory, and Extras. Pick it per character under Settings → Character Settings → Theme. (Printing falls back to the standard one-page-per-tab layout.)",
+      "Classic theme: the spell sheet (page 3) is rebuilt too \u2014 the official spellcasting page over its real art (class/ability, save DC and attack, slots total/expended and prepared circles per level), wired to the sheet\u2019s spell engine. The pixel-for-pixel Classic rebuild is now complete across all three pages.",
     ]},
     {v:"v256", items:[
       "Classic pixel rebuild: page 2 (appearance / backstory / allies / treasure) is now rebuilt too, and the whole Classic sheet has a proper dark-mode look \u2014 an inverted dark-parchment version of the official art with light ink. Page 3 (spells) is the last one left.",
