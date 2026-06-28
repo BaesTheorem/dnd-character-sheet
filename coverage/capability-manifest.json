@@ -1,0 +1,330 @@
+{
+  "_README": "Source of truth for which MPMB mechanical capabilities THIS sheet implements. supported: true|false. status 'auto-*' means the value was guessed by probing index.html -- review and set it explicitly, then it won't be overwritten. Re-run the oracle after each build.",
+  "capabilities": {
+    "action": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "addMod": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "addTo": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "addToExisting": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "adv_vs": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "advantages": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "affectsDuplicates": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "allModes": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "allowUpCasting": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "altResource": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "amendTo": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "ammoAdd": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "ammoOptions": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "armorAdd": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "armorOptions": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: armor fixed lookup, not extensible"
+    },
+    "armorProfs": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: manual text entry, no automation"
+    },
+    "bonus": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "calcChanges": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: no recalc-hook system"
+    },
+    "carryingCapacity": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: compute() STRx15 + encumbrance penalties"
+    },
+    "class": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "companionCallback": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "creatureCallback": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "creatureOptions": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "dmgres": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: manual entry in defnotes field"
+    },
+    "extraAC": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: compute() adds magic-item AC bonuses"
+    },
+    "extraLimitedFeatures": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: limited features are manual rows"
+    },
+    "featsAdd": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "feature": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "fixedDC": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: DC auto=8+PB+abil, no override hook"
+    },
+    "fixedSpAttack": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "hpForceRecalc": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: compute() recalcs HP on con/rolls change"
+    },
+    "immune": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: manual entry in defnotes field"
+    },
+    "languageProfs": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: manual text entry in Features"
+    },
+    "magic": {
+      "supported": true,
+      "status": "review",
+      "note": ""
+    },
+    "magicitemsAdd": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "mod": {
+      "supported": true,
+      "status": "review",
+      "note": ""
+    },
+    "note": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "origin": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "page3notes": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "popupName": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "recovery": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: Recover column + restCommit resets"
+    },
+    "saves": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: compute() auto-totals saves from prof checkboxes"
+    },
+    "savetxt": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: manual Features entry"
+    },
+    "scores": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: compute() reads scores + derives mods"
+    },
+    "shieldAdd": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "skills": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: compute() auto-totals skills incl expertise"
+    },
+    "skillstxt": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "speed": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: compute() applies monk/encumbrance to speed"
+    },
+    "spellChanges": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: spells not dynamically modifiable"
+    },
+    "spellcastingAbility": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: spellability selector feeds DC/attack"
+    },
+    "spellcastingBonus": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: bonus spells added manually"
+    },
+    "spellcastingBonusElsewhere": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "spellcastingExtra": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: spell selection manual"
+    },
+    "stopeval": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "subclass": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "text": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "toolProfs": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: manual text entry in Features"
+    },
+    "usages": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: Max/Used columns track uses"
+    },
+    "useDescriptionFull": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    },
+    "vision": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: manual entry in senses field"
+    },
+    "walk": {
+      "supported": true,
+      "status": "review",
+      "note": ""
+    },
+    "weaponOptions": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: weapons are fixed lookup table, not extensible"
+    },
+    "weaponProfs": {
+      "supported": false,
+      "status": "review",
+      "note": "agent: manual text entry in Features"
+    },
+    "weaponsAdd": {
+      "supported": true,
+      "status": "review",
+      "note": "agent: attack rows + refreshAtkRows links weapons"
+    },
+    "wildshapeCallback": {
+      "supported": false,
+      "status": "review",
+      "note": ""
+    }
+  }
+}

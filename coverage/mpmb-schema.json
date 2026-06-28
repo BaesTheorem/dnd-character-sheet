@@ -1,0 +1,2189 @@
+{
+  "AmmoList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the ammunition as it will be used by the sheet",
+    "entity_types": [
+      "ammo"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ArmourList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the armour as it will be used by the sheet",
+    "entity_types": [
+      "armor"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ClassList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the class as it will be used by the sheet",
+    "entity_types": [
+      "class"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "CreatureList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the creature as it will be used by the sheet",
+    "entity_types": [
+      "companion",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "FeatsList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the feat as it will be used by the sheet",
+    "entity_types": [
+      "feat"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "GearList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the piece of equipment as it will be used by the sheet",
+    "entity_types": [
+      "gear"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "MagicItemsList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the magic item as it will be used by the sheet",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "RequiredSheetVersion": {
+    "required": "OPTIONAL",
+    "type": "function call with one variable, a string or number",
+    "use": "the minimum and maximum versions of the sheet required for the add-on script to work",
+    "entity_types": [
+      "ammo",
+      "armor",
+      "class",
+      "companion",
+      "creature",
+      "feat",
+      "gear",
+      "magicitem",
+      "tool",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "SpellsList": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the SpellsList object name that this attack is linked to",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ToolsList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the tool as it will be used by the sheet",
+    "entity_types": [
+      "tool"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "WeaponsList": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "object name of the weapon as it will be used by the sheet",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ability": {
+    "required": "REQUIRED",
+    "type": "number corresponding to the ability score (1 = Str, 2 = Dex, 3 = Con, 4 = Int, 5 = Wis, 6 = Cha)",
+    "use": "set the ability score used for weapon/attack",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "abilitytodamage": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) to add the ability score modifier to the damage",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ac": {
+    "required": "REQUIRED",
+    "type": "number or string (since v13.0.6)",
+    "use": "the base AC the armour gives without modifiers from Dexterity or other ability scores",
+    "entity_types": [
+      "armor",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "action": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "add entry to the \"Actions\", \"Bonus Actions\", or \"Reactions\" section on the 1st page",
+    "entity_types": [
+      "common",
+      "companion"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "actions": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) with objects",
+    "use": "add text to the Traits and Features sections on the Companion page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "addMod": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set to 'true' if the armour can have a secondary ability score modifier added to the AC",
+    "entity_types": [
+      "armor",
+      "common",
+      "companion",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "addTo": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "to what the bonus spells should be added",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "addToExisting": {
+    "required": "OPTIONAL",
+    "type": "array of objects (variable length)",
+    "use": "entries to add to the \"Limited Features\" section which are not level-dependent",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "additional": {
+    "required": "OPTIONAL",
+    "type": "string, or array with 20 strings",
+    "use": "value to add in brackets to the name in the \"Limited Features\" section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "adv_vs": {
+    "required": "OPTIONAL",
+    "type": "array of strings",
+    "use": "add strings to the \"Adv. on saves vs.\" text on the 1st page",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "advantages": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) with array (length 2)",
+    "use": "set advantage on an ability check, saving throw, or attacks",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "affectsDuplicates": {
+    "required": "OPTIONAL",
+    "type": "object with objects",
+    "use": "change aspects of spells when generating a spell sheet of the parent object",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "affectsWildShape": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) this armour can be used while in a Wild Shape",
+    "entity_types": [
+      "armor"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "alignment": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "set the alignment drop-down box",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "allModes": {
+    "required": "OPTIONAL",
+    "type": "object with two attributes, \"bonus\" (required) and \"exclude\" (optional)",
+    "use": "add a modifier to all movement modes, if present, except those excluded",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "allowDuplicates": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set to true if multiples can exist of this feat (e.g. Elemental Adept using the 'choices' attribute)",
+    "entity_types": [
+      "feat",
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "allowUpCasting": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "do not limit spells to only be cast at their lowest level",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "altResource": {
+    "required": "OPTIONAL",
+    "type": "string, or array with 20 strings",
+    "use": "value to add in the \"Recovery\" column in the \"Limited Features\" section in addition to the 'recovery' attribute",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "alternatives": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "used to match the text in the ammunition field to see if this ammo is present",
+    "entity_types": [
+      "ammo"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "amendTo": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "if this string is found on any Notes page, than this note is added to the found note section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ammo": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the AmmoList object name of the ammunition that this attack uses",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ammoAdd": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) of arrays with 2 entries",
+    "use": "adds each entry in the array to one of the ammunition drop-downs on the 1st page",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ammoAmount": {
+    "required": "OPTIONAL",
+    "type": "number",
+    "use": "set the amount of ammunition to add to the first page (if `type` = \"ammo\")",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "ammoOptions": {
+    "required": "OPTIONAL",
+    "type": "array of objects (variable length)",
+    "use": "adds each object in the array to the AmmoList variable",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "amount": {
+    "required": "REQUIRED",
+    "type": "number or empty string (\"\")",
+    "use": "number of the gear as it will be added in the equipment fields, \"#\" column",
+    "entity_types": [
+      "gear",
+      "tool"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "armorAdd": {
+    "required": "OPTIONAL",
+    "type": "object",
+    "use": "select armor as current and/or edit the available options in the drop-down",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "armorOptions": {
+    "required": "OPTIONAL",
+    "type": "array of objects (variable length)",
+    "use": "adds each object in the array to the ArmourList variable",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "armorProfs": {
+    "required": "OPTIONAL",
+    "type": "array with four entries",
+    "use": "adds armour and shield proficiencies",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "atkAdd": {
+    "required": "OPTIONAL",
+    "type": "array with three entries:",
+    "use": "dynamically change what is put in the fields of an attack entry",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "atkCalc": {
+    "required": "OPTIONAL",
+    "type": "array with three entries",
+    "use": "dynamically change how the To Hit and Damage of attacks are calculated",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "attackOnly": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "include/exclude spells based on if they use a spell attack",
+    "entity_types": [
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "attacks": {
+    "required": "REQUIRED",
+    "type": "array (variable length) of WeaponsList objects",
+    "use": "set the attack entries",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "attacksAction": {
+    "required": "REQUIRED",
+    "type": "number",
+    "use": "set the number of attacks per action",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "attributesAdd": {
+    "required": "OPTIONAL",
+    "type": "object containing any attributes of the CreatureList object",
+    "use": "add or overwrite attributes in the base CreatureList object",
+    "entity_types": [
+      "companion"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "attributesChange": {
+    "required": "OPTIONAL",
+    "type": "function",
+    "use": "change attributes of the temporary CreatureList object",
+    "entity_types": [
+      "companion"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "attunement": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set to true if the magic item requires attunement",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "baseWeapon": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the WeaponsList object name that this attack is based on",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "bonus": {
+    "required": "REQUIRED",
+    "type": "number",
+    "use": "positive number (minimum of 1) with the amount of extrachoices to add",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "bonusClassExtrachoices": {
+    "required": "OPTIONAL",
+    "type": "array of objects (variable length) or just a single object",
+    "use": "increase allowed number of extrachoices for another class feature",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "calcChanges": {
+    "required": "OPTIONAL",
+    "type": "object (optional attributes)",
+    "use": "change how the hit points automation works",
+    "entity_types": [
+      "common",
+      "companion",
+      "creature"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "calculate": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "this string is set as the field calculation method for the description field of the feat",
+    "entity_types": [
+      "feat",
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "carryingCapacity": {
+    "required": "OPTIONAL",
+    "type": "whole number",
+    "use": "multiply the carrying capacity (encumbrance) with this number",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "challengeRating": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "set the challenge rating",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "changeeval": {
+    "required": "OPTIONAL",
+    "type": "function",
+    "use": "runs a piece of code every time the main character's level changes",
+    "entity_types": [
+      "common",
+      "companion",
+      "creature"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "changes": {
+    "required": "REQUIRED",
+    "type": "object with objects",
+    "use": "change aspects of spells when generating a spell sheet of the parent object",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "choices": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "options for the feat",
+    "entity_types": [
+      "feat",
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "choicesNotInMenu": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "omit the choices from the item menu (i.e. only list the main item's name)",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "chooseGear": {
+    "required": "OPTIONAL",
+    "type": "object",
+    "use": "ask the player what type of gear (weapon, armor, ammunition) the item should be",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "class": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "the ClassList object name of the class the feature belong to",
+    "entity_types": [
+      "common",
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "companion": {
+    "required": "OPTIONAL",
+    "type": "array of strings (or string, for backwards compatibility)",
+    "use": "list this creature as an option for a special type of companion",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "companionApply": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "always set this creature to be this special type of companion",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "companionCallback": {
+    "required": "OPTIONAL",
+    "type": "array with three entries",
+    "use": "dynamically change the companion page after something has been turned into a special type of companion (e.g. Find Familiar or Ranger's Companion)",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "condition_immunities": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "add text to the Features section on the Companion/Wild Shape page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "creatureCallback": {
+    "required": "OPTIONAL",
+    "type": "array with three entries",
+    "use": "dynamically change the companion page after a creature was selected on it",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "creatureOptions": {
+    "required": "OPTIONAL",
+    "type": "array of objects (variable length)",
+    "use": "adds each object in the array to the CreatureList variable",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "damage": {
+    "required": "REQUIRED",
+    "type": "array with 3 entries",
+    "use": "determine the damage die and type of the damage",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "damage_immunities": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "add text to the Features section on the Companion/Wild Shape page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "damage_resistances": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "add text to the Features section on the Companion/Wild Shape page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "damage_vulnerabilities": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "add text to the Features section on the Companion/Wild Shape page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "dc": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) this weapon uses a DC instead of a To Hit",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "defaultExcluded": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether this feat should be excluded by default (true) or included by default (false)",
+    "entity_types": [
+      "ammo",
+      "armor",
+      "class",
+      "companion",
+      "creature",
+      "feat",
+      "magicitem",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "description": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "the text to be filled in the description field of the feat",
+    "entity_types": [
+      "feat",
+      "magicitem",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "descriptionChange": {
+    "required": "OPTIONAL",
+    "type": "array",
+    "use": "what part of the magic item's description to add the name of the selected gear to",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "descriptionFull": {
+    "required": "OPTIONAL",
+    "type": "array or string",
+    "use": "description of the feat as it appears in its source",
+    "entity_types": [
+      "feat",
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "descriptionLong": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the text to be filled in the description field of the magic item, but only on the overflow page",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "dex": {
+    "required": "OPTIONAL",
+    "type": "number",
+    "use": "the maximum Dexterity modifier that can be added to the AC with this armour",
+    "entity_types": [
+      "armor"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "die": {
+    "required": "REQUIRED",
+    "type": "number",
+    "use": "number of the type of hit die the class has (i.e. 10 means d10)",
+    "entity_types": [
+      "class"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "dmgres": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "add entry to the \"Resistances\" section on the 1st page",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "eval": {
+    "required": "OPTIONAL",
+    "type": "variable, see the entries for `eval`, `removeeval`, or `addMod`",
+    "use": "variable, see the entries for `eval`, `removeeval`, or `addMod`",
+    "entity_types": [
+      "common",
+      "companion",
+      "creature"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "excludeCheck": {
+    "required": "OPTIONAL",
+    "type": "function",
+    "use": "filter things from the list of weapon, armor, or ammunition from the options",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "extraAC": {
+    "required": "OPTIONAL",
+    "type": "array of objects (variable length) or just a single object",
+    "use": "add modifier and description to AC magic/misc fields",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "extraLimitedFeatures": {
+    "required": "OPTIONAL",
+    "type": "array of objects (variable length)",
+    "use": "entries to add to the \"Limited Features\" section which are not level-dependent",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "extraTooltip": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "text to add to the bullet points in the tooltip for the magic item",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "extraspells": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) of spell object names as used in the SpellsList object",
+    "use": "add spells to final list regardless if they meet the other requirements",
+    "entity_types": [
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "featsAdd": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) of strings or objects",
+    "use": "adds each entry in the array to one of the feat drop-downs",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "feature": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "the object name listed in the `features` attribute of the ClaasList or ClassSubList object",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "features": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) with objects",
+    "use": "add text to the Traits and Features sections on the Companion page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "fixedDC": {
+    "required": "OPTIONAL",
+    "type": "number",
+    "use": "set the DC and spell attack to a fixed value, not dependent on ability score",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "fixedSpAttack": {
+    "required": "OPTIONAL",
+    "type": "number",
+    "use": "set the spell attack and DC to a fixed value, not dependent on ability score",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "forceStealthDis": {
+    "required": "OPTIONAL",
+    "type": "regular expression",
+    "use": "armours matching this always impose disadvantage on stealth checks",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "forceWildshapeOption": {
+    "required": "OPTIONAL",
+    "type": "boolean or string",
+    "use": "force the entry to appear as a wild shape option",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "hd": {
+    "required": "REQUIRED",
+    "type": "array with two number entries",
+    "use": "set the hit dice",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "hdLinked": {
+    "required": "OPTIONAL",
+    "type": "array with ClassList object names (variable length) or function",
+    "use": "dynamically set the number of HD to a class level (array) or anything you want (function)",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "header": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "set the single-word header at the top left of the companion page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "hp": {
+    "required": "REQUIRED",
+    "type": "number",
+    "use": "set the maximum amount of hit points",
+    "entity_types": [
+      "common",
+      "companion",
+      "creature"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "hpForceRecalc": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "recalculate the Max HP tooltip (and value, if set to automatic) whenever anything changes",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "iFileName": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "how the file will be named in the sheet if you import it as a file",
+    "entity_types": [
+      "ammo",
+      "armor",
+      "class",
+      "companion",
+      "creature",
+      "feat",
+      "gear",
+      "magicitem",
+      "tool",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "icon": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "icon to use for the ammunition",
+    "entity_types": [
+      "ammo"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "immune": {
+    "required": "OPTIONAL",
+    "type": "array of strings",
+    "use": "add strings to the \"Immune to\" text on the 1st page",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "improvements": {
+    "required": "REQUIRED",
+    "type": "",
+    "use": "",
+    "entity_types": [
+      "class"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "includeCheck": {
+    "required": "OPTIONAL",
+    "type": "function",
+    "use": "filter things from the list of creatures to create the menu options",
+    "entity_types": [
+      "companion"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "infoname": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "name of the gear as it will be displayed in the equipment menu",
+    "entity_types": [
+      "gear",
+      "tool"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "invName": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the name used when adding the armour from the Armor/Defense section to the Equipment section",
+    "entity_types": [
+      "ammo",
+      "armor"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "isAlwaysProf": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) the proficiency bonus should always be added for this weapon",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "isMagicAmmo": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) this ammunition is magical ammunition",
+    "entity_types": [
+      "ammo"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "isMagicArmor": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) this armour is a magical armour",
+    "entity_types": [
+      "armor"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "isMagicWeapon": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) this weapon is a magical weapon",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "isNotWeapon": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (false) or not (true) this attack is counted as a weapon",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "itemName1stPage": {
+    "required": "OPTIONAL",
+    "type": "array",
+    "use": "how the name added to the 1st page should look like",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "languageProfs": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "add language proficiencies",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "languages": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "add text to the Features section on the Companion/Wild Shape page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "level": {
+    "required": "OPTIONAL",
+    "type": "array with two number entries: lower and upper limit of level of spells",
+    "use": "spells not within this level range will be excluded from the final list",
+    "entity_types": [
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "limfeaAddToExisting": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set to `true` to have the number set for `usages` be added to an existing limited feature by the same name, instead of overwriting it",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "limfeaname": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "value to add in the \"Name\" column in the \"Limited Features\" section instead of the feature's name",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "list": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "determines the sorting of the armour in the drop-down field",
+    "entity_types": [
+      "armor"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "magic": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set this to true if this should be added to the Magic line in the AC/Defense section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "magicItemComponents": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "change all spell components on the spell sheet to \"M\u0192\" (only a magic item)",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "magicItemTable": {
+    "required": "OPTIONAL",
+    "type": "string or array of strings (variable length)",
+    "use": "define what table(s) in the DMG that the magic item appears on (or as listed in the AL Content Catalog)",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "magicitemsAdd": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) of strings or arrays (with a string and a boolean)",
+    "use": "adds each entry in the array to one of the magic item drop-downs",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "minlevel": {
+    "required": "OPTIONAL",
+    "type": "number",
+    "use": "the level at which to add the feature, trait, or action",
+    "entity_types": [
+      "companion",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "minlevelLinked": {
+    "required": "OPTIONAL",
+    "type": "array with ClassList object names (variable length) or function",
+    "use": "dynamically select which level to use for level-dependent features",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "mod": {
+    "required": "REQUIRED",
+    "type": "string or number",
+    "use": "the modifier to add to the AC",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "modifiers": {
+    "required": "OPTIONAL",
+    "type": "array with 2 entries",
+    "use": "add something to the weapon's modifier fields",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "monkweapon": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) this weapon is a monk weapon and should use the Martial Arts die",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "name": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "name of the feat as it will be used by the sheet",
+    "entity_types": [
+      "ammo",
+      "armor",
+      "class",
+      "common",
+      "companion",
+      "creature",
+      "feat",
+      "gear",
+      "magicitem",
+      "tool",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "nameAlt": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "alternative setting-independent name with which the sheet can recognize the magic item",
+    "entity_types": [
+      "creature",
+      "magicitem",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "nameMenu": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "name of the companion option as it will appear in the Companion Options menu",
+    "entity_types": [
+      "companion"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "nameOrigin": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "additional information displayed in the",
+    "entity_types": [
+      "companion"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "nameTest": {
+    "required": "OPTIONAL",
+    "type": "string or regular expression",
+    "use": "alternative name with which the sheet can recognize the magic item",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "nameThis": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "name to use for \"[THIS]\"",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "nameTooltip": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "name of the companion options as it will appear in tooltips for actions on the 1st page",
+    "entity_types": [
+      "companion"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "noStealthDis": {
+    "required": "OPTIONAL",
+    "type": "regular expression",
+    "use": "armours matching this never impose disadvantage on stealth checks",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "notLegalAL": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set this to true if it the item is not legal in Adventurers League play",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "note": {
+    "required": "REQUIRED",
+    "type": "string or array",
+    "use": "the text of the feature to add to the notes section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "notes": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) with objects",
+    "use": "add text to the Traits and Features sections on the Companion page",
+    "entity_types": [
+      "companion",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "notspells": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) of spell object names as used in the SpellsList object",
+    "use": "spells to remove from the final list",
+    "entity_types": [
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "origin": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the string to use instead of the name (and minlevel) of the parent object",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "page3notes": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether to add this to the 3rd page's Notes section (true) or on a Notes page (false)",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "popupName": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the text used in the informational \"changes\" pop-up dialog to show the player what and on what page the text was added",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "prefixOrSuffix": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "determine how the name of the selected gear is added to the name of the magic item",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "prereqeval": {
+    "required": "OPTIONAL",
+    "type": "function or, for backwards-compatibility, string that is evaluated using eval()",
+    "use": "this should return 'true' if the prerequisite is met or 'false' otherwise",
+    "entity_types": [
+      "feat",
+      "magicitem"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "prereqs": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "prerequisite abilities to multiclass in the class, to be displayed in the Ability Scores dialog when multiclassing",
+    "entity_types": [
+      "class"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "prerequisite": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "textual explanation of a prerequisite the feat has",
+    "entity_types": [
+      "feat",
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "primaryAbility": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "abilities that are essential to the class to be displayed in the Ability Scores dialog",
+    "entity_types": [
+      "class"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "proficiencyBonus": {
+    "required": "REQUIRED",
+    "type": "number",
+    "use": "set the proficiency bonus",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "proficiencyBonusLinked": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether the proficiency bonus is the same (true) as the main character or not (false)",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "psionic": {
+    "required": "OPTIONAL",
+    "type": "boolean or string",
+    "use": "include/exclude spells based on if they are psionic or not",
+    "entity_types": [
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "range": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "the text as it will be put in the Range field for the attack",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "rarity": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "define what rarity the magic item is, to be used in the tooltip and to sort the item",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "recovery": {
+    "required": "OPTIONAL",
+    "type": "string, or array with 20 strings",
+    "use": "value to add in the \"Recovery\" column in the \"Limited Features\" section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "regExpSearch": {
+    "required": "REQUIRED",
+    "type": "regular expression",
+    "use": "used to match the text in the class field to see if this class is present",
+    "entity_types": [
+      "armor",
+      "class",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "removeeval": {
+    "required": "OPTIONAL",
+    "type": "function",
+    "use": "runs a piece of code when the creature is removed from the Companion page",
+    "entity_types": [
+      "common",
+      "companion",
+      "creature"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "ritual": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "include/exclude spells based on if they are ritual spells or not",
+    "entity_types": [
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "saves": {
+    "required": "OPTIONAL",
+    "type": "array of six numbers",
+    "use": "set the saving throw proficiencies",
+    "entity_types": [
+      "common",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "savesLinked": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether the total save bonus is the same (true) as the main character or not (false)",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "savetxt": {
+    "required": "OPTIONAL",
+    "type": "object (optional attributes)",
+    "use": "add text to the 1st page \"Saving Throws\" section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "school": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) of spell school names as used in the spellSchoolList object",
+    "use": "spells not in one of the schools listed will be excluded from the final list",
+    "entity_types": [
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "scores": {
+    "required": "REQUIRED",
+    "type": "array of six numbers",
+    "use": "set the ability scores",
+    "entity_types": [
+      "common",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "selectNow": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) this weapon should immediately be selected",
+    "entity_types": [
+      "armor",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "selection": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "select which of the spells from the drop-down to select",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "selfChoosing": {
+    "required": "OPTIONAL",
+    "type": "function",
+    "use": "select the 'choice' automatically when the feat is added",
+    "entity_types": [
+      "feat",
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "senses": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "add text to the Senses section on the Companion page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "setAltHp": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set the maximum HP field to automatically assume the alternative calculation method added with the `hp` function",
+    "entity_types": [
+      "companion",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "shieldAdd": {
+    "required": "OPTIONAL",
+    "type": "string or array with three entries",
+    "use": "set the shield on the 1st page as well as its bonus to AC and weight",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "size": {
+    "required": "REQUIRED",
+    "type": "number or array (since v13.0.6)",
+    "use": "set the size category drop-down box",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "skills": {
+    "required": "OPTIONAL",
+    "type": "object with skill names as attribute names",
+    "use": "set the proficiency, expertise, and extra bonus for skills",
+    "entity_types": [
+      "common",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "skillstxt": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "description of skill proficiencies and skill proficiency choices gained, to use in the tooltips of skills",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "source": {
+    "required": "REQUIRED",
+    "type": "array with two entries (or array of these arrays)",
+    "use": "define where the feat is found",
+    "entity_types": [
+      "ammo",
+      "armor",
+      "class",
+      "common",
+      "companion",
+      "creature",
+      "feat",
+      "gear",
+      "magicitem",
+      "tool",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "special": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether (true) or not (false) this weapon has the 'special' property",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "speed": {
+    "required": "REQUIRED",
+    "type": "string",
+    "use": "set the movement speed",
+    "entity_types": [
+      "common",
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spellAdd": {
+    "required": "OPTIONAL",
+    "type": "array with three entries",
+    "use": "dynamically change aspects of spells when it is added on the spell sheet",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "spellCalc": {
+    "required": "OPTIONAL",
+    "type": "array with three entries",
+    "use": "dynamically change how spell attacks, spell save DC, and/or number of spells prepared are calculated",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "spellChanges": {
+    "required": "OPTIONAL",
+    "type": "object with objects",
+    "use": "change aspects of spells when generating a spell sheet of the parent object",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spellFirstColTitle": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "set the title of the first column of the header on the spell sheet page(s)",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spellList": {
+    "required": "OPTIONAL",
+    "type": "array with three entries",
+    "use": "dynamically change what is included and excluded from the spell list of a class (or other spellcasting source)",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": true,
+    "cosmetic": false
+  },
+  "spellcastingAbility": {
+    "required": "OPTIONAL",
+    "type": "number corresponding to the ability score (1 = Str, 2 = Dex, 3 = Con, 4 = Int, 5 = Wis, 6 = Cha)",
+    "use": "set the ability score used for spellcasting abilities",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spellcastingBonus": {
+    "required": "OPTIONAL",
+    "type": "array of objects (or just a single object)",
+    "use": "adds entries to the \"Bonus Spells\" section of the spell selection dialog",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spellcastingBonusElsewhere": {
+    "required": "OPTIONAL",
+    "type": "object with specific attributes (see below)",
+    "use": "add spells to a spellcasting feature other than the parent object",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spellcastingExtra": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "adds the spells in the array to the list of spells to choose from",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spellcastingExtraApplyNonconform": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "whether to use the default (false) or variant (true) way of adding the spells defined by `spellcastingExtra` (see above)",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spellcastingPreparedCantrips": {
+    "required": "OPTIONAL",
+    "type": "object (common spell list object)",
+    "use": "show all cantrips on the spell sheet, with checkboxes in the first column",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "spells": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) of spell object names as used in the SpellsList object",
+    "use": "spells to use for the final list",
+    "entity_types": [
+      "spelllist"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "stealthdis": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set to 'true' if the armour gives disadvantage on stealth checks",
+    "entity_types": [
+      "armor"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "stopeval": {
+    "required": "OPTIONAL",
+    "type": "function",
+    "use": "return 'true' if the modifier is NOT to be added",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "storyItemAL": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "set this to true if it is a 'Story Item' in Adventurers League play",
+    "entity_types": [
+      "magicitem"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "strReq": {
+    "required": "OPTIONAL",
+    "type": "number",
+    "use": "the minimum required Strength score to wear this armour without being encumbered",
+    "entity_types": [
+      "armor"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "subclass": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the ClassSubList object name of the subclass the feature belong to",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "subtype": {
+    "required": "OPTIONAL",
+    "type": "string or array (since v13.1.0)",
+    "use": "add the subtype in the type drop-down box",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "text": {
+    "required": "OPTIONAL",
+    "type": "array of strings",
+    "use": "add a text to the 1st page",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "toNotesPage": {
+    "required": "OPTIONAL",
+    "type": "array of objects (or just a single object)",
+    "use": "adds entries to the Notes section on either the 3rd page or a separate Notes page",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "toolProfs": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "add tool proficiencies",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "tooltip": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "this will be added as a tooltip to the Description field for the attack",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "traits": {
+    "required": "OPTIONAL",
+    "type": "array (variable length) with objects",
+    "use": "add text to the Traits and Features sections on the Companion page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "type": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "define which type of feat this is",
+    "entity_types": [
+      "armor",
+      "creature",
+      "feat",
+      "gear",
+      "magicitem",
+      "tool",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "usages": {
+    "required": "OPTIONAL",
+    "type": "number, string, or array with 20 entries",
+    "use": "value to add in the \"Usages\" column in the \"Limited Features\" section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "usagescalc": {
+    "required": "OPTIONAL",
+    "type": "string, or array with 20 strings",
+    "use": "this string is set as the field calculation method for the \"Usages\" field in the \"Limited Features\" section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "useDescriptionFull": {
+    "required": "OPTIONAL",
+    "type": "boolean or function",
+    "use": "whether to use the parent feature's `descriptionFull` as the note",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "useSpellMod": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "the object name of a spellcasting object that this attack will use the spell attack/DC from",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "useSpellcastingAbility": {
+    "required": "OPTIONAL",
+    "type": "boolean",
+    "use": "force the use of the spellcasting ability for the weapon",
+    "entity_types": [
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "vision": {
+    "required": "OPTIONAL",
+    "type": "array (variable length)",
+    "use": "add string to the \"Senses\" field on the 1st page",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "walk": {
+    "required": "OPTIONAL",
+    "type": "object with two attributes, \"spd\" and \"enc\".",
+    "use": "add movement mode of the object's name",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "weaponOptions": {
+    "required": "OPTIONAL",
+    "type": "array of objects (variable length)",
+    "use": "adds each object in the array to the WeaponsList variable",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "weaponProfs": {
+    "required": "OPTIONAL",
+    "type": "array with two or three entries",
+    "use": "adds weapon proficiencies",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "weaponsAdd": {
+    "required": "OPTIONAL",
+    "type": "object",
+    "use": "add attack(s) to and/or edit the available options in 1st page attack section",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "weight": {
+    "required": "OPTIONAL",
+    "type": "number",
+    "use": "the weight of the magic item in lb",
+    "entity_types": [
+      "ammo",
+      "armor",
+      "gear",
+      "magicitem",
+      "tool",
+      "weapon"
+    ],
+    "procedural": false,
+    "cosmetic": true
+  },
+  "wildshapeCallback": {
+    "required": "OPTIONAL",
+    "type": "array with three entries",
+    "use": "dynamically change a wild shape whenever it is calculated",
+    "entity_types": [
+      "common"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "wildshapeShow": {
+    "required": "OPTIONAL",
+    "type": "boolean or string",
+    "use": "change or stop text on the wild shape page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  },
+  "wildshapeString": {
+    "required": "OPTIONAL",
+    "type": "string",
+    "use": "add text to the Traits & Features section on the Wild Shape page",
+    "entity_types": [
+      "creature"
+    ],
+    "procedural": false,
+    "cosmetic": false
+  }
+}
