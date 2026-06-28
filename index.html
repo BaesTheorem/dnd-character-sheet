@@ -323,6 +323,9 @@
   .ovf:not([contenteditable="true"]){-webkit-user-select:none; user-select:none; -webkit-touch-callout:none}   /* touch long-press = edit, not the iOS text-selection magnifier */
   @media print{ .ov{outline:none} .ov::after{display:none} input.ov{outline:none; background:none} }
   .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
+  .otherspeeds{margin-top:8px; font-size:12px; line-height:1.4; color:var(--ink)}
+  .otherspeeds .k{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-right:6px}
+  .otherspeeds .sp{font-weight:700; margin-right:8px; white-space:nowrap}
   .deathsaves{display:flex; align-items:center; gap:16px; margin-top:12px}
   .deathsaves .ds-title{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--ink)}
   .ds-rows{display:flex; flex-direction:column; gap:8px}   /* Failures stacked under Successes */
@@ -1931,8 +1934,9 @@
               <div class="combat-top">
                 <div class="stat"><div class="k">Armor Class</div><div class="calc" id="ac-calc"></div></div>
                 <div class="stat"><div class="k">Initiative</div><div class="calc" id="init"></div></div>
-                <div class="stat"><div class="k">Speed</div><input id="speed" title="Effective speed (encumbrance / Unarmored Movement applied). Click to edit your base speed."></div>
+                <div class="stat"><div class="k">Speed</div><input id="speed" title="Effective walking speed (encumbrance / Unarmored Movement applied). Click to edit your base speed."></div>
               </div>
+              <div id="otherspeeds" class="otherspeeds" style="display:none" title="Other movement modes from your race. Encumbrance and heavy-armor penalties apply; Monk Unarmored Movement is walking only."></div>
               <div class="hp-grid">
                 <div class="stat"><div class="k">Max HP</div><input data-save="" type="number" id="hpmax"></div>
                 <div class="stat"><div class="k">Current HP</div><input data-save="" type="number" id="hpcur"></div>
@@ -2546,11 +2550,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v289 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v290 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.3.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.4.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2838,6 +2842,7 @@
   let inspState = false;
   let hitDieFaces = null;                      // class hit-die size (e.g. 8) → Hit Dice box shows "1d8+CON"
   let speedBase = null;                        // base walking speed; Speed box shows the modified value, base shown only while focused
+  let speedExtra = "";                          // non-walk movement modes from race, e.g. "fly 50 ft., swim 30 ft." — rendered as a Speeds line, penalties applied in compute()
 
   // ---- Manual overrides (override-as-source) ----
   // Any computed value the player pins by hand. A pinned ability score / modifier / proficiency bonus is
@@ -5149,6 +5154,19 @@
     // Combat Speed (page 1): box shows base − encumbrance penalty + Unarmored Movement (not while editing)
     if(document.activeElement !== $("speed"))
       $("speed").value = (baseSpeed == null) ? "" : Math.max(0, baseSpeed - speedPenalty + speedBonus) + " ft";
+    // Other movement modes (page 1): fly/swim/climb/burrow from race, with encumbrance/armor penalty applied (not the Monk bonus, which is walking only)
+    { const os = $("otherspeeds");
+      if(os){
+        const modes = String(speedExtra||"").split(",").map(s => s.trim()).filter(Boolean).map(seg => {
+          const m = seg.match(/^([a-z]+)\s+(\d+)\s*ft/i);
+          if(!m) return null;
+          const eff = Math.max(0, parseInt(m[2],10) - speedPenalty);
+          return `<span class="sp">${m[1][0].toUpperCase()+m[1].slice(1)} ${eff} ft.</span>`;
+        }).filter(Boolean);
+        if(modes.length){ os.innerHTML = `<span class="k">Speeds</span>${modes.join("")}`; os.style.display = ""; }
+        else { os.innerHTML = ""; os.style.display = "none"; }
+      }
+    }
 
     // --- spellcasting (DC/attack/prepared count) — computed per spell sheet ---
     const sib = spellItemBonus();   // Robe of the Archmagi, Rod of the Pact Keeper, Staff of Power, … (equipped + attuned)
@@ -5387,6 +5405,7 @@
     data.levelMethod = levelMethod;
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
+    data.speedExtra = speedExtra;
     data.asiChoices = asiChoices;
     data.asiFeatsAdded = asiFeatsAdded;
     data.invUnits = []; for(let i=0;i<NINV;i++) data.invUnits.push($("invwt-"+i).dataset.unit || "");   // per-item inventory weights
@@ -5487,6 +5506,7 @@
     hpRolls = (data && Array.isArray(data.hpRolls)) ? data.hpRolls : [];
     speedBase = (data && typeof data.speedBase === "number") ? data.speedBase : null;
     if(speedBase == null && data){ const m = String(data.speed||"").match(/\d+/); if(m) speedBase = +m[0]; }   // legacy "30 ft" → 30
+    speedExtra = (data && typeof data.speedExtra === "string") ? data.speedExtra : "";   // legacy chars keep their Senses "Other speeds:" line; new picks render the Speeds line
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
@@ -6402,7 +6422,8 @@
         if(k==="choose") choose=v; else if(!keepRacial && ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v;
       }));
       if(r.speed) speedBase = r.speed;               // base speed; Speed box (compute) shows the modified value
-      if(r.speedExtra) addSense("Other speeds: " + r.speedExtra);   // fly/swim/climb/burrow → Senses box
+      speedExtra = r.speedExtra || "";               // fly/swim/climb/burrow → its own Speeds line (compute() renders + applies penalties)
+      { const sv = $("senses"); if(sv) sv.value = sv.value.replace(/^.*\bOther speeds:.*$\n?/gmi, ""); }   // drop any legacy "Other speeds:" line migrated from the old Senses-text behavior
       (r.traits||[]).forEach(tr=>{                     // pull sense traits into the Senses box
         const nm = tr.name||"";
         if(/darkvision|blindsight|tremorsense|truesight/i.test(nm)){

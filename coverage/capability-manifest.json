@@ -302,9 +302,9 @@
       "note": "applyRace addSense(); scanDefenses() parses senses"
     },
     "walk": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "single walk speed only; fly/swim/climb are text in Senses"
+      "note": "walk = the Combat Speed box; fly/swim/climb/burrow render as a dedicated Speeds line in the Combat card (speedExtra state, set from race in applyRace, persisted in save/load). compute() applies the encumbrance/heavy-armor penalty to each mode (Monk Unarmored Movement stays walking-only); legacy 'Other speeds:' Senses lines are stripped on race re-pick."
     },
     "weaponOptions": {
       "supported": true,
