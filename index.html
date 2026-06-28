@@ -1985,6 +1985,12 @@
           <p class="help noprint">Toggle a weapon's <strong>Atk</strong> box in Inventory to auto-fill a row. "Per action" counts Extra Attack; bonus-action attacks (Monk, two-weapon, Crossbow Expert) and invocations like Thirsting Blade are separate.</p>
         </div>
 
+        <div class="card" id="action-econ-card" data-csec="actionecon" style="display:none">
+          <h2>Action Economy</h2>
+          <div class="action-econ" id="action-econ"></div>
+          <p class="help noprint">Auto-sorted from your features by action cost (Action / Bonus Action / Reaction). Derived from the feature text, so it's a quick combat reference, not exhaustive. Weapon attacks live in the Attacks table.</p>
+        </div>
+
         <div class="card" data-csec="limited">
           <h2>Limited Features</h2>
           <table class="lftable">
@@ -2114,11 +2120,6 @@
     <section class="page" id="page-feat" data-page="feat">
       <div class="card" id="infusions-inner" style="display:none"></div>
       <div class="card" id="optfeat-inner" style="display:none"></div>
-      <div class="card" id="action-econ-card" data-csec="actionecon" style="display:none">
-        <h2>Action Economy</h2>
-        <div class="action-econ" id="action-econ"></div>
-        <p class="help noprint">Auto-sorted from your features by action cost (Action / Bonus Action / Reaction). Derived from the feature text, so it's a quick combat reference, not exhaustive. Weapon attacks live in the Attacks table.</p>
-      </div>
       <details class="feat-editor noprint" id="feat-editor" open="">
         <summary>Features &amp; Traits — edit text (one feature per block, blank line between)</summary>
         <textarea data-save="" id="features" placeholder="Class features, racial traits, feats…" style="height: 0px;"></textarea><div class="ta-print"></div>
@@ -2545,11 +2546,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v288 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v289 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.3.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.3.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -10037,6 +10038,7 @@
       ['saves','senses','proficiencies','defenses','hitdice'].forEach(function(k){ relocate(findCard(k), sc['ddb-rail'], k); });
       relocate(findCard('skills'), sc['ddb-skills'], 'skills');
       relocate(findCard('attacks'), sc['ddb-main'], 'attacks');
+      relocate(findCard('actionecon'), sc['ddb-main'], 'actionecon');
       relocate(findCard('limited'), sc['ddb-main'], 'limited');
       buildTabbar(sc['ddb-tabbar']);
       document.body.classList.add('ddb-layout');
