@@ -2559,11 +2559,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v298 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v299 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.9.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.10.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2571,6 +2571,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v299", semver:"2.10.0", items:[
+      "Magic items with a fixed save DC now show it on the sheet. When you equip a charged item that casts a spell at a set DC (Eyes of Charming, Wand of Fireballs, Medallion of Thoughts, and the like), its Limited Features row now reads “… (save DC 13)” so it's clear the DC comes from the item, not your own spellcasting.",
+    ]},
     {v:"v298", semver:"2.9.0", items:[
       "Powerful Build now works: races that count as one size larger for carrying (Goliath, Orc, Bugbear, Centaur, Loxodon, Firbolg) and the Bear Totem Barbarian's Aspect of the Beast now double your carrying capacity, push/drag/lift weight, and the optional encumbrance thresholds automatically.",
     ]},
@@ -8515,6 +8518,14 @@
     }
     return {name, max: resolveLimMax(max), rec};
   }
+  // MPMB "fixedDC": magic items grant spell-like effects whose save DC is printed on the item and does NOT scale with your
+  // ability scores. Pull that fixed DC out of the baked item text ("…cast Charm Person (save 13)…") so it can be shown on the
+  // item's Limited Features row, making clear the DC is the item's, not the character's. Only the spell-save forms — a bare
+  // "DC 15" in item text is often a skill-check escape DC (e.g. webs), not the effect's save.
+  function itemFixedDC(text){
+    const m = /\(\s*save\s+(\d+)\s*\)|\bsave DC\s+(\d+)\b/i.exec(String(text||""));
+    return m ? parseInt(m[1] || m[2], 10) : null;
+  }
   function addLimitedRow(name, max, rec, desc){   // add a Limited Features row if not already listed (never clobbers existing rows)
     if(!name) return;
     for(let i=0;i<NLIMITED;i++){ if(($("lfname-"+i).value||"").trim().toLowerCase() === name.toLowerCase()) return; }
@@ -8621,7 +8632,10 @@
     const txt = (DATA && DATA.itemText) || {};
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
       const d = txt[nm]; if(!d) continue;
-      const r = limitedFromText(nm, d); if(r) addLimitedRow(r.name, r.max, r.rec, d.slice(0,300));
+      const r = limitedFromText(nm, d); if(!r) continue;
+      const dc = itemFixedDC(d);                                            // fixedDC: the item's printed save DC, shown in the row name
+      if(dc != null){ const bi = lfIndexByName(r.name); if(bi >= 0) clearLfRow(bi); }   // drop a pre-DC bare row migrated from an older save
+      addLimitedRow(dc != null ? `${r.name} (save DC ${dc})` : r.name, r.max, r.rec, d.slice(0,300));
     }
   }
   function createCharacter(){

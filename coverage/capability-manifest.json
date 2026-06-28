@@ -142,9 +142,9 @@
       "note": "features looked up by name; conditional opt filtering"
     },
     "fixedDC": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "only additive item bonus; no ability-independent fixed DC"
+      "note": "itemFixedDC() pulls the item-printed save DC (\"\u2026(save 13)\u2026\") from baked item text and shows it on the equipped item Limited Features row (\"Eyes of Charming (save DC 13)\"), making clear the DC is fixed, not ability-derived; covers the charged save-DC items (the trackable bulk). Edges: at-will items with no Limited Features home (crystal ball, blast scepter) and save-less/text-less items have no DC surface."
     },
     "fixedSpAttack": {
       "supported": false,
