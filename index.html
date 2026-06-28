@@ -511,6 +511,11 @@
   .intro-changelog > summary::before{content:"▸ "; font-size:11px}
   .intro-changelog[open] > summary::before{content:"▾ "}
   .intro-changelog h4{margin:12px 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+  .intro-changelog .cl-history{margin-top:10px; border-top:1px solid var(--line2); padding-top:8px}
+  .intro-changelog .cl-history > summary{cursor:pointer; font-weight:700; font-size:12px; color:var(--muted); list-style:none}
+  .intro-changelog .cl-history > summary::-webkit-details-marker{display:none}
+  .intro-changelog .cl-history > summary::before{content:"▸ "; font-size:10px}
+  .intro-changelog .cl-history[open] > summary::before{content:"▾ "}
   .intro-changelog ul{margin:0 0 4px; padding-left:18px}
   .intro-changelog li{margin:0 0 4px}
   .intro-actions{display:flex; gap:14px; align-items:center; margin-top:20px; flex-wrap:wrap}
@@ -2553,11 +2558,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v292 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v293 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.6.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.6.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2565,6 +2570,47 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v293", semver:"2.6.1", items:[
+      "Spell damage fix: the Empowered Evocation bonus (adding your Intelligence to evocation spells) now only applies if you're actually a School of Evocation wizard, not to every wizard at level 10+. Fireball and other evocations no longer show a stray bonus for non-evokers.",
+      "The welcome guide's changelog now shows only the latest version's notes up front; every earlier version is tucked behind an “Older versions” toggle you can expand.",
+    ]},
+    {v:"v292", semver:"2.6.0", items:[
+      "The Spells page has a new Damage column that fills itself in. Cantrips scale automatically with your level, leveled spells show their base dice and damage type, and features that boost spell damage are added for you: Empowered Evocation, Potent Spellcasting, Agonizing Blast, and a draconic sorcerer's Elemental Affinity.",
+    ]},
+    {v:"v291", semver:"2.5.0", items:[
+      "Max HP now includes features that grant extra hit points per level: Tough, the Hill Dwarf's Dwarven Toughness, and the Draconic sorcerer's Draconic Resilience. The Max HP tooltip shows what was added.",
+      "Attacks now show class and feat damage riders right in the damage column: Sneak Attack, Rage, Improved Divine Smite, Great Weapon Fighting rerolls, the Champion's wider crit range, and the extra dice from Brutal Critical and Savage Attacks.",
+    ]},
+    {v:"v290", semver:"2.4.0", items:[
+      "Other movement speeds from your race (fly, swim, climb, burrow) now show as their own Speeds line in the Combat box, with encumbrance applied, instead of sitting as plain text in Senses.",
+    ]},
+    {v:"v289", semver:"2.3.1", items:[
+      "Moved the Action Economy box onto the Core page, directly under Attacks, so your combat options sit with the rest of your combat stats. In the D&D Beyond theme it appears in the Actions tab.",
+    ]},
+    {v:"v288", semver:"2.3.0", items:[
+      "New Action Economy box that automatically sorts your features into what you can do as an Action, a Bonus Action, or a Reaction.",
+    ]},
+    {v:"v286", semver:"2.2.0", items:[
+      "Character import moved into Manage Characters (it used to live in Settings).",
+    ]},
+    {v:"v285", items:[
+      "Magic weapons: named templates like Flame Tongue, Frost Brand, and Vicious now resolve from the weapon's name, applying the right to-hit and damage bonus and adding the extra-damage rider to its Attacks row.",
+    ]},
+    {v:"v284", items:[
+      "Equipping a magic weapon now adds it to the Attacks table automatically, and charged magic items (with daily uses) now show up as Limited Features.",
+    ]},
+    {v:"v283", items:[
+      "Ability scores: half-feat increases (Fey Touched, Resilient, and the like) now land in their own “Feat” column in the ability breakdown, separate from your ASIs.",
+    ]},
+    {v:"v282", items:[
+      "Feature-granted attacks now appear in the Attacks table automatically: racial natural weapons (claws, horns, bite) and subclass/feat attacks like the Soulknife's Psychic Blades, the Armorer's gauntlets, and Polearm Master's bonus attack.",
+    ]},
+    {v:"v280", items:[
+      "Dragonborn: pick your draconic ancestry and the sheet adds a Breath Weapon attack (save DC, damage type, and dice that scale with level) plus the matching resistance. Covers all the Fizban lineages too.",
+    ]},
+    {v:"v277", items:[
+      "Saving-throw advantages and disadvantages from your race, class, and feats are now pulled out into the Defenses box automatically.",
+    ]},
     {v:"v272", semver:"2.1.3", items:[
       "Print: if Dark mode is on, clicking Print now asks first — keep dark (it eats ink) or switch to light and print. Choosing light only affects that one print; Dark mode comes back automatically once the dialog closes.",
     ]},
@@ -4689,7 +4735,7 @@
     const lvlRe = re => { const c = (charClasses||[]).find(x => re.test(x.name||"")); return c ? (c.level||0) : 0; };
     const featText = ($("features").value || ""), has = re => re.test(featText);
     const type = ((d.dmg.type)||"").toLowerCase(), nm = (d.name||"").toLowerCase();
-    if(/evoc/i.test(d.school||"") && (lvlRe(/wizard/i) >= 10 || has(/empowered evocation/i)) && modOf("int") > 0){ mod += modOf("int"); sources.push("Empowered Evocation"); }
+    if(/evoc/i.test(d.school||"") && (hasSubclassLvl(/wizard/i, /evocation/i, 10) || has(/empowered evocation/i)) && modOf("int") > 0){ mod += modOf("int"); sources.push("Empowered Evocation"); }   // School of Evocation feature (not all wizards)
     if(d.level === 0 && has(/potent spellcasting/i) && modOf("wis") > 0){ mod += modOf("wis"); sources.push("Potent Spellcasting"); }
     if(nm === "eldritch blast" && has(/agonizing blast/i) && modOf("cha") > 0){ mod += modOf("cha"); sources.push("Agonizing Blast"); }
     if(lvlRe(/sorcerer/i) >= 6 && has(/elemental affinity/i) && modOf("cha") > 0){ const el = draconicElement(); if(el && el === type){ mod += modOf("cha"); sources.push("Elemental Affinity"); } }
@@ -9372,17 +9418,21 @@
     if(!Array.isArray(CHANGELOG) || !CHANGELOG.length){ box.hidden = true; return; }
     const curNum = verNum(APP_VERSION), seenNum = (typeof seenVer === "string") ? verNum(seenVer) : null;
     const isUpdate = (seenVer != null && seenVer !== APP_VERSION);
-    let entries = CHANGELOG, heading = "Changelog";
+    let shown = [CHANGELOG[0]], heading = "Changelog";   // default: only the latest version's notes are shown up front
     if(isUpdate){
       heading = "What's new";
-      if(seenNum != null && curNum != null && seenNum < curNum){   // know exactly where they were → show only the gap
+      if(seenNum != null && curNum != null && seenNum < curNum){   // know exactly where they were → show the whole gap they missed
         const since = CHANGELOG.filter(e => { const n = verNum(e.v); return n == null || n > seenNum; });   // n==null keeps an unstamped dev "Unreleased" entry visible
-        if(since.length){ entries = since; heading = "What's new since " + seenVer.split(" ")[0]; }
+        if(since.length){ shown = since; heading = "What's new since " + seenVer.split(" ")[0]; }
       }
     }
-    const body = entries.map((entry, i) =>
-      `<h4>${esc(entry.semver || entry.v)}${i === 0 ? " — latest" : ""}</h4><ul>` +
-      (entry.items||[]).map(it => `<li>${esc(it)}</li>`).join("") + `</ul>`).join("");
+    const shownSet = new Set(shown), history = CHANGELOG.filter(e => !shownSet.has(e));
+    const fmt = entry =>
+      `<h4>${esc(entry.semver || entry.v)}${entry === CHANGELOG[0] ? " — latest" : ""}</h4><ul>` +
+      (entry.items||[]).map(it => `<li>${esc(it)}</li>`).join("") + `</ul>`;
+    let body = shown.map(fmt).join("");
+    if(history.length)   // everything older than what's shown lives behind a collapsed "Older versions" toggle
+      body += `<details class="cl-history"><summary>Older versions (${history.length})</summary>${history.map(fmt).join("")}</details>`;
     box.innerHTML = `<summary>${esc(heading)}</summary>${body}`;
     box.open = isUpdate;   // expanded after an update so the changes are seen; collapsed on first-ever / manual reopen
     box.hidden = false;
