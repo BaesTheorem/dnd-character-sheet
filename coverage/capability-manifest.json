@@ -254,12 +254,12 @@
     "spellcastingBonus": {
       "supported": true,
       "status": "verified",
-      "note": "alwaysPreparedNames/characterExpandedSpells (domain/racial)"
+      "note": "alwaysPreparedNames/characterExpandedSpells route domain & subclass spells into the class list; the Granted Spells table (grantedSpellRows/renderGrantedSpells on the primary spell page) now also auto-lists spells from equipped magic items (DATA.itemSpells, baked from 5etools attachedSpells), racial innate spells (at-will + limited, level-gated), and spell-granting feats (Fey/Shadow Touched), each with source, uses, and the item fixed save DC."
     },
     "spellcastingBonusElsewhere": {
       "supported": false,
       "status": "verified",
-      "note": "bonus spells only attach to their own class"
+      "note": "PARTIAL: item/feat/racial bonus spells now surface standalone in the Granted Spells table (not routed into another class spellcasting feature's countable list)"
     },
     "spellcastingExtra": {
       "supported": true,
