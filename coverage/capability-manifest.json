@@ -3,328 +3,328 @@
   "capabilities": {
     "action": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "Actions/Bonus/Reaction list not auto-populated"
     },
     "addMod": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "Alert +5 init (FEAT_INIT); Defense/Warforged +1 AC"
     },
     "addTo": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no routing of bonus spells to another feature"
     },
     "addToExisting": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "addLimitedRow appends, never overwrites"
     },
     "adv_vs": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "adv-vs text not extracted to a field"
     },
     "advantages": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no conditional advantage system"
     },
     "affectsDuplicates": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "Set-based dedup across spell sources"
     },
     "allModes": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no all-movement-mode modifier"
     },
     "allowUpCasting": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no cast-at-higher-level picker"
     },
     "altResource": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no secondary resource cost column"
     },
     "amendTo": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "features appended as standalone blocks, no amend"
     },
     "ammoAdd": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "ammo is inert consumable, no tracking"
     },
     "ammoOptions": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no special ammo options"
     },
     "armorAdd": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "refreshEquippedPickers + armorAC() compute"
     },
     "armorOptions": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: armor fixed lookup, not extensible"
+      "supported": true,
+      "status": "verified",
+      "note": "unarmored/mage armor handled (natural armor manual)"
     },
     "armorProfs": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: manual text entry, no automation"
+      "supported": true,
+      "status": "verified",
+      "note": "applyProficiencies prof.armor; scanFeatureProf"
     },
     "bonus": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "ASI asiChoices; race feat/skill choices"
     },
     "calcChanges": {
       "supported": false,
-      "status": "review",
-      "note": "agent: no recalc-hook system"
+      "status": "verified",
+      "note": "no general hook; only specialized branches"
     },
     "carryingCapacity": {
-      "supported": true,
-      "status": "review",
-      "note": "agent: compute() STRx15 + encumbrance penalties"
+      "supported": false,
+      "status": "verified",
+      "note": "flat STRx15; no Powerful Build multiplier"
     },
     "class": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "feature source attribution via wizClasses/DATA.classes"
     },
     "companionCallback": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "applyMonsterToCompanion/applyCompanionTemplate scaling"
     },
     "creatureCallback": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "creature pick auto-populates stat block"
     },
     "creatureOptions": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "renderCompanions + applyMonsterToCompanion"
     },
     "dmgres": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: manual entry in defnotes field"
+      "supported": true,
+      "status": "verified",
+      "note": "applyRace r.resist; scanDefenses() 'resistance to X'"
     },
     "extraAC": {
       "supported": true,
-      "status": "review",
-      "note": "agent: compute() adds magic-item AC bonuses"
+      "status": "verified",
+      "note": "acItemsState/acItemMap (Ring/Cloak of Protection)"
     },
     "extraLimitedFeatures": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: limited features are manual rows"
+      "supported": true,
+      "status": "verified",
+      "note": "fillLimitedFeatures + racial/item rows"
     },
     "featsAdd": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "feat profs/senses applied; class-granted feats in createCharacter"
     },
     "feature": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "features looked up by name; conditional opt filtering"
     },
     "fixedDC": {
       "supported": false,
-      "status": "review",
-      "note": "agent: DC auto=8+PB+abil, no override hook"
+      "status": "verified",
+      "note": "only additive item bonus; no ability-independent fixed DC"
     },
     "fixedSpAttack": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "only additive item bonus; no fixed override"
     },
     "hpForceRecalc": {
       "supported": true,
-      "status": "review",
-      "note": "agent: compute() recalcs HP on con/rolls change"
+      "status": "verified",
+      "note": "compute() recalcs maxHP on Con/hitdice change"
     },
     "immune": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: manual entry in defnotes field"
+      "supported": true,
+      "status": "verified",
+      "note": "scanDefenses() extracts immunities from prose"
     },
     "languageProfs": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: manual text entry in Features"
+      "supported": true,
+      "status": "verified",
+      "note": "applyRace/applyBackground/applyProficiencies addLanguages"
     },
     "magic": {
       "supported": true,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "magicBonus integrated into AC (+1/+2/+3)"
     },
     "magicitemsAdd": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "AC + spell-bonus items auto-apply (partial: not all items)"
     },
     "mod": {
       "supported": true,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "compute() mods[k]=modOf(finalScore)"
     },
     "note": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "feature f.text auto-rendered to Features page"
     },
     "origin": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "source '(Class N)' appended to feature line"
     },
     "page3notes": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no per-note page routing"
     },
     "popupName": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no change-popup generated"
     },
     "recovery": {
       "supported": true,
-      "status": "review",
-      "note": "agent: Recover column + restCommit resets"
+      "status": "verified",
+      "note": "limitedFromText parses SR/LR/Dawn; restCommit resets"
     },
     "saves": {
       "supported": true,
-      "status": "review",
-      "note": "agent: compute() auto-totals saves from prof checkboxes"
+      "status": "verified",
+      "note": "createCharacter c0.saves; applyAsiBonuses (Resilient)"
     },
     "savetxt": {
       "supported": false,
-      "status": "review",
-      "note": "agent: manual Features entry"
+      "status": "verified",
+      "note": "'adv on saves vs X' only as Features text"
     },
     "scores": {
       "supported": true,
-      "status": "review",
-      "note": "agent: compute() reads scores + derives mods"
+      "status": "verified",
+      "note": "applyRace/applyAsiBonuses/finalScore"
     },
     "shieldAdd": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "shieldBonus() +2 base + magic, from equipped"
     },
     "skills": {
       "supported": true,
-      "status": "review",
-      "note": "agent: compute() auto-totals skills incl expertise"
+      "status": "verified",
+      "note": "applyProficiencies prof.skills; race/bg skill picks"
     },
     "skillstxt": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "skill choice text only as tooltips, not applied"
     },
     "speed": {
       "supported": true,
-      "status": "review",
-      "note": "agent: compute() applies monk/encumbrance to speed"
+      "status": "verified",
+      "note": "applyRace r.speed -> speedBase; compute()"
     },
     "spellChanges": {
       "supported": false,
-      "status": "review",
-      "note": "agent: spells not dynamically modifiable"
+      "status": "verified",
+      "note": "no feature-based per-spell modification"
     },
     "spellcastingAbility": {
       "supported": true,
-      "status": "review",
-      "note": "agent: spellability selector feeds DC/attack"
+      "status": "verified",
+      "note": "spellability feeds DC=8+pb+mod, atk=pb+mod"
     },
     "spellcastingBonus": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: bonus spells added manually"
+      "supported": true,
+      "status": "verified",
+      "note": "alwaysPreparedNames/characterExpandedSpells (domain/racial)"
     },
     "spellcastingBonusElsewhere": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "bonus spells only attach to their own class"
     },
     "spellcastingExtra": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: spell selection manual"
+      "supported": true,
+      "status": "verified",
+      "note": "characterExpandedSpells merges into classSpellList"
     },
     "stopeval": {
       "supported": false,
-      "status": "review",
-      "note": ""
+      "status": "verified",
+      "note": "no conditional cancel hook"
     },
     "subclass": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "subclass feature filtering at createCharacter"
     },
     "text": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "class/subclass reminders auto-added to Features"
     },
     "toolProfs": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: manual text entry in Features"
+      "supported": true,
+      "status": "verified",
+      "note": "applyProficiencies prof.tools; resolveClassToolTokens"
     },
     "usages": {
       "supported": true,
-      "status": "review",
-      "note": "agent: Max/Used columns track uses"
+      "status": "verified",
+      "note": "fillLimitedFeatures/refreshLimitedFeatures/addLimitedRow"
     },
     "useDescriptionFull": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "full f.text always used as note"
     },
     "vision": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: manual entry in senses field"
+      "supported": true,
+      "status": "verified",
+      "note": "applyRace addSense(); scanDefenses() parses senses"
     },
     "walk": {
-      "supported": true,
-      "status": "review",
-      "note": ""
+      "supported": false,
+      "status": "verified",
+      "note": "single walk speed only; fly/swim/climb are text in Senses"
     },
     "weaponOptions": {
       "supported": false,
-      "status": "review",
-      "note": "agent: weapons are fixed lookup table, not extensible"
+      "status": "verified",
+      "note": "breath/item special attacks not auto-offered"
     },
     "weaponProfs": {
-      "supported": false,
-      "status": "review",
-      "note": "agent: manual text entry in Features"
+      "supported": true,
+      "status": "verified",
+      "note": "applyProficiencies prof.weapons; scanFeatureProf"
     },
     "weaponsAdd": {
       "supported": true,
-      "status": "review",
-      "note": "agent: attack rows + refreshAtkRows links weapons"
+      "status": "verified",
+      "note": "setWeaponActive/refreshAtkRows auto attack rows"
     },
     "wildshapeCallback": {
-      "supported": false,
-      "status": "review",
-      "note": ""
+      "supported": true,
+      "status": "verified",
+      "note": "applyCompanionTemplate wildshape keeps mental stats"
     }
   }
 }
