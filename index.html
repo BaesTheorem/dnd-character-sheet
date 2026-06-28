@@ -2550,11 +2550,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v290 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v291 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.4.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.5.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2808,6 +2808,17 @@
     });
   }
   function syncHpToBuild(){ if(hpRolls.length || hpMode !== "manual") regenHp(hpMode, wizClasses); }   // keep records sized to the build (called when classes/levels change)
+  // calcChanges.hp — features that add extra max HP beyond hit dice + Con (MPMB's `hp` hook).
+  // Returns {total, parts:[{label, amt}]} for the given character level (HP is counted per level, like Con).
+  function hpFeatureBonus(lvl){
+    lvl = lvl || 0; const parts = [], featText = ($("features").value || ""), race = ($("race").value || "");
+    const hasFeat = re => (asiChoices||[]).some(s => re.test(s.feat||"")) || re.test(featText);
+    if(hasFeat(/\btough\b/i)) parts.push({label:"Tough", amt: 2*lvl});                                  // Tough feat: +2 HP/level
+    if((/dwarf/i.test(race) && /hill/i.test(race)) || /dwarven toughness/i.test(featText)) parts.push({label:"Dwarven Toughness", amt: lvl});   // Hill Dwarf: +1 HP/level
+    const sorc = (charClasses||[]).find(c => /sorcerer/i.test(c.name||""));                             // Draconic Bloodline: +1 HP per sorcerer level
+    if((sorc && /draconic/i.test(sorc.sub||"")) || /draconic resilience/i.test(featText)) parts.push({label:"Draconic Resilience", amt: sorc ? (sorc.level||0) : lvl});
+    return {total: parts.reduce((a,p)=>a+p.amt,0), parts};
+  }
   let genMode = "manual";                                   // manual | array | rolled | pointbuy
   let manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
   let baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null}; // array/rolled/pointbuy base
@@ -5078,8 +5089,11 @@
       if(hm){
         if(hpRolls.length){
           const con = (mods.con == null) ? 0 : mods.con, lvl = hpRolls.length;
-          hm.value = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*lvl;
-          hm.readOnly = !hasOv("hpmax"); hm.title = "Set from HP by level (Create/Edit Character → HP). Con is applied per level.";
+          const hpb = hpFeatureBonus(lvl);
+          hm.value = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*lvl + hpb.total;
+          hm.readOnly = !hasOv("hpmax");
+          hm.title = "Set from HP by level (Create/Edit Character → HP). Con is applied per level."
+            + (hpb.parts.length ? "\n+ " + hpb.parts.map(p => p.amt + " " + p.label).join(", ") : "");
         } else { hm.readOnly = false; hm.removeAttribute("title"); }   // no records → manual entry
       }
     }
@@ -6026,8 +6040,9 @@
       return `<div class="hp-row${i===0?" lvl1":""}"><span class="lv">Lvl ${i+1}</span><span class="die">d${x.die} ${esc(x.cls)}</span>`+
         `<input type="number" class="hp-roll" data-i="${i}" min="1" max="${x.die}" value="${v}"${ro}> <span class="wiz-hint" style="margin:0">${con>=0?"+":""}${con} → ${(+v||0)+con}</span></div>`;
     }).join("");
-    const total = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*hpRolls.length;
-    box.innerHTML = `<label class="lbl">Hit Points <span class="wiz-hint" style="font-weight:400; display:inline">— level 1 is max (first class); Con (${con>=0?"+":""}${con}) is added each level</span></label>`+
+    const _hpb = hpFeatureBonus(hpRolls.length);
+    const total = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*hpRolls.length + _hpb.total;
+    box.innerHTML = `<label class="lbl">Hit Points <span class="wiz-hint" style="font-weight:400; display:inline">— level 1 is max (first class); Con (${con>=0?"+":""}${con}) is added each level${_hpb.parts.length ? "; "+_hpb.parts.map(p=>"+"+p.amt+" "+p.label).join(", ") : ""}</span></label>`+
       `<div class="hp-modes">`+modes.map(([m,lbl]) => `<button type="button" class="btn hp-mode${hpMode===m?" active":""}" data-mode="${m}">${lbl}</button>`).join("")+`</div>`+
       (hpMode==="rolled" ? `<button type="button" class="btn hp-reroll" style="margin-bottom:6px">Re-roll levels 2+</button>` : "")+
       `<div class="hp-rows">${rows}</div>`+
@@ -7328,6 +7343,31 @@
     if(/battle\s*smith/.test(cls)) allowed.add("int");               // Battle Smith (magic weapons)
     return [...allowed].sort((a,b) => modOf(b) - modOf(a))[0] || "str";   // best available modifier
   }
+  // calcChanges.atkCalc / atkAdd — class & feat features that ride on an attack (MPMB's per-weapon hooks).
+  // Returns an array of short rider strings appended to the damage cell. Kept as labeled notes (not folded into
+  // the core number) because most are conditional (raging, once-per-turn, on a crit) — matching MPMB's atkAdd,
+  // which appends to the attack's Description. Magic-weapon riders + Archery/Dueling/Thrown styles live in
+  // weaponAtkRow itself; this is the class/feat layer on top.
+  function attackRiders(w){
+    const featText = ($("features").value || ""), race = ($("race").value || ""), out = [];
+    const finesse = (w.props||[]).some(p => /finesse/i.test(p));
+    const twoH = (w.props||[]).some(p => /two-handed/i.test(p)), versatile = !!w.versatile;
+    const lvlRe = re => { const c = (charClasses||[]).find(x => re.test(x.name||"")); return c ? (c.level||0) : 0; };   // local regex lookup (the module's classLevelOf is the string-keyed one)
+    const barb = lvlRe(/barbarian/i), pal = lvlRe(/paladin/i), rogue = lvlRe(/rogue/i);
+    if(rogue && (!w.melee || finesse)) out.push("Sneak Attack " + Math.ceil(rogue/2) + "d6 (1/turn)");      // Sneak Attack: ranged or finesse weapon
+    if(barb && w.melee && !finesse) out.push("+" + (barb < 9 ? 2 : barb < 16 ? 3 : 4) + " raging");          // Rage: bonus melee Strength damage while raging
+    if(pal >= 11 && w.melee) out.push("+1d8 radiant (Improved Divine Smite)");
+    if(w.melee && (twoH || versatile) && hasFightingStyle("Great Weapon Fighting")) out.push("reroll 1-2 on dmg dice");
+    if(hasSubclassLvl(/fighter/i, /champion/i, 15)) out.push("crit on 18-20");                              // Superior Critical
+    else if(hasSubclassLvl(/fighter/i, /champion/i, 3)) out.push("crit on 19-20");                          // Improved Critical
+    if(w.melee){                                                                                            // extra weapon dice on a crit (Brutal Critical / Savage Attacks)
+      let xc = 0;
+      if(barb >= 9) xc += barb < 13 ? 1 : barb < 17 ? 2 : 3;
+      if(/half.?orc/i.test(race) || /savage attacks/i.test(featText)) xc += 1;
+      if(xc) out.push("+" + xc + " weapon " + (xc > 1 ? "dice" : "die") + " on crit");
+    }
+    return out;
+  }
   function weaponAtkRow(w){                   // {bonus, dmg} from current scores, assuming proficiency
     const m = modOf(weaponAtkAbility(w)), pb = profBonus() || 0;
     const md = s => s > 0 ? "+"+s : (s < 0 ? ""+s : "");
@@ -7341,6 +7381,8 @@
     if(w.versatile) dmg += ` (${w.versatile}${(m+mb) ? md(m+mb) : ""} versatile)`;   // two-handed use forfeits Dueling → base mod (+ magic) only
     if(w.range)     dmg += `, range ${w.range}`;
     if(w.rider)     dmg += " " + w.rider;                                          // magic weapon damage rider (e.g. +2d6 radiant)
+    const riders = attackRiders(w);                                                // class/feat riders (Sneak Attack, Improved Divine Smite, Rage, crit notes…)
+    if(riders.length) dmg += "; " + riders.join("; ");
     return {bonus: sgn(atkB), dmg: dmg.trim()};
   }
   function unarmedStrike(){                   // auto Unarmed Strike row: Str (or Monk Dex) + PB; damage 1+mod, or a die from Monk Martial Arts / Tavern Brawler
@@ -9191,7 +9233,7 @@
       const t = e.target.closest(".hp-roll"); if(!t) return;
       const i = +t.dataset.i, die = +t.max || 99; hpRolls[i] = Math.max(1, Math.min(die, num(t.value, 1)));
       const con = (finalScore("con") == null) ? 0 : modOf("con");
-      const tot = $("wiz-hp").querySelector(".hp-total"); if(tot) tot.textContent = "Max HP: " + (hpRolls.reduce((a,b)=>a+(+b||0),0) + con*hpRolls.length);
+      const tot = $("wiz-hp").querySelector(".hp-total"); if(tot) tot.textContent = "Max HP: " + (hpRolls.reduce((a,b)=>a+(+b||0),0) + con*hpRolls.length + hpFeatureBonus(hpRolls.length).total);
       compute();
     });
     $("wiz-chosen").addEventListener("click", e => { const b = e.target.closest(".wiz-cls-rm"); if(!b) return;

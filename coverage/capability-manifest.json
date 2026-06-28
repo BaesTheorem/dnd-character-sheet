@@ -87,9 +87,9 @@
       "note": "ASI asiChoices; race feat/skill choices"
     },
     "calcChanges": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "no general hook; only specialized branches"
+      "note": "hp hook: hpFeatureBonus() adds Tough (+2/lvl), Dwarven Toughness/Hill Dwarf (+1/lvl), Draconic Resilience (+1/sorcerer lvl) into Max HP (box + wizard + HP panel). atkCalc/atkAdd: attackRiders() appends class/feat riders to attack damage cells (Sneak Attack, Rage, Improved Divine Smite, Great Weapon Fighting reroll, Improved/Superior Critical crit range, Brutal Critical + Savage Attacks crit dice). Already covered elsewhere: magic-weapon riders (Flame Tongue/Frost Brand/Dragon Slayer/Holy Avenger\u2026 via magicWeapons+weaponAtkRow), Archery/Dueling/Thrown/Great Weapon fighting styles, Martial Arts, ability subs, and spellCalc items (Robe of the Archmagi/Staff of Power \u2192 spellItemBonus). N/A by sheet design: per-spell damage adds (Empowered Evocation, Elemental Affinity, Potent Spellcasting, Agonizing Blast) and spellAdd component/description tweaks (Archdruid, Disciple of Life) \u2014 the spell sheet lists spell names, not auto-computed per-spell damage, so the player applies these when rolling."
     },
     "carryingCapacity": {
       "supported": false,
