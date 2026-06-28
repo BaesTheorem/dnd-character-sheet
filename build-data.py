@@ -22,8 +22,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 21  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
-# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21: race `ancestry` (Draconic Ancestry table → breath weapon + resistance). Mirror HTML's DATA_VERSION.
+DATA_VERSION = 22  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21/v22: race `ancestry` = {kind, choices:[{dragon,dmgType,shape,save}], breath:{die,scale}} (Draconic Ancestry → breath weapon + resistance; v22 added the breath progression + Fizban Chromatic/Gem/Metallic variants). Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -202,7 +202,7 @@ def build_races(raw):
               "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs,
               "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl}
         if rexp: ro["expanded"] = rexp   # e.g. dragonmark "Spells of the Mark"
-        if anc: ro["ancestry"] = {"kind": "draconic", "choices": anc}   # drives the ancestry picker + breath-weapon attack
+        if anc: ro["ancestry"] = anc   # full {kind, choices, breath} — drives the ancestry picker + breath-weapon attack
         out.append(ro)
     for s in raw.get("subrace", []):
         if not is_src(s) or is_2024(s): continue
@@ -236,7 +236,7 @@ def build_races(raw):
               "flavor": flavor.get(f"{parent} ({s['name']})", base.get("flavor", []))}
         if sexp: so["expanded"] = sexp
         sanc = dragon_ancestry(s) or base.get("ancestry")   # Draconblood/Ravenite inherit draconic ancestry from base Dragonborn
-        if sanc: so["ancestry"] = {"kind": "draconic", "choices": sanc}
+        if sanc: so["ancestry"] = sanc
         out.append(so)
     for o in out:
         if "custom lineage" in o["name"].lower(): o["variableSkillDarkvision"] = True   # TCE: skill OR darkvision
@@ -395,36 +395,59 @@ def damage_resist(obj):  # damage resistances as display strings (e.g. Dwarf poi
             elif r.get("resist"): out.append(_titlecase(", ".join(r["resist"]) if isinstance(r["resist"], list) else str(r["resist"])))
     return out
 
+def _anc_find(pred, o):
+    if isinstance(o, dict):
+        if pred(o): return o
+        for v in o.values():
+            t = _anc_find(pred, v)
+            if t: return t
+    elif isinstance(o, list):
+        for x in o:
+            t = _anc_find(pred, x)
+            if t: return t
+    return None
+
+def _breath_progression(txt):   # base dice + die size + scaling thresholds from the Breath Weapon prose
+    m = re.search(r'(\d+)d(\d+)', txt or "")
+    if not m: return None
+    base, die = int(m.group(1)), int(m.group(2))
+    levels = [int(x) for x in re.findall(r'(\d+)(?:st|nd|rd|th)\s+level', txt or "") if int(x) > 1][:3]
+    return {"die": die, "scale": [[1, base]] + [[L, base + 1 + i] for i, L in enumerate(levels)]}
+
+def _breath_shape_save(txt):    # shape + save from prose (Fizban variants: uniform across ancestries)
+    sm = re.search(r'(\d+)[- ]?foot\s+(line|cone)', txt or "", re.I)
+    shape = f"{sm.group(1)} ft. {sm.group(2).lower()}" if sm else ""
+    sv = re.search(r'(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+saving throw', txt or "", re.I)
+    return shape, (sv.group(1)[:3].title() if sv else "Dex")
+
 def dragon_ancestry(r):
-    """Structured Draconic Ancestry options, parsed from the race's entries table
-    (caption "Draconic Ancestry": Dragon | Damage Type | Breath Weapon). Returns
-    [{dragon, dmgType, shape, save}] so the sheet can offer an ancestry picker and
-    derive the breath-weapon attack + damage resistance. None if no such table."""
-    def find_table(o):
-        if isinstance(o, dict):
-            if o.get("type") == "table" and "ancestry" in str(o.get("caption", "")).lower():
-                return o
-            for v in o.values():
-                t = find_table(v)
-                if t: return t
-        elif isinstance(o, list):
-            for x in o:
-                t = find_table(x)
-                if t: return t
-        return None
-    tbl = find_table(r.get("entries", []))
+    """Full Draconic Ancestry object {kind, choices:[{dragon,dmgType,shape,save}], breath:{die,scale}}
+    so the sheet can offer an ancestry picker and derive the breath-weapon attack + resistance.
+    Handles PHB (3-col table → shape+save per row; 2d6 @1/6/11/16) AND Fizban Chromatic/Gem/Metallic
+    (2-col table + uniform shape/save from the Breath Weapon prose; 1d10 @1/5/11/17). None if no table."""
+    entries = r.get("entries", [])
+    tbl = _anc_find(lambda o: o.get("type") == "table" and "ancestry" in str(o.get("caption", "")).lower(), entries)
     if not tbl: return None
-    out = []
-    for row in tbl.get("rows", []):
-        if len(row) < 3: continue
-        dragon = _clean(str(row[0])).strip()
-        dmg = _titlecase(_clean(str(row[1])).strip())
-        bw = _clean(str(row[2])).strip()                                  # "5 by 30 ft. line (Dex. save)"
-        m = re.search(r'\(([A-Za-z]+)\.?\s*save\)', bw)
-        save = (m.group(1)[:3].title() if m else "Dex")
-        shape = re.sub(r'\s*\([^)]*\)\s*$', '', bw).strip()              # "5 by 30 ft. line"
-        if dragon and dmg: out.append({"dragon": dragon, "dmgType": dmg, "shape": shape, "save": save})
-    return out or None
+    bw = _anc_find(lambda o: o.get("name") == "Breath Weapon" and o.get("entries"), entries)
+    bw_txt = entries_to_text(bw.get("entries", [])) if bw else ""
+    breath = _breath_progression(bw_txt) or {"die": 6, "scale": [[1, 2], [6, 3], [11, 4], [16, 5]]}
+    cols = len(tbl.get("colLabels") or [])
+    choices = []
+    if cols >= 3:                                                          # PHB: Dragon | Damage Type | Breath Weapon
+        for row in tbl.get("rows", []):
+            if len(row) < 3: continue
+            dragon, dmg, cell = _clean(str(row[0])).strip(), _titlecase(_clean(str(row[1])).strip()), _clean(str(row[2])).strip()
+            m = re.search(r'\(([A-Za-z]+)\.?\s*save\)', cell)
+            save = (m.group(1)[:3].title() if m else "Dex")
+            shape = re.sub(r'\s*\([^)]*\)\s*$', '', cell).strip()
+            if dragon and dmg: choices.append({"dragon": dragon, "dmgType": dmg, "shape": shape, "save": save})
+    else:                                                                  # Fizban: Dragon | Damage Type (shape+save from prose)
+        sh, sv = _breath_shape_save(bw_txt)
+        for row in tbl.get("rows", []):
+            if len(row) < 2: continue
+            dragon, dmg = _clean(str(row[0])).strip(), _titlecase(_clean(str(row[1])).strip())
+            if dragon and dmg: choices.append({"dragon": dragon, "dmgType": dmg, "shape": sh, "save": sv})
+    return {"kind": "draconic", "choices": choices, "breath": breath} if choices else None
 
 def bg_equipment(b):                                # starting items + gold a background provides
     items, gold = [], 0.0
