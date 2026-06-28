@@ -939,6 +939,37 @@ def build_magic_weapons(items):   # named magic weapons → {name_lc: {base, bon
                            "rider": (f"+{rid.group(1)} {rid.group(2).lower()}" if rid else "")}
     return out
 
+def _variant_rider(entries):
+    rid = re.search(r'extra (\d+d\d+)\s+([A-Za-z]+) damage', entries_to_text(entries) or "", re.I)
+    return f"+{rid.group(1)} {rid.group(2).lower()}" if rid else ""
+def _variant_matches(cond, b):
+    for k, val in cond.items():
+        bv = b.get(k)
+        if k == "type":
+            if str(bv).split("|")[0] != str(val).split("|")[0]: return False
+        elif k == "name":
+            if b.get("name") != val: return False
+        elif bv != val: return False
+    return True
+def build_variant_weapons(items_base):   # magic-variant templates × base weapons → named magic weapons (Flame Tongue Longsword, Vicious Greataxe, …)
+    try: mv = load("magicvariants.json").get("magicvariant", [])
+    except Exception: return {}
+    bases = [b for b in items_base.get("baseitem", []) if is_src(b) and b.get("weapon")]
+    out = {}
+    for v in mv:
+        inh = v.get("inherits", {}); pre, suf = inh.get("namePrefix"), inh.get("nameSuffix")
+        m = re.search(r'\+(\d+)', str(inh.get("bonusWeapon") or "")); bonus = int(m.group(1)) if m else 0
+        rider = _variant_rider(inh.get("entries", []))
+        if bonus == 0 and not rider and not (pre or suf): continue
+        for b in bases:
+            req = v.get("requires") or []
+            if not any(_variant_matches(c, b) for c in req): continue
+            exc = v.get("excludes")
+            if exc and _variant_matches(exc, b): continue
+            full = (pre + b["name"]) if pre else (b["name"] + suf) if suf else b["name"]
+            out.setdefault(full.lower(), {"base": b["name"], "bonus": bonus, "rider": rider})
+    return out
+
 def build_packs(items):   # equipment packs → {name: [{name, qty}]} so the sheet can disambiguate contents
     out = {}
     for it in items.get("item", []):
@@ -1025,7 +1056,7 @@ def main():
     out["attuneItems"] = build_attune_items(items_base, items)
     out["magicItems"] = build_magic_items(items_base, items)
     out["itemText"] = build_item_text(items_base, items)
-    out["magicWeapons"] = build_magic_weapons(items)   # named magic weapons → Attacks rows (+N bonus + damage rider)
+    out["magicWeapons"] = {**build_variant_weapons(items_base), **build_magic_weapons(items)}   # variant templates (Flame Tongue ×bases) + concrete named magic weapons → Attacks rows
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
     sz = os.path.getsize(OUT)
     print(f"wrote {OUT}  ({sz/1024:.0f} KB)")

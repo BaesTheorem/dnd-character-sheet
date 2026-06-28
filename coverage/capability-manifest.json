@@ -309,7 +309,7 @@
     "weaponOptions": {
       "supported": true,
       "status": "verified",
-      "note": "feature-attack engine (activeFeatureAttacks/syncFeatureAttacks/refreshAtkRows): Dragonborn breath weapon (6 lineages), 10 racial natural weapons (data-driven), + subclass/feat registry (Soulknife, Armorer, Sun Soul, Astral Self, Battlerager, Beast, Fathomless, Polearm Master, Dragon Hide). Magic-item special riders still N/A (no itemText)."
+      "note": "feature-attack engine (activeFeatureAttacks/syncFeatureAttacks/refreshAtkRows): Dragonborn breath weapon (6 lineages), 10 racial natural weapons (data-driven), + subclass/feat registry (Soulknife, Armorer, Sun Soul, Astral Self, Battlerager, Beast, Fathomless, Polearm Master, Dragon Hide). Magic-item special riders still N/A (no itemText). + magic weapons (concrete + variant templates: Flame Tongue, Frost Brand, Vicious, +N\u2026) and charged items \u2192 Limited Features."
     },
     "weaponProfs": {
       "supported": true,
