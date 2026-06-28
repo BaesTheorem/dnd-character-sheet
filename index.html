@@ -2559,11 +2559,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v297 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v298 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.8.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.9.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2571,6 +2571,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v298", semver:"2.9.0", items:[
+      "Powerful Build now works: races that count as one size larger for carrying (Goliath, Orc, Bugbear, Centaur, Loxodon, Firbolg) and the Bear Totem Barbarian's Aspect of the Beast now double your carrying capacity, push/drag/lift weight, and the optional encumbrance thresholds automatically.",
+    ]},
     {v:"v297", semver:"2.8.0", items:[
       "Skill-granting feats now let you choose your skills in the builder: Skilled (3), Skill Expert, Prodigy, and Squat Nimbleness add a skill picker to their feat slot, and the chosen skills are checked on your sheet automatically. (Class and race skill choices were already applied; this fills in the feats.)",
     ]},
@@ -2880,6 +2883,17 @@
     const sorc = (charClasses||[]).find(c => /sorcerer/i.test(c.name||""));                             // Draconic Bloodline: +1 HP per sorcerer level
     if((sorc && /draconic/i.test(sorc.sub||"")) || /draconic resilience/i.test(featText)) parts.push({label:"Draconic Resilience", amt: sorc ? (sorc.level||0) : lvl});
     return {total: parts.reduce((a,p)=>a+p.amt,0), parts};
+  }
+  // Powerful Build & kin: "count as one size larger" doubles carrying capacity, push/drag/lift, and the variant encumbrance thresholds.
+  // Covers Orc/Bugbear/Loxodon/Firbolg (Powerful Build), Centaur (Equine Build), Goliath (Little Giant), and Bear Totem Barbarian (Aspect of the Beast: Bear, "carrying capacity … doubled").
+  function carryMultiplier(){
+    const SIZE_RE = /one size larger when determining your carrying/i;   // the exact mechanical phrase shared by all "size larger" carry traits
+    const r = DATA && findBy(DATA.races, ($("race").value)||"");          // race traits aren't always mirrored into the Features box, so check structured data first
+    if(r && (r.traits||[]).some(t => SIZE_RE.test((t.name||"")+" "+(t.text||"")))) return {mult:2, label:r.name};
+    const ft = ($("features").value || "");
+    if(SIZE_RE.test(ft)) return {mult:2, label:"Powerful Build"};
+    if(/carrying capacity[^.]{0,60}\bdoubled\b/i.test(ft)) return {mult:2, label:"Aspect of the Beast"};   // Bear Totem Barbarian phrasing
+    return {mult:1, label:""};
   }
   let genMode = "manual";                                   // manual | array | rolled | pointbuy
   let manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
@@ -5317,8 +5331,10 @@
     $("carried").textContent = carriedTxt;
     const strScore = finalScore("str");
     const baseSpeed = speedBase;                            // base walking speed (stored; Speed box shows the modified value)
-    const VARIANT_NOTE = "Thresholds use your Strength score (lb). Encumbered / Heavily are the optional variant rule.";
-    const BASE_NOTE = "Carrying capacity is your Strength score × 15 (lb).";
+    const carryMul = carryMultiplier();                    // Powerful Build & kin: count as one size larger → ×2
+    const pbNote = carryMul.mult > 1 ? ` ${carryMul.label} counts you as one size larger, so these are doubled.` : "";
+    const VARIANT_NOTE = "Thresholds use your Strength score (lb). Encumbered / Heavily are the optional variant rule." + pbNote;
+    const BASE_NOTE = "Carrying capacity is your Strength score × 15 (lb)." + pbNote;
     let speedPenalty = 0;
     const e5 = $("enc5") && $("enc5").closest(".stat"), e10 = $("enc10") && $("enc10").closest(".stat");   // variant-only threshold boxes
     if(e5) e5.style.display = variantEncumbrance ? "" : "none";
@@ -5329,13 +5345,13 @@
       ["enc5","enc10","carry","pushdrag","encstatus"].forEach(id => $(id).textContent = "");
       $("encnote").textContent = variantEncumbrance ? VARIANT_NOTE : BASE_NOTE;
     } else {
-      const enc5=strScore*5, enc10=strScore*10, carry=strScore*15;
+      const enc5=strScore*5*carryMul.mult, enc10=strScore*10*carryMul.mult, carry=strScore*15*carryMul.mult;
       $("enc5").textContent = enc5+" lb"; $("enc10").textContent = enc10+" lb";
-      $("carry").textContent = carry+" lb"; $("pushdrag").textContent = (strScore*30)+" lb";
+      $("carry").textContent = carry+" lb"; $("pushdrag").textContent = (strScore*30*carryMul.mult)+" lb";
       let status, note;
       if(variantEncumbrance){                              // optional variant: Encumbered / Heavily thresholds + speed penalties
         note = VARIANT_NOTE;
-        if(carried > carry){ status = "Over capacity"; speedPenalty = baseSpeed||0; note = "Over capacity — you can't carry this much (more than Strength ×15)."; }
+        if(carried > carry){ status = "Over capacity"; speedPenalty = baseSpeed||0; note = `Over capacity — you can't carry this much (more than ${carry} lb).`; }
         else if(carried > enc10){ status = "Heavily encumbered"; speedPenalty = 20; note = "Heavily encumbered: speed −20 ft, and disadvantage on STR/DEX/CON ability checks, attack rolls, and saving throws."; }
         else if(carried > enc5){ status = "Encumbered"; speedPenalty = 10; note = "Encumbered: speed −10 ft."; }
         else status = "Unencumbered";

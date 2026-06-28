@@ -92,9 +92,9 @@
       "note": "hp hook: hpFeatureBonus() adds Tough (+2/lvl), Dwarven Toughness/Hill Dwarf (+1/lvl), Draconic Resilience (+1/sorcerer lvl) into Max HP (box + wizard + HP panel). atkCalc/atkAdd (weapons): attackRiders() appends class/feat riders to attack damage cells (Sneak Attack, Rage, Improved Divine Smite, Great Weapon Fighting reroll, Improved/Superior Critical crit range, Brutal Critical + Savage Attacks crit dice). atkCalc/spellAdd (spells): the Spells page now has an auto-computed Damage column (spell.dmg baked from 5etools: cantrip scalingLevelDice \u2192 dice at character level, leveled spells \u2192 base {@damage} dice + damageInflict type; refreshSpellDamageCells() keeps it live), and spellDamageAdds() folds in Empowered Evocation (+Int to wizard evocation), Potent Spellcasting (+Wis to cleric cantrips), Agonizing Blast (+Cha to Eldritch Blast), and Elemental Affinity (+Cha to a draconic sorcerer's element). Already covered elsewhere: magic-weapon riders (Flame Tongue/Frost Brand/Dragon Slayer/Holy Avenger\u2026 via magicWeapons+weaponAtkRow), Archery/Dueling/Thrown/Great Weapon fighting styles, Martial Arts, ability subs, and spellCalc items (Robe of the Archmagi/Staff of Power \u2192 spellItemBonus). Remaining spellAdd cases are cosmetic component/description tweaks (Archdruid no-components, Disciple of Life healing text)."
     },
     "carryingCapacity": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "flat STRx15; no Powerful Build multiplier"
+      "note": "Powerful Build / Equine Build / Little Giant (race traits) + Bear Totem Barbarian (Aspect of the Beast: Bear) \u2192 carryMultiplier() doubles carry, push/drag/lift, and variant enc thresholds"
     },
     "class": {
       "supported": true,
