@@ -2533,7 +2533,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v276 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v277 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
@@ -2736,7 +2736,21 @@
   let genSpells = {};      // per-caster record of spell picks the wizard last wrote (so Edit replaces, not piles up): {casterKey:{cantrips,rows,prepared}}
   let genFeatSpells = [];  // spells a "you learn ..." feat (Fey/Shadow Touched) auto-added to the spell sheet: [{name,inst,mode:'prep'|'row'}] — tracked so a swap/removal never touches the player's own copy
   function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
-  function scanDefenses(text){   // pull "you have/gain resistance/immunity to X" out of feature prose → concise Resistances/Immunities lines (with any "while …" qualifier)
+  const _SAVE_AB = { strength:"Str", dexterity:"Dex", constitution:"Con", intelligence:"Int", wisdom:"Wis", charisma:"Cha" };
+  function _tidySaveAbil(t){   // "all Intelligence, Wisdom, and Charisma " → "Int/Wis/Cha " ; none → ""
+    const abs = []; String(t||"").toLowerCase().replace(/strength|dexterity|constitution|intelligence|wisdom|charisma/g, w => { abs.push(_SAVE_AB[w]); return w; });
+    return abs.length ? abs.join("/") + " " : "";
+  }
+  function _tidySaveTail(t){   // normalize the clause after "saving throws": both 2014 ("against poison") and 2024 ("you make to avoid or end the Poisoned condition") phrasings → " vs. poison" / " vs. Poisoned"
+    let s = String(t||"").trim(); if(!s) return "";
+    s = s.replace(/^that you make\s+/i, "").replace(/^you make\s+/i, "");
+    s = s.replace(/^to (?:avoid or end|avoid|end|resist|not fall|not be)\s+(?:the\s+)?/i, "vs. ");
+    s = s.replace(/^against\b/i, "vs.");
+    s = s.replace(/\bcondition\b/ig, "").trim();
+    s = s.split(/,\s+/)[0].trim().slice(0, 70);
+    return s ? " " + s : "";
+  }
+  function scanDefenses(text){   // pull resistances/immunities AND save (dis)advantages out of feature prose → concise lines for the Defenses box (with any "while …" qualifier)
     const out = [];
     String(text||"").split(/(?<=[.;:])\s+/).forEach(raw => {
       const s = raw.trim(); let m;
@@ -2744,6 +2758,10 @@
       if(m = s.match(/you (?:have|gain|are granted|gains) resistance to ([^.;]+)/i)) out.push("Resistance: " + _tidyDef(m[1]) + q);
       if(m = s.match(/you (?:have|gain|are granted) immunity to ([^.;]+)/i)) out.push("Immunity: " + _tidyDef(m[1]) + q);
       if(m = s.match(/you(?:'re| are) immune to ([^.;]+)/i)) out.push("Immune: " + _tidyDef(m[1]) + q);
+      // save (dis)advantages, e.g. Dwarven Resilience (poison), Fey Ancestry (charm), Gnome Cunning (Int/Wis/Cha vs magic), Brave (fear).
+      // Matches 2014 ("you have advantage on … saving throws …") and 2024 ("Advantage on saving throws …") phrasings. Anchored on "you" OR sentence start, so enemy-facing text ("creatures have disadvantage on saving throws…") and "grant advantage … to allies" are ignored; bonuses (non-advantage) don't match.
+      if(m = s.match(/(?:\byou (?:have|gain|always have|can gain)\s+|^)(advantage|disadvantage)\s+on\b([^.;]*?)\bsaving throws?\b([^.;]*)/i))
+        out.push((/disadv/i.test(m[1]) ? "Disadv." : "Adv.") + " on " + _tidySaveAbil(m[2]) + "saves" + _tidySaveTail(m[3]) + q);
     });
     return [...new Set(out)];
   }
@@ -6397,6 +6415,11 @@
       if(r.resist && r.resist.length){                // race damage resistances → Resistances/Immunities/Defenses box
         const n = $("defnotes"); if(n){ const line = "Resistance: " + r.resist.join(", ");
           if(!n.value.includes(line)){ n.value = n.value.trim() ? n.value+"\n"+line : line; autoGrow(n); } }   // idempotent — don't duplicate on Edit
+      }
+      if(r.traits && r.traits.length){                // save (dis)advantages stated in racial traits (Dwarven Resilience, Fey Ancestry, Gnome Cunning, Brave…) — race traits are baselined out of the genDefenses scan, so catch them here
+        const n = $("defnotes");
+        if(n){ scanDefenses(r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n")).forEach(line => {
+          if(!n.value.includes(line)){ n.value = n.value.trim() ? n.value+"\n"+line : line; } }); autoGrow(n); }
       }
       if(r.traits && r.traits.length && !$("features").value.trim())
         $("features").value = r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n");

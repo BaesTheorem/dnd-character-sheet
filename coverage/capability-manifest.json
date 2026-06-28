@@ -22,14 +22,14 @@
       "note": "addLimitedRow appends, never overwrites"
     },
     "adv_vs": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "adv-vs text not extracted to a field"
+      "note": "same scanDefenses save-advantage path; 'Adv. on saves vs. X' lines"
     },
     "advantages": {
       "supported": false,
       "status": "verified",
-      "note": "no conditional advantage system"
+      "note": "PARTIAL: save-type advantages now auto-applied via scanDefenses; ability-check & attack-roll advantages still manual"
     },
     "affectsDuplicates": {
       "supported": true,
@@ -212,9 +212,9 @@
       "note": "createCharacter c0.saves; applyAsiBonuses (Resilient)"
     },
     "savetxt": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "'adv on saves vs X' only as Features text"
+      "note": "scanDefenses() now extracts save (dis)advantages from race traits (applyRace) and class/feat features (genDefenses) -> #defnotes; both 2014 & 2024 phrasings"
     },
     "scores": {
       "supported": true,
