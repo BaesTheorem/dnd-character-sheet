@@ -2,9 +2,9 @@
   "_README": "Source of truth for which MPMB mechanical capabilities THIS sheet implements. supported: true|false. status 'auto-*' means the value was guessed by probing index.html -- review and set it explicitly, then it won't be overwritten. Re-run the oracle after each build.",
   "capabilities": {
     "action": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "Actions/Bonus/Reaction list not auto-populated"
+      "note": "Action Economy card on the Features page: renderActionEconomy() sorts the character's features into Action / Bonus Action / Reaction columns, derived from the feature prose (combat reference). Weapon attacks stay in the Attacks table; spell casting-times not classified."
     },
     "addMod": {
       "supported": true,

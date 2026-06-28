@@ -652,6 +652,12 @@
   .feat-cards{display:flex; flex-direction:column; gap:8px}
   .feat-card-title{font-weight:700; font-size:14px; margin-bottom:3px}
   .feat-card-body{white-space:pre-wrap; line-height:1.45; font-size:13px}
+  .action-econ{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+  .ae-col h3{margin:0 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--line); padding-bottom:3px}
+  .ae-col ul{list-style:none; margin:0; padding:0}
+  .ae-col li{font-size:12px; line-height:1.4; padding:2px 0; border-bottom:1px dotted var(--line); cursor:default}
+  .ae-col li:last-child{border-bottom:0}
+  .ae-empty{font-size:11px; color:var(--muted); font-style:italic}
   .feat-blank{display:none}   /* empty Features page: the editor is the screen input; this is a print-only full-page write-in card */
   .item-search-wrap{position:relative; margin-bottom:10px}
   .item-search-wrap input{width:100%; padding:8px 10px; background:var(--field); border:1px solid var(--line); border-radius:8px; font-size:13px}
@@ -896,6 +902,9 @@
     .feat-card{break-inside:avoid}                                        /* never split one feature across a page break */
     .feat-card-title{font-size:10px; font-weight:700; margin-bottom:1px; letter-spacing:.02em}
     .feat-card-body{font-size:8px; line-height:1.32; white-space:pre-wrap}
+    #action-econ-card{break-inside:avoid}
+    .ae-col h3{font-size:8px; margin-bottom:2px}
+    .ae-col li{font-size:8px; line-height:1.28; padding:1px 0}
     #page-story,#page-notes{display:block !important}
     #page-story .card.grow,#page-notes .card.grow{display:block; break-inside:auto}
     #page-story .ta-print,#page-notes .ta-print{min-height:247mm; break-inside:auto}
@@ -2105,6 +2114,11 @@
     <section class="page" id="page-feat" data-page="feat">
       <div class="card" id="infusions-inner" style="display:none"></div>
       <div class="card" id="optfeat-inner" style="display:none"></div>
+      <div class="card" id="action-econ-card" data-csec="actionecon" style="display:none">
+        <h2>Action Economy</h2>
+        <div class="action-econ" id="action-econ"></div>
+        <p class="help noprint">Auto-sorted from your features by action cost (Action / Bonus Action / Reaction). Derived from the feature text, so it's a quick combat reference, not exhaustive. Weapon attacks live in the Attacks table.</p>
+      </div>
       <details class="feat-editor noprint" id="feat-editor" open="">
         <summary>Features &amp; Traits — edit text (one feature per block, blank line between)</summary>
         <textarea data-save="" id="features" placeholder="Class features, racial traits, feats…" style="height: 0px;"></textarea><div class="ta-print"></div>
@@ -2531,11 +2545,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v287 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v288 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.2.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.3.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -5185,7 +5199,7 @@
     { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig()
         + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")).join(",");   // feat type + spell picks drive limited rows and learned-spell sync
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
-    { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed
+    { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); renderActionEconomy(); } }   // rebuild Feature cards (+ action-economy summary) only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
     applyOverrides();    // repaint any hand-pinned leaf values over what compute() just wrote (sources already cascaded via the helpers)
     refreshSimulacrumButton();   // surface the "Create Simulacrum" button only when the Simulacrum spell is on a sheet
@@ -8259,6 +8273,33 @@
           `<div class="card feat-card"><div class="feat-card-title">${esc(c.title)}</div>`
           + (c.body ? `<div class="feat-card-body">${esc(c.body)}</div>` : "") + `</div>`).join("")
       : `<div class="card feat-blank"><h2>Features &amp; Traits</h2></div>`;   // nothing written → print a full-page write-in card (hidden on screen)
+  }
+  // MPMB-style "action" capability: sort the character's features by action-economy cost (Action / Bonus / Reaction),
+  // derived from the feature prose. A quick combat reference, not exhaustive; weapon attacks stay in the Attacks table.
+  function renderActionEconomy(){
+    const card = $("action-econ-card"), wrap = $("action-econ");
+    if(!card || !wrap) return;
+    const buckets = {action:[], bonus:[], reaction:[]};
+    const seen = {action:new Set(), bonus:new Set(), reaction:new Set()};
+    featureCards().forEach(c => {
+      const t = (c.title + " " + (c.body||"")).toLowerCase();
+      const isBonus = /\bbonus action\b/.test(t);
+      const isReaction = /\breaction\b/.test(t);
+      // strip the bonus/reaction phrases (and known false-positive idioms) before testing for a plain Action cost
+      const tA = t.replace(/\bbonus action\b/g," ").replace(/\breaction\b/g," ").replace(/\baction surge\b/g," ").replace(/\bcourse of action\b/g," ");
+      const isAction = /\bas an action\b|\bas a magic action\b|\b(use|using|spend|spending) (?:your |an |one )?action\b|\btake the \w+ action\b|\baction on (?:your|each of your) turns?\b/.test(tA);
+      const key = c.title.toLowerCase();
+      if(isAction && !seen.action.has(key)){ seen.action.add(key); buckets.action.push(c); }
+      if(isBonus && !seen.bonus.has(key)){ seen.bonus.add(key); buckets.bonus.push(c); }
+      if(isReaction && !seen.reaction.has(key)){ seen.reaction.add(key); buckets.reaction.push(c); }
+    });
+    const total = buckets.action.length + buckets.bonus.length + buckets.reaction.length;
+    if(!total){ card.style.display = "none"; wrap.innerHTML = ""; return; }
+    card.style.display = "";
+    const col = (label, arr) => `<div class="ae-col"><h3>${esc(label)}</h3>`
+      + (arr.length ? `<ul>${arr.map(c => `<li title="${esc(c.body||c.title)}">${esc(c.title)}</li>`).join("")}</ul>`
+                    : `<div class="ae-empty">&mdash;</div>`) + `</div>`;
+    wrap.innerHTML = col("Action", buckets.action) + col("Bonus Action", buckets.bonus) + col("Reaction", buckets.reaction);
   }
   function lfIndexByName(name){ const q = String(name).toLowerCase(); for(let i=0;i<NLIMITED;i++){ if(($("lfname-"+i).value||"").trim().toLowerCase() === q) return i; } return -1; }
   function clearLfRow(i){ $("lfname-"+i).value=""; $("lfmax-"+i).value=""; $("lfrec-"+i).value=""; $("lfused-"+i).value=""; $("lfname-"+i).removeAttribute("title"); }
