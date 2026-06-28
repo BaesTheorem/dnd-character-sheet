@@ -2558,11 +2558,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v293 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v294 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.6.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.6.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2570,6 +2570,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v294", semver:"2.6.2", items:[
+      "Reloading (or clearing) your sourcebooks now applies across the whole app: if you have the sheet open in more than one tab or window, the others refresh their content automatically instead of waiting for a manual reload.",
+    ]},
     {v:"v293", semver:"2.6.1", items:[
       "Spell damage fix: the Empowered Evocation bonus (adding your Intelligence to evocation spells) now only applies if you're actually a School of Evocation wizard, not to every wizard at level 10+. Fireball and other evocations no longer show a stray bonus for non-evokers.",
       "The welcome guide's changelog now shows only the latest version's notes up front; every earlier version is tucked behind an “Older versions” toggle you can expand.",
@@ -3449,6 +3452,22 @@
   function refreshAfterData(){                     // one call to re-render everything that reads DATA
     populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false);
     updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); renderLoadedBookList(); compute();
+  }
+  // Re-pick DATA from localStorage and re-render — used by the cross-tab sync so a source reload/clear in ANY tab
+  // applies to the whole app, not just the tab that did it (mirrors the DATA-selection logic in init()).
+  function reloadSourcesFromStorage(){
+    let stored = null, baked = null;
+    try{ const s = localStorage.getItem(SOURCES_KEY); if(s) stored = JSON.parse(s); }catch(e){}
+    try{ baked = JSON.parse($("source-data").textContent); }catch(e){}
+    const srcComplete = d => d && ["races","classes","spells","armor","acItems"].every(k => Array.isArray(d[k]));
+    const verOf = d => (d && d._meta && d._meta.dataVersion) || 0;
+    const next = (srcComplete(stored) && (verOf(stored) === verOf(baked) || !baked)) ? stored : (baked || stored || null);
+    if(!next) return;
+    DATA = next;
+    resolveSubraces(DATA);
+    if(DATA && DATA._meta && DATA === stored){ try{ const r = localStorage.getItem(SOURCES_RAW_KEY); if(r) DATA._meta.raw = JSON.parse(r); }catch(e){} }
+    _spellIndex = null;
+    refreshAfterData();
   }
   function renderLoadedBookList(){
     const el = $("loaded-books"); if(!el) return;
@@ -8762,6 +8781,9 @@
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
+    window.addEventListener("storage", e => {   // sourcebooks are app-wide: a reload/clear in another tab re-applies here too
+      if(e.key === SOURCES_KEY || e.key === SOURCES_RAW_KEY){ reloadSourcesFromStorage(); flashStatus("Sourcebooks updated in another tab — refreshed"); }
+    });
     document.addEventListener("dblclick", onOvDblclick);   // double-click any computed value to pin it by hand
     document.addEventListener("click", onOvClick);         // Alt-click a pinned value to revert it
     document.addEventListener("pointerdown", onOvPointerDown);   // touch/pen: long-press to pin (mouse keeps double-click)
