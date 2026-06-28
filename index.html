@@ -2258,7 +2258,7 @@
           </div>
           <div class="gen-status" id="gen-status"></div>
           <div class="hood-grid-head">
-            <span class="hname"></span><span>Base</span><span>ASI</span><span>Racial</span><span>Magical</span><span>Misc</span>
+            <span class="hname"></span><span>Base</span><span>ASI</span><span>Feat</span><span>Racial</span><span>Magical</span><span>Misc</span>
           </div>
           <div id="hood-abilities"><div class="hood-row"><span class="hname">Strength</span><input class="ab-score" data-ab="str" type="number" id="score-str" value=""><input class="ab-bonus" data-ab="str" data-cat="asi" type="number" value=""><input class="ab-bonus" data-ab="str" data-cat="racial" type="number" value=""><input class="ab-bonus" data-ab="str" data-cat="magical" type="number" value=""><input class="ab-bonus" data-ab="str" data-cat="misc" type="number" value=""></div><div class="hood-row"><span class="hname">Dexterity</span><input class="ab-score" data-ab="dex" type="number" id="score-dex" value=""><input class="ab-bonus" data-ab="dex" data-cat="asi" type="number" value=""><input class="ab-bonus" data-ab="dex" data-cat="racial" type="number" value=""><input class="ab-bonus" data-ab="dex" data-cat="magical" type="number" value=""><input class="ab-bonus" data-ab="dex" data-cat="misc" type="number" value=""></div><div class="hood-row"><span class="hname">Constitution</span><input class="ab-score" data-ab="con" type="number" id="score-con" value=""><input class="ab-bonus" data-ab="con" data-cat="asi" type="number" value=""><input class="ab-bonus" data-ab="con" data-cat="racial" type="number" value=""><input class="ab-bonus" data-ab="con" data-cat="magical" type="number" value=""><input class="ab-bonus" data-ab="con" data-cat="misc" type="number" value=""></div><div class="hood-row"><span class="hname">Intelligence</span><input class="ab-score" data-ab="int" type="number" id="score-int" value=""><input class="ab-bonus" data-ab="int" data-cat="asi" type="number" value=""><input class="ab-bonus" data-ab="int" data-cat="racial" type="number" value=""><input class="ab-bonus" data-ab="int" data-cat="magical" type="number" value=""><input class="ab-bonus" data-ab="int" data-cat="misc" type="number" value=""></div><div class="hood-row"><span class="hname">Wisdom</span><input class="ab-score" data-ab="wis" type="number" id="score-wis" value=""><input class="ab-bonus" data-ab="wis" data-cat="asi" type="number" value=""><input class="ab-bonus" data-ab="wis" data-cat="racial" type="number" value=""><input class="ab-bonus" data-ab="wis" data-cat="magical" type="number" value=""><input class="ab-bonus" data-ab="wis" data-cat="misc" type="number" value=""></div><div class="hood-row"><span class="hname">Charisma</span><input class="ab-score" data-ab="cha" type="number" id="score-cha" value=""><input class="ab-bonus" data-ab="cha" data-cat="asi" type="number" value=""><input class="ab-bonus" data-ab="cha" data-cat="racial" type="number" value=""><input class="ab-bonus" data-ab="cha" data-cat="magical" type="number" value=""><input class="ab-bonus" data-ab="cha" data-cat="misc" type="number" value=""></div></div>
           <label class="lbl" style="margin-top:14px; display:block" for="abilitynotes">Notes</label>
@@ -2533,7 +2533,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v282 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v283 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
@@ -2817,9 +2817,9 @@
     ABILITIES.forEach(([k]) => baseVals[k] = null);
     renderHoodControls(); updateModeUI(); save(); compute();
   }
-  const BONUS_CATS = [["asi","ASI"],["racial","Racial"],["magical","Magical"],["misc","Misc"]];
+  const BONUS_CATS = [["asi","ASI"],["feat","Feat"],["racial","Racial"],["magical","Magical"],["misc","Misc"]];
   const zeroAb = () => ({str:0,dex:0,con:0,int:0,wis:0,cha:0});
-  let bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};  // per-category ability bonuses
+  let bonusVals = {asi:zeroAb(), feat:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};  // per-category ability bonuses ("feat" = half-feat increases, derived from asiChoices)
   let asiChoices = [];                         // one entry per ASI the build is owed: {type:"asi"|"feat"|"", ab1, ab2, feat}
   let asiFeatsAdded = {};                      // feat names already written to the Features page (avoid dupes)
   let inspState = false;
@@ -2962,19 +2962,20 @@
     if(raceSlots.length > nRace) raceSlots.length = nRace;
     asiChoices = classSlots.concat(raceSlots);
   }
-  // ASI ability picks + half-feat ability increases feed the "ASI" bonus column; recompute from the chosen slots.
+  // Plain ASI picks feed the "ASI" column; half-feat ability increases feed their own "Feat" column (clearer
+  // record-keeping). Both are recomputed from the chosen slots every time a pick changes.
   function applyAsiBonuses(){
-    bonusVals.asi = zeroAb();
+    bonusVals.asi = zeroAb(); bonusVals.feat = zeroAb();
     const featOf = name => (DATA && DATA.feats) ? DATA.feats.find(x => x.name === name) : null;
     asiChoices.forEach(s => {
       if(s.type === "asi"){
         if(s.ab1 && bonusVals.asi[s.ab1] != null) bonusVals.asi[s.ab1] += 1;
         if(s.ab2 && bonusVals.asi[s.ab2] != null) bonusVals.asi[s.ab2] += 1;
-      } else if(s.type === "feat" && s.feat){            // half-feat ability increase
+      } else if(s.type === "feat" && s.feat){            // half-feat ability increase → "Feat" column
         const f = featOf(s.feat);
         if(f && f.ability){
-          for(const k in (f.ability.fixed||{})) if(bonusVals.asi[k] != null) bonusVals.asi[k] += f.ability.fixed[k];
-          if(f.ability.choose && s.featAbil && bonusVals.asi[s.featAbil] != null) bonusVals.asi[s.featAbil] += (f.ability.choose.amount || 1);
+          for(const k in (f.ability.fixed||{})) if(bonusVals.feat[k] != null) bonusVals.feat[k] += f.ability.fixed[k];
+          if(f.ability.choose && s.featAbil && bonusVals.feat[s.featAbil] != null) bonusVals.feat[s.featAbil] += (f.ability.choose.amount || 1);
         }
       }
     });
