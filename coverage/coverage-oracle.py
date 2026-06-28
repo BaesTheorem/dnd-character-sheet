@@ -463,9 +463,18 @@ def _norm_entity_name(s):
 
 
 def build_sheet_pools(source_data_path):
-    """Return {entity_type: set(normalized names)} from the sheet's baked data."""
+    """Return {entity_type: set(normalized names)} from the sheet's baked data.
+    Accepts either a source-data.json file OR an index.html (reads the authoritative
+    runtime #source-data block — source-data.json is a stale build artifact)."""
     with open(source_data_path, encoding="utf-8") as fh:
-        d = json.load(fh)
+        raw = fh.read()
+    if source_data_path.endswith(".html") or '<script id="source-data"' in raw:
+        m = re.search(r'<script id="source-data" type="application/json">(.*?)</script>', raw, re.S)
+        if not m:
+            sys.exit(f"!! no #source-data block in {source_data_path}")
+        d = json.loads(m.group(1))
+    else:
+        d = json.loads(raw)
 
     def names(key):
         return {_norm_entity_name(x.get("name", "")) for x in d.get(key, []) if isinstance(x, dict)}
@@ -795,9 +804,10 @@ def main():
                          "mines its complete entity set and merges it in")
     ap.add_argument("--sheet", default=os.path.join(REPO, "index.html"),
                     help="path to index.html")
-    ap.add_argument("--sheet-data", default=os.path.join(REPO, "source-data.json"),
-                    help="path to the sheet's baked source-data.json; ranks the "
-                         "punch-list by entities actually present in it")
+    ap.add_argument("--sheet-data", default=os.path.join(REPO, "index.html"),
+                    help="path to the sheet's runtime data — index.html (#source-data, "
+                         "authoritative) or a source-data.json; ranks the punch-list by "
+                         "entities actually present in it")
     ap.add_argument("--no-probe", action="store_true",
                     help="don't auto-probe index.html; trust the manifest")
     args = ap.parse_args()
