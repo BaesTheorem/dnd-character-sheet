@@ -2559,11 +2559,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v296 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v297 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.7.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.8.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2571,6 +2571,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v297", semver:"2.8.0", items:[
+      "Skill-granting feats now let you choose your skills in the builder: Skilled (3), Skill Expert, Prodigy, and Squat Nimbleness add a skill picker to their feat slot, and the chosen skills are checked on your sheet automatically. (Class and race skill choices were already applied; this fills in the feats.)",
+    ]},
     {v:"v296", semver:"2.7.0", items:[
       "Spells that a feature changes how you cast now show it on the spell sheet. Warlock invocations (Armor of Shadows, Ascendant Step, Chains of Carceri, Fiendish Vigor, Misty Visions, Otherworldly Leap), the Monk's Empty Body, and the Tiefling's Infernal Legacy now update the affected spell's components, casting time, and range, highlight it, and explain the change on hover.",
     ]},
@@ -3028,6 +3031,8 @@
       if(f && f.ability && f.ability.choose && !s.featAbil) return false;   // half-feat: must pick which ability
       const fs = FEAT_SPELLS[s.feat];
       if(fs && fs.choose && !s.featSpell) return false;                     // spell-granting feat: must pick the chosen spell
+      const fk = FEAT_SKILLS[s.feat];
+      if(fk && (s.featSkills||[]).filter(Boolean).length < fk.count) return false;   // skill-granting feat: must pick all its skills
       return true;
     }
     return false;
@@ -3075,6 +3080,12 @@
       (f.saves.fixed||[]).forEach(k => { const box = $("savep-"+k); if(box) box.checked = true; });
       if(f.saves.choose && s.featAbil){ const box = $("savep-"+s.featAbil); if(box) box.checked = true; }
     });
+    // Skill-granting feats (Skilled, Skill Expert, …): check the chosen skills. Idempotent + re-applied because the
+    // skills are usually picked after the feat, so this can't live in the one-time block below.
+    asiChoices.forEach(s => {
+      if(s.type !== "feat" || !s.feat || !FEAT_SKILLS[s.feat]) return;
+      (s.featSkills||[]).forEach(k => { if(k){ const box = $("skp-"+k); if(box) box.checked = true; } });
+    });
     // One-time per feat (NOT idempotent): Features text, the Proficiencies box, and Senses lines.
     asiChoices.forEach(s => {
       if(s.type === "feat" && s.feat && !asiFeatsAdded[s.feat]){
@@ -3093,6 +3104,15 @@
     "Alert": "Alert (+5 initiative; can't be surprised while conscious; hidden attackers gain no advantage)" };
   // Feats that add a flat bonus to Initiative (5etools has no structured field for these — hardcode the known ones).
   const FEAT_INIT = { "Alert": 5 };
+  // skillstxt: feats that grant a player-chosen skill proficiency (count, and an optional restricted list).
+  // The chosen skills are checked on the skill section by applyAsiBonuses (idempotent). Tools/languages/expertise
+  // those feats also grant are out of scope here — this covers the skill-proficiency choice.
+  const FEAT_SKILLS = {
+    "Skilled": {count:3},
+    "Skill Expert": {count:1},
+    "Prodigy": {count:1},
+    "Squat Nimbleness": {count:1, from:["Acrobatics","Athletics"]}
+  };
   // Feats that grant spells (5etools has no structured field for these): one or more always-granted "fixed" spells,
   // plus an optional player "choose" of a spell at a given level from certain schools. Each granted spell can be cast
   // once per long rest without a slot → each becomes its own "<Feat> (Spell)" Limited Features row.
@@ -3205,7 +3225,7 @@
           `<div class="feat-list">`+ feats.map(f =>
             `<div class="pick-item"><input type="radio" name="asi-feat-${i}" class="asi-feat-radio" data-i="${i}" value="${esc(f.name)}"${s.feat===f.name?" checked":""}>`+
             `<details class="pick-det"${s.feat===f.name?" open":""}><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("") +`</div></div>`+
-          featAbilPicker(s, i) + featSpellPicker(s, i)
+          featAbilPicker(s, i) + featSpellPicker(s, i) + featSkillPicker(s, i)
         : `<div class="asi-body"><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
       if(s.source === "race"){                       // racial feat — feat only, no ASI option
         raceIdx++;
@@ -3253,6 +3273,20 @@
     const granted = fs.fixed && fs.fixed.length ? ` (also grants ${fs.fixed.join(", ")})` : "";
     return `<div class="asi-body"><label>${ord(ch.level)}-level ${ch.schools.join(" / ")} spell${granted}</label>`+
       `<select class="asi-featspell" data-i="${i}">${opts}</select></div>`;
+  }
+  // Skill-granting feats (Skilled, Skill Expert, Prodigy, …) let you choose which skills — show one select per skill.
+  function featSkillPicker(s, i){
+    const fk = FEAT_SKILLS[s.feat]; if(!fk) return "";
+    if(!Array.isArray(s.featSkills)) s.featSkills = [];
+    const list = fk.from ? fk.from.map(n => ({key: SKILL_KEY[n] || n.toLowerCase(), label:n}))
+                         : SKILLS.map(([k,label]) => ({key:k, label}));
+    let sels = "";
+    for(let j=0;j<fk.count;j++){
+      const cur = s.featSkills[j] || "";
+      sels += `<select class="asi-featskill" data-i="${i}" data-j="${j}"><option value=""></option>`+
+        list.map(o => `<option value="${o.key}"${cur===o.key?" selected":""}>${esc(o.label)}</option>`).join("")+`</select> `;
+    }
+    return `<div class="asi-body"><label>Skill proficienc${fk.count>1?"ies":"y"} (choose ${fk.count})</label>${sels}</div>`;
   }
   function openAsiModal(){ renderAsiList(); $("asimodal").classList.add("open"); focusModal($("asimodal")); }
 
@@ -9144,9 +9178,10 @@
       if(isNaN(i) || !asiChoices[i]) return;
       if(t.classList.contains("asi-type-r")){ asiChoices[i].type = t.value; }
       else if(t.classList.contains("asi-ab")){ asiChoices[i][t.dataset.which] = t.value; }
-      else if(t.classList.contains("asi-feat-radio")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; asiChoices[i].featSpell = ""; }   // new feat → reset its ability + spell picks
+      else if(t.classList.contains("asi-feat-radio")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; asiChoices[i].featSpell = ""; asiChoices[i].featSkills = []; }   // new feat → reset its ability + spell + skill picks
       else if(t.classList.contains("asi-featabil")){ asiChoices[i].featAbil = t.value; }
       else if(t.classList.contains("asi-featspell")){ asiChoices[i].featSpell = t.value; }
+      else if(t.classList.contains("asi-featskill")){ asiChoices[i].featSkills = asiChoices[i].featSkills || []; asiChoices[i].featSkills[+t.dataset.j] = t.value; }
       applyAsiBonuses();
       renderAsiList(); renderHoodControls(); save(); compute();
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made

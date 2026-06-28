@@ -232,9 +232,9 @@
       "note": "applyProficiencies prof.skills; race/bg skill picks"
     },
     "skillstxt": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "skill choice text only as tooltips, not applied"
+      "note": "skill-proficiency choices are applied via the builder: class skill choices (wiz-skills picker -> committed to skp- boxes in createCharacter), race skill choices (rc-skillchoose), and now skill-granting feats (FEAT_SKILLS: Skilled +3, Skill Expert +1, Prodigy +1, Squat Nimbleness from Acro/Athletics -> featSkillPicker, applied idempotently by applyAsiBonuses, persisted in asiChoices.featSkills). The 18-skill section's Prof/Exp checkboxes cover anything else (Expertise selection, Lore Bard's bonus proficiencies) which surface as feature-text reminders."
     },
     "speed": {
       "supported": true,
