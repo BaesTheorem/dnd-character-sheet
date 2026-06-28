@@ -242,9 +242,9 @@
       "note": "applyRace r.speed -> speedBase; compute()"
     },
     "spellChanges": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "no feature-based per-spell modification"
+      "note": "SPELL_CHANGES registry (hand-coded, survives rebake) of source->spell overrides for the authored class/race/invocation cases (Warlock invocations Armor of Shadows/Ascendant Step/Chains of Carceri/Fiendish Vigor/Misty Visions/Otherworldly Leap, Monk Empty Body, Tiefling Infernal Legacy). scFor() matches a source present in the Features text or chosen optional features; the spell's displayed casting time/range/components/material are overridden and a 'Changed:' note is appended to the tooltip, with a sc-changed accent marker. Applied in both propCells (full render) and the in-place sp-name typing handler. N/A by sheet design: item-granted spell changes (43 item blocks) -- magic-item spells aren't auto-populated onto the spell sheet."
     },
     "spellcastingAbility": {
       "supported": true,

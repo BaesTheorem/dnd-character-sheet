@@ -787,6 +787,7 @@
   .spelltable th.col-dur, .spelltable th.col-school{text-align:center}   /* headers use the global th font/size/style (centered over their values) */
   .spelltable td.col-dmg{font-size:10px; text-align:center; vertical-align:middle; white-space:nowrap; font-weight:700; color:var(--ink)}   /* auto-computed per-spell damage — emphasized, never wrapped */
   .spelltable th.col-dmg{text-align:center}
+  .spelltable td.sc-changed{color:var(--accent); font-weight:700; cursor:help}   /* a feature/invocation changed how this spell is cast (hover for what) */
   .sp-tag-pre{margin:0}   /* ritual "R" centered in its fixed slot, left of the checkbox */
   .conc-tag{display:inline-block; font-size:9px; font-weight:800; line-height:1; padding:2px 4px; border-radius:0;
     background:var(--accent-soft); color:var(--accent); vertical-align:middle; margin-right:3px; letter-spacing:.04em}   /* Concentration */
@@ -2558,11 +2559,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v295 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v296 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.6.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.7.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2570,6 +2571,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v296", semver:"2.7.0", items:[
+      "Spells that a feature changes how you cast now show it on the spell sheet. Warlock invocations (Armor of Shadows, Ascendant Step, Chains of Carceri, Fiendish Vigor, Misty Visions, Otherworldly Leap), the Monk's Empty Body, and the Tiefling's Infernal Legacy now update the affected spell's components, casting time, and range, highlight it, and explain the change on hover.",
+    ]},
     {v:"v295", semver:"2.6.3", items:[
       "Fixed the “Sourcebooks are out of date” prompt coming back every time you switched characters: the sheet's built-in data is now stamped as current, and a freshly reloaded copy is no longer discarded in favor of the older built-in data on switch.",
     ]},
@@ -4693,11 +4697,38 @@
     [...Object.values(customSpells), ...Object.values(homebrewActiveSpells())].forEach(s => { if((s.level||0) === l){ const k = (s.name||"").toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(s.name); } } });
     return out;
   }
-  function spellTitle(d){                         // hover tooltip: description + material + higher-level scaling
+  // MPMB `spellChanges`: a feature/race/invocation that overrides how a specific known spell is cast.
+  // Hand-coded (like the fighting-style / feature-attack registries) so it survives a sourcebook rebake.
+  // Keyed by the source's lowercased name; matched against the Features text and chosen optional features.
+  // Overrides the spell's displayed components/material/casting-time/range and appends a "Changed:" note.
+  const SPELL_CHANGES = {
+    "empty body":       {"astral projection": {components:"VS", material:"", changes:"I can spend 8 ki points to cast Astral Projection without material components, although I can't bring other creatures with me."}},
+    "armor of shadows": {"mage armor":   {range:"Self", components:"VS", material:"", changes:"With the Armor of Shadows invocation I can cast Mage Armor at will without a material component, but only on myself."}},
+    "ascendant step":   {"levitate":     {range:"Self", components:"VS", material:"", changes:"With the Ascendant Step invocation I can cast Levitate at will without a material component, but only on myself."}},
+    "chains of carceri":{"hold monster": {components:"VS", material:"", changes:"With the Chains of Carceri invocation I can cast Hold Monster at will without a material component, but only on a celestial, fiend, or elemental."}},
+    "fiendish vigor":   {"false life":   {components:"VS", material:"", changes:"With the Fiendish Vigor invocation I can cast False Life at will without a material component."}},
+    "misty visions":    {"silent image": {components:"VS", material:"", changes:"With the Misty Visions invocation I can cast Silent Image at will without a material component."}},
+    "otherworldly leap":{"jump":         {range:"Self", components:"VS", material:"", changes:"With the Otherworldly Leap invocation I can cast Jump at will without a material component, but only on myself."}},
+    "infernal legacy":  {"hellish rebuke":{changes:"Using Infernal Legacy, I cast Hellish Rebuke as a 2nd-level spell (3d10 fire damage), once per long rest."}}
+  };
+  function scFor(name){                            // active spellChanges override for a spell, or null — any source present in Features text or chosen optional features
+    if(!name) return null;
+    const featText = ($("features").value || "").toLowerCase();
+    const optNames = (typeof optFeats !== "undefined" ? optFeats : []).map(p => (p.name||"").toLowerCase());
+    const key = String(name).toLowerCase();
+    for(const src in SPELL_CHANGES){
+      const ov = SPELL_CHANGES[src][key];
+      if(ov && (optNames.indexOf(src) >= 0 || featText.indexOf(src) >= 0)) return Object.assign({_source:src}, ov);
+    }
+    return null;
+  }
+  function spellTitle(d){                         // hover tooltip: description + material + higher-level scaling (+ any spellChanges note)
     if(!d) return "";
-    let t = d.text || "";
-    if(d.material) t += (t ? "\n\n" : "") + "Material: " + d.material;
-    if(d.higher)   t += (t ? "\n\n" : "") + "At Higher Levels. " + d.higher;
+    const ov = scFor(d.name), dd = ov ? Object.assign({}, d, ov) : d;
+    let t = dd.text || "";
+    if(dd.material) t += (t ? "\n\n" : "") + "Material: " + dd.material;
+    if(dd.higher)   t += (t ? "\n\n" : "") + "At Higher Levels. " + dd.higher;
+    if(ov && ov.changes) t += (t ? "\n\n" : "") + "Changed: " + ov.changes;
     return t;
   }
   function spellMetaLine(d){                       // "Level 2 Evocation · Cast: 1 action · Range: 120 ft · V,S,M · 1 minute · Concentration"
@@ -4791,11 +4822,14 @@
     });
   }
   function propCells(d){                         // Damage / Comp / Cast Time / Range / Duration / School
+    const ov = d ? scFor(d.name) : null;          // spellChanges override (Warlock invocation, Infernal Legacy, …)
+    const dd = ov ? Object.assign({}, d, ov) : d; // merged view: changed components/time/range/material show through
+    const mk = ov ? " sc-changed" : "", tip = ov ? ` title="${esc(ov.changes||"")}"` : "";
     return dmgCell(d)+
-           `<td class="col-comp sp-comp">${esc(fmtComp(d))}</td>`+
-           `<td class="col-time sp-time">${esc(fmtTime(d))}</td>`+
-           `<td class="col-range sp-range">${esc(fmtRange(d))}</td>`+
-           `<td class="col-dur sp-dur">${durCell(d)}</td>`+
+           `<td class="col-comp sp-comp${mk}"${tip}>${esc(fmtComp(dd))}</td>`+
+           `<td class="col-time sp-time${mk}">${esc(fmtTime(dd))}</td>`+
+           `<td class="col-range sp-range${mk}">${esc(fmtRange(dd))}</td>`+
+           `<td class="col-dur sp-dur">${durCell(dd)}</td>`+
            `<td class="col-school sp-school">${d?esc(d.school||""):""}</td>`;
   }
   // Render a Prep-column cell. Left → fixed-width ritual slot (only for ritual casters; keeps checkboxes + names aligned).
@@ -5871,8 +5905,10 @@
         const d = spellData(t.value), tr = t.closest("tr"), nameCell = t.closest(".col-name");   // auto-fill props from DATA
         if(tr){
           const set = (sel,v)=>{ const c = tr.querySelector(sel); if(c) c.textContent = v; };
-          set(".sp-comp", fmtComp(d)); set(".sp-time", fmtTime(d)); set(".sp-range", fmtRange(d)); set(".sp-school", d?d.school||"":"");
-          const durc = tr.querySelector(".sp-dur"); if(durc) durc.innerHTML = durCell(d);
+          const ov = d ? scFor(d.name) : null, dd = ov ? Object.assign({}, d, ov) : d;   // apply any spellChanges override (Warlock invocation, Infernal Legacy…)
+          set(".sp-comp", fmtComp(dd)); set(".sp-time", fmtTime(dd)); set(".sp-range", fmtRange(dd)); set(".sp-school", d?d.school||"":"");
+          ["sp-comp","sp-time","sp-range"].forEach(cls => { const c = tr.querySelector("."+cls); if(c){ c.classList.toggle("sc-changed", !!ov); if(ov && cls==="sp-comp") c.title = ov.changes||""; else if(cls==="sp-comp") c.removeAttribute("title"); } });
+          const durc = tr.querySelector(".sp-dur"); if(durc) durc.innerHTML = durCell(dd);
           const rit = tr.querySelector(".sp-rit-slot"); if(rit) rit.innerHTML = ritualLeft(d);   // keep the left ritual tag in sync with the picked spell
         }
         if(nameCell){ const tt = spellTitle(d); if(tt) nameCell.title = tt; else nameCell.removeAttribute("title"); }
