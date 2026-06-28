@@ -22,8 +22,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 23  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
-# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21/v22: race `ancestry` = {kind, choices:[{dragon,dmgType,shape,save}], breath:{die,scale}} (Draconic Ancestry → breath weapon + resistance; v22 added the breath progression + Fizban Chromatic/Gem/Metallic variants). v23: race `naturalWeapons`=[{name,die,dmgType,ability}] (claws/horns/bite → feature-attack rows). NOTE: subclass/feat attacks (Soulknife, Armorer, Sun Soul, Polearm Master…) are NOT data — they live in the FEATURE_ATTACKS registry in index.html's app JS. Mirror HTML's DATA_VERSION.
+DATA_VERSION = 24  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21/v22: race `ancestry` = {kind, choices:[{dragon,dmgType,shape,save}], breath:{die,scale}} (Draconic Ancestry → breath weapon + resistance; v22 added the breath progression + Fizban Chromatic/Gem/Metallic variants). v23: race `naturalWeapons`=[{name,die,dmgType,ability}] (claws/horns/bite → feature-attack rows). NOTE: subclass/feat attacks (Soulknife, Armorer, Sun Soul, Polearm Master…) are NOT data — they live in the FEATURE_ATTACKS registry in index.html's app JS. v24: `magicWeapons` {name:{base,bonus,rider}} (equipped named magic weapon → Attacks row) + itemText now also fed for charged magic items (Limited Features). Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -927,6 +927,18 @@ def build_magic_items(items_base, items):   # magic items (rarity / wondrous / a
             if it.get("rarity") in MAGIC_RARITY or it.get("wondrous") or it.get("reqAttune"): out.add(it["name"])
     return sorted(out)
 
+def build_magic_weapons(items):   # named magic weapons → {name_lc: {base, bonus, rider}} so an equipped one becomes an Attacks row
+    out = {}
+    for it in items.get("item", []):
+        nm, bi = it.get("name"), it.get("baseItem")
+        if not nm or not bi or it.get("type") not in ("M", "R"): continue
+        m = re.search(r'\+(\d+)', str(it.get("bonusWeapon") or "")); bonus = int(m.group(1)) if m else 0
+        txt = entries_to_text(it.get("entries", []))
+        rid = re.search(r'extra (\d+d\d+)\s+([a-z]+) damage', txt, re.I)   # damage rider (Mace of Disruption → +2d6 radiant)
+        out[nm.lower()] = {"base": re.sub(r'\|.*$', '', str(bi)).strip().title(), "bonus": bonus,
+                           "rider": (f"+{rid.group(1)} {rid.group(2).lower()}" if rid else "")}
+    return out
+
 def build_packs(items):   # equipment packs → {name: [{name, qty}]} so the sheet can disambiguate contents
     out = {}
     for it in items.get("item", []):
@@ -1013,6 +1025,7 @@ def main():
     out["attuneItems"] = build_attune_items(items_base, items)
     out["magicItems"] = build_magic_items(items_base, items)
     out["itemText"] = build_item_text(items_base, items)
+    out["magicWeapons"] = build_magic_weapons(items)   # named magic weapons → Attacks rows (+N bonus + damage rider)
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
     sz = os.path.getsize(OUT)
     print(f"wrote {OUT}  ({sz/1024:.0f} KB)")
