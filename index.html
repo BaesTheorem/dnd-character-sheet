@@ -2579,11 +2579,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v300 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v301 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.11.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.12.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2591,6 +2591,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v301", semver:"2.12.0", items:[
+      "More spell-granting feats are now recognized: Telekinetic, Telepathic, Fey Teleportation, Drow High Magic, Svirfneblin Magic, and Wood Elf Magic join Fey Touched and Shadow Touched. Their spells appear in the Granted Spells section and on your sheet, and each is now tracked with the right recovery, so an at-will cantrip like Mage Hand no longer shows up as a once-per-rest use the way it used to. Wood Elf Magic lets you pick your bonus Druid cantrip right in the feat slot.",
+    ]},
     {v:"v300", semver:"2.11.0", items:[
       "New “Granted Spells” section on the spell sheet. Spells you can cast from equipped magic items, your race, and spell-granting feats now list themselves automatically, with full stats (damage, components, casting time, range, duration, school), the source, how often you can cast each one, and the item's fixed save DC where it has one. Magic-item spells come from the item itself (274 items recognized), racial innate spells appear at the level you unlock them, and these never touch your class spell slots. The section hides itself when you have nothing granted.",
     ]},
@@ -3156,10 +3159,29 @@
   // Feats that grant spells (5etools has no structured field for these): one or more always-granted "fixed" spells,
   // plus an optional player "choose" of a spell at a given level from certain schools. Each granted spell can be cast
   // once per long rest without a slot → each becomes its own "<Feat> (Spell)" Limited Features row.
+  // Spell-granting feats. `spells` = always-granted, each with its recovery (rec: "LR" = once per long rest free,
+  // "SR" = short rest, "atwill" = cantrip / unlimited → no Limited-Features row). `choose` = a single picker, filtered by
+  // `schools` OR by a class list (`classList`) at `level`, with its own rec. Data mirrors 5etools feat additionalSpells.
+  // Multi-pick class feats (Magic Initiate, Ritual Caster, Spell Sniper, Aberrant Dragonmark, Strixhaven Initiate) need a
+  // multi-select picker and are not modeled here yet.
   const FEAT_SPELLS = {
-    "Fey Touched":    { fixed:["Misty Step"],   choose:{count:1, level:1, schools:["Divination","Enchantment"]} },
-    "Shadow Touched": { fixed:["Invisibility"], choose:{count:1, level:1, schools:["Illusion","Necromancy"]} },
+    "Fey Touched":       { spells:[{n:"Misty Step", rec:"LR"}],     choose:{level:1, schools:["Divination","Enchantment"], rec:"LR"} },
+    "Shadow Touched":    { spells:[{n:"Invisibility", rec:"LR"}],   choose:{level:1, schools:["Illusion","Necromancy"], rec:"LR"} },
+    "Fey Teleportation": { spells:[{n:"Misty Step", rec:"LR"}] },
+    "Telekinetic":       { spells:[{n:"Mage Hand", rec:"atwill"}] },
+    "Telepathic":        { spells:[{n:"Detect Thoughts", rec:"LR"}] },
+    "Drow High Magic":   { spells:[{n:"Detect Magic", rec:"atwill"}, {n:"Levitate", rec:"LR"}, {n:"Dispel Magic", rec:"LR"}] },
+    "Svirfneblin Magic": { spells:[{n:"Nondetection", rec:"atwill"}, {n:"Blindness/Deafness", rec:"LR"}, {n:"Blur", rec:"LR"}, {n:"Disguise Self", rec:"LR"}] },
+    "Wood Elf Magic":    { spells:[{n:"Longstrider", rec:"LR"}, {n:"Pass Without Trace", rec:"LR"}], choose:{level:0, classList:"Druid", rec:"atwill"} },
   };
+  const FEAT_SPELL_REC_USE = {LR:"1/Long Rest", SR:"1/Short Rest", atwill:"at will"};
+  // Normalize a spell-feat into [{n, rec}] — its always-granted spells plus the chosen one (if the slot has picked it).
+  function featSpellGrants(fsKey, chosenSpell){
+    const fs = fsKey && FEAT_SPELLS[fsKey]; if(!fs) return [];
+    const out = (fs.spells || []).map(sp => ({n:sp.n, rec:sp.rec || "LR"}));
+    if(fs.choose && chosenSpell) out.push({n:chosenSpell, rec:fs.choose.rec || "LR"});
+    return out;
+  }
   // Class / subclass features that belong in the Senses box (keyed by lowercased feature name).
   const FEATURE_SENSES = {
     "danger sense": "Danger Sense (advantage on Dex saves vs. effects you can see)",
@@ -3305,13 +3327,17 @@
   function featSpellPicker(s, i){
     const fs = FEAT_SPELLS[s.feat]; if(!fs || !fs.choose) return "";
     const ch = fs.choose, ord = n => n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:Math.min(n%10,4)] || "th");
-    const spells = ((DATA && DATA.spells) || [])
-      .filter(sp => sp.level === ch.level && ch.schools.includes(sp.school))
-      .sort((a,b) => a.name.localeCompare(b.name));
+    let spells = ((DATA && DATA.spells) || []).filter(sp => sp.level === ch.level);
+    if(ch.schools) spells = spells.filter(sp => ch.schools.includes(sp.school));   // school-filtered choose (Fey/Shadow Touched)
+    if(ch.classList){ const names = new Set((classSpellNamesAt(ch.classList, ch.level) || []).map(n => n.toLowerCase()));   // class-list choose (Wood Elf Magic druid cantrip)
+      spells = spells.filter(sp => names.has(sp.name.toLowerCase())); }
+    spells.sort((a,b) => a.name.localeCompare(b.name));
     const opts = `<option value=""></option>` + spells.map(sp =>
       `<option value="${esc(sp.name)}"${s.featSpell===sp.name?" selected":""}>${esc(sp.name)}</option>`).join("");
-    const granted = fs.fixed && fs.fixed.length ? ` (also grants ${fs.fixed.join(", ")})` : "";
-    return `<div class="asi-body"><label>${ord(ch.level)}-level ${ch.schools.join(" / ")} spell${granted}</label>`+
+    const granted = fs.spells && fs.spells.length ? ` (also grants ${fs.spells.map(x => x.n).join(", ")})` : "";
+    const what = ch.schools ? `${ord(ch.level)}-level ${ch.schools.join(" / ")} spell`
+                            : `${ch.classList} ${ch.level === 0 ? "cantrip" : ord(ch.level)+"-level spell"}`;
+    return `<div class="asi-body"><label>${what}${granted}</label>`+
       `<select class="asi-featspell" data-i="${i}">${opts}</select></div>`;
   }
   // Skill-granting feats (Skilled, Skill Expert, Prodigy, …) let you choose which skills — show one select per skill.
@@ -5115,9 +5141,8 @@
     (asiChoices||[]).forEach(s => {                       // --- spell-granting feats (Fey Touched, Shadow Touched) ---
       if(s.type !== "feat" || !s.feat) return;
       const fsKey = Object.keys(FEAT_SPELLS).find(k => k.toLowerCase() === s.feat.toLowerCase());
-      if(!fsKey) return; const fs = FEAT_SPELLS[fsKey];
-      (fs.fixed||[]).forEach(n => rows.push({kind:"Feat", source:fsKey, spell:n, use:"1/Long Rest", dc:null}));
-      if(fs.choose && s.featSpell) rows.push({kind:"Feat", source:fsKey, spell:s.featSpell, use:"1/Long Rest", dc:null});
+      if(!fsKey) return;
+      featSpellGrants(fsKey, s.featSpell).forEach(g => rows.push({kind:"Feat", source:fsKey, spell:g.n, use:(FEAT_SPELL_REC_USE[g.rec] || "1/Long Rest"), dc:null}));
     });
     return rows;
   }
@@ -6432,9 +6457,8 @@
   function featGrantedSpells(){   // every spell a chosen spell-feat grants you ("learn"): its fixed spell(s) + the chosen one
     const out = [], seen = new Set();
     (asiChoices||[]).forEach(s => { if(s.type !== "feat" && s.source !== "race") return;   // only an actually-taken feat grants spells (a slot switched back to ASI keeps its old feat string)
-      const fs = s.feat && FEAT_SPELLS[s.feat]; if(!fs) return;
-      const names = (fs.fixed||[]).slice(); if(fs.choose && s.featSpell) names.push(s.featSpell);
-      names.forEach(n => { const k = (n||"").toLowerCase(); if(n && !seen.has(k)){ seen.add(k); out.push(n); } });
+      const fsKey = s.feat && Object.keys(FEAT_SPELLS).find(k => k.toLowerCase() === s.feat.toLowerCase()); if(!fsKey) return;
+      featSpellGrants(fsKey, s.featSpell).forEach(g => { const k = (g.n||"").toLowerCase(); if(g.n && !seen.has(k)){ seen.add(k); out.push(g.n); } });
     });
     return out;
   }
@@ -8675,16 +8699,14 @@
       const lc = b.name.toLowerCase();
       if(LIMITED_FEAT_NAMES.has(lc)) return;                                  // class resources handled with computed counts
       const fsKey = Object.keys(FEAT_SPELLS).find(k => k.toLowerCase() === lc);
-      if(fsKey){                                                              // spell-granting feat → one "<Feat> (Spell)" row per granted spell (each 1/long rest)
-        const fs = FEAT_SPELLS[fsKey];
+      if(fsKey){                                                              // spell-granting feat → one "<Feat> (Spell)" row per limited-use granted spell (at-will/cantrip grants get no row)
         const slot = (asiChoices||[]).find(x => x.type === "feat" && x.feat === fsKey);
-        const want = (fs.fixed||[]).slice();
-        if(fs.choose && slot && slot.featSpell) want.push(slot.featSpell);
-        const labels = want.map(nm => `${fsKey} (${nm})`), low = labels.map(l => l.toLowerCase());
+        const want = featSpellGrants(fsKey, slot && slot.featSpell).filter(g => g.rec !== "atwill");   // at-will/cantrip casts aren't limited resources
+        const rows = want.map(g => ({label:`${fsKey} (${g.n})`, rec:g.rec})), low = rows.map(r => r.label.toLowerCase());
         const gi = lfIndexByName(b.name); if(gi >= 0) clearLfRow(gi);         // drop a stray bare "Fey Touched" row
-        for(let i=0;i<NLIMITED;i++){ const nm = ($("lfname-"+i).value||"").trim();   // clear stale "<Feat> (...)" rows (e.g. the chosen spell was re-picked)
+        for(let i=0;i<NLIMITED;i++){ const nm = ($("lfname-"+i).value||"").trim();   // clear stale "<Feat> (...)" rows (e.g. the chosen spell was re-picked, or it's now at-will)
           if(nm.toLowerCase().startsWith(fsKey.toLowerCase()+" (") && !low.includes(nm.toLowerCase())) clearLfRow(i); }
-        labels.forEach(l => addLimitedRow(l, 1, "LR", b.text.slice(0,300)));
+        rows.forEach(r => addLimitedRow(r.label, 1, r.rec, b.text.slice(0,300)));
         return;
       }
       if(/^channel divinity\b\s*[:(]/.test(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); return; }   // "Channel Divinity: X" options share the tracked Channel Divinity pool
