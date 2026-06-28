@@ -10,86 +10,114 @@ Each row is a mechanical effect MPMB automates that the manifest marks unsupport
 
 | capability | kind | in your data | all MPMB | what it does |
 |---|---|---|---|---|
-| `action` | decl | 82 | 613 | add entry to the "Actions", "Bonus Actions", or "Reactions" section on the 1st p |
-| `walk` | decl | 75 | 204 | add movement mode of the object's name |
-| `calcChanges` | proc | 53 | 236 | change how the hit points automation works |
-| `spellChanges` | decl | 31 | 157 | change aspects of spells when generating a spell sheet of the parent object |
-| `skillstxt` | decl | 24 | 91 | description of skill proficiencies and skill proficiency choices gained, to use  |
-| `fixedDC` | decl | 4 | 55 | set the DC and spell attack to a fixed value, not dependent on ability score |
-| `advantages` | decl | 3 | 29 | set advantage on an ability check, saving throw, or attacks |
+| `action` | decl | 344 | 613 | add entry to the "Actions", "Bonus Actions", or "Reactions" section on the 1st p |
+| `walk` | decl | 182 | 204 | add movement mode of the object's name |
+| `calcChanges` | proc | 129 | 236 | change how the hit points automation works |
+| `spellChanges` | decl | 98 | 157 | change aspects of spells when generating a spell sheet of the parent object |
+| `skillstxt` | decl | 70 | 91 | description of skill proficiencies and skill proficiency choices gained, to use  |
+| `altResource` | decl | 33 | 43 | value to add in the "Recovery" column in the "Limited Features" section in addit |
+| `allowUpCasting` | decl | 31 | 47 | do not limit spells to only be cast at their lowest level |
+| `fixedDC` | decl | 29 | 55 | set the DC and spell attack to a fixed value, not dependent on ability score |
+| `carryingCapacity` | decl | 15 | 19 | multiply the carrying capacity (encumbrance) with this number |
+| `advantages` | decl | 14 | 29 | set advantage on an ability check, saving throw, or attacks |
+| `addTo` | decl | 10 | 11 | to what the bonus spells should be added |
+| `spellcastingBonusElsewhere` | decl | 10 | 11 | add spells to a spellcasting feature other than the parent object |
+| `stopeval` | decl | 9 | 12 | return 'true' if the modifier is NOT to be added |
+| `page3notes` | decl | 5 | 8 | whether to add this to the 3rd page's Notes section (true) or on a Notes page (f |
+| `popupName` | decl | 5 | 6 | the text used in the informational "changes" pop-up dialog to show the player wh |
 | `allModes` | decl | 3 | 4 | add a modifier to all movement modes, if present, except those excluded |
-| `allowUpCasting` | decl | 2 | 47 | do not limit spells to only be cast at their lowest level |
-| `carryingCapacity` | decl | 2 | 19 | multiply the carrying capacity (encumbrance) with this number |
-| `stopeval` | decl | 2 | 12 | return 'true' if the modifier is NOT to be added |
-| `altResource` | decl | 1 | 43 | value to add in the "Recovery" column in the "Limited Features" section in addit |
-| `popupName` | decl | 1 | 6 | the text used in the informational "changes" pop-up dialog to show the player wh |
-| `addTo` | decl | 0 | 11 | to what the bonus spells should be added |
-| `spellcastingBonusElsewhere` | decl | 0 | 11 | add spells to a spellcasting feature other than the parent object |
-| `page3notes` | decl | 0 | 8 | whether to add this to the 3rd page's Notes section (true) or on a Notes page (f |
-| `amendTo` | decl | 0 | 3 | if this string is found on any Notes page, than this note is added to the found  |
+| `amendTo` | decl | 2 | 3 | if this string is found on any Notes page, than this note is added to the found  |
 | `fixedSpAttack` | decl | 0 | 2 | set the spell attack and DC to a fixed value, not dependent on ability score |
 | `ammoAdd` | decl | 0 | 0 | adds each entry in the array to one of the ammunition drop-downs on the 1st page |
 | `ammoOptions` | decl | 0 | 0 | adds each object in the array to the AmmoList variable |
 
 ## Who needs the top missing capabilities
 
-### `action`  (82 in your data)
-- **class** (22): barbarian, barbarian-berserker, bard, bard-college of lore, cleric, cleric-life domain, druid, fighter, monk, monk-way of the open hand, paladin, paladin-oath of devotion, ranger, ranger-hunter, rangerua, rogue, rogue-thief, sorcerer, sorcerer-draconic bloodline, spell-less ranger, ua-playtest-ranger, warlock
-- **feat** (12): charger, crossbow expert, defensive duelist, grappler, great weapon master, healer, mage slayer, polearm master, sentinel, shield master, tavern brawler, war caster
-- **magicitem** (6): bracer of flying daggers, candle mace, dyrrn's tentacle whip, flail of tiamat, flame tongue shortsword of gem detection, scimitar of speed
-- **race** (14): abyssal tiefling-ua, astral elf, dragonborn, dragonborn revenant-ua, dragonmark finding half-orc-ua, dragonmark healing halfling-ua, dragonmark passage human-ua, dragonmark sentinel human, dragonmark sentinel human-ua, dragonmark shadow elf-ua, orc, ravenite dragonborn, shadar-kai elf, shadar-kai elf-ua
-- **subclass** (28): barbarian: totem warrior, bard: college of valor, cleric: knowledge domain, cleric: light domain, cleric: nature domain, cleric: tempest domain, cleric: trickery domain, cleric: war domain, druid: circle of the moon, fighter: battle master, fighter: eldritch knight, fighter: knight-ua, monk: way of shadow, monk: way of the four elements, paladin: oath of the ancients, paladin: oath of vengeance, rangerua: hunter-ua, rogue: arcane trickster, sorcerer: wild magic, warlock: the archfey, warlock: the great old one, wizard: abjuration, wizard: conjuration, wizard: divination, wizard: enchantment  …(+3 more)
+### `action`  (344 in your data)
+- **class** (23): artificer, barbarian, barbarian-berserker, bard, bard-college of lore, cleric, cleric-life domain, druid, fighter, monk, monk-way of the open hand, paladin, paladin-oath of devotion, ranger, ranger-hunter, rangerua, rogue, rogue-thief, sorcerer, sorcerer-draconic bloodline, spell-less ranger, ua-playtest-ranger, warlock
+- **companion** (2): companion, steed
+- **feat** (29): bountiful luck, bountiful luck-ua, charger, chef, crossbow expert, defensive duelist, dragon fear, dragon fear-ua, fade away, fade away-ua, gift of the chromatic dragon, gift of the gem dragon, gift of the metallic dragon, gift of the metallic dragon-ua, grappler, great weapon master, healer, mage slayer, orcish fury, orcish fury-ua, poisoner, polearm master, second chance, second chance-ua, sentinel  …(+4 more)
+- **magicitem** (87): alchemical compendium, all-purpose tool, amethyst lodestone, armor of invulnerability, astromancy archive, atlas of endless horizons, bag of tricks, bell branch, blackrazor, blood fury tattoo, boots of speed, bracer of flying daggers, candle mace, candle of invocation, cauldron of rebirth, cube of force, cuddly strixhaven mascot, devotee's censer, dragon scale mail, dragon vessel, dragon-touched focus, driftglobe, duplicitous manuscript, duskcrusher, dyrrn's tentacle whip  …(+62 more)
+- **race** (64): aasimar revenant-ua, abyssal tiefling-ua, astral elf, beasthide shifter, beasthide shifter-ua, centaur, changeling, changeling-ua, changeling-ua2, dankwood goblin, draconic kobold-ua, dragonborn, dragonborn revenant-ua, dragonmark finding half-orc-ua, dragonmark healing halfling-ua, dragonmark passage human-ua, dragonmark sentinel human, dragonmark sentinel human-ua, dragonmark shadow elf-ua, eladrin-mtof, eladrin-uaeng, fallen aasimar, feywild hobgoblin-ua, firbolg, goblin  …(+39 more)
+- **subclass** (139): artificer: alchemist, artificer: armorer, artificer: armorer-ua, artificer: artillerist, artificer: battle smith, barbarian: ancestral guardian, barbarian: ancestral guardian-ua, barbarian: battlerager, barbarian: path of the beast, barbarian: path of wild magic, barbarian: storm herald, barbarian: totem warrior, barbarian: zealot, barbarian: zealot-ua, bard: college of creation, bard: college of creation-ua, bard: college of eloquence, bard: college of eloquence-ua, bard: college of glamour, bard: college of glamour-ua, bard: college of spirits, bard: college of spirits-ua, bard: college of swords-ua, bard: college of valor, bard: college of whispers  …(+114 more)
 
-### `walk`  (75 in your data)
-- **race** (75): abyssal tiefling-ua, astral elf, astral elf-ua, autognome, autognome-ua, baalzebul tiefling, dark elf, deep gnome, dispater tiefling, dispater tiefling-ua, draconblood dragonborn, dragonborn, dragonborn revenant-ua, dragonmark detection half-elf, dragonmark detection half-elf-ua, dragonmark finding half-orc, dragonmark finding half-orc-ua, dragonmark finding human, dragonmark handling human, dragonmark handling human-ua, dragonmark healing halfling, dragonmark healing halfling-ua, dragonmark hospitality halfling, dragonmark hospitality halfling-ua, dragonmark making human  …(+50 more)
+### `walk`  (182 in your data)
+- **feat** (2): squat nimbleness, squat nimbleness-ua
+- **race** (177): aarakocra, aasimar, aasimar revenant-ua, abyssal tiefling-ua, air genasi, astral elf, astral elf-ua, autognome, autognome-ua, baalzebul tiefling, beasthide shifter, beasthide shifter-ua, bugbear, centaur, centaur-ua, changeling, changeling-ua, changeling-ua2, custom lineage, dankwood goblin, dark elf, deep gnome, dhampir, dhampir-ua, dispater tiefling  …(+152 more)
+- **subclass** (3): paladin: oath of glory, rogue: scout, rogue: scout-ua
 
-### `calcChanges`  (53 in your data)
-- **class** (12): barbarian, cleric-life domain, druid, fighter-champion, monk, paladin, paladin-oath of devotion, rangerua, rogue, sorcerer-draconic bloodline, warlock, wizard-evocation
-- **feat** (7): crossbow expert, great weapon master, ritual caster, sharpshooter, spell sniper, tavern brawler, tough
-- **magicitem** (4): berserker battleaxe (tamoachan), dragonlance, moon sickle, sling bullets of althemone
+### `calcChanges`  (129 in your data)
+- **background** (10): azorius functionary, boros legionnaire, dimir operative, golgari agent, gruul anarch, izzet engineer, orzhov representative, rakdos cultist, selesnya initiate, simic scientist
+- **class** (13): artificer, barbarian, cleric-life domain, druid, fighter-champion, monk, paladin, paladin-oath of devotion, rangerua, rogue, sorcerer-draconic bloodline, warlock, wizard-evocation
+- **companion** (1): companion
+- **feat** (11): crossbow expert, great weapon master, gunner, piercer, revenant blade, ritual caster, sharpshooter, spell sniper, tavern brawler, telekinetic, tough
+- **magicitem** (21): all-purpose tool, amulet of the devout, berserker battleaxe (tamoachan), bloodwell vial, dark shard amulet, dragon-touched focus, dragonlance, eldritch claw tattoo, hat of wizardry, moon sickle, necklace of prayer beads, reveler's concertina, rod of lordly might, sling bullets of althemone, staff of power, staff of the magi, staff of the woodlands, stormgirdle, talisman of pure good, talisman of ultimate evil, voyager staff
 - **race** (19): abyssal tiefling-ua, dragonborn, dragonborn revenant-ua, dragonmark detection half-elf, dragonmark finding half-orc, dragonmark finding human, dragonmark handling human, dragonmark handling human-ua, dragonmark healing halfling, dragonmark hospitality halfling, dragonmark making human, dragonmark passage human, dragonmark scribing gnome, dragonmark sentinel human, dragonmark shadow elf, dragonmark storm half-elf, dragonmark warding dwarf, half-orc, hill dwarf
-- **subclass** (11): cleric: knowledge domain, cleric: light domain, cleric: nature domain, cleric: tempest domain, cleric: trickery domain, cleric: war domain, fighter: knight-ua, monk: way of the four elements, wizard: abjuration, wizard: conjuration, wizard: enchantment
+- **subclass** (54): artificer: alchemist, artificer: artillerist, artificer: battle smith, barbarian: path of the beast, barbarian: path of the beast-ua, barbarian: storm herald-ua, barbarian: zealot, bard: college of creation, bard: college of creation-ua, bard: college of spirits, bard: college of spirits-ua, cleric: arcana domain, cleric: forge domain, cleric: forge domain-ua, cleric: grave domain, cleric: grave domain-ua, cleric: knowledge domain, cleric: light domain, cleric: nature domain, cleric: order domain, cleric: order domain-ua, cleric: peace domain, cleric: tempest domain, cleric: trickery domain, cleric: twilight domain  …(+29 more)
 
-### `spellChanges`  (31 in your data)
+### `spellChanges`  (98 in your data)
 - **class** (2): monk, warlock
-- **magicitem** (4): balance of harmony, berserker battleaxe (tamoachan), gurt's greataxe, trident of fish command
-- **race** (18): baalzebul tiefling, dragonmark detection half-elf, dragonmark detection half-elf-ua, dragonmark finding half-orc-ua, dragonmark making human, dragonmark warding dwarf, dragonmark warding dwarf-ua, fierna tiefling, gray dwarf, levistus tiefling, lotusden halfling, mammon tiefling, mephistopheles tiefling, mephistopheles tiefling-ua, multiverse deep gnome, pallid elf, tiefling, zariel tiefling
-- **subclass** (7): barbarian: totem warrior, monk: way of shadow, monk: way of the four elements, rogue: arcane trickster, wizard: illusion, wizard: necromancy, wizard: transmutation
+- **feat** (3): svirfneblin magic, telekinetic-ua, telepathic
+- **magicitem** (35): balance of harmony, berserker battleaxe (tamoachan), blackrazor, bowl of commanding water elementals, brazier of commanding fire elementals, censer of controlling air elementals, cloak of arachnida, cloak of the bat, crystal ball, cubic gate, driftglobe, figurine of wondrous power, gurt's greataxe, hide of the feral guardian, instrument of the bards, lyre of building, plate armor of etherealness, ring of animal influence, ring of obscuring, ring of shooting stars, rod of resurrection, sending stones, staff of dunamancy, staff of healing, staff of power  …(+10 more)
+- **race** (34): air genasi, baalzebul tiefling, dragonmark detection half-elf, dragonmark detection half-elf-ua, dragonmark finding half-orc-ua, dragonmark making human, dragonmark warding dwarf, dragonmark warding dwarf-ua, earth genasi, fierna tiefling, firbolg, githyanki-mtof, githzerai-mtof, gray dwarf, levistus tiefling, lotusden halfling, mammon tiefling, mephistopheles tiefling, mephistopheles tiefling-ua, multiverse aarakocra, multiverse air genasi, multiverse deep gnome, multiverse duergar, multiverse earth genasi, multiverse firbolg  …(+9 more)
+- **subclass** (24): artificer: alchemist, barbarian: ancestral guardian, barbarian: totem warrior, bard: college of glamour, bard: college of glamour-ua, bard: college of spirits, bard: college of spirits-ua, cleric: grave domain, cleric: grave domain-ua, druid: circle of dreams, druid: circle of the shepherd, druid: circle of the shepherd-ua, fighter: psi warrior, monk: way of shadow, monk: way of the four elements, monk: way of the sun soul, ranger: fey wanderer, ranger: horizon walker, rogue: arcane trickster, sorcerer: aberrant mind-ua, warlock: the fathomless, wizard: illusion, wizard: necromancy, wizard: transmutation
 
-### `skillstxt`  (24 in your data)
-- **class** (16): barbarian, bard, bard-college of lore, cleric, druid, fighter, monk, paladin, ranger, rangerua, rogue, sorcerer, spell-less ranger, ua-playtest-ranger, warlock, wizard
-- **feat** (1): skilled
-- **race** (4): astral elf, dragonmark shadow elf-ua, half-elf, orc
-- **subclass** (3): cleric: knowledge domain, cleric: nature domain, fighter: knight-ua
+### `skillstxt`  (70 in your data)
+- **background** (2): haunted one, investigator-vrgtr
+- **class** (17): artificer, barbarian, bard, bard-college of lore, cleric, druid, fighter, monk, paladin, ranger, rangerua, rogue, sorcerer, spell-less ranger, ua-playtest-ranger, warlock, wizard
+- **feat** (6): prodigy, prodigy-ua, skill expert, skilled, squat nimbleness, squat nimbleness-ua
+- **race** (27): astral elf, centaur, changeling, changeling-ua2, dhampir, dragonmark shadow elf-ua, envoy warforged-ua, githyanki-mtof, githyanki-ua, half-elf, hexblood, kalashtar-ua, kenku, lizardfolk, minotaur, multiverse centaur, multiverse changeling, multiverse githyanki, multiverse kenku, multiverse lizardfolk, orc, reborn, reborn-ua, tortle-motm, vedalken  …(+2 more)
+- **subclass** (18): cleric: knowledge domain, cleric: nature domain, cleric: order domain, cleric: peace domain, fighter: arcane archer, fighter: arcane archer-ua, fighter: cavalier, fighter: cavalier-ua, fighter: knight-ua, fighter: purple dragon knight, fighter: rune knight, fighter: rune knight-ua, fighter: samurai, fighter: samurai-ua, fighter: scout-ua, ranger: fey wanderer-ua, rogue: phantom, rogue: phantom-ua
 
-### `fixedDC`  (4 in your data)
-- **magicitem** (4): berserker battleaxe (tamoachan), guild signet, gurt's greataxe, trident of fish command
+### `altResource`  (33 in your data)
+- **feat** (1): strixhaven mascot
+- **race** (16): fairy, fairy-ua, hexblood, hexblood-ua, multiverse aarakocra, multiverse air genasi, multiverse deep gnome, multiverse duergar, multiverse earth genasi, multiverse firbolg, multiverse fire genasi, multiverse githyanki, multiverse githzerai, multiverse triton, multiverse water genasi, multiverse yuan-ti
+- **subclass** (16): artificer: artillerist, bard: college of creation, bard: college of creation-ua, bard: college of eloquence, cleric: twilight domain, fighter: psi warrior, paladin: oath of glory, paladin: oath of the watchers, ranger: fey wanderer-ua, rogue: phantom, rogue: phantom-ua, rogue: soulknife, sorcerer: aberrant mind, sorcerer: clockwork soul, sorcerer: clockwork soul-ua, wizard: order of scribes
 
-### `advantages`  (3 in your data)
+### `allowUpCasting`  (31 in your data)
+- **feat** (8): artificer initiate, fey touched, gift of the metallic dragon, gift of the metallic dragon-ua, shadow touched, shadow touched-ua, strixhaven initiate, telepathic
+- **magicitem** (5): all-purpose tool, dark shard amulet, hat of wizardry, lorehold primer, staff of healing
+- **race** (16): fairy, fairy-ua, hexblood, hexblood-ua, multiverse aarakocra, multiverse air genasi, multiverse deep gnome, multiverse duergar, multiverse earth genasi, multiverse firbolg, multiverse fire genasi, multiverse githyanki, multiverse githzerai, multiverse triton, multiverse water genasi, multiverse yuan-ti
+- **subclass** (2): artificer: alchemist, monk: way of the four elements
+
+### `fixedDC`  (29 in your data)
+- **magicitem** (29): amethyst lodestone, belashyrra's beholder crown, berserker battleaxe (tamoachan), circlet of blasting, cloak of arachnida, crystal ball, cubic gate, duskcrusher, earworm, eyes of charming, guild signet, gurt's greataxe, helm of telepathy, masquerade tattoo, medallion of thoughts, ring of animal influence, ring of shooting stars, topaz annihilator, trident of fish command, ventilating lungs, verminshroud, wand of binding, wand of fear, wand of fireballs, wand of lightning bolts  …(+4 more)
+
+### `carryingCapacity`  (15 in your data)
+- **race** (14): bugbear, centaur, centaur-ua, firbolg, goliath, juggernaut warforged-ua, loxodon, loxodon-ua, multiverse bugbear, multiverse centaur, multiverse firbolg, multiverse goliath, multiverse orc, orc
+- **subclass** (1): barbarian: totem warrior
+
+### `advantages`  (14 in your data)
 - **class** (2): barbarian, rangerua
-- **race** (1): pallid elf
+- **magicitem** (4): amethyst lodestone, cloak of the bat, dragon-touched focus, rod of alertness
+- **race** (4): kalashtar, pallid elf, vedalken, vedalken-ua
+- **subclass** (4): fighter: rune knight, fighter: rune knight-ua, rogue: scout, wizard: order of scribes
+
+### `addTo`  (10 in your data)
+- **magicitem** (10): alchemical compendium, astromancy archive, atlas of endless horizons, crystalline chronicle, duplicitous manuscript, fulminating treatise, heart weaver's primer, libram of souls and flesh, planecaller's codex, protective verses
+
+### `spellcastingBonusElsewhere`  (10 in your data)
+- **magicitem** (10): alchemical compendium, astromancy archive, atlas of endless horizons, crystalline chronicle, duplicitous manuscript, fulminating treatise, heart weaver's primer, libram of souls and flesh, planecaller's codex, protective verses
+
+### `stopeval`  (9 in your data)
+- **feat** (3): dragon hide-ua, dual wielder, revenant blade
+- **race** (3): githzerai-ua, simic hybrid, simic hybrid-ua
+- **subclass** (3): cleric: forge domain, cleric: forge domain-ua, fighter: knight-ua
+
+### `page3notes`  (5 in your data)
+- **magicitem** (1): ring of shooting stars
+- **race** (4): eladrin-mtof, feywild hobgoblin-ua, multiverse eladrin, multiverse hobgoblin
+
+### `popupName`  (5 in your data)
+- **race** (2): eladrin-mtof, multiverse eladrin
+- **subclass** (3): artificer: armorer, artificer: armorer-ua, sorcerer: wild magic
 
 ### `allModes`  (3 in your data)
 - **class** (2): barbarian, monk
 - **feat** (1): mobile
 
-### `allowUpCasting`  (2 in your data)
-- **race** (1): multiverse deep gnome
-- **subclass** (1): monk: way of the four elements
-
-### `carryingCapacity`  (2 in your data)
-- **race** (1): orc
-- **subclass** (1): barbarian: totem warrior
-
-### `stopeval`  (2 in your data)
-- **feat** (1): dual wielder
-- **subclass** (1): fighter: knight-ua
-
-### `altResource`  (1 in your data)
-- **race** (1): multiverse deep gnome
-
-### `popupName`  (1 in your data)
-- **subclass** (1): sorcerer: wild magic
+### `amendTo`  (2 in your data)
+- **subclass** (2): artificer: armorer, artificer: armorer-ua
 
 ## Full capability table
 

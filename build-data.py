@@ -22,8 +22,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 22  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
-# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21/v22: race `ancestry` = {kind, choices:[{dragon,dmgType,shape,save}], breath:{die,scale}} (Draconic Ancestry → breath weapon + resistance; v22 added the breath progression + Fizban Chromatic/Gem/Metallic variants). Mirror HTML's DATA_VERSION.
+DATA_VERSION = 23  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21/v22: race `ancestry` = {kind, choices:[{dragon,dmgType,shape,save}], breath:{die,scale}} (Draconic Ancestry → breath weapon + resistance; v22 added the breath progression + Fizban Chromatic/Gem/Metallic variants). v23: race `naturalWeapons`=[{name,die,dmgType,ability}] (claws/horns/bite → feature-attack rows). NOTE: subclass/feat attacks (Soulknife, Armorer, Sun Soul, Polearm Master…) are NOT data — they live in the FEATURE_ATTACKS registry in index.html's app JS. Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -95,6 +95,33 @@ def book_name(code):                                   # friendly title for _met
 def _traits(entries):
     return [{"name": t.get("name",""), "text": entries_to_text(t.get("entries",[]))}
             for t in entries if isinstance(t, dict) and t.get("name")]
+
+_NW_DMG = "acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder"
+_NW_AB = {"strength":"str","dexterity":"dex","constitution":"con","wisdom":"wis","intelligence":"int","charisma":"cha"}
+_NW_WORD = r"claws?|bite|horns?|hoo(?:f|ves)|talons?|fangs?|maw|ram|tail|tusks?|gore|beak"
+def natural_weapons(traits):
+    """Racial natural-weapon attacks [{name,die,dmgType,ability}] parsed from trait prose
+    ("you can use your claws to make unarmed strikes… 1d6 + your Strength modifier slashing").
+    Name = trait name if it's a body-part word, else the body part from the sentence."""
+    out = {}
+    for t in traits:
+        nm, tx = t.get("name", ""), t.get("text", "")
+        if not re.search(r"unarmed strike|natural weapon|simple melee weapon", tx, re.I):
+            continue
+        for sent in re.split(r'(?<=[.;])\s+', tx):
+            m = re.search(r'(\d+d\d+)', sent)
+            ty = re.search(r'\b(' + _NW_DMG + r')\s+damage', sent, re.I)
+            if not (m and ty and re.search(r'unarmed strike|natural weapon|on a hit|with (?:it|them|this)', sent, re.I)):
+                continue
+            ab = re.search(r'your\s+(Strength|Dexterity|Constitution|Wisdom|Intelligence|Charisma)\s+modifier', tx, re.I)
+            name = nm if re.search(_NW_WORD, nm, re.I) else None
+            if not name:
+                bw = re.search(_NW_WORD, sent, re.I) or re.search(_NW_WORD, tx, re.I)
+                name = bw.group(0).title() if bw else nm
+            out.setdefault(name, {"name": name, "die": m.group(1), "dmgType": ty.group(1).lower(),
+                                  "ability": _NW_AB.get((ab.group(1).lower() if ab else "strength"), "str")})
+            break
+    return list(out.values())
 
 def _speed(r):
     sp = r.get("speed")
@@ -203,6 +230,8 @@ def build_races(raw):
               "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl}
         if rexp: ro["expanded"] = rexp   # e.g. dragonmark "Spells of the Mark"
         if anc: ro["ancestry"] = anc   # full {kind, choices, breath} — drives the ancestry picker + breath-weapon attack
+        nw = natural_weapons(ro["traits"])   # claws/horns/bite… → feature-attack rows
+        if nw: ro["naturalWeapons"] = nw
         out.append(ro)
     for s in raw.get("subrace", []):
         if not is_src(s) or is_2024(s): continue
@@ -237,6 +266,8 @@ def build_races(raw):
         if sexp: so["expanded"] = sexp
         sanc = dragon_ancestry(s) or base.get("ancestry")   # Draconblood/Ravenite inherit draconic ancestry from base Dragonborn
         if sanc: so["ancestry"] = sanc
+        snw = natural_weapons(so["traits"])
+        if snw: so["naturalWeapons"] = snw
         out.append(so)
     for o in out:
         if "custom lineage" in o["name"].lower(): o["variableSkillDarkvision"] = True   # TCE: skill OR darkvision

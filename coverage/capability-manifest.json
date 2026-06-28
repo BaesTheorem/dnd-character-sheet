@@ -309,7 +309,7 @@
     "weaponOptions": {
       "supported": true,
       "status": "verified",
-      "note": "feature-attack mechanism in the attack engine + Dragonborn Breath Weapon (ancestry picker -> save-based attack row, DC/damage scale w/ Con & level; resistance set from ancestry). Natural-weapon races (tabaxi etc.) are absent from baked data; magic-item special riders have no itemText to scrape."
+      "note": "feature-attack engine (activeFeatureAttacks/syncFeatureAttacks/refreshAtkRows): Dragonborn breath weapon (6 lineages), 10 racial natural weapons (data-driven), + subclass/feat registry (Soulknife, Armorer, Sun Soul, Astral Self, Battlerager, Beast, Fathomless, Polearm Master, Dragon Hide). Magic-item special riders still N/A (no itemText)."
     },
     "weaponProfs": {
       "supported": true,
