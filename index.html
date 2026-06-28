@@ -1597,6 +1597,7 @@
       <div class="modal-body">
         <div class="cm-top">
           <button class="btn primary" id="cm-new" type="button">＋ New character</button>
+          <button class="btn" id="cm-import" type="button" title="Load characters from a saved Character Sheet file — duplicates you already have are skipped">Import from a file…</button>
           <span class="cm-count" id="cm-count"></span>
           <span class="cm-controls">
             <label><span class="cm-sort-lbl">Sort</span>
@@ -2382,9 +2383,6 @@
               <button class="btn" id="btn-update" type="button" title="Fetch the latest version of the sheet from the web">Update to the latest version</button>
               <p class="wiz-hint" id="update-note">Fetches the newest version of the whole app from the web and reloads. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.</p>
             </div>
-            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Import characters</label>
-            <button class="btn" id="btn-import-chars" type="button" title="Load characters from a saved Character Sheet file">Import from a file…</button>
-            <p class="wiz-hint">Pick a “Character Sheet.html” you saved with the <strong>Save</strong> button. You'll see every character in it and can untick any you don't want. Imported characters are added alongside your current ones — nothing is overwritten. Any that are an exact duplicate of one you already have are skipped, so re-importing the same file won't pile up copies (use <strong>Duplicate</strong> in Manage Characters if you actually want another copy).</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Appearance</label>
             <label class="lay-row"><input type="checkbox" id="set-dark"> Dark mode</label>
             <p class="wiz-hint">A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.</p>
@@ -2533,11 +2531,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v285 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v286 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.1.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.2.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -9059,7 +9057,8 @@
     $("cm-view").addEventListener("click", e => { const b = e.target.closest("button[data-view]"); if(!b) return; try{ localStorage.setItem("dnd-sheet-cm-view", b.dataset.view); }catch(_){} renderCharMgr(); });
     $("charmgr").addEventListener("click", e=>{ if(e.target.id === "charmgr") closeCharMgr(); });   // click backdrop to close
 
-    $("btn-import-chars").addEventListener("click", ()=> $("import-chars-input").click());
+    { const ci = $("cm-import"); if(ci) ci.addEventListener("click", ()=> $("import-chars-input").click()); }   // import lives in the Character Manager
+    { const bi = $("btn-import-chars"); if(bi) bi.addEventListener("click", ()=> $("import-chars-input").click()); }   // legacy Settings entry (if still present)
     $("import-chars-input").addEventListener("change", ev=>{
       const f = ev.target.files[0]; ev.target.value = "";   // reset so re-picking the same file fires again
       if(!f) return;
