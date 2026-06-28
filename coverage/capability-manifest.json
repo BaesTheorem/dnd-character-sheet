@@ -307,9 +307,9 @@
       "note": "single walk speed only; fly/swim/climb are text in Senses"
     },
     "weaponOptions": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "breath/item special attacks not auto-offered"
+      "note": "feature-attack mechanism in the attack engine + Dragonborn Breath Weapon (ancestry picker -> save-based attack row, DC/damage scale w/ Con & level; resistance set from ancestry). Natural-weapon races (tabaxi etc.) are absent from baked data; magic-item special riders have no itemText to scrape."
     },
     "weaponProfs": {
       "supported": true,

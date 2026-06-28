@@ -22,8 +22,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 18  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
-# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. Mirror HTML's DATA_VERSION.
+DATA_VERSION = 21  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21: race `ancestry` (Draconic Ancestry table → breath weapon + resistance). Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -193,7 +193,8 @@ def build_races(raw):
         fg = feat_grants(r); pf = prof_block(r); rs = damage_resist(r)
         dv, lc = r.get("darkvision") or 0, lang_choose(r)
         rsp = _race_spell_names(r); rsx = _speed_extra(r); fl = flavor.get(r["name"], []); rexp = _extract_spells(r)[1]
-        bases[r["name"]] = {"ability": ab, "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium", "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp, "expanded": rexp, "flavor": fl}
+        anc = dragon_ancestry(r)   # Dragonborn: structured draconic ancestry choices (breath weapon + resistance)
+        bases[r["name"]] = {"ability": ab, "size": "/".join(SIZE.get(s, s) for s in r.get("size", [])) or "Medium", "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs, "darkvision": dv, "langChoose": lc, "spells": rsp, "expanded": rexp, "flavor": fl, "ancestry": anc}
         if not is_src(r): continue    # keep EVERY race in `bases` (any book) so a cross-book subrace inherits its parent; only output THIS book's races
         base_idx[r["name"]] = len(out)
         ro = {"name": r["name"], "ability": ab,
@@ -201,6 +202,7 @@ def build_races(raw):
               "speed": _speed(r), "speedExtra": rsx, "traits": _traits(r.get("entries", [])), "featGrants": fg, "prof": pf, "resist": rs,
               "darkvision": dv, "langChoose": lc, "spells": rsp, "flavor": fl}
         if rexp: ro["expanded"] = rexp   # e.g. dragonmark "Spells of the Mark"
+        if anc: ro["ancestry"] = {"kind": "draconic", "choices": anc}   # drives the ancestry picker + breath-weapon attack
         out.append(ro)
     for s in raw.get("subrace", []):
         if not is_src(s) or is_2024(s): continue
@@ -233,6 +235,8 @@ def build_races(raw):
               "spells": (base.get("spells") or []) + _race_spell_names(s),
               "flavor": flavor.get(f"{parent} ({s['name']})", base.get("flavor", []))}
         if sexp: so["expanded"] = sexp
+        sanc = dragon_ancestry(s) or base.get("ancestry")   # Draconblood/Ravenite inherit draconic ancestry from base Dragonborn
+        if sanc: so["ancestry"] = {"kind": "draconic", "choices": sanc}
         out.append(so)
     for o in out:
         if "custom lineage" in o["name"].lower(): o["variableSkillDarkvision"] = True   # TCE: skill OR darkvision
@@ -390,6 +394,37 @@ def damage_resist(obj):  # damage resistances as display strings (e.g. Dwarf poi
                 out.append(f"choose {r['choose'].get('count',1)} ({', '.join(frm)})")
             elif r.get("resist"): out.append(_titlecase(", ".join(r["resist"]) if isinstance(r["resist"], list) else str(r["resist"])))
     return out
+
+def dragon_ancestry(r):
+    """Structured Draconic Ancestry options, parsed from the race's entries table
+    (caption "Draconic Ancestry": Dragon | Damage Type | Breath Weapon). Returns
+    [{dragon, dmgType, shape, save}] so the sheet can offer an ancestry picker and
+    derive the breath-weapon attack + damage resistance. None if no such table."""
+    def find_table(o):
+        if isinstance(o, dict):
+            if o.get("type") == "table" and "ancestry" in str(o.get("caption", "")).lower():
+                return o
+            for v in o.values():
+                t = find_table(v)
+                if t: return t
+        elif isinstance(o, list):
+            for x in o:
+                t = find_table(x)
+                if t: return t
+        return None
+    tbl = find_table(r.get("entries", []))
+    if not tbl: return None
+    out = []
+    for row in tbl.get("rows", []):
+        if len(row) < 3: continue
+        dragon = _clean(str(row[0])).strip()
+        dmg = _titlecase(_clean(str(row[1])).strip())
+        bw = _clean(str(row[2])).strip()                                  # "5 by 30 ft. line (Dex. save)"
+        m = re.search(r'\(([A-Za-z]+)\.?\s*save\)', bw)
+        save = (m.group(1)[:3].title() if m else "Dex")
+        shape = re.sub(r'\s*\([^)]*\)\s*$', '', bw).strip()              # "5 by 30 ft. line"
+        if dragon and dmg: out.append({"dragon": dragon, "dmgType": dmg, "shape": shape, "save": save})
+    return out or None
 
 def bg_equipment(b):                                # starting items + gold a background provides
     items, gold = [], 0.0
