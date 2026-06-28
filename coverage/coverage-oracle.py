@@ -447,6 +447,79 @@ def merge_entities(base, extra):
 
 
 # ----------------------------------------------------------------------------
+# IN-DATA FILTER: which MPMB entities actually exist in THIS sheet's baked data.
+#
+# MPMB's library is far larger than the 5etools content baked into index.html, so
+# raw impact counts overstate reality (a capability used by 100 MPMB items helps
+# nobody if none of those items are in the sheet). Tagging each entity with
+# whether it's present in source-data.json lets the report rank by REAL impact.
+# ----------------------------------------------------------------------------
+
+def _norm_entity_name(s):
+    s = str(s or "").lower().strip()
+    s = re.sub(r'-ua\w*$|-motm$|-uacnm$', "", s)   # drop variant suffixes
+    s = re.sub(r'\s*\([^)]*\)', "", s)             # drop parentheticals
+    return re.sub(r'\s+', " ", s).strip()
+
+
+def build_sheet_pools(source_data_path):
+    """Return {entity_type: set(normalized names)} from the sheet's baked data."""
+    with open(source_data_path, encoding="utf-8") as fh:
+        d = json.load(fh)
+
+    def names(key):
+        return {_norm_entity_name(x.get("name", "")) for x in d.get(key, []) if isinstance(x, dict)}
+
+    pools = {
+        "race": names("races"),
+        "background": names("backgrounds"),
+        "class": names("classes"),
+        "feat": names("feats"),
+        "creature": names("monsters"),
+        "companion": names("monsters"),
+        "weapon": names("weapons"),
+        "armor": names("armor"),
+    }
+    # magic items: the sheet keeps these as names across several lists (most empty)
+    mi = set()
+    for k in ("weapons", "acItems", "magicItems", "attuneItems"):
+        mi |= names(k)
+    it = d.get("itemText")
+    if isinstance(it, dict):
+        mi |= {_norm_entity_name(k) for k in it}
+    pools["magicitem"] = mi
+    # subclasses: nested under classes, as "class: subclass"
+    subs = set()
+    for c in d.get("classes", []):
+        cn = _norm_entity_name(c.get("name", ""))
+        for sc in (c.get("subclasses") or []):
+            sn = _norm_entity_name(sc.get("name", "") if isinstance(sc, dict) else sc)
+            short = _norm_entity_name(sc.get("short", "")) if isinstance(sc, dict) else ""
+            subs.add(f"{cn}: {sn}")
+            if short:
+                subs.add(f"{cn}: {short}")
+    pools["subclass"] = subs
+    return pools
+
+
+def tag_in_data(entities, pools):
+    """Mark each entity in_data True/False by fuzzy match against the sheet pools."""
+    n = 0
+    for e in entities:
+        pool = pools.get(e["type"], set())
+        nm = _norm_entity_name(e["name"])
+        if e["type"] == "subclass":
+            # match "class: sub" loosely on the subclass half too
+            half = nm.split(":")[-1].strip()
+            hit = nm in pool or any(half and half in p for p in pool)
+        else:
+            hit = bool(nm) and (nm in pool or any(p and (nm in p or p in nm) for p in pool))
+        e["in_data"] = hit
+        n += hit
+    return n
+
+
+# ----------------------------------------------------------------------------
 # PROBE: best-effort detection of which capabilities index.html implements
 # ----------------------------------------------------------------------------
 # Maps an MPMB mechanical field -> regex evidence in the sheet's own engine code.
@@ -602,11 +675,16 @@ def build_report(schema, entities, manifest):
     for e in entities:
         for f in e["mech_fields"]:
             usage[f].append(e)
+    # in-data impact: only entities actually present in the sheet's baked data
+    have_indata = any("in_data" in e for e in entities)
+    def indata_count(f):
+        return sum(1 for e in usage.get(f, []) if e.get("in_data"))
 
     supported = {f for f in mech_fields if caps.get(f, {}).get("supported")}
     unsupported = [f for f in mech_fields if f not in supported]
-    # rank unsupported by how many entities they block
-    unsupported.sort(key=lambda f: len(usage.get(f, [])), reverse=True)
+    # rank unsupported by REAL impact (in-data) when available, else raw count
+    rank = indata_count if have_indata else (lambda f: len(usage.get(f, [])))
+    unsupported.sort(key=lambda f: (rank(f), len(usage.get(f, []))), reverse=True)
 
     n_total = len(mech_fields)
     n_sup = len(supported)
@@ -628,16 +706,27 @@ def build_report(schema, entities, manifest):
     L.append("## Punch-list -- unsupported capabilities, ranked by impact")
     L.append("")
     L.append("Each row is a mechanical effect MPMB automates that the manifest "
-             "marks unsupported, with how many baked entities rely on it.")
+             "marks unsupported, with how many baked entities rely on it."
+             + (" **Ranked by *in your data* impact** — entities actually present "
+                "in `source-data.json`, since MPMB's full library is far larger "
+                "than what this sheet bakes." if have_indata else ""))
     L.append("")
-    L.append("| capability | kind | entities blocked | what it does |")
-    L.append("|---|---|---|---|")
-    for f in unsupported:
-        rec = srec(f)
-        kind = "proc" if rec["procedural"] else "decl"
-        cnt = len(usage.get(f, []))
-        use = (rec["use"] or "")[:80].replace("|", "\\|")
-        L.append(f"| `{f}` | {kind} | {cnt} | {use} |")
+    if have_indata:
+        L.append("| capability | kind | in your data | all MPMB | what it does |")
+        L.append("|---|---|---|---|---|")
+        for f in unsupported:
+            rec = srec(f)
+            kind = "proc" if rec["procedural"] else "decl"
+            use = (rec["use"] or "")[:80].replace("|", "\\|")
+            L.append(f"| `{f}` | {kind} | {indata_count(f)} | {len(usage.get(f, []))} | {use} |")
+    else:
+        L.append("| capability | kind | entities blocked | what it does |")
+        L.append("|---|---|---|---|")
+        for f in unsupported:
+            rec = srec(f)
+            kind = "proc" if rec["procedural"] else "decl"
+            use = (rec["use"] or "")[:80].replace("|", "\\|")
+            L.append(f"| `{f}` | {kind} | {len(usage.get(f, []))} | {use} |")
     L.append("")
 
     # ---- per-capability entity lists for the high-impact misses ----
@@ -645,9 +734,12 @@ def build_report(schema, entities, manifest):
     L.append("")
     for f in unsupported:
         ents = usage.get(f, [])
+        # when we know what's in-data, only the in-data entities are actionable
+        if have_indata:
+            ents = [e for e in ents if e.get("in_data")]
         if not ents:
             continue
-        L.append(f"### `{f}`  ({len(ents)} entities)")
+        L.append(f"### `{f}`  ({len(ents)}{' in your data' if have_indata else ' entities'})")
         # group by type
         by_type = defaultdict(list)
         for e in ents:
@@ -681,9 +773,12 @@ def build_report(schema, entities, manifest):
     print(f"   coverage: {n_sup}/{n_total} mechanical capabilities; "
           f"{len(unsupported)} unsupported")
     # surface the worst offenders on the console
-    print("   top unsupported by impact:")
+    print("   top unsupported by impact" + (" (in your data)" if have_indata else "") + ":")
     for f in unsupported[:8]:
-        print(f"      {f:24s} {len(usage.get(f, [])):4d} entities")
+        if have_indata:
+            print(f"      {f:24s} {indata_count(f):4d} in-data / {len(usage.get(f, [])):4d} MPMB")
+        else:
+            print(f"      {f:24s} {len(usage.get(f, [])):4d} entities")
 
 
 # ----------------------------------------------------------------------------
@@ -700,6 +795,9 @@ def main():
                          "mines its complete entity set and merges it in")
     ap.add_argument("--sheet", default=os.path.join(REPO, "index.html"),
                     help="path to index.html")
+    ap.add_argument("--sheet-data", default=os.path.join(REPO, "source-data.json"),
+                    help="path to the sheet's baked source-data.json; ranks the "
+                         "punch-list by entities actually present in it")
     ap.add_argument("--no-probe", action="store_true",
                     help="don't auto-probe index.html; trust the manifest")
     args = ap.parse_args()
@@ -727,6 +825,12 @@ def main():
         schema = json.load(fh)
     with open(ENTITIES_JSON, encoding="utf-8") as fh:
         entities = json.load(fh)
+
+    if args.sheet_data and os.path.isfile(args.sheet_data):
+        pools = build_sheet_pools(args.sheet_data)
+        n = tag_in_data(entities, pools)
+        print(f"[in-data] {n}/{len(entities)} MPMB entities are present in "
+              f"{os.path.basename(args.sheet_data)}")
 
     if args.no_probe:
         guesses = {}

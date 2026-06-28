@@ -47,6 +47,20 @@ python3 coverage/coverage-oracle.py --extract --mpmb /tmp/mpmb-repo \
 python3 coverage/coverage-oracle.py --no-probe
 ```
 
+## In-data ranking (important)
+
+MPMB's library (1908 entities) is far larger than the 5etools content this sheet
+actually bakes (~232 entities). Raw impact counts therefore overstate reality: a
+capability used by 100 MPMB items helps nobody if none of those items are in the
+sheet. The oracle reads `source-data.json` (via `--sheet-data`, on by default)
+and **ranks the punch-list by *in your data* impact** — and the per-capability
+"who needs this" lists show only entities you actually have.
+
+Caveat: *in-data* means the entity's name exists in the sheet's data, not that
+its mechanics are automatable. Magic items in particular are stored as names
+only (`itemText`/`magicItems` are empty), so an item being "in-data" doesn't mean
+its special effects can be wired up — there's no description to read.
+
 The saved MPMB PDF is **not** committed (it's a personal Acrobat file); only the
 extracted JSON metadata is. Re-mine from your own saved PDF when MPMB updates.
 
