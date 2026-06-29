@@ -2641,11 +2641,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v329 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v330 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.31.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.32.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2653,6 +2653,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v330", semver:"2.32.1", items:[
+      "Importing or opening an older character no longer fails to load. A character saved before the half-feat ability column was added (or any file missing that piece of data) could hit an error on load; the sheet now fills in every ability-bonus category defensively, so old characters come in cleanly and recompute against the current rules data."
+    ]},
     {v:"v328", semver:"2.32.0", items:[
       "After a Long Rest, prepared casters are now asked whether they want to change their prepared spells. Say no and nothing happens; say yes and each prepared spellcasting class gets its own full-screen spell sheet to re-prepare on (walked through one class at a time for multiclass casters), with the usual floating \"Can Prepare X / Y\" counter pinned alongside. The unprepared lists open automatically there so every option is in front of you."
     ]},
@@ -6458,7 +6461,7 @@
     createdAt = (data && +data.createdAt) || 0;   // 0 when absent (legacy) → the Manager falls back to the modified date
     manualScores = {str:"",dex:"",con:"",int:"",wis:"",cha:""};
     baseVals  = {str:null,dex:null,con:null,int:null,wis:null,cha:null};
-    bonusVals = {asi:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};
+    bonusVals = {asi:zeroAb(), feat:zeroAb(), racial:zeroAb(), magical:zeroAb(), misc:zeroAb()};   // include EVERY BONUS_CATS category (feat was missing → a save lacking bonusVals.feat, e.g. a pre-half-feat-column character, crashed totalBonus on load)
     if(data){
       if(data.manualScores) manualScores = {...manualScores, ...data.manualScores};
       else ABILITIES.forEach(([k]) => { if(("score-"+k) in data) manualScores[k] = data["score-"+k]; }); // legacy
