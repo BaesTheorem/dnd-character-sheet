@@ -149,7 +149,7 @@
   .charname input:focus{border-bottom-color:var(--accent); outline:none}
   .header-grid{display:flex; align-items:stretch; gap:16px}
   .header-main{flex:1; min-width:0; display:flex; flex-direction:column}
-  .portrait{position:relative; flex:none; width:150px; height:190px; align-self:flex-start;
+  .portrait{position:relative; flex:none; width:132px; height:168px; align-self:flex-start;
     border:1px solid var(--line2); background:var(--field); cursor:pointer; overflow:hidden;
     display:flex; align-items:center; justify-content:center}
   .portrait.has-img{background:transparent}
@@ -164,7 +164,8 @@
   .portrait-menu button{font:inherit; font-size:11px; font-weight:600; text-align:center; cursor:pointer;
     border:1px solid var(--line2); background:#fff; color:var(--ink); padding:6px 8px}
   .portrait-menu button:hover{background:var(--accent-soft); border-color:var(--accent)}
-  .meta-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px 14px; margin-top:14px}
+  .meta-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px 16px; margin-top:16px}
+  .meta-grid > div:last-child{grid-column:span 2}   /* Experience: give the XP widget a double-wide cell so it doesn't wrap */
   .xp-wrap{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
   .xp-wrap > #xp{flex:1; min-width:64px}
   .xp-add{width:74px}
@@ -1528,13 +1529,13 @@
     /* Header band like D&D Beyond: a compact ident on the left, with the Abilities strip stacked over the
        combat/prof cluster on the right — so the right side is filled instead of leaving a big gap. */
     body.ddb-layout #ddb-topbar{ grid-area:top; display:grid; gap:12px; align-content:start;
-      grid-template-columns:minmax(300px,0.95fr) minmax(0,2.05fr);
-      grid-template-areas:"ident abilities" "ident combat"; }
+      grid-template-columns:minmax(0,1fr);
+      grid-template-areas:"ident" "abilities" "combat"; }
     body.ddb-layout #ddb-topbar > .card{ margin:0; }
     body.ddb-layout #ddb-topbar .ddb-ident{ grid-area:ident; min-width:0; align-self:start; }
-    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid{ grid-template-columns:repeat(2,1fr); gap:6px 10px; margin-top:6px; }
-    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid > div:last-child{ grid-column:1 / -1; }   /* Experience row spans full width so the XP total + Level Up button + status fit */
-    body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:92px; min-width:92px; flex:0 0 92px; height:116px; }
+    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid{ grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px 14px; margin-top:12px; }
+    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid > div:last-child{ grid-column:span 2; }   /* Experience: double-wide cell for the XP total + Level Up + status */
+    body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:104px; min-width:104px; flex:0 0 104px; height:132px; }
     body.ddb-layout #ddb-rail [data-csec="hitdice"] .hd-grid{ grid-template-columns:1fr 1fr; }   /* 4-across is too tight in the 232px rail — wrap to 2×2 */
     body.ddb-layout #ddb-topbar .ddb-ident .xp-add, body.ddb-layout #ddb-topbar .ddb-ident #btn-addxp{ display:none; }   /* keep the +gained / Add XP convenience out of the header; edit the XP total directly */
     body.ddb-layout #ddb-topbar .ddb-ident .xp-status{ font-size:11px; color:var(--muted); }   /* the Level Up button (#btn-levelup) + level/XP status now show in the full-width Experience row */
@@ -2627,11 +2628,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v315 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v316 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.24.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.25.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
