@@ -798,6 +798,27 @@
   #granted-table td.col-name{line-height:1.25}
   #granted-table .gs-src{display:block; font-size:9.5px; color:var(--muted); font-weight:400; margin-top:1px}
   #granted-table .gs-dc{color:var(--accent); font-weight:700}
+  /* Ammunition panel beside the Attacks table */
+  .ammo-panel{margin-top:8px; padding-top:7px; border-top:1px solid var(--hair, #ddd)}
+  .ammo-h{font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:3px}
+  .ammo-counts{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; margin-bottom:5px}
+  .ammo-count b{font-size:13px}
+  .ammo-none{font-size:11px; color:var(--muted)}
+  .ammo-fires{display:flex; flex-wrap:wrap; gap:5px}
+  .ammo-fire{font-size:11px; padding:2px 8px; border:1px solid var(--ink); background:transparent; color:var(--ink); cursor:pointer; border-radius:0}
+  .ammo-fire:hover:not(:disabled){background:var(--ink); color:var(--paper, #fff)}
+  .ammo-fire:disabled{opacity:.4; cursor:default; border-style:dashed}
+  .ammo-fire .ammo-left{font-weight:700; margin-left:3px}
+  /* Spell "Cast" button + upcast-level popover */
+  .sp-cast{border:none; background:transparent; cursor:pointer; font-size:12px; padding:0 2px; opacity:.55; line-height:1}
+  .sp-cast:hover{opacity:1}
+  tr.has-spell .sp-cast, #granted-table .sp-cast{opacity:.7}
+  .cast-pop{position:absolute; z-index:1000; background:var(--paper, #fff); border:1px solid var(--ink); padding:4px; display:flex; flex-direction:column; gap:2px; box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .cast-pop-h{font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:1px 4px}
+  .cast-pop-lvl{font-size:12px; text-align:left; padding:3px 8px; border:none; background:transparent; cursor:pointer; white-space:nowrap}
+  .cast-pop-lvl:hover{background:var(--ink); color:var(--paper, #fff)}
+  .cast-pop-lvl span{color:var(--muted); font-size:10px; margin-left:6px}
+  .cast-pop-lvl:hover span{color:inherit}
   .def-items{margin-top:6px}
   .def-items:empty{display:none}
   .def-items-h{font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px}
@@ -2007,6 +2028,7 @@
         <td><input data-save="" id="atkdmg-4"></td>
       </tr></tbody>
           </table>
+          <div class="ammo-panel" id="ammo-panel" style="display:none"></div>
           <p class="help noprint">Toggle a weapon's <strong>Atk</strong> box in Inventory to auto-fill a row. "Per action" counts Extra Attack; bonus-action attacks (Monk, two-weapon, Crossbow Expert) and invocations like Thirsting Blade are separate.</p>
         </div>
 
@@ -2588,11 +2610,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v307 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v308 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.17.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.18.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2600,6 +2622,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v308", semver:"2.18.0", items:[
+      "Ranged attacks can now spend ammunition. Below the Attacks table there is a live ammo tally (Arrows, Bolts, Bullets, Needles) and a Fire button for each ranged weapon you have. Pressing it subtracts one piece of the matching ammo from your inventory; thrown weapons get a Throw button that subtracts the weapon itself.",
+      "Spells have a Cast button. Click the lightning bolt on a spell to spend a slot of that level; if you have higher-level slots open it asks which level to cast at, and casting at a higher level spends that higher slot (so upcasting comes straight off the right slot)."
+    ]},
     {v:"v306", semver:"2.17.0", items:[
       "Advantages are surfaced more completely. Beyond saving-throw advantages, the sheet now pulls advantage (and disadvantage) on ability checks, attack rolls, and initiative out of your class, race, subclass, and feat features into the Defenses box. Equipped magic items that grant an advantage (Sentinel Shield, Cloak of the Bat, Rod of Alertness, and the like) show up in a live \"From equipped items\" line there too.",
       "Limited Features that can be recovered a second way now say so: features and racial spells that let you also cast or recharge by spending a spell slot (Fairy, Hexblood, and similar) show \"or slot\" in the Recover column.",
@@ -5148,9 +5174,10 @@
         (fullByLvl[l]||[]).forEach(sp => {
           const d = spellData(sp.n), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           const locked = alwaysSet.has((sp.n||"").toLowerCase()), free = locked || !!F[sp.n];
+          const castable = !!preparedSpells[sp.n] || free || !isPrepCaster;   // prepared / always-prepared spells get a Cast button
           body += `<tr>`+
             prepCellHTML({inst, sp:sp.n, prepared:!!preparedSpells[sp.n] || free, free, locked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)})+
-            `<td class="col-name"${titleAttr}>${esc(sp.n)}</td>`+ propCells(d) +`</tr>`;
+            `<td class="col-name"${titleAttr}>${esc(sp.n)}${castable ? castBtnHTML(l) : ""}</td>`+ propCells(d) +`</tr>`;
         });
       } else {                                   // write-in rows: type any name (unknown → custom spell); cantrips never show Prep
         if(spellEntries[l]) spellEntries[l].sort((a,b) => {   // alphabetical within the level; blank rows sink to the bottom
@@ -5171,7 +5198,8 @@
             ? `<td class="col-comp prop-setbtn" colspan="6"><button type="button" class="sp-edit-inline noprint" data-inst="${inst}" data-l="${l}" data-i="${i}">✎ Set spell properties…</button></td>`
             : propCells(d);
           const rowClass = named ? ` class="has-spell"` : "";
-          body += `<tr${rowClass}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}</td>${propArea}</tr>`;
+          const castBtn = (named && l>0) ? castBtnHTML(l) : "";   // known/write-in spell → Cast button
+          body += `<tr${rowClass}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}${castBtn}</td>${propArea}</tr>`;
         });
         if(l>0) body += `<tr class="sp-addrow noprint"><td colspan="8"><button type="button" class="sp-add" data-inst="${inst}" data-l="${l}">+ add blank row</button></td></tr>`;   // grow this level on demand (cantrips are a fixed count, so no add-row there)
       }
@@ -5726,6 +5754,7 @@
       if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); renderActionEconomy(); } }   // rebuild Feature cards (+ action-economy summary) only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
+    renderAmmo();   // ammo tally + fire-a-ranged-weapon buttons beside the Attacks table
     applyOverrides();    // repaint any hand-pinned leaf values over what compute() just wrote (sources already cascaded via the helpers)
     refreshSimulacrumButton();   // surface the "Create Simulacrum" button only when the Simulacrum spell is on a sheet
     refreshSpellDamageCells();   // keep the per-spell Damage column live as level/scores change (in place, no re-render)
@@ -7915,6 +7944,75 @@
       $("atkbonus-"+idx).value = ""; $("atkdmg-"+idx).value = "";
     }
   }
+  // ===== Ammunition: fire-a-ranged-weapon buttons + a live tally beside the Attacks table =====
+  const AMMO_KEYWORDS = [["arrow","Arrows"],["bolt","Bolts"],["bullet","Bullets"],["needle","Needles"]];   // inventory-name keyword → display label
+  // For an attack's weapon: the ammo keyword it spends ("arrow"/"bolt"/…), "thrown:<name>" (the weapon is its own ammo), or null.
+  function ammoKindFor(name){
+    const lc = String(name||"").toLowerCase().trim(), w = weaponByName(name), props = (w && w.props) || [];
+    const usesAmmo = props.includes("ammunition") || props.some(p => /^AF/i.test(p));   // bows/crossbows/sling/blowgun + firearms
+    if(usesAmmo){
+      if(/crossbow/.test(lc)) return "bolt";
+      if(/\bbow\b|bow$/.test(lc)) return "arrow";
+      if(/sling/.test(lc)) return "bullet";
+      if(/blowgun/.test(lc)) return "needle";
+      return "bullet";                                  // firearms
+    }
+    if(props.includes("thrown")) return "thrown:" + (w ? w.name : name);
+    return null;
+  }
+  function ammoTally(){   // {keyword: {label, count}} from inventory item names
+    const out = {};
+    for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value||"").trim(); if(!nm) continue; const lc = nm.toLowerCase();
+      AMMO_KEYWORDS.forEach(([kw,label]) => { if(lc.includes(kw)){ (out[kw] = out[kw] || {label, count:0}).count += rowQty(i); } }); }
+    return out;
+  }
+  function thrownCount(nm){ const lc = String(nm).toLowerCase(); let c = 0; for(let i=0;i<NINV;i++){ if(($("invname-"+i).value||"").trim().toLowerCase() === lc) c += rowQty(i); } return c; }
+  function renderAmmo(){
+    const el = $("ammo-panel"); if(!el) return;
+    const tally = ammoTally(), kinds = Object.keys(tally), weapons = [];
+    for(let i=0;i<NATTACKS;i++){ const nm = ($("atkname-"+i).value||"").trim(); if(!nm) continue; const k = ammoKindFor(nm); if(k) weapons.push({name:nm, kind:k}); }
+    if(!kinds.length && !weapons.length){ el.style.display = "none"; el.innerHTML = ""; return; }
+    el.style.display = "";
+    const needsAmmo = weapons.some(w => w.kind.indexOf("thrown:") !== 0);   // a bow/crossbow/sling that draws from a stack
+    const counts = kinds.length ? kinds.map(kw => `<span class="ammo-count">${esc(tally[kw].label)}: <b>${tally[kw].count}</b></span>`).join("")
+                                : (needsAmmo ? `<span class="ammo-none">No ammunition in inventory</span>` : "");
+    const fires = weapons.map(w => {
+      const thrown = w.kind.indexOf("thrown:") === 0, nm = thrown ? w.kind.slice(7) : "";
+      const cnt = thrown ? thrownCount(nm) : (tally[w.kind] ? tally[w.kind].count : 0);
+      const verb = thrown ? "Throw" : "Fire";
+      return `<button type="button" class="ammo-fire" data-kind="${esc(w.kind)}"${cnt<=0?" disabled":""} title="Expend 1 ${thrown?"of this weapon":(tally[w.kind]?tally[w.kind].label:w.kind)}">${verb} ${esc(w.name)} <span class="ammo-left">${cnt}</span></button>`;
+    }).join("");
+    el.innerHTML = `<div class="ammo-h">Ammunition</div><div class="ammo-counts">${counts}</div>` + (fires ? `<div class="ammo-fires noprint">${fires}</div>` : "");
+  }
+  function fireAmmo(kind){   // expend one piece of the matching ammo (or one of a thrown weapon)
+    const thrown = kind.indexOf("thrown:") === 0, nm = thrown ? kind.slice(7).toLowerCase() : "";
+    for(let i=0;i<NINV;i++){ const lc = ($("invname-"+i).value||"").trim().toLowerCase(); if(!lc || rowQty(i) <= 0) continue;
+      if(thrown ? (lc === nm) : lc.includes(kind)){ $("invqty-"+i).value = Math.max(0, rowQty(i) - 1); refreshRowWeight(i); save(); compute(); return; } }
+  }
+  // ===== Cast: spend a spell slot from a spell row, prompting for the upcast level when higher slots are open =====
+  function castBtnHTML(l){ return l > 0 ? `<button type="button" class="sp-cast noprint" data-castlvl="${l}" tabindex="-1" title="Cast — expend a spell slot (asks which level if you can upcast)">⚡</button>` : ""; }
+  function slotRemaining(L){ const tot = num(($("slot"+L)||{}).value, 0), used = num(($("slot"+L+"u")||{}).value, 0); return Math.max(0, tot - used); }
+  function expendSlot(L){ const tu = $("slot"+L+"u"), tot = num(($("slot"+L)||{}).value, 0); if(!tu) return;
+    const used = num(tu.value, 0); if(used >= tot){ flashStatus(`No level ${L} spell slots left`); return; }
+    tu.value = used + 1; save(); compute(); flashStatus(`Cast at level ${L} — ${tot - used - 1} slot${tot - used - 1 === 1 ? "" : "s"} left`); }
+  function onCastClick(btn){
+    const base = +btn.dataset.castlvl, avail = [];
+    for(let L = base; L <= 9; L++) if(slotRemaining(L) > 0) avail.push(L);
+    if(!avail.length){ flashStatus(`No level ${base} (or higher) spell slots available`); return; }
+    if(avail.length === 1){ expendSlot(avail[0]); return; }   // only one option → just cast it (no upcast choice)
+    openCastPop(btn, avail);                                   // higher slots open → prompt for the upcast level
+  }
+  function closeCastPop(){ const p = $("cast-pop"); if(p) p.remove(); }
+  function openCastPop(btn, avail){
+    closeCastPop();
+    const pop = document.createElement("div"); pop.id = "cast-pop"; pop.className = "cast-pop noprint";
+    pop.innerHTML = `<div class="cast-pop-h">Cast at level</div>` + avail.map(L =>
+      `<button type="button" class="cast-pop-lvl" data-lvl="${L}">Lv ${L} <span>${slotRemaining(L)} left</span></button>`).join("");
+    document.body.appendChild(pop);
+    const r = btn.getBoundingClientRect();
+    pop.style.left = Math.max(6, Math.min(window.innerWidth - pop.offsetWidth - 8, r.left + window.scrollX)) + "px";
+    pop.style.top = (r.bottom + window.scrollY + 4) + "px";
+  }
   // ---- Feature-granted special attacks (not inventory weapons) → Attacks table ----
   // Covers the Dragonborn Breath Weapon (save-based, bonus cell shows the save DC), racial natural weapons
   // (claws/horns/bite…), and subclass/feat attacks (Soulknife, Armorer, Sun Soul…). Each derived row is
@@ -9164,6 +9262,15 @@
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
+    document.addEventListener("click", e => {   // ammo "Fire/Throw" buttons + spell "Cast" buttons (delegated; survive re-renders)
+      const fire = e.target.closest(".ammo-fire");
+      if(fire && !fire.disabled){ fireAmmo(fire.dataset.kind); return; }
+      const cast = e.target.closest(".sp-cast");
+      if(cast){ e.preventDefault(); onCastClick(cast); return; }
+      const lvlBtn = e.target.closest(".cast-pop-lvl");
+      if(lvlBtn){ expendSlot(+lvlBtn.dataset.lvl); closeCastPop(); return; }
+      if(!e.target.closest("#cast-pop")) closeCastPop();
+    });
     window.addEventListener("storage", e => {   // sourcebooks are app-wide: a reload/clear in another tab re-applies here too
       if(e.key === SOURCES_KEY || e.key === SOURCES_RAW_KEY){ reloadSourcesFromStorage(); flashStatus("Sourcebooks updated in another tab — refreshed"); }
     });

@@ -57,14 +57,14 @@
       "note": "N/A (MPMB-internal): appends a note into an existing named note block on a Notes page; no analog in this sheet's block-based Features/Notes model."
     },
     "ammoAdd": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "N/A: 0 in-data entities use this field, so it cannot manifest on any character built from the baked data."
+      "note": "Implemented sheet-appropriately: ammunition is tracked from free-text inventory item names (any ammo type works without registration \u2014 supersedes MPMB's need to ADD ammo types to a dropdown), with a live tally + per-ranged-weapon Fire/Throw buttons beside the Attacks table that expend one piece from inventory (renderAmmo/fireAmmo, weapon detected via the ammunition/AF/thrown props)."
     },
     "ammoOptions": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "N/A: 0 in-data entities use this field, so it cannot manifest on any character built from the baked data."
+      "note": "Same inventory-based ammunition system as ammoAdd: arbitrary ammo types are recognized from inventory names and expended via the Fire button, so no separate AmmoList registration is needed."
     },
     "armorAdd": {
       "supported": true,
