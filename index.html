@@ -2632,11 +2632,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v324 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v325 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.29.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.30.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2644,6 +2644,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v325", semver:"2.30.0", items:[
+      "Loading or reloading a sourcebook from your 5etools server now extracts the same item and spell details the built-in content already had: magic weapons (an equipped named or “+N” weapon becomes an Attacks row), magic-item granted spells (the Granted Spells table), spell-attack cantrips (the Spell Sniper filter), per-slot upcast damage scaling (the upcast picker), and equipped-item (dis)advantage lines (the Defenses box). Freshly loaded books were silently missing all of these before. If you have books loaded, open Settings → Source books and click “Reload all loaded sources” to pick them up."
+    ]},
     {v:"v324", semver:"2.29.0", items:[
       "Prepared casters (Cleric, Druid, Paladin, Artificer, Wizard) now see a tidy spell list: within each spell level, the spells you don't have prepared are tucked behind a \"Show N not prepared\" toggle, so your prepared spells stand out. Preparing a spell moves it up into the ready list; unprepare it and it drops back under the toggle. Known casters (Bard, Sorcerer, Warlock, Ranger) and cantrips are unchanged."
     ]},
@@ -2861,7 +2864,7 @@
   ];
   const SLOT = (location.hash.match(/slot=([\w-]+)/) || [])[1] || "";   // each "New" tab gets its own slot
   const KEY = SLOT ? BASE_KEY + "::" + SLOT : BASE_KEY;                  // namespaced character storage
-  const DATA_VERSION = 30;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems). v27: itemSpells (magic-item spell grants → Granted Spells table). v28: attackSpells (spell-attack-roll names → Spell Sniper cantrip filter). v29: spellUpcast {name:{up,at}} (per-slot-level damage scaling → upcast picker). v30: itemAdvText {name:text} (item advantage sentences → Defenses item line).
+  const DATA_VERSION = 31;   // extractor shape version (mirror of build-data.py DATA_VERSION); bump when extracted data gains/changes fields so stale loads are flagged. v20: items with spell attack / save DC bonuses (spellBonusItems). v27: itemSpells (magic-item spell grants → Granted Spells table). v28: attackSpells (spell-attack-roll names → Spell Sniper cantrip filter). v29: spellUpcast {name:{up,at}} (per-slot-level damage scaling → upcast picker). v30: itemAdvText {name:text} (item advantage sentences → Defenses item line). v31: the in-browser loader now ALSO produces the v24–v30 item/spell detail fields (magicWeapons/itemSpells/attackSpells/spellUpcast/itemAdvText) — previously only build-data.py did, so a freshly loaded book was missing them; bump prompts a reload to pick them up.
   const SOURCES_KEY = "dnd-sheet-sources";   // imported sourcebook data — shared across all slots
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
@@ -4429,6 +4432,117 @@
     }));
     return out;
   }
+  // ---- v24–v30 item/spell detail extractors (ported from build-data.py so a live source load reaches full parity) ----
+  function etAttackSpells(spellsData, SRC){   // v28: spells needing a spell attack roll → Spell Sniper cantrip filter
+    const s = new Set();
+    (spellsData.spell||[]).forEach(sp => { if(sp.source === SRC && sp.spellAttack && sp.name) s.add(sp.name); });
+    return [...s].sort();
+  }
+  const ET_SCALEDAMAGE = /\{@scaledamage\s+([^|]+)\|([^|]+)\|([^}]+)\}/;
+  function etSpellUpcast(spellsData, SRC){   // v29: per-slot-level damage scaling (5etools @scaledamage) → upcast picker
+    const out = {};
+    (spellsData.spell||[]).forEach(sp => {
+      if(sp.source !== SRC || !sp.name || out[sp.name]) return;
+      const m = ET_SCALEDAMAGE.exec(JSON.stringify(sp.entriesHigherLevel || ""));
+      if(!m) return;
+      const rng = m[2].trim();
+      const at = rng.indexOf("-") >= 0 ? parseInt(rng.split("-")[0],10) : (sp.level || 1);
+      out[sp.name] = {up:m[3].trim(), at};
+    });
+    return out;
+  }
+  const ET_ADV_SIGNAL = /\b(?:advantage|disadvantage)\b/i;
+  function etItemAdvText(itemsBase, itemsData, SRC){   // v30: (dis)advantage sentences from a magic item → live "From equipped items" Defenses line
+    const out = {};
+    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => {
+      if(it.source !== SRC || !it.name || out[it.name]) return;
+      if(!(ET_MAGIC_RARITY.has(it.rarity) || it.wondrous || it.reqAttune)) return;
+      const txt = etText(it.entries||[]);
+      const sents = txt.split(/(?<=[.;])\s+/).map(x => x.trim()).filter(x => ET_ADV_SIGNAL.test(x));
+      if(sents.length) out[it.name] = sents.join(" ").slice(0,600);
+    }));
+    return out;
+  }
+  const ET_ITEMSPELL_SMALL = new Set(["of","the","a","an","and","to","from","with","in","on"]);
+  function _itemspellClean(s){   // 5etools spell ref → display Title Case (mirror of build-data.py _itemspell_clean)
+    s = String(s).split("|")[0].split("#")[0].trim().replace(/\s*\(.*?\)\s*$/, "");
+    if(!s) return "";
+    return s.split(/\s+/).map((w,i) => (i === 0 || !ET_ITEMSPELL_SMALL.has(w.toLowerCase()))
+      ? (w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()) : w.toLowerCase()).join(" ");
+  }
+  function _itemspellUse(bucket, key){
+    const m = String(key).match(/^\d+/); const n = m ? parseInt(m[0],10) : 1;
+    if(bucket === "charges") return n === 1 ? "1 charge" : n + " charges";
+    if(bucket === "daily")   return n + "/day";
+    if(bucket === "rest")    return n + "/rest";
+    if(bucket === "limited") return n + " uses";
+    return "";
+  }
+  function _parseAttachedSpells(att){   // 5etools attachedSpells → [{n, u}]
+    const out = [], seen = new Set();
+    const add = (name, u) => { const nm = _itemspellClean(name); if(!nm) return; const k = nm.toLowerCase() + "|" + u; if(seen.has(k)) return; seen.add(k); out.push({n:nm, u}); };
+    if(Array.isArray(att)){ att.forEach(s => add(s, "")); }
+    else if(att && typeof att === "object"){
+      (att.will||[]).forEach(s => add(s, "at will"));
+      (att.ritual||[]).forEach(s => add(s, "ritual"));
+      ["charges","daily","rest","limited"].forEach(bucket => { const blk = att[bucket]; if(blk && typeof blk === "object") for(const key in blk) (blk[key]||[]).forEach(s => add(s, _itemspellUse(bucket, key))); });
+      const res = att.resource; if(res && typeof res === "object") for(const k in res) (res[k]||[]).forEach(s => add(s, ""));
+    }
+    return out;
+  }
+  function etItemSpells(itemsBase, itemsData, SRC){   // v27: magic-item spell grants → "Granted Spells" table
+    const out = {};
+    [[itemsBase,"baseitem"],[itemsData,"item"]].forEach(([coll,key]) => (coll[key]||[]).forEach(it => {
+      if(it.source !== SRC || !it.name || !it.attachedSpells) return;
+      if(!(ET_MAGIC_RARITY.has(it.rarity) || it.wondrous || it.reqAttune)) return;   // same universe as the magic-item picker
+      const rows = _parseAttachedSpells(it.attachedSpells);
+      if(rows.length) out[it.name] = rows;
+    }));
+    return out;
+  }
+  function _variantRider(entries){
+    const m = /extra (\d+d\d+)\s+([A-Za-z]+) damage/i.exec(etText(entries||[]) || "");
+    return m ? ("+" + m[1] + " " + m[2].toLowerCase()) : "";
+  }
+  function etMagicWeapons(itemsData, SRC){   // v24: named magic weapons → {name_lc: {base, bonus, rider}} so an equipped one becomes an Attacks row
+    const out = {};
+    (itemsData.item||[]).forEach(it => {
+      const nm = it.name, bi = it.baseItem;
+      if(it.source !== SRC || !nm || !bi || !(it.type === "M" || it.type === "R")) return;
+      const bm = /\+(\d+)/.exec(String(it.bonusWeapon || "")); const bonus = bm ? parseInt(bm[1],10) : 0;
+      const rid = /extra (\d+d\d+)\s+([a-z]+) damage/i.exec(etText(it.entries||[]));   // damage rider (Mace of Disruption → +2d6 radiant)
+      out[nm.toLowerCase()] = {base:_titlecase(String(bi).replace(/\|.*$/,"").trim()), bonus, rider:(rid ? "+" + rid[1] + " " + rid[2].toLowerCase() : "")};
+    });
+    return out;
+  }
+  function _variantMatches(cond, b){
+    for(const k in cond){ const val = cond[k], bv = b[k];
+      if(k === "type"){ if(String(bv).split("|")[0] !== String(val).split("|")[0]) return false; }
+      else if(k === "name"){ if(b.name !== val) return false; }
+      else if(bv !== val) return false;
+    }
+    return true;
+  }
+  function etVariantWeapons(itemsBase, magicVariants, SRC){   // v24: magic-variant templates × base weapons → named magic weapons (Flame Tongue Longsword, Vicious Greataxe, …)
+    const mv = (magicVariants && magicVariants.magicvariant) || [];
+    const bases = (itemsBase.baseitem||[]).filter(b => b.source === SRC && b.weapon);
+    const out = {};
+    mv.forEach(v => {
+      const inh = v.inherits || {}, pre = inh.namePrefix, suf = inh.nameSuffix;
+      const bm = /\+(\d+)/.exec(String(inh.bonusWeapon || "")); const bonus = bm ? parseInt(bm[1],10) : 0;
+      const rider = _variantRider(inh.entries || []);
+      if(bonus === 0 && !rider && !(pre || suf)) return;
+      bases.forEach(b => {
+        const req = v.requires || [];
+        if(!req.some(c => _variantMatches(c, b))) return;
+        if(v.excludes && _variantMatches(v.excludes, b)) return;
+        const full = pre ? (pre + b.name) : suf ? (b.name + suf) : b.name;
+        const key = full.toLowerCase();
+        if(!(key in out)) out[key] = {base:b.name, bonus, rider};
+      });
+    });
+    return out;
+  }
   function etPacks(itemsData, SRC){
     const out = {};
     (itemsData.item||[]).forEach(it => {
@@ -4468,10 +4582,10 @@
   async function fetch5etoolsBook(base, srcCode){
     const root = base.replace(/\/+$/,"") + "/data/";
     const J = p => fetch(root + p).then(r => { if(!r.ok) throw new Error(r.status+" "+p); return r.json(); });
-    const [races, raceFluff, bg, feats, itemsBase, itemsData, langs, spellIdx, classIdx] = await Promise.all([
+    const [races, raceFluff, bg, feats, itemsBase, itemsData, langs, spellIdx, classIdx, magicVariants] = await Promise.all([
       J("races.json").catch(()=>({})), J("fluff-races.json").catch(()=>({})), J("backgrounds.json").catch(()=>({})), J("feats.json").catch(()=>({})),
       J("items-base.json").catch(()=>({})), J("items.json").catch(()=>({})), J("languages.json").catch(()=>({})),
-      J("spells/index.json").catch(()=>({})), J("class/index.json").catch(()=>({})),
+      J("spells/index.json").catch(()=>({})), J("class/index.json").catch(()=>({})), J("magicvariants.json").catch(()=>({})),
     ]);
     const spellsData = spellIdx[srcCode] ? await J("spells/"+spellIdx[srcCode]).catch(()=>({})) : {};
     let sourcesForSrc = {}; try{ sourcesForSrc = (await J("spells/sources.json"))[srcCode] || {}; }catch(e){}
@@ -4492,7 +4606,10 @@
       itemWeights:etItemWeights(itemsBase,itemsData,srcCode),
       itemNames:etItemNames(itemsBase,itemsData,srcCode), futuristic:etFuturistic(itemsBase,itemsData,srcCode), modern:etModern(itemsBase,itemsData,srcCode), containers:etContainers(itemsBase,itemsData,srcCode),
       attuneItems:etAttuneItems(itemsBase,itemsData,srcCode), magicItems:etMagicItems(itemsBase,itemsData,srcCode),
-      itemText:etItemText(itemsBase,itemsData,srcCode)};
+      itemText:etItemText(itemsBase,itemsData,srcCode),
+      itemSpells:etItemSpells(itemsBase,itemsData,srcCode), attackSpells:etAttackSpells(spellsData,srcCode),
+      spellUpcast:etSpellUpcast(spellsData,srcCode), itemAdvText:etItemAdvText(itemsBase,itemsData,srcCode),
+      magicWeapons:{...etVariantWeapons(itemsBase,magicVariants,srcCode), ...etMagicWeapons(itemsData,srcCode)}};
   }
   function mergeBook(into, add, bookName){
     into._meta = into._meta || {};
@@ -4557,7 +4674,7 @@
       add.classSpells[cn].forEach(x => { if(idx.has(x.n)) ex[idx.get(x.n)] = x; else { idx.set(x.n, ex.length); ex.push(x); } });
       ex.sort((a,b) => a.l-b.l || a.n.localeCompare(b.n));
     }
-    ["languages","tools","itemNames","futuristic","modern","containers","attuneItems","magicItems"].forEach(cat => {   // plain string arrays
+    ["languages","tools","itemNames","futuristic","modern","containers","attuneItems","magicItems","attackSpells"].forEach(cat => {   // plain string arrays
       into[cat] = into[cat] || [];
       const seen = new Set(into[cat]);
       (add[cat]||[]).forEach(x => { if(!seen.has(x)){ into[cat].push(x); seen.add(x); } });
@@ -4569,6 +4686,10 @@
     for(const k in (add.itemWeights||{})) into.itemWeights[k] = add.itemWeights[k];
     into.itemText = into.itemText || {};
     for(const k in (add.itemText||{})) into.itemText[k] = add.itemText[k];
+    ["itemSpells","spellUpcast","itemAdvText","magicWeapons"].forEach(cat => {   // object-keyed item/spell detail maps (v24–v30)
+      into[cat] = into[cat] || {};
+      for(const k in (add[cat]||{})) into[cat][k] = add[cat][k];
+    });
     into.toolCats = into.toolCats || {artisan:[], instrument:[]};   // union the artisan / instrument option lists
     ["artisan","instrument"].forEach(cat => {
       const seen = new Set(into.toolCats[cat] || []);
