@@ -767,6 +767,10 @@
   .sp-addrow td{padding:2px 4px; border-top:none}
   .sp-add{font:inherit; font-size:12px; font-weight:600; color:var(--muted); background:none; border:none; cursor:pointer; padding:3px 2px}
   .sp-add:hover{color:var(--accent); text-decoration:underline}
+  .spelltable tr.sp-unprep.is-hidden{display:none}                  /* unprepared spells hidden until their level's toggle is opened */
+  .sp-unprep-toggle td{padding:2px 4px; border-top:none}
+  .sp-unprep-btn{font:inherit; font-size:11px; font-weight:600; color:var(--muted); background:none; border:none; cursor:pointer; padding:3px 2px; letter-spacing:.02em}
+  .sp-unprep-btn:hover{color:var(--accent)}
   .spellhead{display:grid; grid-template-columns:1.4fr .8fr 1fr 1fr 1fr; gap:10px; align-items:end}
   .spellhead.spellhead-lvl{grid-template-columns:1.3fr .7fr .8fr 1fr 1fr 1fr}   /* extra sheets add a Class Level dropdown */
   .spellhead .stat .calc{min-height:30px; display:flex; align-items:center; justify-content:center}   /* room to write on a blank sheet */
@@ -2628,11 +2632,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v323 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v324 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.28.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.29.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2640,6 +2644,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v324", semver:"2.29.0", items:[
+      "Prepared casters (Cleric, Druid, Paladin, Artificer, Wizard) now see a tidy spell list: within each spell level, the spells you don't have prepared are tucked behind a \"Show N not prepared\" toggle, so your prepared spells stand out. Preparing a spell moves it up into the ready list; unprepare it and it drops back under the toggle. Known casters (Bard, Sorcerer, Warlock, Ranger) and cantrips are unchanged."
+    ]},
     {v:"v323", semver:"2.28.2", items:[
       "Small polish: the weapon fire/throw buttons in the Attacks table are inset from the right edge of the row instead of touching it."
     ]},
@@ -5207,6 +5214,13 @@
     }
     return `<td class="col-prep"><span class="prep-inner">${ritSlot}${control}</span></td>`;
   }
+  // Per-level "unprepared spells" collapsible state, keyed "inst:level". Default closed, so a prepared caster sees
+  // only the spells they have ready, with the rest tucked behind a toggle in each level.
+  let unprepOpen = {};
+  function unprepToggle(inst, l, n, open){   // the "Show/Hide N not prepared" row; "" when the level has no unprepared spells
+    if(!n) return "";
+    return `<tr class="sp-unprep-toggle noprint"><td colspan="8"><button type="button" class="sp-unprep-btn" data-inst="${inst}" data-l="${l}" data-count="${n}">${open?"▾ Hide":"▸ Show"} ${n} not prepared</button></td></tr>`;
+  }
   function renderSpellTable(inst=0){
     const cls = sEl(inst,"spellclass").value, info = CASTERS[cls], spellEntries = spellEntriesOf(inst), preparedSpells = preparedOf(inst);
     const alwaysSet = alwaysPreparedNames(cls), isPrepCaster = !!(info && info.prepares), F = freeOf(inst);   // "granted/free" denotation context
@@ -5237,20 +5251,26 @@
       const lvlNames = writeIn ? classSpellNamesAt(cls, l) : null;
       body += `<tr class="sp-section"><td colspan="8">${l===0 ? "Cantrips" : "Level "+l}${writeIn ? spellLevelDatalist(inst, l, lvlNames) : ""}</td></tr>`;
       if(l>0 && fullByLvl){                      // full-list class → pre-fill this level's real spells (Prep checkbox each)
+        const open = !!unprepOpen[inst+":"+l]; let prep = "", unprep = "", nUnprep = 0;   // unprepared spells collapse into a per-level toggle
         (fullByLvl[l]||[]).forEach(sp => {
           const d = spellData(sp.n), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           const locked = alwaysSet.has((sp.n||"").toLowerCase()), free = locked || !!F[sp.n];
-          const castable = !!preparedSpells[sp.n] || free || !isPrepCaster;   // prepared / always-prepared spells get a Cast button
-          body += `<tr>`+
-            prepCellHTML({inst, sp:sp.n, prepared:!!preparedSpells[sp.n] || free, free, locked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)})+
+          const prepared = !!preparedSpells[sp.n] || free;
+          const castable = prepared || !isPrepCaster;   // prepared / always-prepared spells get a Cast button
+          const hide = isPrepCaster && !prepared;        // unprepared → behind the collapsible
+          const row = `<tr${hide ? ` class="sp-unprep${open?"":" is-hidden"}" data-unprep="${inst}:${l}"` : ""}>`+
+            prepCellHTML({inst, sp:sp.n, prepared, free, locked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)})+
             `<td class="col-name"${titleAttr}>${esc(sp.n)}${castable ? castBtnHTML(l) : ""}</td>`+ propCells(d) +`</tr>`;
+          if(hide){ unprep += row; nUnprep++; } else prep += row;
         });
+        body += prep + unprepToggle(inst, l, nUnprep, open) + unprep;
       } else {                                   // write-in rows: type any name (unknown → custom spell); cantrips never show Prep
         if(spellEntries[l]) spellEntries[l].sort((a,b) => {   // alphabetical within the level; blank rows sink to the bottom
           const an = (a.name||"").trim(), bn = (b.name||"").trim();
           if(!an !== !bn) return an ? -1 : 1;
           return an.localeCompare(bn);
         });
+        const open = !!unprepOpen[inst+":"+l]; let prep = "", unprep = "", nUnprep = 0;   // spellbook spells not prepared today collapse into a per-level toggle
         (spellEntries[l]||[]).forEach((m,i) => {
           const named = (m.name||"").trim(), d = spellData(m.name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
           const mFree = isPrepCaster && ((!!m.free) || alwaysSet.has((m.name||"").toLowerCase()));
@@ -5263,10 +5283,13 @@
           const propArea = (named && !d)         // typed-in name with no spell data yet → offer the properties wizard right in the info columns
             ? `<td class="col-comp prop-setbtn" colspan="6"><button type="button" class="sp-edit-inline noprint" data-inst="${inst}" data-l="${l}" data-i="${i}">✎ Set spell properties…</button></td>`
             : propCells(d);
-          const rowClass = named ? ` class="has-spell"` : "";
+          const hide = isPrepCaster && l>0 && named && !(!!m.prep || mFree);   // named spellbook spell, not prepared → collapsible
+          const cls = [named ? "has-spell" : "", hide ? ("sp-unprep" + (open ? "" : " is-hidden")) : ""].filter(Boolean).join(" ");
           const castBtn = (named && l>0) ? castBtnHTML(l) : "";   // known/write-in spell → Cast button
-          body += `<tr${rowClass}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}${castBtn}</td>${propArea}</tr>`;
+          const row = `<tr${cls ? ` class="${cls}"` : ""}${hide ? ` data-unprep="${inst}:${l}"` : ""}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}${castBtn}</td>${propArea}</tr>`;
+          if(hide){ unprep += row; nUnprep++; } else prep += row;
         });
+        body += prep + unprepToggle(inst, l, nUnprep, open) + unprep;
         if(l>0) body += `<tr class="sp-addrow noprint"><td colspan="8"><button type="button" class="sp-add" data-inst="${inst}" data-l="${l}">+ add blank row</button></td></tr>`;   // grow this level on demand (cantrips are a fixed count, so no add-row there)
       }
     }
@@ -6434,11 +6457,12 @@
           const wasSetBtn = !!tr.querySelector(".prop-setbtn"), nowCustom = !!((t.value||"").trim() && !d);
           if(wasSetBtn !== nowCustom) renderSpellTable(inst);
         }
-      } else SE[l][i].prep = t.checked;
+      } else { SE[l][i].prep = t.checked; if(e.type === "change") renderSpellTable(inst); }   // re-partition so the row leaves/enters the unprepared collapsible
     }
     if(t.classList.contains("prep-spell")){                            // pre-filled full-list spell
-      const P = preparedOf(+(t.dataset.inst||0));
-      if(t.checked) P[t.dataset.sp] = true; else delete P[t.dataset.sp]; }
+      const inst = +(t.dataset.inst||0), P = preparedOf(inst);
+      if(t.checked) P[t.dataset.sp] = true; else delete P[t.dataset.sp];
+      if(e.type === "change") renderSpellTable(inst); }                // re-partition: a prepared spell leaves the collapsible, an unprepared one rejoins it
     if(t.id === "speed" && !hasOv("speed") && _ovEditing !== "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base (unless it's pinned or being pinned)
     const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
     if(im){ const i = im[1];
@@ -9765,6 +9789,10 @@
     window.addEventListener("blur", closeCtxMenu);
     document.addEventListener("click", e => { const b = e.target.closest(".sp-add"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l;   // add another blank spell row to this level
       const SE = spellEntriesOf(inst); SE[l] = SE[l] || []; SE[l].push({name:"", prep:false}); renderSpellTable(inst); save(); } });
+    document.addEventListener("click", e => { const b = e.target.closest(".sp-unprep-btn"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l, key = inst+":"+l;   // show/hide this level's unprepared spells
+      const openNow = unprepOpen[key] = !unprepOpen[key];
+      const tb = sEl(inst,"spells"); if(tb) tb.querySelectorAll(`tr.sp-unprep[data-unprep="${key}"]`).forEach(tr => tr.classList.toggle("is-hidden", !openNow));
+      b.textContent = `${openNow?"▾ Hide":"▸ Show"} ${b.dataset.count||""} not prepared`; } });
     document.addEventListener("click", e => { const b = e.target.closest(".sp-del"); if(b){ const inst = +(b.dataset.inst||0), l = +b.dataset.l, i = +b.dataset.i;   // remove a write-in spell row (rows are sorted in place before render, so data-i matches the array index)
       const SE = spellEntriesOf(inst); if(SE[l] && i < SE[l].length){ SE[l].splice(i, 1); renderSpellTable(inst); save(); } } });
     document.addEventListener("click", e => { const b = e.target.closest(".sp-edit, .sp-edit-inline"); if(b) openSpellWizard(+(b.dataset.inst||0), +b.dataset.l, +b.dataset.i); });   // ✎ open the Custom Spell wizard
