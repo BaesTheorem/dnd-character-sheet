@@ -27,9 +27,9 @@
       "note": "same scanDefenses save-advantage path; 'Adv. on saves vs. X' lines"
     },
     "advantages": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "PARTIAL: save-type advantages now auto-applied via scanDefenses; ability-check & attack-roll advantages still manual"
+      "note": "scanDefenses() extracts (dis)advantages on saving throws, ability checks, attack rolls, AND initiative from class/race/subclass/feat prose (with any while/when qualifier) into the Defenses box; equipped magic items contribute a live read-only \"From equipped items\" line below it (DATA.itemAdvText, baked from item entries, scanned by the same scanDefenses). Covers the save/check/attack split the partial note flagged."
     },
     "affectsDuplicates": {
       "supported": true,
@@ -47,9 +47,9 @@
       "note": "Granted Spells damage rows that scale by slot level (DATA.spellUpcast, baked from 5etools @scaledamage; 84 spells) get an inline cast-level picker (base level to 9th); the Damage cell rescales live via spellDamage(d,castLevel)+upcastDice(), and the chosen level (ephemeral session state, data-cast on the cell) survives refreshSpellDamageCells. Cantrips (scale by character level) and non-damage grants get no picker. Per-source allowUpCasting:false locking is approximated: the picker shows for any scaling-damage grant rather than gating on a 47-entity registry, since the picker is an informational preview and the vast majority of these grants allow upcasting."
     },
     "altResource": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "no secondary resource cost column"
+      "note": "_altSlot() detects the common secondary recovery \u2014 a spell-slot alternative (\"you can also cast it using a spell slot\" / \"or by expending a spell slot\": Multiverse races, Fairy, Hexblood, and features) \u2014 and appends \" or slot\" to the Limited Features Recovery column (limitedFromText + the racial-innate-spell rows via ro.traits). Non-slot alternative resources are not modeled."
     },
     "amendTo": {
       "supported": false,
