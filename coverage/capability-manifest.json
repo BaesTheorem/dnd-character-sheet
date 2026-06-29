@@ -12,9 +12,9 @@
       "note": "Alert +5 init (FEAT_INIT); Defense/Warforged +1 AC"
     },
     "addTo": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "no routing of bonus spells to another feature"
+      "note": "The routing TARGET for item bonus spells. Implemented by ELSEWHERE_ITEMS: all 11 in-data entities are the wizard spellbook items, routed into the Wizard spell list via characterExpandedSpells (same mechanism as spellcastingBonusElsewhere). The target is the wizard list for every one of them."
     },
     "addToExisting": {
       "supported": true,
@@ -39,7 +39,7 @@
     "allModes": {
       "supported": false,
       "status": "verified",
-      "note": "no all-movement-mode modifier"
+      "note": "N/A: the 4 in-data features (Barbarian Fast Movement, Monk Unarmored Movement, Mobile, Pennant of the Vind Rune) are WALKING-speed bonuses, already applied correctly to the walking speed per RAW (Unarmored Movement at compute() line ~5660; Mobile/Fast Movement are user-entered walk bonuses). None use an \"all your speeds\" phrasing, so MPMB's all-modes application is not a real gap and has no baked target to fire on."
     },
     "allowUpCasting": {
       "supported": true,
@@ -54,17 +54,17 @@
     "amendTo": {
       "supported": false,
       "status": "verified",
-      "note": "features appended as standalone blocks, no amend"
+      "note": "N/A (MPMB-internal): appends a note into an existing named note block on a Notes page; no analog in this sheet's block-based Features/Notes model."
     },
     "ammoAdd": {
       "supported": false,
       "status": "verified",
-      "note": "ammo is inert consumable, no tracking"
+      "note": "N/A: 0 in-data entities use this field, so it cannot manifest on any character built from the baked data."
     },
     "ammoOptions": {
       "supported": false,
       "status": "verified",
-      "note": "no special ammo options"
+      "note": "N/A: 0 in-data entities use this field, so it cannot manifest on any character built from the baked data."
     },
     "armorAdd": {
       "supported": true,
@@ -149,7 +149,7 @@
     "fixedSpAttack": {
       "supported": false,
       "status": "verified",
-      "note": "only additive item bonus; no fixed override"
+      "note": "N/A from data: the 2 entities are Wand of Winter (its text states no fixed \"+X to hit\", only that it casts ray of frost) and Spell Gem (not present in the baked item universe). Unlike fixedDC, there is no fixed spell-attack number to extract."
     },
     "hpForceRecalc": {
       "supported": true,
@@ -194,12 +194,12 @@
     "page3notes": {
       "supported": false,
       "status": "verified",
-      "note": "no per-note page routing"
+      "note": "N/A (MPMB-internal): a layout flag choosing the 3rd-page Notes section vs a separate Notes page; this sheet has its own fixed page architecture, so the flag has no meaning here."
     },
     "popupName": {
       "supported": false,
       "status": "verified",
-      "note": "no change-popup generated"
+      "note": "N/A (MPMB-internal): text for MPMB's change-notification popup dialog. This sheet auto-applies changes silently and has no popup system to name."
     },
     "recovery": {
       "supported": true,
@@ -269,7 +269,7 @@
     "stopeval": {
       "supported": false,
       "status": "verified",
-      "note": "no conditional cancel hook"
+      "note": "N/A (MPMB-internal): a generic per-modifier veto function (return true to skip a modifier). This sheet has no generic conditional-modifier engine; the specific conditional features behind the 12 entities (Bracers of Defense AC, Dual Wielder, Forge Domain, etc.) are handled case-by-case where they matter."
     },
     "subclass": {
       "supported": true,
