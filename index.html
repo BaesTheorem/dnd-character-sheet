@@ -2631,11 +2631,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v319 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v320 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.27.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.27.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2643,6 +2643,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v320", semver:"2.27.1", items:[
+      "Multiclass casters now open up scroll eligibility live: add or switch a spellcasting class and any scrolls on that class's list immediately become castable (a Wizard/Cleric can use both Wizard and Cleric scrolls). Previously the Spell Scrolls list didn't refresh when you changed a caster class, so newly-eligible scrolls stayed greyed out until the next edit."
+    ]},
     {v:"v319", semver:"2.27.0", items:[
       "Spell scrolls now follow the casting rule: you can only cast one if the spell is on one of your own classes' spell lists. Scrolls for spells you can't cast (or any scroll on a character with no spellcasting class) show a dimmed ⚡ with a \"not on your class spell list\" note, and clicking it pops an explainer dialog instead of using up the scroll. Eligible scrolls cast and deplete as before."
     ]},
@@ -5898,7 +5901,8 @@
     renderContainers();      // container carets, nesting, collapse
     { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig() + "" + ($("race").value||"")
         + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")+":"+(s.featVariant||"")+":"+((s.featSpells||[]).join("|"))).join(",")   // feat type + spell picks drive limited rows, granted spells, and learned-spell sync
-        + "" + scrollSig();   // spell scrolls in inventory surface as one-time-use casts in the granted table
+        + "" + scrollSig()   // spell scrolls in inventory surface as one-time-use casts in the granted table
+        + "" + [...characterCasterKeys()].sort().join(",");   // caster classes drive which scrolls are castable (multiclassing opens up more lists)
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); renderItemDefenses(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { let esp = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(cb && cb.checked && ELSEWHERE_ITEMS[nm]) esp += nm + "|"; }   // equipping a spellbook item changes the class spell list → re-render the spell sheets
       if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
