@@ -1525,22 +1525,29 @@
     body.ddb-layout #pagetabs{ display:none !important; }
     body.ddb-layout #page-core{ display:none !important; }   /* emptied — its cards live in the scaffold now */
 
-    body.ddb-layout #ddb-topbar{ grid-area:top; display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; }   /* natural card heights — don't stretch Abilities/Prof to the tall ident card */
+    /* Header band like D&D Beyond: a compact ident on the left, with the Abilities strip stacked over the
+       combat/prof cluster on the right — so the right side is filled instead of leaving a big gap. */
+    body.ddb-layout #ddb-topbar{ grid-area:top; display:grid; gap:12px; align-content:start;
+      grid-template-columns:minmax(300px,0.95fr) minmax(0,2.05fr);
+      grid-template-areas:"ident abilities" "ident combat"; }
     body.ddb-layout #ddb-topbar > .card{ margin:0; }
-    body.ddb-layout #ddb-topbar .ddb-ident{ flex:1.5 1 380px; min-width:340px; }
-    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid{ grid-template-columns:repeat(2,1fr); margin-top:8px; }
+    body.ddb-layout #ddb-topbar .ddb-ident{ grid-area:ident; min-width:0; align-self:start; }
+    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid{ grid-template-columns:repeat(2,1fr); gap:6px 10px; margin-top:6px; }
     body.ddb-layout #ddb-topbar .ddb-ident .meta-grid > div:last-child{ grid-column:1 / -1; }   /* Experience row spans full width so the XP total + Level Up button + status fit */
-    body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:118px; min-width:118px; flex:0 0 118px; height:150px; }   /* keep the portrait box its proper ~4:5 shape, not a collapsed sliver */
+    body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:92px; min-width:92px; flex:0 0 92px; height:116px; }
     body.ddb-layout #ddb-rail [data-csec="hitdice"] .hd-grid{ grid-template-columns:1fr 1fr; }   /* 4-across is too tight in the 232px rail — wrap to 2×2 */
     body.ddb-layout #ddb-topbar .ddb-ident .xp-add, body.ddb-layout #ddb-topbar .ddb-ident #btn-addxp{ display:none; }   /* keep the +gained / Add XP convenience out of the header; edit the XP total directly */
     body.ddb-layout #ddb-topbar .ddb-ident .xp-status{ font-size:11px; color:var(--muted); }   /* the Level Up button (#btn-levelup) + level/XP status now show in the full-width Experience row */
-    body.ddb-layout #ddb-topbar [data-csec="abilities"]{ flex:2 1 350px; }
-    body.ddb-layout #ddb-topbar .ddb-combatcluster{ flex:2 1 340px; display:flex; gap:12px; align-items:flex-start; }   /* Prof/Inspiration keeps its natural height instead of stretching to the tall Combat card */
-    body.ddb-layout #ddb-topbar .ddb-combatcluster > .card{ margin:0; }
-    body.ddb-layout #ddb-topbar [data-csec="topstats"]{ flex:0 0 132px; }
-    body.ddb-layout #ddb-topbar [data-csec="combat"]{ flex:1 1 auto; }
+    body.ddb-layout #ddb-topbar .ddb-abilstrip{ grid-area:abilities; align-self:start; display:flex; gap:12px; align-items:stretch; }
+    body.ddb-layout #ddb-topbar .ddb-abilstrip > .card{ margin:0; }
+    body.ddb-layout #ddb-topbar .ddb-abilstrip [data-csec="abilities"]{ flex:1 1 auto; }
+    body.ddb-layout #ddb-topbar [data-csec="topstats"]{ flex:0 0 150px; }   /* Prof Bonus + Inspiration sit at the end of the abilities strip, like DDB */
+    body.ddb-layout #ddb-topbar [data-csec="combat"]{ grid-area:combat; align-self:start; }
+    body.ddb-layout #ddb-topbar .ddb-flag-moved{ grid-column:1 / -1; }   /* ASI / sources / decisions banners span the full header width below the cards */
 
     /* abilities become a row of 6 vertical tiles in the header band */
+    body.ddb-layout #ddb-topbar [data-csec="abilities"] > h2{ display:none; }   /* no "Abilities" heading (DDB shows none) — saves a row */
+    body.ddb-layout #ddb-topbar [data-csec="abilities"]{ padding-top:12px; padding-bottom:12px; }
     body.ddb-layout #ddb-topbar [data-csec="abilities"] .ability-head{ display:none; }
     body.ddb-layout #ddb-topbar [data-csec="abilities"] #abilities{ display:flex; gap:8px; }
     body.ddb-layout #ddb-topbar [data-csec="abilities"] .ability{
@@ -2620,11 +2627,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v311 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v312 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.21.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.22.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2632,6 +2639,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v312", semver:"2.22.0", items:[
+      "Reorganized the D&D Beyond header so it fills the space like the real thing instead of leaving a big empty gap. Your character details sit in a compact card on the left, the six ability tiles run across the top-right with Proficiency Bonus and Inspiration tucked at the end of that same strip, and the Combat block (AC, Initiative, Speed, HP, death saves) spans the full width just below — no more dead space."
+    ]},
     {v:"v311", semver:"2.21.0", items:[
       "D&D Beyond view fixes: the Level Up button (and your XP/level status) now show in a full-width Experience row instead of being hidden, the Ability Scores and Proficiency/Inspiration boxes no longer stretch to fill the row (so they take only the height they need), and nothing on the right of the header gets clipped.",
       "Retired the standalone Hit Dice card — Hit Dice are filled in from your class and level and spent through the Short/Long Rest buttons now, so the separate box was just clutter. (Nothing is lost: the rest screen still shows and rolls your Hit Dice.)"
@@ -10824,10 +10834,10 @@
       var sc=ensureScaffold(); if(!sc) return;
       relocate(findCard('ident'), sc['ddb-topbar'], 'ident');
       var idc=findCard('ident'); if(idc) idc.classList.add('ddb-ident');
-      relocate(findCard('abilities'), sc['ddb-topbar'], 'abilities');
-      var cluster=document.createElement('div'); cluster.className='ddb-combatcluster'; sc['ddb-topbar'].appendChild(cluster);
-      relocate(findCard('topstats'), cluster, 'topstats');
-      relocate(findCard('combat'), cluster, 'combat');
+      var strip=document.createElement('div'); strip.className='ddb-abilstrip'; sc['ddb-topbar'].appendChild(strip);   // abilities + Prof/Inspiration share one strip (like DDB)
+      relocate(findCard('abilities'), strip, 'abilities');
+      relocate(findCard('topstats'), strip, 'topstats');
+      relocate(findCard('combat'), sc['ddb-topbar'], 'combat');   // Combat takes the full-width row beneath the strip
       ['sources-flag','asi-flag','decisions-flag'].forEach(function(id){ var f=el(id); if(f){ f.classList.add('ddb-flag-moved'); sc['ddb-topbar'].appendChild(f); } });
       ['saves','senses','proficiencies','defenses'].forEach(function(k){ relocate(findCard(k), sc['ddb-rail'], k); });   // Hit Dice card retired — its tracking moved into Short/Long Rest
       relocate(findCard('skills'), sc['ddb-skills'], 'skills');
