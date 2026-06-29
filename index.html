@@ -2610,11 +2610,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v308 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v309 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.18.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.19.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2622,6 +2622,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v309", semver:"2.19.0", items:[
+      "Rests now handle spell slots. A long rest restores all of your spell slots. A short rest restores a Warlock's Pact Magic slots (single-class; a multiclass Warlock gets a reminder since the slot grid mixes slot types). And a level-1+ Wizard is offered Arcane Recovery during a short rest: it recovers expended slots up to half your wizard level (none above 5th) and marks the once-per-day use in your Limited Features, so it won't offer again until you've had a long rest.",
+      "Fixed: once-per-day features like Arcane Recovery are now tracked as a daily (1/Day) recovery instead of being mis-read as short-rest, so they no longer wrongly reset every short rest."
+    ]},
     {v:"v308", semver:"2.18.0", items:[
       "Ranged attacks can now spend ammunition. Below the Attacks table there is a live ammo tally (Arrows, Bolts, Bullets, Needles) and a Fire button for each ranged weapon you have. Pressing it subtracts one piece of the matching ammo from your inventory; thrown weapons get a Throw button that subtracts the weapon itself.",
       "Spells have a Cast button. Click the lightning bolt on a spell to spend a slot of that level; if you have higher-level slots open it asks which level to cast at, and casting at a higher level spends that higher slot (so upcasting comes straight off the right slot)."
@@ -8867,10 +8871,10 @@
     if(!name) return null;
     const t = " " + String(text||"").toLowerCase().replace(/\s+/g, " ") + " ";
     let rec = null;
-    if(/short or long rest|short rest/.test(t)) rec = "SR";
+    if(/\bonce per day\b|\bper day\b|\/day\b|\beach day\b/.test(t)) rec = "1/Day";   // "per day" = a DAILY recharge even if used on a short rest (e.g. Arcane Recovery)
+    else if(/short or long rest|short rest/.test(t)) rec = "SR";
     else if(/long rest/.test(t)) rec = "LR";
     else if(/\bat dawn\b|\beach dawn\b|\bnext dawn\b/.test(t)) rec = "Dawn";
-    else if(/\bper day\b|\/day\b|\beach day\b/.test(t)) rec = "1/Day";
     if(!rec) return null;
     const countRe = /\b(\d+)\s+(?:charges|uses|luck points|ki points|sorcery points)\b/;
     const usage =   // a recovery is already required above; these are the "limited number of uses" signals
@@ -8878,6 +8882,7 @@
       /\b(?:expend|spend)s?\b[^.]{0,40}\b(?:charge|use|luck point|ki point|sorcery point)\b/.test(t) ||
       /\bregains?\b[^.]{0,60}\b(?:expended|all)\b[^.]{0,30}\b(?:charges|uses|luck points|ki points|sorcery points)\b/.test(t) ||
       /\b(?:once|twice|three times|\d+ times)\b(?!\s+(?:your|the\b|per\b|equal))/.test(t) ||   // "three times" (not a multiplier like "twice your level")
+      /\bonce per (?:day|dawn|short rest|long rest|rest)\b/.test(t) ||                          // "once per day" (Arcane Recovery) — a real 1/use, not "once per turn"
       /\bcan(?:'t|not)\b[^.]{0,25}\bagain\b/.test(t) ||                                          // "can't be used / use it / do so again until you finish a rest"
       /\bto use (?:it|this)\b[^.]{0,40}\bagain\b/.test(t) ||                                      // "to use this feature again, you must finish a long rest" (e.g. Ghost Walk)
       /\bnumber of times equal to\b/.test(t);
@@ -8890,6 +8895,7 @@
       if(am) max = am[1].slice(0,3) + "mod"; }
     if(!max){                                                   // word counts / single-use-until-rest
       if(/\bthree times\b/.test(t)) max = "3";
+      else if(/\bonce per (?:day|dawn|short rest|long rest|rest)\b/.test(t)) max = "1";   // "once per day" → 1 use
       else if(/\btwice\b/.test(t)) max = "2";
       else if(/\bcan(?:'t|not)\b[^.]{0,25}\bagain\b/.test(t)) max = "1";          // "can't do so / use it again until you finish a rest"
       else if(/\bto use (?:it|this)\b[^.]{0,40}\bagain\b/.test(t)) max = "1";     // "to use this feature again, you must finish a long rest" (e.g. Ghost Walk)
@@ -9300,6 +9306,35 @@
     }
     // Bucket every used feature for the chosen rest. A long rest recovers SR + LR + Dawn;
     // a short rest recovers only SR (LR/Dawn features wait, "unknown" = recovery we couldn't read).
+    // Class & level for rest decisions: prefer the built multiclass list, else parse the "Class & Level" text.
+    function restClasses(){
+      if((charClasses||[]).length) return charClasses.map(c => ({name:c.name||"", level:c.level||0}));
+      const out = [], rx = /([A-Za-z'’][A-Za-z'’\- ]*?)\s+(\d+)/g, str = ($("classlevel")||{}).value || ""; let m;
+      while((m = rx.exec(str))) out.push({name:m[1].trim(), level:parseInt(m[2],10)});
+      return out;
+    }
+    function restClassLevel(re){ const c = restClasses().find(x => re.test(x.name)); return c ? c.level : 0; }
+    function restSlotLevels(){ const out = []; for(let L=1;L<=9;L++) if(num(($("slot"+L)||{}).value,0) > 0) out.push(L); return out; }
+    function restClearAllSlots(){ let n = 0; for(let L=1;L<=9;L++){ const u = $("slot"+L+"u"); if(u && num(u.value,0) > 0){ u.value = ""; n++; } } return n; }   // restore every slot (long rest)
+    // Arcane Recovery: a level-1+ Wizard recovers expended slots (combined level ≤ ½ wizard level, rounded up; none above 5th).
+    function arcaneRecoveryCap(){ const wl = restClassLevel(/wizard/i); return wl >= 1 ? Math.ceil(wl / 2) : 0; }
+    function arcaneRecoveryRow(){ return lfIndexByName("Arcane Recovery"); }   // its Limited Features row, or -1
+    function arcaneRecoveryAvailable(){   // wizard 1+, has expended ≤5th slots, and the once-per-day use isn't spent
+      if(arcaneRecoveryCap() <= 0) return false;
+      const i = arcaneRecoveryRow();
+      if(i >= 0 && num(($("lfused-"+i)||{}).value, 0) >= (num(($("lfmax-"+i)||{}).value, 1) || 1)) return false;
+      for(let L=1;L<=5;L++) if(num(($("slot"+L+"u")||{}).value, 0) > 0) return true;
+      return false;
+    }
+    function arcaneRecover(){   // greedily restore the highest expended slots (≤5th) up to the cap; mark the use spent
+      let remaining = arcaneRecoveryCap(); const got = [];
+      for(let L=5; L>=1 && remaining>0; L--){ const u = $("slot"+L+"u");
+        while(u && num(u.value,0) > 0 && L <= remaining){ u.value = String(num(u.value,0) - 1); remaining -= L; got.push(L); } }
+      const i = arcaneRecoveryRow();   // mark the once-per-day use as spent in Limited Features
+      if(i >= 0){ const mx = num(($("lfmax-"+i)||{}).value, 1) || 1; $("lfused-"+i).value = String(mx); }
+      restCommit();
+      return got;
+    }
     function restGatherFeatures(kind){
       const reset = [], pending = [], unknown = [];
       for(let i = 0; i < NLIMITED; i++){
@@ -9371,6 +9406,16 @@
         if(feats.unknown.length)
           h += '<p class="wiz-hint" style="color:var(--accent)">Couldn\'t read the recovery for: ' + feats.unknown.map(f => esc(f.name) + (f.rec ? ' ("' + esc(f.rec) + '")' : '')).join(", ") + '. Reset these by hand if they should recover. Tip: write LR, SR, or Dawn in the Recover column.</p>';
 
+        if(restSlotLevels().length){   // only relevant once you have spell slots
+          h += '<label class="lbl" style="display:block; margin:16px 0 6px">Spell Slots</label>';
+          if(kind === "long") h += '<p class="wiz-hint" style="margin-top:0">All spell slots will be restored.</p>';
+          else {
+            const wlock = restClassLevel(/warlock/i), parts = [];
+            if(wlock > 0) parts.push(restClasses().length === 1 ? "Warlock Pact Magic slots will be restored." : "Warlock Pact Magic slots also return (reset by hand on a mixed multiclass grid).");
+            if(arcaneRecoveryAvailable()) parts.push("Arcane Recovery is available — you can use it after taking the rest (recovers up to " + arcaneRecoveryCap() + " slot-levels).");
+            h += '<p class="wiz-hint" style="margin-top:0">' + (parts.length ? parts.join(" ") : "Regular spell slots return on a long rest, not a short one.") + '</p>';
+          }
+        }
         h += '<label class="lbl" style="display:block; margin:16px 0 6px">Hit Dice</label>';
         if(hd.total > 0){
           h += '<p class="wiz-hint" style="margin-top:0">' + hd.avail + ' of ' + hd.total + ' available'
@@ -9412,6 +9457,11 @@
         else
           h += '<button class="btn primary" type="button" data-rest-roll style="margin:2px 0 4px">Spend a Hit Die (1d' + hd.faces + (hd.cm ? (hd.cm > 0 ? "+" + hd.cm : "" + hd.cm) : "") + ')</button>'
             + (hp.max != null && hp.cur >= hp.max ? '<p class="wiz-hint">You\'re already at full HP.</p>' : "");
+        if(arcaneRecoveryAvailable()){   // Wizard: offer Arcane Recovery during the short rest
+          h += '<label class="lbl" style="display:block; margin:16px 0 6px">Arcane Recovery</label>'
+            + '<p class="wiz-hint" style="margin-top:0">Recover expended spell slots with a combined level up to <strong>' + arcaneRecoveryCap() + '</strong> (none above 5th). Once per day.</p>'
+            + '<button class="btn primary" type="button" data-rest-arcane style="margin:2px 0 4px">Use Arcane Recovery</button>';
+        }
         body.innerHTML = h + logHtml;
         prim.textContent = "Done"; prim.onclick = closeRest;
         return;
@@ -9425,10 +9475,17 @@
     function takeShortRest(){
       const feats = restGatherFeatures("short");
       feats.reset.forEach(f => { const el = $("lfused-" + f.i); if(el) el.value = ""; });
-      restCommit();
       restState.log.push(feats.reset.length
         ? "Recovered " + feats.reset.length + " short-rest feature(s): " + feats.reset.map(f => f.name).join(", ") + "."
         : "No short-rest features needed resetting.");
+      // Warlock Pact Magic: all spell slots return on a short rest. Auto-clear only for a single-class Warlock (whose slot grid
+      // IS the pact slots); for a multiclass Warlock the grid mixes long-rest slots, so just remind.
+      const wlock = restClassLevel(/warlock/i);
+      if(wlock > 0){
+        if(restClasses().length === 1){ const n = restClearAllSlots(); if(n) restState.log.push("Warlock Pact Magic: restored all spell slots."); }
+        else restState.log.push("Warlock Pact Magic slots also return on a short rest — reset those by hand (your slot grid mixes them with long-rest slots).");
+      }
+      restCommit();
       restState.phase = "spend";
       renderRest();
     }
@@ -9453,6 +9510,7 @@
     function takeLongRest(){
       const feats = restGatherFeatures("long"), hd = restHdInfo(), hp = restHp();
       feats.reset.forEach(f => { const el = $("lfused-" + f.i); if(el) el.value = ""; });
+      const slotsCleared = restClearAllSlots();   // every spell slot returns on a long rest
       const regain = hd.used > 0 ? Math.min(hd.used, Math.max(1, Math.floor(hd.total / 2))) : 0;
       if(regain > 0 && $("hd-used")) $("hd-used").value = String(hd.used - regain);
       if(hp.max != null){ if($("hpcur")) $("hpcur").value = String(hp.max); if($("hptmp")) $("hptmp").value = ""; }
@@ -9461,6 +9519,7 @@
       log.push(feats.reset.length
         ? "Recovered " + feats.reset.length + " feature(s): " + feats.reset.map(f => f.name).join(", ") + "."
         : "No features needed resetting.");
+      if(slotsCleared) log.push("All spell slots restored.");
       if(hp.max != null) log.push("Hit points restored to full (" + hp.max + "). Temporary HP cleared.");
       log.push(regain > 0
         ? "Regained " + regain + " Hit Dice (used " + hd.used + " → " + (hd.used - regain) + ")."
@@ -9478,6 +9537,13 @@
     $("rest-modal").addEventListener("click", e => {
       if(e.target.id === "rest-modal") closeRest();                 // click the backdrop to dismiss
       else if(e.target.closest("[data-rest-roll]")) spendHitDie();  // delegated: the Spend button is re-rendered
+      else if(e.target.closest("[data-rest-arcane]")){              // Wizard Arcane Recovery
+        const got = arcaneRecover();
+        restState.log.push(got.length
+          ? "Arcane Recovery: restored " + got.length + " slot(s) (level" + (got.length>1?"s":"") + " " + got.join(", ") + "). Once-per-day use spent."
+          : "Arcane Recovery: no eligible expended slots to restore.");
+        renderRest();
+      }
     });
     document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
     document.addEventListener("click", e => { const b = e.target.closest(".inv-del"); if(b) deleteInvRow(b.dataset.r); });   // ✕ delete an inventory item
