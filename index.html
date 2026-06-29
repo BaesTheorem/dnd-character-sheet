@@ -818,6 +818,13 @@
   .cast-pop-lvl{font-size:12px; text-align:left; padding:3px 8px; border:none; background:transparent; cursor:pointer; white-space:nowrap}
   .cast-pop-lvl:hover{background:var(--ink); color:var(--paper, #fff)}
   .cast-pop-lvl span{color:var(--muted); font-size:10px; margin-left:6px}
+  /* Arcane Recovery slot picker (in the rest modal) */
+  .arc-row{display:flex; align-items:center; gap:8px; margin:3px 0; font-size:13px}
+  .arc-row .arc-lvl{min-width:34px; font-weight:700}
+  .arc-step{width:22px; height:22px; border:1px solid var(--ink); background:transparent; color:var(--ink); cursor:pointer; line-height:1; font-size:14px; padding:0}
+  .arc-step:hover:not(:disabled){background:var(--ink); color:var(--paper, #fff)}
+  .arc-step:disabled{opacity:.35; cursor:default}
+  .arc-row .arc-n{min-width:14px; text-align:center; font-weight:700}
   .cast-pop-lvl:hover span{color:inherit}
   .def-items{margin-top:6px}
   .def-items:empty{display:none}
@@ -2610,11 +2617,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v309 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v310 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.19.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.20.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2622,6 +2629,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v310", semver:"2.20.0", items:[
+      "Arcane Recovery now lets you choose which slots come back, as the feature actually reads. During a short rest a Wizard gets a per-level picker (1st–5th) with plus/minus steppers; each level is capped at what you actually expended, and a running total stops you from going over half your wizard level. Pick the exact combination you want, then recover."
+    ]},
     {v:"v309", semver:"2.19.0", items:[
       "Rests now handle spell slots. A long rest restores all of your spell slots. A short rest restores a Warlock's Pact Magic slots (single-class; a multiclass Warlock gets a reminder since the slot grid mixes slot types). And a level-1+ Wizard is offered Arcane Recovery during a short rest: it recovers expended slots up to half your wizard level (none above 5th) and marks the once-per-day use in your Limited Features, so it won't offer again until you've had a long rest.",
       "Fixed: once-per-day features like Arcane Recovery are now tracked as a daily (1/Day) recovery instead of being mis-read as short-rest, so they no longer wrongly reset every short rest."
@@ -9326,12 +9336,30 @@
       for(let L=1;L<=5;L++) if(num(($("slot"+L+"u")||{}).value, 0) > 0) return true;
       return false;
     }
-    function arcaneRecover(){   // greedily restore the highest expended slots (≤5th) up to the cap; mark the use spent
-      let remaining = arcaneRecoveryCap(); const got = [];
-      for(let L=5; L>=1 && remaining>0; L--){ const u = $("slot"+L+"u");
-        while(u && num(u.value,0) > 0 && L <= remaining){ u.value = String(num(u.value,0) - 1); remaining -= L; got.push(L); } }
-      const i = arcaneRecoveryRow();   // mark the once-per-day use as spent in Limited Features
-      if(i >= 0){ const mx = num(($("lfmax-"+i)||{}).value, 1) || 1; $("lfused-"+i).value = String(mx); }
+    function arcaneSelTotal(){ const s = (restState && restState.arcane) || {}; let t = 0; for(const L in s) t += (+L) * (s[L]||0); return t; }   // combined level of the current selection
+    function arcanePickerHTML(){   // per-level steppers (1st–5th), bounded by expended slots AND the combined-level cap, with a running total
+      const cap = arcaneRecoveryCap(), sel = (restState.arcane = restState.arcane || {}), total = arcaneSelTotal();
+      let rows = "";
+      for(let L=1; L<=5; L++){ const used = num(($("slot"+L+"u")||{}).value, 0); if(used <= 0) continue;
+        const cur = sel[L] || 0, canInc = cur < used && (total + L) <= cap, canDec = cur > 0;
+        rows += '<div class="arc-row"><span class="arc-lvl">Lv ' + L + '</span>'
+          + '<button class="arc-step" type="button" data-arc-dec="' + L + '"' + (canDec ? '' : ' disabled') + '>&minus;</button>'
+          + '<span class="arc-n">' + cur + '</span>'
+          + '<button class="arc-step" type="button" data-arc-inc="' + L + '"' + (canInc ? '' : ' disabled') + '>+</button>'
+          + '<span class="wiz-hint" style="display:inline">of ' + used + ' expended</span></div>';
+      }
+      return '<label class="lbl" style="display:block; margin:16px 0 6px">Arcane Recovery</label>'
+        + '<p class="wiz-hint" style="margin-top:0">Choose which expended slots to recover — combined level up to <strong>' + cap + '</strong> (none above 5th). Once per day.</p>'
+        + rows
+        + '<p class="wiz-hint" style="margin:6px 0 4px">Selected: <strong>' + total + '</strong> / ' + cap + ' levels.</p>'
+        + '<button class="btn primary" type="button" data-arc-apply' + (total > 0 ? '' : ' disabled') + ' style="margin:2px 0 4px">Recover selected slots</button>';
+    }
+    function arcaneRecoverPicked(){   // apply the chosen selection; mark the once-per-day use spent
+      const sel = (restState && restState.arcane) || {}, got = [];
+      for(let L=1; L<=5; L++){ const n = sel[L] || 0; if(n <= 0) continue; const u = $("slot"+L+"u"); if(!u) continue;
+        const take = Math.min(num(u.value, 0), n); if(take > 0){ u.value = String(num(u.value, 0) - take); for(let k=0;k<take;k++) got.push(L); } }
+      if(got.length){ const i = arcaneRecoveryRow(); if(i >= 0){ const mx = num(($("lfmax-"+i)||{}).value, 1) || 1; $("lfused-"+i).value = String(mx); } }
+      restState.arcane = {};
       restCommit();
       return got;
     }
@@ -9457,11 +9485,7 @@
         else
           h += '<button class="btn primary" type="button" data-rest-roll style="margin:2px 0 4px">Spend a Hit Die (1d' + hd.faces + (hd.cm ? (hd.cm > 0 ? "+" + hd.cm : "" + hd.cm) : "") + ')</button>'
             + (hp.max != null && hp.cur >= hp.max ? '<p class="wiz-hint">You\'re already at full HP.</p>' : "");
-        if(arcaneRecoveryAvailable()){   // Wizard: offer Arcane Recovery during the short rest
-          h += '<label class="lbl" style="display:block; margin:16px 0 6px">Arcane Recovery</label>'
-            + '<p class="wiz-hint" style="margin-top:0">Recover expended spell slots with a combined level up to <strong>' + arcaneRecoveryCap() + '</strong> (none above 5th). Once per day.</p>'
-            + '<button class="btn primary" type="button" data-rest-arcane style="margin:2px 0 4px">Use Arcane Recovery</button>';
-        }
+        if(arcaneRecoveryAvailable()) h += arcanePickerHTML();   // Wizard: choose which slots to recover
         body.innerHTML = h + logHtml;
         prim.textContent = "Done"; prim.onclick = closeRest;
         return;
@@ -9537,11 +9561,13 @@
     $("rest-modal").addEventListener("click", e => {
       if(e.target.id === "rest-modal") closeRest();                 // click the backdrop to dismiss
       else if(e.target.closest("[data-rest-roll]")) spendHitDie();  // delegated: the Spend button is re-rendered
-      else if(e.target.closest("[data-rest-arcane]")){              // Wizard Arcane Recovery
-        const got = arcaneRecover();
+      else if(e.target.closest("[data-arc-inc]")){ const L = +e.target.closest("[data-arc-inc]").dataset.arcInc; restState.arcane = restState.arcane || {}; restState.arcane[L] = (restState.arcane[L]||0) + 1; renderRest(); }
+      else if(e.target.closest("[data-arc-dec]")){ const L = +e.target.closest("[data-arc-dec]").dataset.arcDec; restState.arcane = restState.arcane || {}; restState.arcane[L] = Math.max(0, (restState.arcane[L]||0) - 1); renderRest(); }
+      else if(e.target.closest("[data-arc-apply]")){               // Wizard Arcane Recovery — apply the chosen slots
+        const got = arcaneRecoverPicked();
         restState.log.push(got.length
-          ? "Arcane Recovery: restored " + got.length + " slot(s) (level" + (got.length>1?"s":"") + " " + got.join(", ") + "). Once-per-day use spent."
-          : "Arcane Recovery: no eligible expended slots to restore.");
+          ? "Arcane Recovery: recovered " + got.length + " slot(s) (level" + (got.length>1?"s":"") + " " + got.join(", ") + "). Once-per-day use spent."
+          : "Arcane Recovery: nothing selected.");
         renderRest();
       }
     });
