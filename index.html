@@ -2627,11 +2627,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v312 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v313 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.22.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.23.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2639,6 +2639,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v313", semver:"2.23.0", items:[
+      "Death saves stay out of the way until they matter: the success/failure pips are hidden while you have hit points and only appear when your Current HP hits 0. Regain any HP and they disappear again — and reset to blank, since you stop making death saves the moment you\'re back up."
+    ]},
     {v:"v312", semver:"2.22.0", items:[
       "Reorganized the D&D Beyond header so it fills the space like the real thing instead of leaving a big empty gap. Your character details sit in a compact card on the left, the six ability tiles run across the top-right with Proficiency Bonus and Inspiration tucked at the end of that same strip, and the Combat block (AC, Initiative, Speed, HP, death saves) spans the full width just below — no more dead space."
     ]},
@@ -5527,6 +5530,19 @@
   }
   let _lastFeatSig = null, _lastLimSig = null, _lastEspSig = null;   // change-gates so compute() skips the heavy Feature-card / Limited-Features / spellbook-item rebuilds when their inputs are unchanged
   function equippedSig(){ let s = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(cb && cb.checked && nm && nm.value) s += nm.value + ","; } return s; }
+  // Death saves only matter while you're at 0 HP — hide the row otherwise, and clear the pips when you regain HP (RAW: death
+  // saves reset when you're no longer dying). Shown only when Current HP is an explicit number ≤ 0 (blank = unknown → hidden).
+  const DS_PIPS = ["dss-0","dss-1","dss-2","dsf-0","dsf-1","dsf-2"];
+  function updateDeathSaves(){
+    const row = document.querySelector(".deathsaves"); if(!row) return;
+    const raw = ($("hpcur")||{}).value, hp = raw === "" ? null : num(raw, null);
+    row.style.display = (hp != null && hp <= 0) ? "" : "none";
+    if(hp != null && hp > 0){   // back above 0 → clear any marked death saves so they're fresh next time
+      let changed = false;
+      DS_PIPS.forEach(id => { const c = $(id); if(c && c.checked){ c.checked = false; changed = true; } });
+      if(changed) save();
+    }
+  }
   function compute(){
     // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
     const level = charLevel();
@@ -5786,6 +5802,7 @@
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); renderActionEconomy(); } }   // rebuild Feature cards (+ action-economy summary) only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
     renderAmmo();   // ammo tally + fire-a-ranged-weapon buttons beside the Attacks table
+    updateDeathSaves();   // show the death-save pips only at 0 HP
     applyOverrides();    // repaint any hand-pinned leaf values over what compute() just wrote (sources already cascaded via the helpers)
     refreshSimulacrumButton();   // surface the "Create Simulacrum" button only when the Simulacrum spell is on a sheet
     refreshSpellDamageCells();   // keep the per-spell Damage column live as level/scores change (in place, no re-render)
