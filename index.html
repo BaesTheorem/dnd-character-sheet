@@ -1351,7 +1351,7 @@
   body[data-theme="classic"] .ptab.active{ background:var(--card); color:var(--ink); border-bottom-color:var(--card); }
 
   /* ---- Buttons read like pressed ink ---- */
-  body[data-theme="classic"] .btn{ border-color:var(--line2); background:var(--card); color:var(--ink); }
+  body[data-theme="classic"] .btn:not(.xp-levelup){ border-color:var(--line2); background:var(--card); color:var(--ink); }   /* keep the gold Level Up button */
   body[data-theme="classic"] .btn.primary{ background:var(--line2); color:var(--card); border-color:var(--line2); }
   body[data-theme="classic"] .btn:not(.primary):hover{ background:var(--accent-soft); }
 
@@ -1496,7 +1496,7 @@
   body[data-theme="dndbeyond"] label.lbl, body[data-theme="dndbeyond"] .stat .k, body[data-theme="dndbeyond"] .chip .k,
   body[data-theme="dndbeyond"] .passive .k, body[data-theme="dndbeyond"] .ability .name,
   body[data-theme="dndbeyond"] .ability-head .col{ letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
-  body[data-theme="dndbeyond"] .btn{ border-color:var(--line); background:var(--field); color:var(--ink); }
+  body[data-theme="dndbeyond"] .btn:not(.xp-levelup){ border-color:var(--line); background:var(--field); color:var(--ink); }   /* don't flatten the gold Level Up button */
   body[data-theme="dndbeyond"] .btn.primary{ background:var(--line2); color:var(--card); border-color:var(--line2); }
   body[data-theme="dndbeyond"] table th{ color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.08em; border-bottom:1px solid var(--line2); }
   body[data-theme="dndbeyond"] table td{ border-color:var(--line); }
@@ -2627,11 +2627,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v314 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v315 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.24.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.24.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2639,6 +2639,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v315", semver:"2.24.1", items:[
+      "Fixed the Level Up button losing its gold look in the Universal Character Sheet and Classic themes (their generic button styling was overriding it)."
+    ]},
     {v:"v314", semver:"2.24.0", items:[
       "The landscape sheet (formerly called \"D&D Beyond\") is now simply the \"Universal Character Sheet\" and is the default look. On screen you get the landscape dashboard; when you print or save a PDF, it automatically falls back to the clean portrait character sheet — so the old Universal sheet lives on as the print layout. The separate portrait theme has been folded into this; characters that were on it switch over automatically."
     ]},
