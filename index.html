@@ -2579,11 +2579,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v303 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v304 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.14.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.15.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2591,6 +2591,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v304", semver:"2.15.0", items:[
+      "The Tasha's wizard spellbooks (Astromancy Archive, Crystalline Chronicle, Heart Weaver's Primer, and the rest) now do what they should: while one is equipped, the spells it holds are added to your wizard spell list, including ones that aren't normally wizard spells, so they show up as options to learn and prepare. They're cast with your own slots and spell save DC, so they no longer appear in the Granted Spells section (which is only for things you cast for free or from an item).",
+    ]},
     {v:"v303", semver:"2.14.0", items:[
       "Spell Sniper and Strixhaven Initiate are now fully supported, completing the spell-granting feats. Spell Sniper lets you pick a class, then offers only that list's attack-roll cantrips. Strixhaven Initiate lets you pick a college (Lorehold, Prismari, Quandrix, Silverquill, Witherbloom), then choose 2 of its 3 cantrips plus a 1st-level spell from its two associated classes. As with the other feats, the picks land in your Granted Spells and only the leveled spell is tracked as a once-per-long-rest cast.",
     ]},
@@ -4634,6 +4637,16 @@
   // caster's list, so they show up directly on the Spells page: full-list casters get a Prep row, known
   // casters get them in the row dropdowns. Derived from persisted state (charClasses + background + race),
   // so it survives save/load with no extra stored data.
+  // MPMB "spellcastingBonusElsewhere": items that add their spell list to a spellcasting feature OTHER than the item itself —
+  // the Tasha's wizard spellbooks (and the Strixhaven Grimoire). Unlike an innate-cast item (Eyes of Charming), these books
+  // expand YOUR class spell list (cast with your slots/DC), so their spells route into characterExpandedSpells for the target
+  // class and are NOT listed as standalone item casts in the Granted Spells table. Spell names come from DATA.itemSpells.
+  const ELSEWHERE_ITEMS = {
+    "Alchemical Compendium":"Wizard", "Astromancy Archive":"Wizard", "Atlas of Endless Horizons":"Wizard",
+    "Crystalline Chronicle":"Wizard", "Duplicitous Manuscript":"Wizard", "Fulminating Treatise":"Wizard",
+    "Heart Weaver's Primer":"Wizard", "Libram of Souls and Flesh":"Wizard", "Planecaller's Codex":"Wizard",
+    "Protective Verses":"Wizard", "Grimoire Infinitus":"Wizard",
+  };
   function characterExpandedSpells(forClass){
     if(!DATA) return [];
     const out = [], seen = new Set(), add = sp => { const k = (sp.n||"").toLowerCase(); if(sp.n && !seen.has(k)){ seen.add(k); out.push({n:sp.n, l:sp.l||0}); } };
@@ -4654,6 +4667,12 @@
     const rc = findBy(DATA.races, (($("race")||{}).value)||"");
     if(rc && rc.expanded) rc.expanded.forEach(add);
     featGrantedSpells().forEach(n => { const d = spellData(n); add({n, l:(d && typeof d.level === "number") ? d.level : 1}); });   // "you learn ..." feats add their spells to your list
+    const isp = (DATA && DATA.itemSpells) || {};                  // equipped spellbook items add their list to the matching class
+    for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim();
+      if(!cb || !cb.checked || !nm) continue;
+      const tgt = ELSEWHERE_ITEMS[nm]; if(!tgt) continue;
+      if(!(!forClass || forClass === tgt || String(forClass).startsWith(tgt + " ("))) continue;
+      (isp[nm]||[]).forEach(g => { const d = spellData(g.n); add({n:g.n, l:(d && typeof d.level === "number") ? d.level : 0}); }); }
     return out;
   }
   function classSpellList(cls){
@@ -5198,6 +5217,7 @@
       const seen = new Set();
       for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim();
         if(!cb || !cb.checked || !nm) continue;
+        if(ELSEWHERE_ITEMS[nm]) continue;                 // spellbook items route into the class spell list, not standalone innate casts
         const grants = isp[nm]; if(!grants || seen.has(nm.toLowerCase())) continue; seen.add(nm.toLowerCase());
         const dc = itemFixedDC(itext[nm]);                // fixedDC: the item's printed, ability-independent save DC
         grants.forEach(g => rows.push({kind:"Item", source:nm, spell:g.n, use:g.u||"", dc})); }
@@ -5364,7 +5384,7 @@
     wizStep = 2; renderWizStep();
     flashStatus("Level up — assign " + (target - cur) + " level" + (target - cur === 1 ? "" : "s") + ": raise a class or add a new one, then Save.");
   }
-  let _lastFeatSig = null, _lastLimSig = null;   // change-gates so compute() skips the heavy Feature-card / Limited-Features rebuilds when their inputs are unchanged
+  let _lastFeatSig = null, _lastLimSig = null, _lastEspSig = null;   // change-gates so compute() skips the heavy Feature-card / Limited-Features / spellbook-item rebuilds when their inputs are unchanged
   function equippedSig(){ let s = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(cb && cb.checked && nm && nm.value) s += nm.value + ","; } return s; }
   function compute(){
     // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
@@ -5620,6 +5640,8 @@
     { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig() + "" + ($("race").value||"")
         + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")+":"+(s.featVariant||"")+":"+((s.featSpells||[]).join("|"))).join(",");   // feat type + spell picks drive limited rows, granted spells, and learned-spell sync
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
+    { let esp = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(cb && cb.checked && ELSEWHERE_ITEMS[nm]) esp += nm + "|"; }   // equipping a spellbook item changes the class spell list → re-render the spell sheets
+      if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); renderActionEconomy(); } }   // rebuild Feature cards (+ action-economy summary) only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
     applyOverrides();    // repaint any hand-pinned leaf values over what compute() just wrote (sources already cascaded via the helpers)

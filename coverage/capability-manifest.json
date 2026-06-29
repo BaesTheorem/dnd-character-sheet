@@ -257,9 +257,9 @@
       "note": "alwaysPreparedNames/characterExpandedSpells route domain & subclass spells into the class list; the Granted Spells table (grantedSpellRows/renderGrantedSpells on the primary spell page) now also auto-lists spells from equipped magic items (DATA.itemSpells, baked from 5etools attachedSpells), racial innate spells (at-will + limited, level-gated), and spell-granting feats (Fey/Shadow Touched), each with source, uses, and the item fixed save DC."
     },
     "spellcastingBonusElsewhere": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "PARTIAL: item/feat/racial bonus spells now surface standalone in the Granted Spells table (not routed into another class spellcasting feature's countable list)"
+      "note": "ELSEWHERE_ITEMS registry (the Tasha's wizard spellbooks + Strixhaven Grimoire, 11 items): when equipped, their spell list (from DATA.itemSpells) routes into characterExpandedSpells for the target class (Wizard), so the off-list spells (e.g. Astromancy Archive adds Augury, Find the Path) become part of the wizard spell list / level datalist and cast with class slots. Excluded from the standalone Granted Spells table (they are not innate item casts). A _lastEspSig gate re-renders the spell sheets when the equipped spellbook set changes."
     },
     "spellcastingExtra": {
       "supported": true,
