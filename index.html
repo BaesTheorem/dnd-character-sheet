@@ -828,6 +828,8 @@
   .cast-pop-lvl:hover span{color:inherit}
   .def-items{margin-top:6px}
   .def-items:empty{display:none}
+  /* Hit Dice are auto-filled from class/level and spent via Short/Long Rest — retire the standalone card (its inputs stay in the DOM for the rest machinery). */
+  .card[data-csec="hitdice"]{display:none}
   .def-items-h{font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px}
   .def-item-line{font-size:11px; line-height:1.35}
   .def-item-line .def-item-src{color:var(--muted); font-size:9.5px}
@@ -1523,16 +1525,17 @@
     body.ddb-layout #pagetabs{ display:none !important; }
     body.ddb-layout #page-core{ display:none !important; }   /* emptied — its cards live in the scaffold now */
 
-    body.ddb-layout #ddb-topbar{ grid-area:top; display:flex; flex-wrap:wrap; align-items:stretch; gap:12px; }
+    body.ddb-layout #ddb-topbar{ grid-area:top; display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; }   /* natural card heights — don't stretch Abilities/Prof to the tall ident card */
     body.ddb-layout #ddb-topbar > .card{ margin:0; }
     body.ddb-layout #ddb-topbar .ddb-ident{ flex:1.5 1 380px; min-width:340px; }
     body.ddb-layout #ddb-topbar .ddb-ident .meta-grid{ grid-template-columns:repeat(2,1fr); margin-top:8px; }
+    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid > div:last-child{ grid-column:1 / -1; }   /* Experience row spans full width so the XP total + Level Up button + status fit */
     body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:118px; min-width:118px; flex:0 0 118px; height:150px; }   /* keep the portrait box its proper ~4:5 shape, not a collapsed sliver */
     body.ddb-layout #ddb-rail [data-csec="hitdice"] .hd-grid{ grid-template-columns:1fr 1fr; }   /* 4-across is too tight in the 232px rail — wrap to 2×2 */
-    body.ddb-layout #ddb-topbar .ddb-ident .xp-add, body.ddb-layout #ddb-topbar .ddb-ident #btn-addxp,
-    body.ddb-layout #ddb-topbar .ddb-ident #btn-levelup, body.ddb-layout #ddb-topbar .ddb-ident .xp-status{ display:none; }
+    body.ddb-layout #ddb-topbar .ddb-ident .xp-add, body.ddb-layout #ddb-topbar .ddb-ident #btn-addxp{ display:none; }   /* keep the +gained / Add XP convenience out of the header; edit the XP total directly */
+    body.ddb-layout #ddb-topbar .ddb-ident .xp-status{ font-size:11px; color:var(--muted); }   /* the Level Up button (#btn-levelup) + level/XP status now show in the full-width Experience row */
     body.ddb-layout #ddb-topbar [data-csec="abilities"]{ flex:2 1 350px; }
-    body.ddb-layout #ddb-topbar .ddb-combatcluster{ flex:2 1 340px; display:flex; gap:12px; align-items:stretch; }
+    body.ddb-layout #ddb-topbar .ddb-combatcluster{ flex:2 1 340px; display:flex; gap:12px; align-items:flex-start; }   /* Prof/Inspiration keeps its natural height instead of stretching to the tall Combat card */
     body.ddb-layout #ddb-topbar .ddb-combatcluster > .card{ margin:0; }
     body.ddb-layout #ddb-topbar [data-csec="topstats"]{ flex:0 0 132px; }
     body.ddb-layout #ddb-topbar [data-csec="combat"]{ flex:1 1 auto; }
@@ -2617,11 +2620,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v310 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v311 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.20.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.21.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2629,6 +2632,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v311", semver:"2.21.0", items:[
+      "D&D Beyond view fixes: the Level Up button (and your XP/level status) now show in a full-width Experience row instead of being hidden, the Ability Scores and Proficiency/Inspiration boxes no longer stretch to fill the row (so they take only the height they need), and nothing on the right of the header gets clipped.",
+      "Retired the standalone Hit Dice card — Hit Dice are filled in from your class and level and spent through the Short/Long Rest buttons now, so the separate box was just clutter. (Nothing is lost: the rest screen still shows and rolls your Hit Dice.)"
+    ]},
     {v:"v310", semver:"2.20.0", items:[
       "Arcane Recovery now lets you choose which slots come back, as the feature actually reads. During a short rest a Wizard gets a per-level picker (1st–5th) with plus/minus steppers; each level is capped at what you actually expended, and a running total stops you from going over half your wizard level. Pick the exact combination you want, then recover."
     ]},
@@ -9458,7 +9465,7 @@
           }
           h += '</p>';
         } else {
-          h += '<p class="wiz-hint" style="margin-top:0">No Hit Dice set (fill in the Total on the Hit Dice card to track them here).</p>';
+          h += '<p class="wiz-hint" style="margin-top:0">No Hit Dice yet — build your character (Create Character) and they fill in from your class and level.</p>';
         }
 
         if(kind === "long"){
@@ -9479,7 +9486,7 @@
         h += '<p class="wiz-hint" style="margin-top:0">Hit Dice: <strong>' + hd.avail + '</strong> of ' + hd.total + ' available'
           + '. Current HP: <strong>' + hp.cur + (hp.max != null ? ' / ' + hp.max : "") + '</strong>.</p>';
         if(!hd.faces)
-          h += '<p class="wiz-hint" style="color:var(--accent)">Enter your class Hit Die (e.g. set a Total so the Hit Dice box shows 1d8) to spend dice here.</p>';
+          h += '<p class="wiz-hint" style="color:var(--accent)">Your Hit Dice fill in once you build a character (Create Character) — then you can spend them here.</p>';
         else if(hd.avail <= 0)
           h += '<p class="wiz-hint">No Hit Dice left to spend.</p>';
         else
@@ -10822,7 +10829,7 @@
       relocate(findCard('topstats'), cluster, 'topstats');
       relocate(findCard('combat'), cluster, 'combat');
       ['sources-flag','asi-flag','decisions-flag'].forEach(function(id){ var f=el(id); if(f){ f.classList.add('ddb-flag-moved'); sc['ddb-topbar'].appendChild(f); } });
-      ['saves','senses','proficiencies','defenses','hitdice'].forEach(function(k){ relocate(findCard(k), sc['ddb-rail'], k); });
+      ['saves','senses','proficiencies','defenses'].forEach(function(k){ relocate(findCard(k), sc['ddb-rail'], k); });   // Hit Dice card retired — its tracking moved into Short/Long Rest
       relocate(findCard('skills'), sc['ddb-skills'], 'skills');
       relocate(findCard('attacks'), sc['ddb-main'], 'attacks');
       relocate(findCard('actionecon'), sc['ddb-main'], 'actionecon');
