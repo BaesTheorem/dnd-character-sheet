@@ -898,7 +898,13 @@
   .prep-float .pf-label{display:block; font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:4px}
   .prep-float .pf-val{font-size:17px; font-weight:700; color:var(--accent)}
   .prep-float .prep-free-note{display:block; margin-top:3px}
-  @media (max-width:880px){ .prep-float{display:none} }                   /* no room in the margin on narrow screens */
+  @media (max-width:880px){ .prep-float:not(.over){display:none} }        /* no room in the margin on narrow screens (but keep it during the prepare overlay) */
+  .prep-float.over{z-index:60}                                            /* float above the prepare-spells overlay (modal is z-50) */
+  /* Post-long-rest "prepare spells" overlay: a wide, scrollable modal that hosts the real spell sheet */
+  #prep-overlay .prep-ov-panel{max-width:920px; width:100%; max-height:88vh; display:flex; flex-direction:column}
+  #prep-overlay .modal-body{overflow:auto; flex:1 1 auto}
+  #prep-overlay .modal-body .card{margin:0}
+  #prep-overlay .modal-body #spellbody > .card + .card, #prep-overlay .modal-body [id^="spellbody"] > .card + .card{margin-top:14px}
   .spelltable .sp-section td{background:var(--field); font-weight:800; font-size:10px; letter-spacing:.07em;
     text-transform:uppercase; color:var(--accent); padding:6px 8px; border-top:2px solid var(--line2)}
 
@@ -2632,11 +2638,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v327 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v328 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.31.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.32.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2644,6 +2650,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v328", semver:"2.32.0", items:[
+      "After a Long Rest, prepared casters are now asked whether they want to change their prepared spells. Say no and nothing happens; say yes and each prepared spellcasting class gets its own full-screen spell sheet to re-prepare on (walked through one class at a time for multiclass casters), with the usual floating \"Can Prepare X / Y\" counter pinned alongside. The unprepared lists open automatically there so every option is in front of you."
+    ]},
     {v:"v327", semver:"2.31.0", items:[
       "Reloading sources now also keeps Dragonborn breath weapons and racial natural-weapon attacks (claws, horns, bite). These were the last two details that only the built-in content had, so a reload used to quietly drop them. With this update the loader is fully caught up, and the built-in data is marked current so it always wins over an older reloaded copy. If anything looked missing after a past reload, it will come back on its own the next time you open the sheet; for freshly loaded books, click “Reload all loaded sources” once."
     ]},
@@ -5680,7 +5689,93 @@
     if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock();
     $("notice-ok").focus();
   }
-  function castScroll(itemName){   // spend one scroll of this item — but only if the spell is on one of your class lists
+  // Yes/No confirm dialog (reuses the .modal framework + closeNotice). onYes runs after the dialog closes.
+  function showConfirm(title, bodyHTML, onYes, yesLabel, noLabel){
+    closeNotice();
+    const m = document.createElement("div"); m.className = "modal open noprint"; m.id = "notice-modal";
+    m.innerHTML = `<div class="modal-panel" role="dialog" aria-modal="true" style="max-width:440px">`
+      + `<div class="modal-head"><h2>${esc(title)}</h2></div>`
+      + `<div class="modal-body">${bodyHTML}</div>`
+      + `<div class="modal-foot"><button type="button" class="btn" id="notice-no">${esc(noLabel||"No")}</button><button type="button" class="btn primary" id="notice-yes">${esc(yesLabel||"Yes")}</button></div></div>`;
+    document.body.appendChild(m);
+    const done = yes => { closeNotice(); if(yes && onYes) onYes(); };
+    $("notice-yes").addEventListener("click", () => done(true));
+    $("notice-no").addEventListener("click", () => done(false));
+    m.addEventListener("mousedown", e => { if(e.target === m) done(false); });
+    m._esc = e => { if(e.key === "Escape"){ e.preventDefault(); done(false); } };
+    document.addEventListener("keydown", m._esc);
+    if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock();
+    $("notice-yes").focus();
+  }
+  // ===== Post-long-rest "change prepared spells" flow =====
+  // After a long rest, prepared casters are asked whether they want to re-prepare. If yes, each prepared-caster
+  // spell sheet is shown one at a time in an overlay (the real #spellbody is re-parented in, so all its controls
+  // and the per-sheet prep count work), with the usual floating "Can Prepare X / Y" chip pinned over the overlay.
+  function preparedCasterInsts(){
+    const out = [];
+    for(let i=0;i<spellSheets;i++){ const cls = sEl(i,"spellclass") ? sEl(i,"spellclass").value : ""; const info = CASTERS[cls];
+      if(info && info.prepares) out.push(i); }
+    return out;
+  }
+  function promptPrepareAfterRest(){
+    const insts = preparedCasterInsts(); if(!insts.length) return;
+    const names = [...new Set(insts.map(i => sEl(i,"spellclass").value))].join(", ");
+    showConfirm("Change prepared spells?",
+      `<p style="margin-top:0">Your long rest is complete. Do you want to review and change your prepared spells${names ? ` (${esc(names)})` : ""}?</p>`,
+      () => startPrepOverlay(insts), "Yes, change spells", "No");
+  }
+  let _prepQueue = null, _prepHome = null;
+  function startPrepOverlay(insts){ _prepQueue = insts.slice(); openNextPrep(); }
+  function openNextPrep(){
+    if(!_prepQueue || !_prepQueue.length){ closePrepOverlay(); return; }
+    showPrepOverlay(_prepQueue.shift(), _prepQueue.length > 0);
+  }
+  function showPrepOverlay(inst, hasMore){
+    const sb = sEl(inst,"spellbody"); if(!sb){ openNextPrep(); return; }
+    let ov = $("prep-overlay");
+    if(!ov){
+      ov = document.createElement("div"); ov.id = "prep-overlay"; ov.className = "modal noprint";
+      ov.innerHTML = `<div class="modal-panel prep-ov-panel"><div class="modal-head"><h2 id="prep-ov-title">Prepare spells</h2>`
+        + `<button class="btn ghost" id="prep-ov-x" type="button" title="Done">✕</button></div>`
+        + `<div class="modal-body" id="prep-ov-body"></div>`
+        + `<div class="modal-foot"><span class="wiz-hint" id="prep-ov-note" style="flex:1; margin:0"></span>`
+        + `<button class="btn primary" id="prep-ov-next" type="button">Done</button></div></div>`;
+      document.body.appendChild(ov);
+      $("prep-ov-x").addEventListener("click", () => { stashPrepBack(); closePrepOverlay(); });
+      ov.addEventListener("mousedown", e => { if(e.target === ov){ stashPrepBack(); closePrepOverlay(); } });
+      $("prep-ov-next").addEventListener("click", () => { stashPrepBack(); openNextPrep(); });
+    }
+    // expand this sheet's unprepared sections so every preparable spell is visible (restored on the way out)
+    const priorOpen = {}; for(let l=1;l<=9;l++){ const k = inst+":"+l; priorOpen[k] = !!unprepOpen[k]; unprepOpen[k] = true; }
+    _prepHome = { el: sb, parent: sb.parentNode, next: sb.nextSibling, priorOpen };
+    $("prep-ov-body").appendChild(sb);
+    const cls = (sEl(inst,"spellclass").value || `Sheet ${inst+1}`);
+    $("prep-ov-title").textContent = `Prepare spells: ${cls}`;
+    $("prep-ov-note").textContent = hasMore ? `${_prepQueue.length} more class${_prepQueue.length > 1 ? "es" : ""} after this` : "Tick the spells you want ready; the chip on the left tracks your limit.";
+    $("prep-ov-next").textContent = hasMore ? "Next class" : "Done";
+    prepOverlayInst = inst;
+    ov.classList.add("open");
+    renderSpellTable(inst); updatePrepState(inst); updatePrepFloat();
+    if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock();
+    $("prep-ov-body").scrollTop = 0;
+  }
+  function stashPrepBack(){   // return the moved #spellbody to its page + restore its collapse state
+    if(!_prepHome) return;
+    const { el, parent, next, priorOpen } = _prepHome;
+    Object.keys(priorOpen || {}).forEach(k => { unprepOpen[k] = priorOpen[k]; });
+    if(parent) parent.insertBefore(el, next);
+    const inst = prepOverlayInst; _prepHome = null;
+    if(inst >= 0) renderSpellTable(inst);   // re-apply the restored collapse state to the returned sheet
+  }
+  function closePrepOverlay(){
+    stashPrepBack();
+    prepOverlayInst = -1; _prepQueue = null;
+    const ov = $("prep-overlay"); if(ov) ov.classList.remove("open");
+    updatePrepFloat();
+    if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock();
+    save(); compute();
+  }
+  function castScroll(itemName){   // spend one scroll of this item, but only if the spell is on one of your class lists
     const spell = scrollSpellName(itemName), elig = scrollSpellEligible(spell), spName = esc(spell || itemName);
     if(!elig.ok){
       const why = elig.reason === "no-caster"
@@ -9799,7 +9894,11 @@
       $("rest-modal").classList.add("open");
       renderRest();
     }
-    function closeRest(){ $("rest-modal").classList.remove("open"); restState = null; }
+    function closeRest(){
+      const promptPrep = !!(restState && restState.kind === "long" && restState.phase === "done");   // finished a long rest → offer to re-prepare
+      $("rest-modal").classList.remove("open"); restState = null;
+      if(promptPrep) promptPrepareAfterRest();
+    }
 
     function featLines(arr){
       return arr.map(f => '<li><strong>' + esc(f.name) + '</strong> <span class="wiz-hint" style="display:inline">('
