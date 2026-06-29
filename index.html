@@ -2243,7 +2243,7 @@
         </div>
         <div class="card spell-list" id="granted-card" style="display:none">
           <h2 id="granted-h2">Granted Spells</h2>
-          <p class="help noprint">Spells you can cast from your race, feats, and equipped magic items, listed automatically. These don't use your class spell slots. Hover a name for the full description; the source and how often you can cast it are shown under each spell.</p>
+          <p class="help noprint">Spells you can cast from your race, feats, equipped magic items, and spell scrolls in your inventory, listed automatically. These don't use your class spell slots. Hover a name for the full description; the source and how often you can cast it are shown under each spell. Scrolls show a ⚡ button; casting one uses up a scroll from your inventory.</p>
           <table class="spelltable" id="granted-table">
             <thead><tr>
               <th class="col-name">Name &amp; Source</th>
@@ -2628,11 +2628,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v317 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v318 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.25.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.26.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2640,8 +2640,12 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v318", semver:"2.26.0", items:[
+      "Spell scrolls are now castable from the sheet. Any inventory item named \"Scroll of <Spell>\" (for a real spell) shows up in the Granted Spells card under a \"Spell Scrolls\" section with a ⚡ button; casting it spends one scroll from your inventory, the same way firing a bow uses up an arrow. The remaining count is shown beside each one.",
+      "Fixed \"Scroll of Shield\" (and any other \"Scroll of …\" item) being mistaken for a physical shield: it no longer offers an Equip checkbox or adds shield AC. Real shields are unaffected."
+    ]},
     {v:"v317", semver:"2.25.0", items:[
-      "Roomier character info: on the landscape sheet, the name, class, race, background, alignment, player, campaign, and experience fields now stretch across a full-width band at the top instead of being squeezed into a narrow two-column box beside the portrait — so everything sits in one easy-to-scan row. The portrait theme's info block got the same responsive spacing."
+      "Roomier character info: on the landscape sheet, the name, class, race, background, alignment, player, campaign, and experience fields now stretch across a full-width band at the top instead of being squeezed into a narrow two-column box beside the portrait, so everything sits in one easy-to-scan row. The portrait theme's info block got the same responsive spacing."
     ]},
     {v:"v315", semver:"2.24.1", items:[
       "Fixed the Level Up button losing its gold look in the Universal Character Sheet and Classic themes (their generic button styling was overriding it)."
@@ -5380,6 +5384,34 @@
     });
     return rows;
   }
+  // Spell scrolls in inventory → one-time-use casts that deplete the item (like ammunition). A scroll named
+  // "Scroll of <Spell>" or "Spell Scroll (<Spell>)" surfaces as a castable row IF <Spell> is a known spell —
+  // so plain magic-item scrolls ("Scroll of Protection") aren't misread as castable spells. Rows merge by item
+  // name (summing quantity); casting decrements the first matching inventory row, just like fireAmmo().
+  function scrollSpellName(nm){
+    const m = String(nm||"").match(/scroll\s+of\s+(.+)/i) || String(nm||"").match(/scroll\s*\(\s*([^,)]+)/i);
+    if(!m) return "";
+    return m[1].replace(/\s*\(.*?\)\s*$/, "").trim();   // drop a trailing "(3rd-level)" / "(2nd)" note
+  }
+  function scrollSpellRows(){
+    const rows = [], byName = {};
+    for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value||"").trim(); if(!nm) continue;
+      const q = rowQty(i); if(q <= 0) continue;
+      const spell = scrollSpellName(nm); if(!spell || !spellData(spell)) continue;   // only real spells become castable scroll rows
+      const key = nm.toLowerCase();
+      if(byName[key]){ byName[key].qty += q; continue; }
+      const r = {kind:"Scroll", source:nm, spell, use:"", dc:null, item:nm, qty:q};
+      byName[key] = r; rows.push(r); }
+    return rows;
+  }
+  function scrollSig(){ let s = ""; for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value||"").trim(); if(scrollSpellName(nm)) s += nm.toLowerCase()+":"+rowQty(i)+"|"; } return s; }
+  function castScroll(itemName){   // spend one scroll of this item (decrement the first matching inventory row)
+    const target = String(itemName||"").trim().toLowerCase();
+    for(let i=0;i<NINV;i++){ const lc = ($("invname-"+i).value||"").trim().toLowerCase();
+      if(lc === target && rowQty(i) > 0){ $("invqty-"+i).value = Math.max(0, rowQty(i) - 1); refreshRowWeight(i); save(); compute(); renderGrantedSpells();
+        flashStatus(`Cast ${itemName}, ${rowQty(i)} left`); return; } }
+    flashStatus(`No ${itemName} left to cast`);
+  }
   // allowUpCasting: a granted spell that scales by slot level (has DATA.spellUpcast and deals rolled, non-cantrip damage)
   // can be previewed at a higher cast level. The chosen level is ephemeral session state (a "what if", not character data),
   // keyed by source+spell, defaulting to the spell's base level.
@@ -5387,19 +5419,20 @@
   function grantedUpcastInfo(d){ const up = d && d.dmg && !d.dmg.scale ? (DATA && DATA.spellUpcast || {})[d.name] : null; return up ? {up, base:(up.at || d.level || 1)} : null; }
   function renderGrantedSpells(){
     const tbody = $("granted-spells"), card = $("granted-card"); if(!tbody || !card) return;
-    const rows = grantedSpellRows();
+    const rows = grantedSpellRows().concat(scrollSpellRows());
     if(!rows.length){ card.style.display = "none"; tbody.innerHTML = ""; return; }
     card.style.display = "";
-    const ORDER = {Item:0, Race:1, Feat:2}, LABEL = {Item:"From Equipped Items", Race:"Racial Innate Spells", Feat:"From Feats"};
+    const ORDER = {Item:0, Race:1, Feat:2, Scroll:3}, LABEL = {Item:"From Equipped Items", Race:"Racial Innate Spells", Feat:"From Feats", Scroll:"Spell Scrolls (one-time use)"};
     const lvlOf = n => { const d = spellData(n); return d ? (d.level||0) : 0; };
     const ord = n => n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:Math.min(n%10,4)] || "th");
     rows.sort((a,b) => (ORDER[a.kind]-ORDER[b.kind]) || (lvlOf(a.spell)-lvlOf(b.spell)) || a.spell.localeCompare(b.spell));
     let body = "", lastKind = null;
     rows.forEach(r => {
       if(r.kind !== lastKind){ lastKind = r.kind; body += `<tr class="sp-section"><td colspan="7">${esc(LABEL[r.kind])}</td></tr>`; }
+      const isScroll = r.kind === "Scroll";
       const d = spellData(r.spell), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
-      const ui = grantedUpcastInfo(d), key = r.source + "|" + r.spell;
-      const sub = [esc(r.source), r.use ? esc(r.use) : "", (r.dc!=null ? `<span class="gs-dc">save DC ${r.dc}</span>` : "")];
+      const ui = isScroll ? null : grantedUpcastInfo(d), key = r.source + "|" + r.spell;   // scrolls cast at the spell's own level (no slot upcasting)
+      const sub = [esc(r.source), (isScroll ? `${r.qty} left` : (r.use ? esc(r.use) : "")), (r.dc!=null ? `<span class="gs-dc">save DC ${r.dc}</span>` : "")];
       let dmg = dmgCell(d);
       if(ui){                                              // upcast picker: pick a slot level, the Damage cell rescales
         const cast = Math.min(9, Math.max(ui.base, +(grantedUpcast[key] || ui.base)));
@@ -5407,7 +5440,10 @@
         sub.push(`<label class="gs-up">cast at <select class="gs-upcast" data-key="${esc(key)}">${opts}</select></label>`);
         dmg = `<td class="col-dmg sp-dmg" data-cast="${cast}">${esc(spellDamage(d, cast))}</td>`;
       }
-      body += `<tr${d?' class="has-spell"':''}><td class="col-name"${titleAttr}>${esc(r.spell)}<span class="gs-src">${sub.filter(Boolean).join(" · ")}</span></td>${dmg}${propCellsRest(d)}</tr>`;
+      // Scroll rows get a ⚡ cast button. It sits AFTER the spell-name text node so refreshSpellDamageCells() still
+      // reads the name from firstChild; clicking it depletes one from inventory (handled in the global click delegate).
+      const castBtn = isScroll ? ` <button type="button" class="sp-cast noprint" data-scroll="${esc(r.item)}" tabindex="-1" title="Cast this scroll — uses one from your inventory">⚡</button>` : "";
+      body += `<tr${d?' class="has-spell"':''}><td class="col-name"${titleAttr}>${esc(r.spell)}${castBtn}<span class="gs-src">${sub.filter(Boolean).join(" · ")}</span></td>${dmg}${propCellsRest(d)}</tr>`;
     });
     tbody.innerHTML = body;
   }
@@ -5808,7 +5844,8 @@
         else hint.style.display = "none"; } }
     renderContainers();      // container carets, nesting, collapse
     { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig() + "" + ($("race").value||"")
-        + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")+":"+(s.featVariant||"")+":"+((s.featSpells||[]).join("|"))).join(",");   // feat type + spell picks drive limited rows, granted spells, and learned-spell sync
+        + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")+":"+(s.featVariant||"")+":"+((s.featSpells||[]).join("|"))).join(",")   // feat type + spell picks drive limited rows, granted spells, and learned-spell sync
+        + "" + scrollSig();   // spell scrolls in inventory surface as one-time-use casts in the granted table
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); renderItemDefenses(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { let esp = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(cb && cb.checked && ELSEWHERE_ITEMS[nm]) esp += nm + "|"; }   // equipping a spellbook item changes the class spell list → re-render the spell sheets
       if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
@@ -7675,11 +7712,12 @@
   }
   function shieldBonus(name){   // any item that reads as a shield grants +2 AC (plus any magic "+N" in the name); 0 if not a shield. So "Wooden Shield", "Sentinel Shield", "+1 Shield" all equip, not just the literal "Shield".
     const lc = String(name||"").trim().toLowerCase();
+    if(/\bscroll\b/.test(lc)) return 0;   // "Scroll of Shield" casts the spell — it's not a physical shield
     if(!/\bshield\b/.test(lc)) return 0;
     let b = 2; const m = lc.match(/\+\s*(\d+)/); if(m) b += parseInt(m[1], 10);   // "+1 Shield" → 2 + 1 = +3
     return b;
   }
-  function hasEquippedShield(){ for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i), nm=$("invname-"+i); if(cb && cb.checked && nm && /shield/i.test(nm.value||"")) return true; } return false; }
+  function hasEquippedShield(){ for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i), nm=$("invname-"+i); if(cb && cb.checked && nm && shieldBonus(nm.value) > 0) return true; } return false; }
   function setupItemSearch(){   // substring-searchable picker that adds an item to the next empty row
     const inp = $("item-search"), res = $("item-results"); if(!inp || !res) return;
     let matches = [], sel = -1;
@@ -9330,7 +9368,7 @@
       const fire = e.target.closest(".ammo-fire");
       if(fire && !fire.disabled){ fireAmmo(fire.dataset.kind); return; }
       const cast = e.target.closest(".sp-cast");
-      if(cast){ e.preventDefault(); onCastClick(cast); return; }
+      if(cast){ e.preventDefault(); if(cast.dataset.scroll != null) castScroll(cast.dataset.scroll); else onCastClick(cast); return; }
       const lvlBtn = e.target.closest(".cast-pop-lvl");
       if(lvlBtn){ expendSlot(+lvlBtn.dataset.lvl); closeCastPop(); return; }
       if(!e.target.closest("#cast-pop")) closeCastPop();
