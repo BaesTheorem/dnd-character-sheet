@@ -107,6 +107,9 @@
   .update-banner[hidden]{display:none}
   .update-banner .ub-msg{margin-right:auto; line-height:1.4}
   .update-banner .ub-msg strong{color:var(--accent)}
+  .update-banner.critical{background:rgba(217,45,32,.12); border-bottom:2px solid #d92d20}
+  .update-banner.critical .ub-msg strong{color:#e5484d}
+  .update-banner .ub-note{display:block; width:100%; margin-top:3px; line-height:1.4}
 
   /* ---- Sheet layout ---- */
   .sheet{max-width:1120px; margin:22px auto; padding:0 16px}
@@ -2638,11 +2641,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v328 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v329 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.32.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.31.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6647,7 +6650,7 @@
     for(const url of [VERSION_SRC, VERSION_SRC_FALLBACK]){
       try{
         const r = await fetch(url + (url.includes("?") ? "&" : "?") + "_v=" + Date.now(), {cache:"no-store"});   // unique URL → bypasses the service-worker cache
-        if(r && r.ok){ const j = await r.json(); if(j && j.version) return { version: String(j.version), semver: j.semver ? String(j.semver) : null }; }
+        if(r && r.ok){ const j = await r.json(); if(j && j.version) return { version: String(j.version), semver: j.semver ? String(j.semver) : null, critical: !!j.critical, note: j.note ? String(j.note) : "" }; }
       }catch(e){}
     }
     return null;
@@ -6658,19 +6661,27 @@
     const hosted = /^https?:$/.test(location.protocol);
     const newLbl = latest.semver || semverLabel(latest.version) || (latest.version||"").split(" ")[0];   // prefer SemVer; fall back to the build id
     const curLbl = appLabel();
-    $("update-banner-msg").innerHTML = "A newer version (<strong>" + esc(newLbl)
+    const crit = !!latest.critical;
+    bar.classList.toggle("critical", crit);
+    const lead = crit ? "<strong>Important update.</strong> " : "";
+    const noteHtml = (crit && latest.note) ? ("<span class=\"ub-note\">" + esc(latest.note) + "</span>") : "";
+    $("update-banner-msg").innerHTML = lead + "A newer version (<strong>" + esc(newLbl)
       + "</strong>) is available — you're on " + esc(curLbl)
-      + ". <strong>Save a copy first</strong>, then " + (hosted ? "update." : "download the new file.");
+      + ". <strong>Save a copy first</strong>, then " + (hosted ? "update." : "download the new file.") + noteHtml;
     $("ub-update").textContent = hosted ? "Update now" : "Download update";
+    const dz = $("ub-dismiss"); if(dz) dz.title = crit ? "Hide for now (this important update reappears until you update)" : "Dismiss until the next version";
     bar.dataset.ver = latest.version;   // keep the build id for the dismiss comparison
+    bar.dataset.critical = crit ? "1" : "";   // a critical update bypasses the persistent dismiss (see maybeShowBanner)
     bar.hidden = false;
   }
   function maybeShowBanner(latest){
     if(!latest || !latest.version) return;
     const cur = verNum(APP_VERSION), lat = verNum(latest.version);   // compare by monotonic build id (works across the SemVer switch)
     if(cur == null || lat == null || lat <= cur) return;          // nothing newer
-    let dismissed = null; try{ dismissed = localStorage.getItem("cs_update_dismissed"); }catch(e){}
-    if(dismissed && verNum(dismissed) != null && verNum(dismissed) >= lat) return;   // already dismissed this (or newer)
+    if(!latest.critical){                                          // a critical update bypasses the persistent dismiss so it keeps surfacing until you actually update (the ✕ only hides it for this session)
+      let dismissed = null; try{ dismissed = localStorage.getItem("cs_update_dismissed"); }catch(e){}
+      if(dismissed && verNum(dismissed) != null && verNum(dismissed) >= lat) return;   // already dismissed this (or newer)
+    }
     showUpdateBanner(latest);
   }
   function readCachedLatest(){

@@ -226,6 +226,17 @@ hook rewrites that `"Unreleased"` tag to this commit's `vN` — the exact versio
 `APP_VERSION` — so each release's notes always carry the right number with no hand-editing. A commit
 with no `Unreleased` entry just ships without a new changelog line.
 
+### Critical updates
+The "update available" banner is normally dismissible and quiet. For a release that really needs
+attention (e.g. a data-correctness fix), create a one-line **`update-note.txt`** in the repo root with
+the message to show. The pre-commit hook folds it into `version.json` as `{critical:true, note:"…"}`,
+and the banner then renders an **Important update** style, shows your note, and **keeps resurfacing on
+every load until the user actually updates** (the ✕ only hides it for the current session). It's
+*sticky*: the note rides every subsequent release until you **delete `update-note.txt`**, so remove it
+once the urgency has passed. Clients running a build from before this feature simply ignore the extra
+fields and show the normal banner — so a critical flag only reaches users already on a build that
+understands it; for the very update that introduces it, also tell people out-of-band.
+
 ## Design / longevity rules
 Vanilla HTML/CSS/JS only — no frameworks, no build step, no CDN, no web-fetched fonts (uses the
 system font stack). Edit it with any text editor. Data model is plain JSON keyed by field id.

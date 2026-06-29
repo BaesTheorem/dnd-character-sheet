@@ -53,10 +53,22 @@ fi
 # Write the tiny version probe the in-app "update available" banner polls, so it can detect a
 # newer build without downloading the multi-MB index.html. Carries the build id (for comparison,
 # back-compatible with older clients) plus the SemVer (for display on newer clients).
+# Optional "critical update" flag: if update-note.txt exists and is non-empty, version.json carries
+# {critical:true, note:"<its text>"} so the in-app banner shows it prominently and keeps resurfacing
+# until the user updates (clients on a build that predates this feature simply ignore the extra fields).
+# STICKY: the note rides every release until you delete update-note.txt — remove it once the urgency passes.
 if [ -f version.json ]; then
-  printf '{"version":"%s","semver":"%s"}\n' "$ver" "$semver" > version.json \
-    && git add version.json \
-    && echo "pre-commit: wrote version.json = $ver / $semver"
+  note=""
+  [ -f update-note.txt ] && note="$(tr -d '\r' < update-note.txt | tr '\n' ' ' | sed 's/[[:space:]]\{1,\}/ /g; s/^ *//; s/ *$//')"
+  if [ -n "$note" ] && command -v python3 >/dev/null 2>&1; then
+    ver="$ver" semver="$semver" note="$note" python3 -c 'import json,os; open("version.json","w").write(json.dumps({"version":os.environ["ver"],"semver":os.environ["semver"],"critical":True,"note":os.environ["note"]})+"\n")' \
+      && git add version.json \
+      && echo "pre-commit: wrote version.json = $ver / $semver (CRITICAL: $note)"
+  else
+    printf '{"version":"%s","semver":"%s"}\n' "$ver" "$semver" > version.json \
+      && git add version.json \
+      && echo "pre-commit: wrote version.json = $ver / $semver"
+  fi
 fi
 
 # Tie the service-worker cache to the same version so each deploy busts the offline
