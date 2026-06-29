@@ -804,8 +804,8 @@
   .sp-cast.sp-cast-locked:hover{opacity:.55}
   /* Per-weapon fire/throw button (lives in the Attacks-row Name cell, ranged/thrown weapons only) */
   .attacks td.has-fire{position:relative}
-  .attacks td.has-fire input{padding-right:44px}        /* keep the weapon name clear of the button */
-  .atk-fire{position:absolute; right:4px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:3px;
+  .attacks td.has-fire input{padding-right:52px}        /* keep the weapon name clear of the button */
+  .atk-fire{position:absolute; right:10px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:3px;
     height:22px; padding:0 5px; border:1px solid var(--line2); background:var(--card); color:var(--ink); cursor:pointer; border-radius:0; line-height:1}
   .atk-fire:hover:not(:disabled){background:var(--ink); color:var(--paper, #fff); border-color:var(--ink)}
   .atk-fire:disabled{opacity:.4; cursor:default; border-style:dashed}
@@ -2628,11 +2628,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v322 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v323 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.28.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.28.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2640,6 +2640,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v323", semver:"2.28.2", items:[
+      "Small polish: the weapon fire/throw buttons in the Attacks table are inset from the right edge of the row instead of touching it."
+    ]},
     {v:"v322", semver:"2.28.1", items:[
       "The \"What's new\" changelog header now shows the human version number (e.g. \"since 2.24.1\") instead of the internal build id (\"since v316\")."
     ]},
