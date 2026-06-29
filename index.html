@@ -799,6 +799,9 @@
   #granted-table td.col-name{line-height:1.25}
   #granted-table .gs-src{display:block; font-size:9.5px; color:var(--muted); font-weight:400; margin-top:1px}
   #granted-table .gs-dc{color:var(--accent); font-weight:700}
+  #granted-table .gs-locked{color:#b42318; font-weight:700}   /* scroll spell not on the character's class list */
+  .sp-cast.sp-cast-locked{opacity:.3}                          /* dimmed ⚡: castable scroll, but blocked (shows an explainer dialog on click) */
+  .sp-cast.sp-cast-locked:hover{opacity:.55}
   /* Ammunition panel beside the Attacks table */
   .ammo-panel{margin-top:8px; padding-top:7px; border-top:1px solid var(--hair, #ddd)}
   .ammo-h{font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:3px}
@@ -2628,11 +2631,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v318 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v319 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.26.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.27.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2640,6 +2643,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v319", semver:"2.27.0", items:[
+      "Spell scrolls now follow the casting rule: you can only cast one if the spell is on one of your own classes' spell lists. Scrolls for spells you can't cast (or any scroll on a character with no spellcasting class) show a dimmed ⚡ with a \"not on your class spell list\" note, and clicking it pops an explainer dialog instead of using up the scroll. Eligible scrolls cast and deplete as before."
+    ]},
     {v:"v318", semver:"2.26.0", items:[
       "Spell scrolls are now castable from the sheet. Any inventory item named \"Scroll of <Spell>\" (for a real spell) shows up in the Granted Spells card under a \"Spell Scrolls\" section with a ⚡ button; casting it spends one scroll from your inventory, the same way firing a bow uses up an arrow. The remaining count is shown beside each one.",
       "Fixed \"Scroll of Shield\" (and any other \"Scroll of …\" item) being mistaken for a physical shield: it no longer offers an Equip checkbox or adds shield AC. Real shields are unaffected."
@@ -5405,7 +5411,53 @@
     return rows;
   }
   function scrollSig(){ let s = ""; for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value||"").trim(); if(scrollSpellName(nm)) s += nm.toLowerCase()+":"+rowQty(i)+"|"; } return s; }
-  function castScroll(itemName){   // spend one scroll of this item (decrement the first matching inventory row)
+  // ---- Scroll eligibility: per the rules, a spell scroll is only castable if the spell is on one of YOUR classes'
+  // spell lists. Caster classes are read from the spell-sheet class pickers (set for both wizard-built and manually
+  // entered characters) unioned with the saved multiclass build, so this works however the sheet was filled in.
+  function characterCasterKeys(){
+    const keys = new Set();
+    for(let i=0;i<spellSheets;i++){ const el = sEl(i, "spellclass"); const v = el ? (el.value||"").trim() : ""; if(v && CASTERS[v]) keys.add(v); }
+    (wizCasters(charClasses)||[]).forEach(c => keys.add(c.key));
+    return keys;
+  }
+  function classSpellNameSet(key){   // every spell name on this caster's list (EK/AT borrow Wizard's; + subclass-expanded spells)
+    const src = SPELL_LIST_FROM[key] || key, set = new Set();
+    ((DATA && DATA.classSpells && DATA.classSpells[src]) || []).forEach(sp => set.add((sp.n||"").toLowerCase()));
+    (characterExpandedSpells(key)||[]).forEach(sp => set.add((sp.n||"").toLowerCase()));
+    return set;
+  }
+  function scrollSpellEligible(spellName){   // {ok} | {ok:false, reason:"no-caster"|"not-on-list"}
+    const keys = [...characterCasterKeys()];
+    if(!keys.length) return {ok:false, reason:"no-caster"};
+    const lc = String(spellName||"").trim().toLowerCase();
+    return keys.some(k => classSpellNameSet(k).has(lc)) ? {ok:true} : {ok:false, reason:"not-on-list"};
+  }
+  // Lightweight reusable modal dialog (reuses the .modal framework). Closes on OK, backdrop click, or Escape.
+  function closeNotice(){ const m = $("notice-modal"); if(!m) return; if(m._esc) document.removeEventListener("keydown", m._esc); m.remove(); if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock(); }
+  function showNotice(title, bodyHTML){
+    closeNotice();
+    const m = document.createElement("div"); m.className = "modal open noprint"; m.id = "notice-modal";
+    m.innerHTML = `<div class="modal-panel" role="dialog" aria-modal="true" style="max-width:440px">`
+      + `<div class="modal-head"><h2>${esc(title)}</h2></div>`
+      + `<div class="modal-body">${bodyHTML}</div>`
+      + `<div class="modal-foot"><span></span><button type="button" class="btn primary" id="notice-ok">OK</button></div></div>`;
+    document.body.appendChild(m);
+    m.addEventListener("mousedown", e => { if(e.target === m) closeNotice(); });   // backdrop
+    $("notice-ok").addEventListener("click", closeNotice);
+    m._esc = e => { if(e.key === "Escape"){ e.preventDefault(); closeNotice(); } };
+    document.addEventListener("keydown", m._esc);
+    if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock();
+    $("notice-ok").focus();
+  }
+  function castScroll(itemName){   // spend one scroll of this item — but only if the spell is on one of your class lists
+    const spell = scrollSpellName(itemName), elig = scrollSpellEligible(spell), spName = esc(spell || itemName);
+    if(!elig.ok){
+      const why = elig.reason === "no-caster"
+        ? `<p>You can only cast a spell from a scroll if you have a spellcasting class whose spell list includes <em>${spName}</em>. This character has no spellcasting class, so they can't use this scroll.</p>`
+        : `<p><em>${spName}</em> isn't on your spellcasting class's spell list, so you can't cast it from a scroll. A spell scroll only works if the spell appears on one of your own classes' spell lists.</p>`;
+      showNotice("Can't cast this scroll", `<p style="margin-top:0"><strong>${esc(itemName)}</strong></p>${why}`);
+      return;
+    }
     const target = String(itemName||"").trim().toLowerCase();
     for(let i=0;i<NINV;i++){ const lc = ($("invname-"+i).value||"").trim().toLowerCase();
       if(lc === target && rowQty(i) > 0){ $("invqty-"+i).value = Math.max(0, rowQty(i) - 1); refreshRowWeight(i); save(); compute(); renderGrantedSpells();
@@ -5432,7 +5484,8 @@
       const isScroll = r.kind === "Scroll";
       const d = spellData(r.spell), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
       const ui = isScroll ? null : grantedUpcastInfo(d), key = r.source + "|" + r.spell;   // scrolls cast at the spell's own level (no slot upcasting)
-      const sub = [esc(r.source), (isScroll ? `${r.qty} left` : (r.use ? esc(r.use) : "")), (r.dc!=null ? `<span class="gs-dc">save DC ${r.dc}</span>` : "")];
+      const scrollOk = isScroll ? scrollSpellEligible(r.spell).ok : true;   // castable only if the spell is on one of your class lists
+      const sub = [esc(r.source), (isScroll ? `${r.qty} left` : (r.use ? esc(r.use) : "")), (r.dc!=null ? `<span class="gs-dc">save DC ${r.dc}</span>` : ""), (isScroll && !scrollOk ? `<span class="gs-locked">not on your class spell list</span>` : "")];
       let dmg = dmgCell(d);
       if(ui){                                              // upcast picker: pick a slot level, the Damage cell rescales
         const cast = Math.min(9, Math.max(ui.base, +(grantedUpcast[key] || ui.base)));
@@ -5442,7 +5495,7 @@
       }
       // Scroll rows get a ⚡ cast button. It sits AFTER the spell-name text node so refreshSpellDamageCells() still
       // reads the name from firstChild; clicking it depletes one from inventory (handled in the global click delegate).
-      const castBtn = isScroll ? ` <button type="button" class="sp-cast noprint" data-scroll="${esc(r.item)}" tabindex="-1" title="Cast this scroll — uses one from your inventory">⚡</button>` : "";
+      const castBtn = isScroll ? ` <button type="button" class="sp-cast noprint${scrollOk ? "" : " sp-cast-locked"}" data-scroll="${esc(r.item)}" tabindex="-1" title="${scrollOk ? "Cast this scroll; uses one from your inventory" : "Not on your class spell list; click to see why"}">⚡</button>` : "";
       body += `<tr${d?' class="has-spell"':''}><td class="col-name"${titleAttr}>${esc(r.spell)}${castBtn}<span class="gs-src">${sub.filter(Boolean).join(" · ")}</span></td>${dmg}${propCellsRest(d)}</tr>`;
     });
     tbody.innerHTML = body;
