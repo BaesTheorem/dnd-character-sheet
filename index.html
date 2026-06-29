@@ -2641,11 +2641,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v331 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v332 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.32.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.32.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2653,6 +2653,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v332", semver:"2.32.2", items:[
+      "The offline “Download the latest version” updater now keeps the new build's complete sourcebook data when your file's data is older, instead of carrying the old data forward. Updating a long-old file used to leave it on new code but stale data (so magic weapons, breath weapons, and natural-weapon attacks could still be missing); now those come back automatically. Your characters still travel into the fresh file, and if your data is already current it's preserved as before."
+    ]},
     {v:"v330", semver:"2.32.1", items:[
       "Importing or opening an older character no longer fails to load. A character saved before the half-feat ability column was added (or any file missing that piece of data) could hit an error on load; the sheet now fills in every ability-bonus category defensively, so old characters come in cleanly and recompute against the current rules data."
     ]},
@@ -10671,7 +10674,16 @@
     }
     const rEl = root.querySelector("#embedded-roster"); if(rEl) rEl.textContent = JSON.stringify(roster);
     const pEl = root.querySelector("#embedded-prefs"); if(pEl) pEl.textContent = JSON.stringify(sheetPrefsNow());   // dark / disable-animations travel with the file
-    const sd = root.querySelector("#source-data"); if(sd) sd.textContent = JSON.stringify(DATA || null);   // sourcebooks, so the copy works fully offline
+    const sd = root.querySelector("#source-data");   // sourcebooks, so the copy works fully offline
+    if(sd){
+      let shipped = null; try{ shipped = JSON.parse(sd.textContent); }catch(e){}
+      const _ver = d => (d && d._meta && d._meta.dataVersion) || 0;
+      // Keep the freshly-fetched build's COMPLETE baked sourcebooks when our running DATA is from an OLDER
+      // extractor (i.e. updating from a long-old file) — otherwise we'd carry stale source data forward and the
+      // new build would silently keep its data-derived features missing. Carry our own DATA only when it's
+      // same-or-newer, so a current user's loaded/extra books are preserved. Mirrors init()'s baked-vs-stored pick.
+      if(!shipped || _ver(DATA) >= _ver(shipped)) sd.textContent = JSON.stringify(DATA || null);
+    }
     const st = root.querySelector("#status"); if(st) st.textContent = "";
     return roster.chars.length;
   }
