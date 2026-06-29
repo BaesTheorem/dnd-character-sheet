@@ -802,17 +802,15 @@
   #granted-table .gs-locked{color:#b42318; font-weight:700}   /* scroll spell not on the character's class list */
   .sp-cast.sp-cast-locked{opacity:.3}                          /* dimmed ⚡: castable scroll, but blocked (shows an explainer dialog on click) */
   .sp-cast.sp-cast-locked:hover{opacity:.55}
-  /* Ammunition panel beside the Attacks table */
-  .ammo-panel{margin-top:8px; padding-top:7px; border-top:1px solid var(--hair, #ddd)}
-  .ammo-h{font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:3px}
-  .ammo-counts{display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; margin-bottom:5px}
-  .ammo-count b{font-size:13px}
-  .ammo-none{font-size:11px; color:var(--muted)}
-  .ammo-fires{display:flex; flex-wrap:wrap; gap:5px}
-  .ammo-fire{font-size:11px; padding:2px 8px; border:1px solid var(--ink); background:transparent; color:var(--ink); cursor:pointer; border-radius:0}
-  .ammo-fire:hover:not(:disabled){background:var(--ink); color:var(--paper, #fff)}
-  .ammo-fire:disabled{opacity:.4; cursor:default; border-style:dashed}
-  .ammo-fire .ammo-left{font-weight:700; margin-left:3px}
+  /* Per-weapon fire/throw button (lives in the Attacks-row Name cell, ranged/thrown weapons only) */
+  .attacks td.has-fire{position:relative}
+  .attacks td.has-fire input{padding-right:44px}        /* keep the weapon name clear of the button */
+  .atk-fire{position:absolute; right:4px; top:50%; transform:translateY(-50%); display:inline-flex; align-items:center; gap:3px;
+    height:22px; padding:0 5px; border:1px solid var(--line2); background:var(--card); color:var(--ink); cursor:pointer; border-radius:0; line-height:1}
+  .atk-fire:hover:not(:disabled){background:var(--ink); color:var(--paper, #fff); border-color:var(--ink)}
+  .atk-fire:disabled{opacity:.4; cursor:default; border-style:dashed}
+  .atk-fire svg{width:14px; height:14px; display:block; flex:none}
+  .atk-fire .atk-fire-badge{font-size:11px; font-weight:700; min-width:8px; text-align:center}
   /* Spell "Cast" button + upcast-level popover */
   .sp-cast{border:none; background:transparent; cursor:pointer; font-size:12px; padding:0 2px; opacity:.55; line-height:1}
   .sp-cast:hover{opacity:1}
@@ -2049,8 +2047,7 @@
         <td><input data-save="" id="atkdmg-4"></td>
       </tr></tbody>
           </table>
-          <div class="ammo-panel" id="ammo-panel" style="display:none"></div>
-          <p class="help noprint">Toggle a weapon's <strong>Atk</strong> box in Inventory to auto-fill a row. "Per action" counts Extra Attack; bonus-action attacks (Monk, two-weapon, Crossbow Expert) and invocations like Thirsting Blade are separate.</p>
+          <p class="help noprint">Toggle a weapon's <strong>Atk</strong> box in Inventory to auto-fill a row. Ranged and thrown weapons show a fire/throw button with a live count of matching ammo; click it to spend one. "Per action" counts Extra Attack; bonus-action attacks (Monk, two-weapon, Crossbow Expert) and invocations like Thirsting Blade are separate.</p>
         </div>
 
         <div class="card" id="action-econ-card" data-csec="actionecon" style="display:none">
@@ -2631,11 +2628,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v320 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v321 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.27.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.28.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2643,6 +2640,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v321", semver:"2.28.0", items:[
+      "Firing a ranged weapon is now built into the Attacks table. The separate Ammunition panel is gone; instead each ranged or thrown weapon row shows a small fire/throw button with an icon tailored to the weapon (bow, crossbow, firearm, sling, blowgun, dagger, spear, axe) and a live badge counting the matching ammo in your inventory (arrows, bolts, bullets, needles, or the thrown weapon itself). Click it to spend one; the badge updates and dims when you run out."
+    ]},
     {v:"v320", semver:"2.27.1", items:[
       "Multiclass casters now open up scroll eligibility live: add or switch a spellcasting class and any scrolls on that class's list immediately become castable (a Wizard/Cleric can use both Wizard and Cleric scrolls). Previously the Spell Scrolls list didn't refresh when you changed a caster class, so newly-eligible scrolls stayed greyed out until the next edit."
     ]},
@@ -5908,7 +5908,7 @@
       if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); renderActionEconomy(); } }   // rebuild Feature cards (+ action-economy summary) only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
-    renderAmmo();   // ammo tally + fire-a-ranged-weapon buttons beside the Attacks table
+    renderWeaponFireButtons();   // per-weapon fire/throw button + live ammo badge in the Attacks table
     updateDeathSaves();   // show the death-save pips only at 0 HP
     applyOverrides();    // repaint any hand-pinned leaf values over what compute() just wrote (sources already cascaded via the helpers)
     refreshSimulacrumButton();   // surface the "Create Simulacrum" button only when the Simulacrum spell is on a sheet
@@ -8124,22 +8124,48 @@
     return out;
   }
   function thrownCount(nm){ const lc = String(nm).toLowerCase(); let c = 0; for(let i=0;i<NINV;i++){ if(($("invname-"+i).value||"").trim().toLowerCase() === lc) c += rowQty(i); } return c; }
-  function renderAmmo(){
-    const el = $("ammo-panel"); if(!el) return;
-    const tally = ammoTally(), kinds = Object.keys(tally), weapons = [];
-    for(let i=0;i<NATTACKS;i++){ const nm = ($("atkname-"+i).value||"").trim(); if(!nm) continue; const k = ammoKindFor(nm); if(k) weapons.push({name:nm, kind:k}); }
-    if(!kinds.length && !weapons.length){ el.style.display = "none"; el.innerHTML = ""; return; }
-    el.style.display = "";
-    const needsAmmo = weapons.some(w => w.kind.indexOf("thrown:") !== 0);   // a bow/crossbow/sling that draws from a stack
-    const counts = kinds.length ? kinds.map(kw => `<span class="ammo-count">${esc(tally[kw].label)}: <b>${tally[kw].count}</b></span>`).join("")
-                                : (needsAmmo ? `<span class="ammo-none">No ammunition in inventory</span>` : "");
-    const fires = weapons.map(w => {
-      const thrown = w.kind.indexOf("thrown:") === 0, nm = thrown ? w.kind.slice(7) : "";
-      const cnt = thrown ? thrownCount(nm) : (tally[w.kind] ? tally[w.kind].count : 0);
-      const verb = thrown ? "Throw" : "Fire";
-      return `<button type="button" class="ammo-fire" data-kind="${esc(w.kind)}"${cnt<=0?" disabled":""} title="Expend 1 ${thrown?"of this weapon":(tally[w.kind]?tally[w.kind].label:w.kind)}">${verb} ${esc(w.name)} <span class="ammo-left">${cnt}</span></button>`;
-    }).join("");
-    el.innerHTML = `<div class="ammo-h">Ammunition</div><div class="ammo-counts">${counts}</div>` + (fires ? `<div class="ammo-fires noprint">${fires}</div>` : "");
+  // Simple line icons (16px, currentColor) tailored to a weapon's class, shown on its fire/throw button.
+  const WEAPON_ICONS = {
+    bow:      `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2a8 8 0 0 1 0 12"/><path d="M4 2 14 12"/><path d="M2 8h12"/><path d="M11 5l3 3-3 3"/></svg>`,
+    crossbow: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4a9 9 0 0 1 12 0"/><path d="M8 3v11"/><path d="M5 7h6"/><path d="M8 3l2-1M8 3l-2-1"/></svg>`,
+    gun:      `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M1 4h12v3H8l-1 5H4l1-5H1z"/></svg>`,
+    sling:    `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M3 2 8 9M13 2 8 9"/><circle cx="8" cy="11.5" r="2.3" fill="currentColor" stroke="none"/></svg>`,
+    blowgun:  `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14 14 2"/><path d="M10 2h4v4"/></svg>`,
+    dagger:   `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1 9.6 6 8 5 6.4 6Z" fill="currentColor"/><path d="M8 6v6"/><path d="M5 11h6"/></svg>`,
+    spear:    `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13 13 3"/><path d="M13 3h-3M13 3v3"/></svg>`,
+    axe:      `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 14 9.5 4"/><path d="M9.5 4a3.2 3.2 0 0 1 4 3.2L9.5 6Z" fill="currentColor"/></svg>`,
+    throw:    `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12a6 6 0 0 1 10-4"/><path d="M12 8h-3M12 8V5"/><circle cx="12.5" cy="12.5" r="1.4" fill="currentColor" stroke="none"/></svg>`
+  };
+  function weaponFireIcon(name, kind){   // pick an icon key tailored to the weapon's class
+    const lc = String(name||"").toLowerCase();
+    if(/crossbow/.test(lc)) return "crossbow";
+    if(/\bbow\b|longbow|shortbow/.test(lc)) return "bow";
+    if(/sling/.test(lc)) return "sling";
+    if(/blowgun/.test(lc)) return "blowgun";
+    if(/pistol|musket|revolver|rifle|firearm|\bgun\b|cannon|mortar|shotgun|carbine/.test(lc)) return "gun";
+    if(/dagger|dart|needle|knife/.test(lc)) return "dagger";
+    if(/spear|javelin|trident|lance|pike|harpoon/.test(lc)) return "spear";
+    if(/axe|hammer|club|mace|net|boomerang|chakram/.test(lc)) return "axe";
+    return kind === "arrow" ? "bow" : kind === "bolt" ? "crossbow" : kind === "needle" ? "blowgun"
+         : kind && kind.indexOf("thrown:") === 0 ? "throw" : "gun";   // ammo-kind fallback (bullets/firearms → gun)
+  }
+  function renderWeaponFireButtons(){   // ranged/thrown weapons in the Attacks table get an inline fire/throw button + live ammo badge
+    const tally = ammoTally();
+    for(let i=0;i<NATTACKS;i++){ const nm = $("atkname-"+i); if(!nm) continue;
+      const td = nm.closest("td"); if(!td) continue;
+      const name = (nm.value||"").trim(), kind = name ? ammoKindFor(name) : null;
+      let btn = td.querySelector(".atk-fire");
+      if(!kind){ if(btn) btn.remove(); td.classList.remove("has-fire"); continue; }
+      const thrown = kind.indexOf("thrown:") === 0, tnm = thrown ? kind.slice(7) : "";
+      const cnt = thrown ? thrownCount(tnm) : (tally[kind] ? tally[kind].count : 0);
+      const ammoLabel = thrown ? "to throw" : `${tally[kind] ? tally[kind].label.toLowerCase() : kind} left`;
+      if(!btn){ btn = document.createElement("button"); btn.type = "button"; btn.className = "atk-fire noprint"; btn.tabIndex = -1; td.appendChild(btn); }
+      td.classList.add("has-fire");
+      btn.dataset.kind = kind;
+      btn.disabled = cnt <= 0;
+      btn.title = `${thrown ? "Throw" : "Fire"} ${name}: ${cnt} ${ammoLabel}`;
+      btn.innerHTML = `${WEAPON_ICONS[weaponFireIcon(name, kind)] || WEAPON_ICONS.throw}<span class="atk-fire-badge">${cnt}</span>`;
+    }
   }
   function fireAmmo(kind){   // expend one piece of the matching ammo (or one of a thrown weapon)
     const thrown = kind.indexOf("thrown:") === 0, nm = thrown ? kind.slice(7).toLowerCase() : "";
@@ -9422,7 +9448,7 @@
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
     document.addEventListener("click", e => {   // ammo "Fire/Throw" buttons + spell "Cast" buttons (delegated; survive re-renders)
-      const fire = e.target.closest(".ammo-fire");
+      const fire = e.target.closest(".atk-fire");
       if(fire && !fire.disabled){ fireAmmo(fire.dataset.kind); return; }
       const cast = e.target.closest(".sp-cast");
       if(cast){ e.preventDefault(); if(cast.dataset.scroll != null) castScroll(cast.dataset.scroll); else onCastClick(cast); return; }
