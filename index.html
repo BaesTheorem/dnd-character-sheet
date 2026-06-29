@@ -2579,11 +2579,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v301 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v303 (2026-06-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.12.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.13.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2591,6 +2591,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v302", semver:"2.13.0", items:[
+      "The “learn spells from a class” feats now work fully: Magic Initiate, Ritual Caster, Aberrant Dragonmark, and Artificer Initiate. Magic Initiate and Ritual Caster let you pick which class's spell list in the feat slot, then choose your spells from that list (2 cantrips + a 1st-level spell for Magic Initiate; two 1st-level ritual spells for Ritual Caster). The picks show up in your Granted Spells, the 1st-level spell is tracked as a once-per-long-rest cast, and ritual-only spells are correctly left out of that tracker.",
+    ]},
     {v:"v301", semver:"2.12.0", items:[
       "More spell-granting feats are now recognized: Telekinetic, Telepathic, Fey Teleportation, Drow High Magic, Svirfneblin Magic, and Wood Elf Magic join Fey Touched and Shadow Touched. Their spells appear in the Granted Spells section and on your sheet, and each is now tracked with the right recovery, so an at-will cantrip like Mage Hand no longer shows up as a once-per-rest use the way it used to. Wood Elf Magic lets you pick your bonus Druid cantrip right in the feat slot.",
     ]},
@@ -3074,6 +3077,11 @@
       if(f && f.ability && f.ability.choose && !s.featAbil) return false;   // half-feat: must pick which ability
       const fs = FEAT_SPELLS[s.feat];
       if(fs && fs.choose && !s.featSpell) return false;                     // spell-granting feat: must pick the chosen spell
+      if(fs && fs.picks){                                                   // multi-pick feat: need the variant (if any) + every spell slot filled
+        if(fs.variant && !s.featVariant) return false;
+        const descs = featPickDescriptors(fs, s.featVariant), picks = s.featSpells || [];
+        for(let k=0;k<descs.length;k++) if(!picks[k]) return false;
+      }
       const fk = FEAT_SKILLS[s.feat];
       if(fk && (s.featSkills||[]).filter(Boolean).length < fk.count) return false;   // skill-granting feat: must pick all its skills
       return true;
@@ -3156,14 +3164,12 @@
     "Prodigy": {count:1},
     "Squat Nimbleness": {count:1, from:["Acrobatics","Athletics"]}
   };
-  // Feats that grant spells (5etools has no structured field for these): one or more always-granted "fixed" spells,
-  // plus an optional player "choose" of a spell at a given level from certain schools. Each granted spell can be cast
-  // once per long rest without a slot → each becomes its own "<Feat> (Spell)" Limited Features row.
-  // Spell-granting feats. `spells` = always-granted, each with its recovery (rec: "LR" = once per long rest free,
-  // "SR" = short rest, "atwill" = cantrip / unlimited → no Limited-Features row). `choose` = a single picker, filtered by
-  // `schools` OR by a class list (`classList`) at `level`, with its own rec. Data mirrors 5etools feat additionalSpells.
-  // Multi-pick class feats (Magic Initiate, Ritual Caster, Spell Sniper, Aberrant Dragonmark, Strixhaven Initiate) need a
-  // multi-select picker and are not modeled here yet.
+  // Spell-granting feats (5etools has no app-ready field for these; mirrors feats.json additionalSpells). A feat may grant:
+  //   • `spells` — always-granted, each with its recovery (rec: "LR" = once/long rest free, "SR" = short rest,
+  //     "atwill" = cantrip/unlimited, "ritual" = cast only as a ritual; only LR/SR become Limited-Features rows).
+  //   • `choose` — a SINGLE player pick at a `level`, filtered by `schools` or a `classList`, with its own rec.
+  //   • `picks` — MULTIPLE picks (Magic Initiate, Ritual Caster, …): each {count, level, rec, ritual?, classList?}.
+  //     With `variant` (+ `classFromVariant`), the player first picks a class and every pick is filtered to that list.
   const FEAT_SPELLS = {
     "Fey Touched":       { spells:[{n:"Misty Step", rec:"LR"}],     choose:{level:1, schools:["Divination","Enchantment"], rec:"LR"} },
     "Shadow Touched":    { spells:[{n:"Invisibility", rec:"LR"}],   choose:{level:1, schools:["Illusion","Necromancy"], rec:"LR"} },
@@ -3173,13 +3179,33 @@
     "Drow High Magic":   { spells:[{n:"Detect Magic", rec:"atwill"}, {n:"Levitate", rec:"LR"}, {n:"Dispel Magic", rec:"LR"}] },
     "Svirfneblin Magic": { spells:[{n:"Nondetection", rec:"atwill"}, {n:"Blindness/Deafness", rec:"LR"}, {n:"Blur", rec:"LR"}, {n:"Disguise Self", rec:"LR"}] },
     "Wood Elf Magic":    { spells:[{n:"Longstrider", rec:"LR"}, {n:"Pass Without Trace", rec:"LR"}], choose:{level:0, classList:"Druid", rec:"atwill"} },
+    // multi-pick class feats: pick a class (variant) then 2 cantrips + a 1st-level spell, etc.
+    "Magic Initiate":    { variant:{label:"Spell list", from:["Bard","Cleric","Druid","Sorcerer","Warlock","Wizard"]}, classFromVariant:true,
+                           picks:[{count:2, level:0, rec:"atwill"}, {count:1, level:1, rec:"LR"}] },
+    "Ritual Caster":     { variant:{label:"Spell list", from:["Bard","Cleric","Druid","Sorcerer","Warlock","Wizard"]}, classFromVariant:true,
+                           picks:[{count:2, level:1, rec:"ritual", ritual:true}] },
+    "Aberrant Dragonmark": { picks:[{count:1, level:0, classList:"Sorcerer", rec:"atwill"}, {count:1, level:1, classList:"Sorcerer", rec:"LR"}] },
+    "Artificer Initiate":  { picks:[{count:1, level:0, classList:"Artificer", rec:"atwill"}, {count:1, level:1, classList:"Artificer", rec:"LR"}] },
   };
-  const FEAT_SPELL_REC_USE = {LR:"1/Long Rest", SR:"1/Short Rest", atwill:"at will"};
-  // Normalize a spell-feat into [{n, rec}] — its always-granted spells plus the chosen one (if the slot has picked it).
-  function featSpellGrants(fsKey, chosenSpell){
+  const FEAT_SPELL_REC_USE = {LR:"1/Long Rest", SR:"1/Short Rest", atwill:"at will", ritual:"ritual"};
+  // Expand a feat's `picks` into one descriptor per individual spell to choose (count flattened). classList comes from the
+  // chosen variant when classFromVariant, else from the pick itself. Returns [] for feats without `picks`.
+  function featPickDescriptors(fs, variant){
+    if(!fs || !fs.picks) return [];
+    const out = [];
+    fs.picks.forEach(p => { const classList = fs.classFromVariant ? variant : p.classList;
+      for(let i=0;i<(p.count||1);i++) out.push({level:p.level, classList, rec:p.rec || "LR", ritual:!!p.ritual}); });
+    return out;
+  }
+  // Normalize a spell-feat slot (an asiChoice, or {feat} when only the feature text is known) into [{n, rec}]:
+  // always-granted spells + the single `choose` (s.featSpell) + the multi `picks` (s.featSpells[], gated by s.featVariant).
+  function featSpellGrants(s){
+    const fsKey = s && s.feat && Object.keys(FEAT_SPELLS).find(k => k.toLowerCase() === s.feat.toLowerCase());
     const fs = fsKey && FEAT_SPELLS[fsKey]; if(!fs) return [];
     const out = (fs.spells || []).map(sp => ({n:sp.n, rec:sp.rec || "LR"}));
-    if(fs.choose && chosenSpell) out.push({n:chosenSpell, rec:fs.choose.rec || "LR"});
+    if(fs.choose && s.featSpell) out.push({n:s.featSpell, rec:fs.choose.rec || "LR"});
+    if(fs.picks){ const picks = s.featSpells || [];
+      featPickDescriptors(fs, s.featVariant).forEach((d, i) => { if(picks[i]) out.push({n:picks[i], rec:d.rec}); }); }
     return out;
   }
   // Class / subclass features that belong in the Senses box (keyed by lowercased feature name).
@@ -3325,20 +3351,41 @@
   }
   // Spell-granting feats (Fey Touched, Shadow Touched, …) let you choose one spell of a fixed level + school — show that picker.
   function featSpellPicker(s, i){
-    const fs = FEAT_SPELLS[s.feat]; if(!fs || !fs.choose) return "";
-    const ch = fs.choose, ord = n => n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:Math.min(n%10,4)] || "th");
-    let spells = ((DATA && DATA.spells) || []).filter(sp => sp.level === ch.level);
-    if(ch.schools) spells = spells.filter(sp => ch.schools.includes(sp.school));   // school-filtered choose (Fey/Shadow Touched)
-    if(ch.classList){ const names = new Set((classSpellNamesAt(ch.classList, ch.level) || []).map(n => n.toLowerCase()));   // class-list choose (Wood Elf Magic druid cantrip)
-      spells = spells.filter(sp => names.has(sp.name.toLowerCase())); }
-    spells.sort((a,b) => a.name.localeCompare(b.name));
-    const opts = `<option value=""></option>` + spells.map(sp =>
-      `<option value="${esc(sp.name)}"${s.featSpell===sp.name?" selected":""}>${esc(sp.name)}</option>`).join("");
+    const fs = FEAT_SPELLS[s.feat]; if(!fs || (!fs.choose && !fs.picks)) return "";
+    const ord = n => n + (["th","st","nd","rd"][(n%100>10&&n%100<14)?0:Math.min(n%10,4)] || "th");
+    // candidate <option>s for a spell select at a given level, filtered by schools / class list / ritual, with a soft
+    // exclude set so the same multi-pick can't choose one spell twice.
+    const optsFor = (cur, level, opt) => {
+      let spells = ((DATA && DATA.spells) || []).filter(sp => sp.level === level);
+      if(opt.schools) spells = spells.filter(sp => opt.schools.includes(sp.school));
+      if(opt.classList){ const names = new Set((classSpellNamesAt(opt.classList, level) || []).map(n => n.toLowerCase()));
+        spells = spells.filter(sp => names.has(sp.name.toLowerCase())); }
+      if(opt.ritual) spells = spells.filter(sp => sp.ritual);
+      if(opt.exclude) spells = spells.filter(sp => sp.name === cur || !opt.exclude.has(sp.name.toLowerCase()));
+      spells.sort((a,b) => a.name.localeCompare(b.name));
+      return `<option value=""></option>` + spells.map(sp => `<option value="${esc(sp.name)}"${cur===sp.name?" selected":""}>${esc(sp.name)}</option>`).join("");
+    };
     const granted = fs.spells && fs.spells.length ? ` (also grants ${fs.spells.map(x => x.n).join(", ")})` : "";
-    const what = ch.schools ? `${ord(ch.level)}-level ${ch.schools.join(" / ")} spell`
-                            : `${ch.classList} ${ch.level === 0 ? "cantrip" : ord(ch.level)+"-level spell"}`;
-    return `<div class="asi-body"><label>${what}${granted}</label>`+
-      `<select class="asi-featspell" data-i="${i}">${opts}</select></div>`;
+    if(fs.choose){                                              // single pick (Fey/Shadow Touched, Wood Elf Magic)
+      const ch = fs.choose;
+      const what = ch.schools ? `${ord(ch.level)}-level ${ch.schools.join(" / ")} spell`
+                              : `${ch.classList} ${ch.level === 0 ? "cantrip" : ord(ch.level)+"-level spell"}`;
+      return `<div class="asi-body"><label>${what}${granted}</label><select class="asi-featspell" data-i="${i}">${optsFor(s.featSpell, ch.level, ch)}</select></div>`;
+    }
+    // multi-pick (Magic Initiate, Ritual Caster, Aberrant Dragonmark, Artificer Initiate)
+    let html = "";
+    if(fs.variant){
+      const vopts = `<option value=""></option>` + fs.variant.from.map(v => `<option value="${esc(v)}"${s.featVariant===v?" selected":""}>${esc(v)}</option>`).join("");
+      html += `<div class="asi-body"><label>${esc(fs.variant.label)}${granted}</label><select class="asi-featvariant" data-i="${i}">${vopts}</select></div>`;
+      if(!s.featVariant) return html;                           // pick the class before its spells
+    }
+    const descs = featPickDescriptors(fs, s.featVariant), picks = s.featSpells || [];
+    descs.forEach((d, idx) => {
+      const exclude = new Set(descs.map((o, j) => (o.level === d.level && o.classList === d.classList && j !== idx) ? (picks[j]||"").toLowerCase() : "").filter(Boolean));
+      const what = (d.classList ? d.classList + " " : "") + (d.level === 0 ? "cantrip" : `${ord(d.level)}-level${d.ritual ? " ritual" : ""} spell`);
+      html += `<div class="asi-body"><label>${esc(what)}</label><select class="asi-featspell" data-i="${i}" data-pick="${idx}">${optsFor(picks[idx]||"", d.level, {classList:d.classList, ritual:d.ritual, exclude})}</select></div>`;
+    });
+    return html;
   }
   // Skill-granting feats (Skilled, Skill Expert, Prodigy, …) let you choose which skills — show one select per skill.
   function featSkillPicker(s, i){
@@ -5142,7 +5189,7 @@
       if(s.type !== "feat" || !s.feat) return;
       const fsKey = Object.keys(FEAT_SPELLS).find(k => k.toLowerCase() === s.feat.toLowerCase());
       if(!fsKey) return;
-      featSpellGrants(fsKey, s.featSpell).forEach(g => rows.push({kind:"Feat", source:fsKey, spell:g.n, use:(FEAT_SPELL_REC_USE[g.rec] || "1/Long Rest"), dc:null}));
+      featSpellGrants(s).forEach(g => rows.push({kind:"Feat", source:fsKey, spell:g.n, use:(FEAT_SPELL_REC_USE[g.rec] || "1/Long Rest"), dc:null}));
     });
     return rows;
   }
@@ -5547,7 +5594,7 @@
         else hint.style.display = "none"; } }
     renderContainers();      // container carets, nesting, collapse
     { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig() + "" + ($("race").value||"")
-        + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")).join(",");   // feat type + spell picks drive limited rows, granted spells, and learned-spell sync
+        + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")+":"+(s.featVariant||"")+":"+((s.featSpells||[]).join("|"))).join(",");   // feat type + spell picks drive limited rows, granted spells, and learned-spell sync
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); renderActionEconomy(); } }   // rebuild Feature cards (+ action-economy summary) only when the text changed
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
@@ -5782,7 +5829,7 @@
       else if(data.racialVals) bonusVals.racial = {...bonusVals.racial, ...data.racialVals};   // legacy: old single racial bonus
     }
     asiChoices = (data && Array.isArray(data.asiChoices))
-      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||"", featAbil:(s&&s.featAbil)||"", featSpell:(s&&s.featSpell)||"", source:(s&&s.source)||"class"}))
+      ? data.asiChoices.map(s => ({type:(s&&s.type)||"", ab1:(s&&s.ab1)||"", ab2:(s&&s.ab2)||"", feat:(s&&s.feat)||"", featAbil:(s&&s.featAbil)||"", featSpell:(s&&s.featSpell)||"", featSpells:(s&&Array.isArray(s.featSpells))?s.featSpells.slice():[], featVariant:(s&&s.featVariant)||"", source:(s&&s.source)||"class"}))
       : [];
     asiFeatsAdded = (data && data.asiFeatsAdded) ? {...data.asiFeatsAdded} : {};
     overrides = (data && data.overrides && typeof data.overrides === "object" && !Array.isArray(data.overrides)) ? {...data.overrides} : {};   // hand-pinned values
@@ -6458,7 +6505,7 @@
     const out = [], seen = new Set();
     (asiChoices||[]).forEach(s => { if(s.type !== "feat" && s.source !== "race") return;   // only an actually-taken feat grants spells (a slot switched back to ASI keeps its old feat string)
       const fsKey = s.feat && Object.keys(FEAT_SPELLS).find(k => k.toLowerCase() === s.feat.toLowerCase()); if(!fsKey) return;
-      featSpellGrants(fsKey, s.featSpell).forEach(g => { const k = (g.n||"").toLowerCase(); if(g.n && !seen.has(k)){ seen.add(k); out.push(g.n); } });
+      featSpellGrants(s).forEach(g => { const k = (g.n||"").toLowerCase(); if(g.n && !seen.has(k)){ seen.add(k); out.push(g.n); } });
     });
     return out;
   }
@@ -8701,7 +8748,7 @@
       const fsKey = Object.keys(FEAT_SPELLS).find(k => k.toLowerCase() === lc);
       if(fsKey){                                                              // spell-granting feat → one "<Feat> (Spell)" row per limited-use granted spell (at-will/cantrip grants get no row)
         const slot = (asiChoices||[]).find(x => x.type === "feat" && x.feat === fsKey);
-        const want = featSpellGrants(fsKey, slot && slot.featSpell).filter(g => g.rec !== "atwill");   // at-will/cantrip casts aren't limited resources
+        const want = featSpellGrants(slot || {feat:fsKey}).filter(g => g.rec === "LR" || g.rec === "SR");   // only rest-limited casts become rows (at-will/ritual don't)
         const rows = want.map(g => ({label:`${fsKey} (${g.n})`, rec:g.rec})), low = rows.map(r => r.label.toLowerCase());
         const gi = lfIndexByName(b.name); if(gi >= 0) clearLfRow(gi);         // drop a stray bare "Fey Touched" row
         for(let i=0;i<NLIMITED;i++){ const nm = ($("lfname-"+i).value||"").trim();   // clear stale "<Feat> (...)" rows (e.g. the chosen spell was re-picked, or it's now at-will)
@@ -9303,9 +9350,13 @@
       if(isNaN(i) || !asiChoices[i]) return;
       if(t.classList.contains("asi-type-r")){ asiChoices[i].type = t.value; }
       else if(t.classList.contains("asi-ab")){ asiChoices[i][t.dataset.which] = t.value; }
-      else if(t.classList.contains("asi-feat-radio")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; asiChoices[i].featSpell = ""; asiChoices[i].featSkills = []; }   // new feat → reset its ability + spell + skill picks
+      else if(t.classList.contains("asi-feat-radio")){ asiChoices[i].feat = t.value; asiChoices[i].featAbil = ""; asiChoices[i].featSpell = ""; asiChoices[i].featSpells = []; asiChoices[i].featVariant = ""; asiChoices[i].featSkills = []; }   // new feat → reset its ability + spell + skill picks
       else if(t.classList.contains("asi-featabil")){ asiChoices[i].featAbil = t.value; }
-      else if(t.classList.contains("asi-featspell")){ asiChoices[i].featSpell = t.value; }
+      else if(t.classList.contains("asi-featvariant")){ asiChoices[i].featVariant = t.value; asiChoices[i].featSpells = []; }   // multi-pick: changing the class clears its spell picks
+      else if(t.classList.contains("asi-featspell")){ const pick = t.dataset.pick;
+        if(pick != null){ asiChoices[i].featSpells = asiChoices[i].featSpells || []; asiChoices[i].featSpells[+pick] = t.value; }   // multi-pick slot
+        else asiChoices[i].featSpell = t.value; }                                                                                  // single choose
+
       else if(t.classList.contains("asi-featskill")){ asiChoices[i].featSkills = asiChoices[i].featSkills || []; asiChoices[i].featSkills[+t.dataset.j] = t.value; }
       applyAsiBonuses();
       renderAsiList(); renderHoodControls(); save(); compute();
