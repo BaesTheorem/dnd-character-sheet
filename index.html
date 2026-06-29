@@ -2628,7 +2628,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v316 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v317 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
@@ -2640,6 +2640,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v317", semver:"2.25.0", items:[
+      "Roomier character info: on the landscape sheet, the name, class, race, background, alignment, player, campaign, and experience fields now stretch across a full-width band at the top instead of being squeezed into a narrow two-column box beside the portrait — so everything sits in one easy-to-scan row. The portrait theme's info block got the same responsive spacing."
+    ]},
     {v:"v315", semver:"2.24.1", items:[
       "Fixed the Level Up button losing its gold look in the Universal Character Sheet and Classic themes (their generic button styling was overriding it)."
     ]},
