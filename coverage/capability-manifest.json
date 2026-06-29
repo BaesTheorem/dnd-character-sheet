@@ -42,9 +42,9 @@
       "note": "no all-movement-mode modifier"
     },
     "allowUpCasting": {
-      "supported": false,
+      "supported": true,
       "status": "verified",
-      "note": "no cast-at-higher-level picker"
+      "note": "Granted Spells damage rows that scale by slot level (DATA.spellUpcast, baked from 5etools @scaledamage; 84 spells) get an inline cast-level picker (base level to 9th); the Damage cell rescales live via spellDamage(d,castLevel)+upcastDice(), and the chosen level (ephemeral session state, data-cast on the cell) survives refreshSpellDamageCells. Cantrips (scale by character level) and non-damage grants get no picker. Per-source allowUpCasting:false locking is approximated: the picker shows for any scaling-damage grant rather than gating on a 47-entity registry, since the picker is an informational preview and the vast majority of these grants allow upcasting."
     },
     "altResource": {
       "supported": false,

@@ -22,8 +22,8 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "source-data.json
 # 5eTools source code of the book to extract (CLI arg wins, then env var, default 2014 PHB; 2024 book is "XPHB")
 SRC_TAG = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SOURCE_BOOK", "PHB")).upper()
 BOOK_NAMES = {"PHB": "Player's Handbook (2014)"}   # friendly names; others fall back to books.json then the code
-DATA_VERSION = 28  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
-# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21/v22: race `ancestry` = {kind, choices:[{dragon,dmgType,shape,save}], breath:{die,scale}} (Draconic Ancestry → breath weapon + resistance; v22 added the breath progression + Fizban Chromatic/Gem/Metallic variants). v23: race `naturalWeapons`=[{name,die,dmgType,ability}] (claws/horns/bite → feature-attack rows). NOTE: subclass/feat attacks (Soulknife, Armorer, Sun Soul, Polearm Master…) are NOT data — they live in the FEATURE_ATTACKS registry in index.html's app JS. v24: `magicWeapons` {name:{base,bonus,rider}} (equipped named magic weapon → Attacks row) + itemText now also fed for charged magic items (Limited Features). v25 (itemText charged-item expansion) and v26 (per-spell `dmg` field) were ALSO applied to the baked sheet WITHOUT a build-data.py rebuild — same "BEHIND" caveat as v19/v20. v27: `itemSpells` {name:[{n,u}]} = magic-item spell grants (from 5etools `attachedSpells`) → the "Granted Spells" table; build_item_spells() mirrors it here, but the script is still behind on the v19–v26 reconciliation, so do NOT run a full rebuild without reconciling. v28: `attackSpells` [names] = every spell needing an attack roll (5etools `spellAttack`) → the Spell Sniper attack-cantrip filter; build_attack_spells() mirrors it (same BEHIND caveat). Mirror HTML's DATA_VERSION.
+DATA_VERSION = 29  # bump when the extracted data SHAPE changes; the app discards stored data of an older version
+# v13: subclass featChoices + opt/optGroup, class mcReq/mcProf. v14: subclass `choosers`. v15: `futuristic` list. v16: tool/instrument lists exclude magic items. v17: `modern` list. v18: race `flavor` (lore) from fluff-races.json. v19/v20 (spellBonusItems etc.) were applied to the committed sheet WITHOUT a build-data.py rebuild — this script is BEHIND the baked #source-data on those fields; do NOT run a full rebuild without reconciling them first. v21/v22: race `ancestry` = {kind, choices:[{dragon,dmgType,shape,save}], breath:{die,scale}} (Draconic Ancestry → breath weapon + resistance; v22 added the breath progression + Fizban Chromatic/Gem/Metallic variants). v23: race `naturalWeapons`=[{name,die,dmgType,ability}] (claws/horns/bite → feature-attack rows). NOTE: subclass/feat attacks (Soulknife, Armorer, Sun Soul, Polearm Master…) are NOT data — they live in the FEATURE_ATTACKS registry in index.html's app JS. v24: `magicWeapons` {name:{base,bonus,rider}} (equipped named magic weapon → Attacks row) + itemText now also fed for charged magic items (Limited Features). v25 (itemText charged-item expansion) and v26 (per-spell `dmg` field) were ALSO applied to the baked sheet WITHOUT a build-data.py rebuild — same "BEHIND" caveat as v19/v20. v27: `itemSpells` {name:[{n,u}]} = magic-item spell grants (from 5etools `attachedSpells`) → the "Granted Spells" table; build_item_spells() mirrors it here, but the script is still behind on the v19–v26 reconciliation, so do NOT run a full rebuild without reconciling. v28: `attackSpells` [names] = every spell needing an attack roll (5etools `spellAttack`) → the Spell Sniper attack-cantrip filter; build_attack_spells() mirrors it (same BEHIND caveat). v29: `spellUpcast` {name:{up,at}} = per-slot-level damage scaling (from 5etools `@scaledamage`) → the Granted Spells upcast picker; build_spell_upcast() mirrors it (same BEHIND caveat). Mirror HTML's DATA_VERSION.
 TOOL_TYPES = {"AT", "GS", "INS", "T"}  # artisan's tools, gaming sets, instruments, tools
 
 SCHOOL = {"A":"Abjuration","C":"Conjuration","D":"Divination","E":"Enchantment",
@@ -695,6 +695,22 @@ def build_attack_spells():   # names of every spell that requires a spell attack
             if s.get("spellAttack") and s.get("name"): names.add(s["name"])
     return sorted(names)
 
+_SCALEDAMAGE = re.compile(r"\{@scaledamage\s+([^|]+)\|([^|]+)\|([^}]+)\}")
+def build_spell_upcast(spell_names):   # {name: {up: per-slot-level dice, at: base level}} from 5etools @scaledamage → upcast damage picker
+    out = {}
+    keep = set(spell_names)
+    for fn in os.listdir(os.path.join(SRC, "spells")):
+        if not re.match(r"spells-[a-z0-9]+\.json$", fn): continue
+        for s in load("spells", fn).get("spell", []):
+            nm = s.get("name")
+            if nm not in keep or nm in out: continue
+            m = _SCALEDAMAGE.search(json.dumps(s.get("entriesHigherLevel") or ""))
+            if not m: continue
+            rng = m.group(2).strip()
+            at = int(rng.split("-")[0]) if "-" in rng else (s.get("level") or 1)
+            out[nm] = {"up": m.group(3).strip(), "at": at}
+    return out
+
 # ---- Bestiary (monster stat blocks for the Companions & Forms page) ----
 ALIGN = {"L":"lawful","N":"neutral","C":"chaotic","G":"good","E":"evil","U":"unaligned","A":"any alignment"}
 def _mon_size(s):
@@ -1115,6 +1131,7 @@ def main():
     out["itemText"] = build_item_text(items_base, items)
     out["itemSpells"] = build_item_spells(items_base, items)   # v27: magic-item spell grants → "Granted Spells" table
     out["attackSpells"] = build_attack_spells()                # v28: spell-attack-roll names → Spell Sniper cantrip filter
+    out["spellUpcast"] = build_spell_upcast([s["name"] for s in out["spells"]])   # v29: per-slot-level damage scaling → upcast picker
     out["magicWeapons"] = {**build_variant_weapons(items_base), **build_magic_weapons(items)}   # variant templates (Flame Tongue ×bases) + concrete named magic weapons → Attacks rows
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
     sz = os.path.getsize(OUT)
