@@ -2496,7 +2496,7 @@
           </section>
           <section class="set-sec" data-sec="pages">
             <label class="lbl" style="display:block; margin-bottom:6px">Theme</label>
-            <p class="wiz-hint" style="margin-top:0; color:var(--accent)"><strong>⚠ Highly experimental / work in progress.</strong> Themes (especially Classic and D&amp;D Beyond) are still being built out — expect rough edges, layout quirks, and changes between versions. The Universal theme is the stable default.</p>
+            <p class="wiz-hint" style="margin-top:0; color:var(--accent)"><strong>⚠ Work in progress.</strong> The <strong>Universal Character Sheet</strong> (default) is a landscape dashboard on screen that prints as the classic portrait sheet. <strong>Classic</strong> is a pixel rebuild of the official 5e sheet. Both are still being refined — expect the occasional rough edge or change between versions.</p>
             <select id="set-theme"></select>
             <p class="wiz-hint">The look of <strong>this character's</strong> sheet — its colours, borders, and surfaces. Each character can have its own theme. <strong>Dark mode</strong> (Settings → General → Appearance) layers on top of any theme and stays one setting across all your characters. Printing always uses the light look.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Visible pages</label>
@@ -2627,11 +2627,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v313 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v314 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.23.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.24.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2639,6 +2639,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v314", semver:"2.24.0", items:[
+      "The landscape sheet (formerly called \"D&D Beyond\") is now simply the \"Universal Character Sheet\" and is the default look. On screen you get the landscape dashboard; when you print or save a PDF, it automatically falls back to the clean portrait character sheet — so the old Universal sheet lives on as the print layout. The separate portrait theme has been folded into this; characters that were on it switch over automatically."
+    ]},
     {v:"v313", semver:"2.23.0", items:[
       "Death saves stay out of the way until they matter: the success/failure pips are hidden while you have hit points and only appear when your Current HP hits 0. Regain any HP and they disappear again — and reset to blank, since you stop making death saves the moment you\'re back up."
     ]},
@@ -3667,12 +3670,15 @@
   // theme must ship both palettes. "universal" is the built-in baseline (the original flat/sharp
   // look): it rides on the default :root / body.dark palette, so it needs no extra CSS. Add a theme
   // by pushing an entry here AND adding its two CSS blocks. Theme is stored per-character (data.theme).
+  // "Universal Character Sheet" = the landscape dashboard ON SCREEN, and the original portrait sheet ON PRINT (the ddb engine
+  // drops back to the canonical portrait DOM + default palette in beforeprint). Its id stays "dndbeyond" so saved characters
+  // keep their theme; the old standalone "universal" portrait theme is rolled into this one as the print view (legacy
+  // theme:"universal" is migrated to it on load, and "universal" survives only as the default :root palette used for printing).
   const THEMES = [
-    { id:"universal", name:"Universal 5e Character Sheet" },   // default — today's :root / body.dark palette
+    { id:"dndbeyond", name:"Universal Character Sheet" },        // landscape on screen, portrait on print
     { id:"classic",   name:"Classic (Official 5e Sheet)" },     // WotC 2014 sheet look — ivory paper, black ruled frames
-    { id:"dndbeyond", name:"D&D Beyond" },                       // landscape: core info surrounds a tabbed center panel (see the ddb-layout engine + CSS)
   ];
-  const DEFAULT_THEME = "universal";
+  const DEFAULT_THEME = "dndbeyond";
   let theme = DEFAULT_THEME;                     // Settings → Character Settings → Theme (per-character)
   function applyThemeSetting(){ document.body.dataset.theme = theme || DEFAULT_THEME; }
   function renderThemeOptions(){
@@ -6095,6 +6101,7 @@
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
     theme = (data && typeof data.theme === "string" && data.theme) ? data.theme : DEFAULT_THEME;   // per-character; default Universal
+    if(theme === "universal") theme = "dndbeyond";   // the old portrait-only "Universal" theme is now the print view of the landscape "Universal Character Sheet"
     // darkMode + noAnimations are global (localStorage), loaded once at startup — not per-character.
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     showFuturistic = !!(data && data.showFuturistic);   // default off
@@ -10880,8 +10887,12 @@
       var osp=window.showPage;
       window.showPage=function(){ var r=osp.apply(this,arguments); try{ if(active()) syncFromActive(); }catch(e){} return r; };
     }
-    window.addEventListener('beforeprint', function(){ if(active()){ window.__ddbPrint=true; deactivate(); } });
-    window.addEventListener('afterprint', function(){ if(window.__ddbPrint){ window.__ddbPrint=false; if(isDdb()) activate(); } });
+    // "Universal Character Sheet" prints as the portrait sheet: drop the landscape DOM (deactivate restores the canonical
+    // pages) AND swap the dashboard palette out for the clean default one, then restore the dashboard once printing ends.
+    function _ddbAfterPrint(){ if(window.__ddbPrint){ window.__ddbPrint=false; document.body.dataset.theme='dndbeyond'; if(isDdb()) activate(); } }
+    window.addEventListener('beforeprint', function(){ if(active()){ window.__ddbPrint=true; deactivate(); document.body.dataset.theme='universal'; } });
+    window.addEventListener('afterprint', _ddbAfterPrint);
+    window.addEventListener('focus', _ddbAfterPrint);   // some Safari/mobile skip afterprint — restore on refocus too
 
     restoreCanonical();                                     // self-heal a file saved while the layout was active
     function boot(){ try{ if(isDdb()) activate(); }catch(e){} }
