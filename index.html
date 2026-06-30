@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v375 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v377 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.51.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.51.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v377", semver:"2.51.2", items:[
+      "Defenses auto-scanner no longer mistakes a feature's condition for a granted advantage. Features like Sneak Attack that read \"...if you have advantage on the attack roll\" were wrongly adding a stray \"Adv. on the attacks\" line to your Defenses box; those conditional phrasings are now skipped, and any legitimate advantage line that did slip through reads more cleanly (no leftover \"the\")."
+    ]},
     {v:"v354", semver:"2.41.0", items:[
       "Hit Points got a compact new readout: Current / Max with Temp alongside, and Heal and Damage buttons around a number field so you can apply healing or damage without doing the math. Damage burns through Temp HP first, then Current (it stops at 0); Heal tops you up and never goes over your Max. Drop below 0 and the death-save row appears as before."
     ]},
@@ -3282,7 +3285,7 @@
     return s ? " " + s : "";
   }
   function _tidyAdvMid(t){   // the ability/skill phrase before "checks"/"attacks": collapse + capitalize ability names and parenthetical skills
-    let s = String(t||"").toLowerCase().replace(/\s+/g," ").trim().replace(/^on\s+/,"").replace(/^(?:an?|the)\s+/,"");
+    let s = String(t||"").toLowerCase().replace(/\s+/g," ").trim().replace(/^on\s+/,"").replace(/^(?:an?|the)\b\s*/,"");
     s = s.replace(/^.*\b(?:rolls?|throws?|checks?)\s+and\s+/i, "");   // drop a leading "initiative rolls and …"/"… throws and …" clause from a combined sentence
     if(!s) return "";
     s = s.replace(/strength|dexterity|constitution|intelligence|wisdom|charisma/g, w => w[0].toUpperCase()+w.slice(1));
@@ -3301,21 +3304,23 @@
     String(text||"").split(/(?<=[.;:])\s+/).forEach(raw => {
       const s = raw.trim(); let m;
       const cm = s.match(/^(while [^,]+?|when [^,]+?),/i), q = cm ? ` (${cm[1].toLowerCase()})` : "";
+      // "...if you have advantage on the attack roll" (Sneak Attack, Assassinate, etc.) is a CONDITION on already having advantage, not a granted advantage — don't surface it as a Defenses line.
+      const condAdv = /\b(?:if|when|unless|whether|provided|even if|so long as|as long as)\s+you (?:have|gain|don't have|do not have)\s+(?:advantage|disadvantage)\b/i.test(s);
       if(m = s.match(/you (?:have|gain|are granted|gains) resistance to ([^.;]+)/i)) out.push("Resistance: " + _tidyDef(m[1]) + q);
       if(m = s.match(/you (?:have|gain|are granted) immunity to ([^.;]+)/i)) out.push("Immunity: " + _tidyDef(m[1]) + q);
       if(m = s.match(/you(?:'re| are) immune to ([^.;]+)/i)) out.push("Immune: " + _tidyDef(m[1]) + q);
       // save (dis)advantages, e.g. Dwarven Resilience (poison), Fey Ancestry (charm), Gnome Cunning (Int/Wis/Cha vs magic), Brave (fear).
       // Matches 2014 ("you have advantage on … saving throws …") and 2024 ("Advantage on saving throws …") phrasings. Anchored on "you" OR sentence start, so enemy-facing text ("creatures have disadvantage on saving throws…") and "grant advantage … to allies" are ignored; bonuses (non-advantage) don't match.
-      if(m = s.match(/(?:\b(?:you (?:have|gain|always have|can gain)|gives? you|grants? you)\s+|^)(advantage|disadvantage)\s+on\b([^.;]*?)\bsaving throws?\b([^.;]*)/i))
+      if(!condAdv && (m = s.match(/(?:\b(?:you (?:have|gain|always have|can gain)|gives? you|grants? you)\s+|^)(advantage|disadvantage)\s+on\b([^.;]*?)\bsaving throws?\b([^.;]*)/i)))
         out.push((/disadv/i.test(m[1]) ? "Disadv." : "Adv.") + " on " + _tidySaveAbil(m[2]) + "saves" + _tidySaveTail(m[3]) + q);
       // ability-check (dis)advantages, e.g. advantage on Wisdom (Perception) checks, Stealth checks, all Charisma checks
-      if(m = s.match(/(?:\b(?:you (?:have|gain|always have|can gain)|gives? you|grants? you)\s+|^)(advantage|disadvantage)\s+on\b([^.;]*?)\bchecks?\b([^.;]*)/i))
+      if(!condAdv && (m = s.match(/(?:\b(?:you (?:have|gain|always have|can gain)|gives? you|grants? you)\s+|^)(advantage|disadvantage)\s+on\b([^.;]*?)\bchecks?\b([^.;]*)/i)))
         out.push((/disadv/i.test(m[1]) ? "Disadv." : "Adv.") + " on " + _tidyAdvMid(m[2]) + "checks" + _tidyAdvTail(m[3]) + q);
       // attack-roll (dis)advantages, e.g. Reckless Attack, advantage vs. a surprised creature
-      if(m = s.match(/(?:\b(?:you (?:have|gain|always have|can gain)|gives? you|grants? you)\s+|^)(advantage|disadvantage)\s+on\b([^.;]*?)\battack rolls?\b([^.;]*)/i))
+      if(!condAdv && (m = s.match(/(?:\b(?:you (?:have|gain|always have|can gain)|gives? you|grants? you)\s+|^)(advantage|disadvantage)\s+on\b([^.;]*?)\battack rolls?\b([^.;]*)/i)))
         out.push((/disadv/i.test(m[1]) ? "Disadv." : "Adv.") + " on " + _tidyAdvMid(m[2]) + "attacks" + _tidyAdvTail(m[3]) + q);
       // initiative (dis)advantages, e.g. Sentinel Shield, Rod of Alertness ("advantage on initiative rolls")
-      if(m = s.match(/(?:\b(?:you (?:have|gain|always have|can gain)|gives? you|grants? you)\s+|^)(advantage|disadvantage)\s+on\b[^.;]*?\binitiative\b/i))
+      if(!condAdv && (m = s.match(/(?:\b(?:you (?:have|gain|always have|can gain)|gives? you|grants? you)\s+|^)(advantage|disadvantage)\s+on\b[^.;]*?\binitiative\b/i)))
         out.push((/disadv/i.test(m[1]) ? "Disadv." : "Adv.") + " on initiative" + q);
     });
     return [...new Set(out)];
