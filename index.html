@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v379 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v380 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.52.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.53.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v380", semver:"2.53.0", items:[
+      "Warforged Integrated Protection (the Wayfinder's Guide to Eberron version) is now supported. If your character is a Warforged, the Armor dropdown is replaced with its three built-in defensive modes — Darkwood Core (11 + Dex), Composite Plating (13 + Dex max 2 + proficiency bonus), and Heavy Plating (16 + proficiency bonus, with Stealth disadvantage) — and ordinary armor is unavailable, since a warforged gains no benefit from it. A shield still adds its bonus as normal. Darkwood Core adds your proficiency bonus too if your proficiencies list includes light armor."
+    ]},
     {v:"v379", semver:"2.52.0", items:[
       "Attunement items are now recognized by name from the whole D&D catalog, not just the sourcebooks you've loaded. So an item like the Shield Guardian Amulet (which comes from an adventure the sheet can't load as a source) still offers an Equip checkbox and shows up in the Attunement picker, even when you type it in by hand. (It still doesn't count as a worn shield, so it adds no shield AC.)"
     ]},
@@ -3260,6 +3263,29 @@
   // Race Natural Armor (applied in the AC calc when "Unarmored" is selected). stat:'dex' adds full Dex; stat:'con' adds Con instead; fixed = flat, no Dex.
   const NATURAL_ARMOR = { "lizardfolk":{base:13,stat:"dex"}, "locathah":{base:13,stat:"dex"}, "loxodon":{base:12,stat:"con"},
     "tortle":{base:17,fixed:true}, "autognome":{base:13,stat:"dex"}, "thri-kreen":{base:13,stat:"dex"}, "plasmoid":{base:13,stat:"dex"} };
+
+  // Warforged "Integrated Protection" (WGtE): three AC modes that REPLACE armor — you gain no benefit from worn
+  // armor, but a shield still applies (shields are AC-bonus items, added separately). Names + formulas only
+  // (non-copyrightable mechanics), so they live in app JS like NATURAL_ARMOR. base = flat AC; dexMax: null = full
+  // Dex, 0 = no Dex, N = Dex capped at N. addPb: true = always add proficiency bonus, "light" = add it only when
+  // proficient with light armor, false = none. stealth = Stealth disadvantage.
+  const INTEGRATED_PROTECTION_MODES = [
+    { name:"Darkwood Core",     label:"Darkwood Core (11 + Dex)",            base:11, dexMax:null, addPb:"light", stealth:false, req:"no prerequisite" },
+    { name:"Composite Plating", label:"Composite Plating (13 + Dex≤2 + PB)", base:13, dexMax:2,    addPb:true,    stealth:false, req:"Medium armor proficiency" },
+    { name:"Heavy Plating",     label:"Heavy Plating (16 + PB)",             base:16, dexMax:0,    addPb:true,    stealth:true,  req:"Heavy armor proficiency" },
+  ];
+  const IP_MODE_NAMES = new Set(INTEGRATED_PROTECTION_MODES.map(m => m.name));
+  const ipModeByName = n => INTEGRATED_PROTECTION_MODES.find(m => m.name === n) || null;
+  // Returns the mode list when the current character is a Warforged whose Integrated Protection trait describes the
+  // WGtE mode system; null otherwise. Detected by the distinctive mode names in the race traits or Features box, so
+  // an ERLW Warforged (flat +1 AC, no modes) is left on the ordinary armor dropdown.
+  function integratedProtectionModes(){
+    if(!/warforged/.test(($("race").value||"").toLowerCase())) return null;
+    const r = DATA && findBy(DATA.races, ($("race").value)||"");
+    const traitText = r ? (r.traits||[]).map(t => (t.name||"")+" "+(t.text||"")).join(" ") : "";
+    const hay = (traitText + " " + ($("features").value||"")).toLowerCase();
+    return /\b(darkwood core|composite plating|heavy plating)\b/.test(hay) ? INTEGRATED_PROTECTION_MODES : null;
+  }
 
   const $ = id => document.getElementById(id);
   const sgn = n => (n >= 0 ? "+" : "") + n;
@@ -6577,7 +6603,16 @@
                     : armorByName(sel);                                        // case-insensitive (wizard gear is e.g. "Chain mail" vs data's "Chain Mail")
         if(armor && sel !== "Mage Armor") realArmor = armor;                    // a real base armor → material/enchant applies
         let base = 10, needDex = true, dexAdd = mods.dex;
-        if(armor){
+        const ipMode = ipModeByName(sel);
+        if(ipMode){                                                            // Warforged Integrated Protection (WGtE): the chosen mode replaces armor
+          base = ipMode.base;
+          if(ipMode.dexMax === 0){ needDex = false; dexAdd = 0; }              // Heavy Plating: no Dex
+          else if(ipMode.dexMax != null){ dexAdd = (mods.dex == null) ? null : Math.min(mods.dex, ipMode.dexMax); }   // Composite Plating: Dex max 2
+          const pb = profBonus() || 0;
+          if(ipMode.addPb === true) base += pb;                                // Composite/Heavy add the proficiency bonus
+          else if(ipMode.addPb === "light" && /\blight armor\b/.test(($("proficiencies").value||"").toLowerCase())) base += pb;   // Darkwood Core: +PB only if proficient with light armor
+          if(armNote && ipMode.stealth){ armNote.textContent = "Disadvantage on Dexterity (Stealth) checks (Heavy Plating)."; armNote.style.display = ""; }
+        } else if(armor){
           base = armor.ac;
           if(armor.type === "HA"){ needDex = false; dexAdd = 0; }              // heavy: no Dex
           else if(armor.type === "MA"){ dexAdd = (mods.dex == null) ? null : Math.min(mods.dex, 2); }  // medium: Dex max 2
@@ -6606,7 +6641,7 @@
         if(modVal === "adamantine"){ armNote.textContent = (armNote.textContent ? armNote.textContent + " " : "") + "Any critical hit against you becomes a normal hit (while worn)."; armNote.style.display = ""; }
         else if(modVal === "mithral" && !armNote.textContent){ armNote.textContent = "Mithral: no Stealth disadvantage or Strength requirement."; armNote.style.display = ""; }
       }
-      const warforged = /warforged/.test(($("race").value || "").toLowerCase()) ? 1 : 0;   // Integrated Protection: +1 AC in any configuration
+      const warforged = (/warforged/.test(($("race").value || "").toLowerCase()) && !IP_MODE_NAMES.has(sel)) ? 1 : 0;   // ERLW Integrated Protection: flat +1 AC — suppressed when a WGtE mode is the selected "armor" (the mode already encodes full AC)
       const armorWorn = sel && sel !== "Unarmored" && sel !== "Mage Armor";       // Defense fighting style: +1 AC only while wearing actual armor
       const fsDefense = (armorWorn && hasFightingStyle("Defense")) ? 1 : 0;
       const infDef = (armorWorn || bonus > 0) ? infusionEnhancedDefenseBonus() : 0;   // Artificer Enhanced Defense infusion (needs worn armor or a shield)
@@ -8818,12 +8853,18 @@
     const aset = attuneSet();
     const as = $("armorsel");
     if(as){ const cur = as.value;
+      const ipModes = integratedProtectionModes();
+      if(ipModes){   // Warforged Integrated Protection: the three modes are the ONLY options — ordinary armor gives no benefit
+        as.innerHTML = ipModes.map(m => optTag(m.name, m.label)).join("");
+        as.value = IP_MODE_NAMES.has(cur) ? cur : "Darkwood Core";   // snap a legacy/blank/non-mode pick to the default mode
+      } else {
       const eq = byName(equippedNames(n => { const a = armorByName(n); return a && ["LA","MA","HA"].includes(a.type); }).map(n => ({name:n})));   // body armor only (shields are AC-bonus items)
       const mage = (hasSpellNamed("Mage Armor") || cur === "Mage Armor") ? `<option value="Mage Armor">Mage Armor (13 + Dex)</option>` : "";   // only when known
       as.innerHTML = `<option value=""></option><option value="Unarmored">Unarmored</option>`   // Unarmored is always available
         + eq.map(a => optTag(a.name, a.name)).join("")
         + mage + `<option value="Custom">Custom…</option>`;
       as.value = cur;   // keep the selection when still a valid option (the player picks their base armor from the dropdown)
+      }
     }
     const eqAtt = byName(equippedNames(n => aset.has(n.toLowerCase())).map(n => ({name:n})));
     ["0","1","2"].forEach(k => { const s = $("attune-"+k); if(!s) return; const cur = s.value;
