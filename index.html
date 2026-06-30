@@ -2799,7 +2799,7 @@
             <p class="wiz-hint">Off by default. When off, futuristic gear (laser/antimatter weapons, powered armor, etc.) is hidden from the item search and the per-row item autocomplete.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Tasha's Cauldron of Everything — optional rules</label>
             <p class="wiz-hint" style="margin-top:0">Every optional rule is on by default. The origin rules change what the creation wizard lets you customize; the class-feature rules add the feature to a character that has the class (limited-use ones get a tracker, and a few replace a base feature). Changes apply when you next create or edit a character.</p>
-            <div style="margin:6px 0 10px"><button class="btn" id="tce-all-on" type="button" style="font-size:11px; padding:3px 9px">Enable all</button> <button class="btn" id="tce-all-off" type="button" style="font-size:11px; padding:3px 9px">Disable all</button></div>
+            <div id="tce-allbtns" style="margin:6px 0 10px"><button class="btn" id="tce-all-on" type="button" style="font-size:11px; padding:3px 9px">Enable all</button> <button class="btn" id="tce-all-off" type="button" style="font-size:11px; padding:3px 9px">Disable all</button></div>
             <div id="tce-toggles"></div>
           </section>
           <section class="set-sec" data-sec="advanced">
@@ -2925,11 +2925,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v404 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v405 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.63.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.64.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2937,6 +2937,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v405", semver:"2.64.0", items:[
+      "Tasha\u2019s Cauldron of Everything optional rules now follow the book itself. If you turn off (or delete) Tasha\u2019s in Settings \u2192 Source books, its optional rules are switched off and their toggles are hidden, instead of staying active independently. Turn Tasha\u2019s back on and the rules (and their checkboxes) return. The rules also stay off on any sheet that doesn\u2019t have Tasha\u2019s loaded.",
+      "Imported Ancestral Weapons now land in your regular homebrew (your \u201cMy Homebrew\u201d source) rather than a separate auto-created source, so all your weapons live together in your homebrew content."
+    ]},
     {v:"v404", semver:"2.63.0", items:[
       "The Ancestral Weapons export is now a fully self-contained sourcebook file. It bundles the Ancestral Weapons rules content (the upgrade definitions and their descriptions) alongside your weapons, so the JSON carries everything it needs — import it into a sheet that's never seen the system and the weapons rebuild with their full rules intact, rather than relying on the rules already being present."
     ]},
@@ -4261,7 +4265,7 @@
   }
   function refreshAfterData(){                     // one call to re-render everything that reads DATA
     populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false);
-    updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); renderLoadedBookList(); compute();
+    updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); renderLoadedBookList(); if(typeof renderTceToggles==="function") renderTceToggles(); compute();
   }
   // Re-pick DATA from localStorage and re-render — used by the cross-tab sync so a source reload/clear in ANY tab
   // applies to the whole app, not just the tab that did it (mirrors the DATA-selection logic in init()).
@@ -5866,8 +5870,7 @@
       if(e.text && !AW_TEXT[name]) AW_TEXT[name] = e.text;
     }
     const items = (d && d.items) || {};
-    let src = homebrewSources.find(s => String(s.name).toLowerCase() === "ancestral weapons");
-    if(!src){ src = { name:(typeof hbUniqueName==="function"?hbUniqueName("Ancestral Weapons"):"Ancestral Weapons"), enabled:true, spells:{}, items:{} }; homebrewSources.push(src); }
+    const src = hbEnsureSourceAt(0);   // imported weapons live in your regular homebrew content, not a separate "AW source"
     src.items = src.items || {}; let n = 0;
     for(const k in items){ const it = items[k]; if(it && it.aw){ src.items[String(it.name||k).toLowerCase()] = it; n++; } }
     if(n){ src.enabled = true; if(typeof refreshHbItems==="function") refreshHbItems(); }
@@ -10841,7 +10844,15 @@
       out.push({id:"favoredTerrain", level:1, prompt:"choose Favored Terrain", options:FAVORED_TERRAIN_OPTS, kind:"note"});
     return out;
   }
-  function tceOn(id){ return !tceOff[id]; }                  // every rule defaults on
+  function tashaEnabled(){   // Tasha's optional rules apply only when Tasha's Cauldron is loaded AND not toggled off as a sourcebook
+    const T = "tasha's cauldron of everything";
+    const names = (typeof loadedBooks === "function") ? loadedBooks() : [];
+    if(!names.some(n => String(n).toLowerCase() === T)) return false;   // not loaded (or deleted) → no Tasha's rules
+    const off = (typeof disabledBooks === "function") ? disabledBooks() : new Set();
+    for(const n of off){ if(String(n).toLowerCase() === T) return false; }   // toggled off → no Tasha's rules
+    return true;
+  }
+  function tceOn(id){ return tashaEnabled() && !tceOff[id]; }   // a Tasha's rule is on only when Tasha's is enabled AND the rule isn't individually disabled
   function classLevelOf(name){ const w = (charClasses||[]).find(c => c.name === name); return w ? w.level : 0; }
   function _blockName(b){ const s = String(b).trim().replace(/^Feat:\s*/i, ""); const cuts = [s.indexOf(" ("), s.indexOf(". ")].filter(x => x >= 0); return cuts.length ? s.slice(0, Math.min(...cuts)).trim() : s.split("\n")[0].trim(); }
   // Apply the enabled TCE class-feature rules — run late in createCharacter, after the base class features
@@ -10860,8 +10871,11 @@
     });
     autoGrow(t);
   }
-  function renderTceToggles(){   // Settings → Tasha's: one checkbox per optional rule, grouped
+  function renderTceToggles(){   // Settings → Tasha's: one checkbox per optional rule, grouped (hidden when Tasha's is off)
     const box = $("tce-toggles"); if(!box) return;
+    const enabled = tashaEnabled();
+    const btns = $("tce-allbtns"); if(btns) btns.style.display = enabled ? "" : "none";
+    if(!enabled){ box.innerHTML = `<p class="wiz-hint" style="margin:6px 0">Tasha\u2019s Cauldron of Everything is turned off (or not loaded). Enable it under <strong>Settings \u2192 Source books</strong> to use its optional rules.</p>`; return; }
     let html = "", group = "";
     TCE_RULES.forEach(r => {
       if(r.group !== group){ group = r.group; html += `<div class="lbl" style="margin:14px 0 4px; border-top:1px solid var(--line); padding-top:10px">${esc(group)}</div>`; }
