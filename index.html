@@ -2922,11 +2922,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v408 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v409 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.66.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.67.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2934,6 +2934,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v409", semver:"2.67.0", items:[
+      "Homebrew Studio: “Import JSON…” and “Export JSON…” buttons. Import merges a homebrew JSON file (spells and items) into the currently selected source; Export writes the selected source back out as a re-importable JSON file. Imported content gets full first-class support on the sheet, exactly like content you build by hand. (A full sourcebook file is politely redirected to Settings → Import files…)"
+    ]},
     {v:"v408", semver:"2.66.0", items:[
       "Settings → Source books now lists adventure modules alongside sourcebooks, so you can load the player content from books like The Wild Beyond the Witchlight (Fairy & Harengon races, magic items) and Icewind Dale: Rime of the Frostmaiden (items, spells). They appear under an “Adventures” group in the book picker and load exactly like a sourcebook."
     ]},
@@ -5881,17 +5884,87 @@
     flashStatus("Exported the Ancestral Weapons book + " + n + " weapon" + (n===1?"":"s") + " as JSON — re-import via Import files\u2026");
   }
   function importAwContent(d){   // merge an Ancestral Weapons sourcebook export: book content (upgrades + text) then the weapons
-    const up = (d && d.awUpgrades) || {};   // bundle any upgrade definitions/text this file carries that we don't already have
-    for(const name in up){ const e = up[name] || {}, lc = String(name).toLowerCase();
-      if(!AW_UP_BY[lc]){ const mech = {n:e.n||name, t:e.t, c:e.c, lim:!!e.lim, req:e.req||null, rc:e.rc||[], rcast:!!e.rcast, rw:e.rw||null}; if(e.fx) mech.fx = e.fx; AW_UPGRADES.push(mech); AW_UP_BY[lc] = mech; }
-      if(e.text){ if(!DATA) DATA = {_meta:{books:[]}}; DATA.awText = DATA.awText || {}; if(!DATA.awText[name]) DATA.awText[name] = e.text; }
-    }
+    hbAwBundleInto(d);   // bundle any upgrade definitions/text this file carries that we don't already have
     const items = (d && d.items) || {};
     const src = hbEnsureSourceAt(0);   // imported weapons live in your regular homebrew content, not a separate "AW source"
     src.items = src.items || {}; let n = 0;
     for(const k in items){ const it = items[k]; if(it && it.aw){ src.items[String(it.name||k).toLowerCase()] = it; n++; } }
     if(n){ src.enabled = true; if(typeof refreshHbItems==="function") refreshHbItems(); }
     return n;
+  }
+  // ---- Homebrew JSON import / export (per-source) ----------------------------------------------------------------
+  // Normalizers coerce a loosely-shaped object from a JSON file into the exact stored shape (matching hbSaveForm /
+  // hbSaveItemForm), filling defaults and dropping junk. They tolerate the small format variations a hand-authored
+  // file is likely to carry (e.g. 5etools-style components:{v,s,m}). Returning null skips an unusable entry.
+  function normHbSpell(s){
+    if(!s || typeof s !== "object") return null;
+    const name = String(s.name||"").trim(); if(!name) return null;
+    let comp = s.components;
+    if(comp && typeof comp === "object") comp = (comp.v?"V":"") + (comp.s?"S":"") + (comp.m?"M":"");   // tolerate 5etools-style {v,s,m}
+    return { name, level:Math.max(0, Math.min(9, parseInt(s.level,10)||0)), school:String(s.school||""),
+      time:String(s.time||""), range:String(s.range||""), components:String(comp||"").toUpperCase().replace(/[^VSM]/g,""),
+      duration:String(s.duration||""), material:String(s.material||""), conc:!!s.conc, ritual:!!s.ritual,
+      text:String(s.text||""), higher:String(s.higher||"") };
+  }
+  function normHbItem(it){
+    if(!it || typeof it !== "object") return null;
+    const name = String(it.name||"").trim(); if(!name) return null;
+    const o = { name, type:String(it.type||"Wondrous Item"), rarity:String(it.rarity||"Common"),
+      attune:!!it.attune, acBonus:parseInt(it.acBonus,10)||0, spellAtk:parseInt(it.spellAtk,10)||0,
+      spellDc:parseInt(it.spellDc,10)||0, text:String(it.text||"") };
+    if(it.aw && typeof it.aw === "object") o.aw = it.aw;   // preserve an Ancestral Weapon build blob (re-editable)
+    return o;
+  }
+  // The SINGLE source of truth for what content types a homebrew source can hold, and how each round-trips through
+  // import/export. Adding a NEW homebrew type later (feats, races, subraces, subclasses, classes, backgrounds…) is a
+  // one-line push here PLUS: a per-source bag in hbNormSources/hbEnsureSource(At), a normalizer above, and an
+  // hbActive<Type>() overlay injected at that type's resolver read points (the proven items recipe — never merge into
+  // DATA). Once it's listed here, the Studio's Import JSON / Export JSON cover it for free.
+  const HB_IMPORT_TYPES = [
+    { key:"spells", label:"spell", norm:normHbSpell },
+    { key:"items",  label:"item",  norm:normHbItem  },
+  ];
+  function hbAwBundleInto(d){   // fold any Ancestral Weapons book content (upgrade defs + text) a file carries; shared by AW + homebrew import
+    const up = (d && d.awUpgrades) || {};
+    if(typeof AW_UPGRADES === "undefined" || typeof AW_UP_BY === "undefined") return;
+    for(const name in up){ const e = up[name] || {}, lc = String(name).toLowerCase();
+      if(!AW_UP_BY[lc]){ const mech = {n:e.n||name, t:e.t, c:e.c, lim:!!e.lim, req:e.req||null, rc:e.rc||[], rcast:!!e.rcast, rw:e.rw||null}; if(e.fx) mech.fx = e.fx; AW_UPGRADES.push(mech); AW_UP_BY[lc] = mech; }
+      if(e.text){ if(!DATA) DATA = {_meta:{books:[]}}; DATA.awText = DATA.awText || {}; if(!DATA.awText[name]) DATA.awText[name] = e.text; }
+    }
+  }
+  // Merge a homebrew JSON file into ONE chosen source (the Studio's selected container), additively (by lowercased
+  // name, last-wins). Accepts each content type as an object map {lc:obj} OR a bare array of objects. Rejects a full
+  // sourcebook-schema file (that goes through Settings → Import files…). Returns {counts:{type:n}, total, name} or {err}.
+  function hbImportIntoSource(idx, d){
+    if(!d || typeof d !== "object" || Array.isArray(d)) return {err:"not a homebrew JSON object"};
+    if(Array.isArray(d.races) && Array.isArray(d.classes) && Array.isArray(d.spells))
+      return {err:"that's a full sourcebook file — use Settings → Source books → “Import files…” instead"};
+    const cur = hbEnsureSourceAt(idx);
+    hbAwBundleInto(d);   // AW rules ride along when present, so an Ancestral Weapon's framework travels with the file
+    const toArr = v => Array.isArray(v) ? v : (v && typeof v === "object" ? Object.values(v) : []);
+    const counts = {};
+    HB_IMPORT_TYPES.forEach(t => {
+      cur[t.key] = cur[t.key] || {};
+      let n = 0;
+      toArr(d[t.key]).forEach(raw => { const o = t.norm(raw); if(o){ cur[t.key][o.name.toLowerCase()] = o; n++; } });
+      if(n) counts[t.key] = n;
+    });
+    const total = Object.values(counts).reduce((a,b) => a+b, 0);
+    if(total) cur.enabled = true;
+    return { counts, total, name:cur.name };
+  }
+  function hbExportSource(idx){   // write the selected source's content to a re-importable homebrew JSON file
+    const cur = homebrewSources[idx]; if(!cur){ flashStatus("No homebrew source selected"); return; }
+    const out = { _meta:{ homebrew:true, name:cur.name, dataVersion:(typeof DATA_VERSION!=="undefined"?DATA_VERSION:0) } };
+    let total = 0;
+    HB_IMPORT_TYPES.forEach(t => { const bag = cur[t.key]; if(bag && Object.keys(bag).length){ out[t.key] = bag; total += Object.keys(bag).length; } });
+    if(!total){ flashStatus(`“${cur.name}” has no content to export yet`); return; }
+    if(Object.values(cur.items||{}).some(it => it && it.aw) && typeof AW_UPGRADES !== "undefined"){   // self-contained AW: bundle the upgrade catalog + text
+      const awUpgrades = {}; AW_UPGRADES.forEach(u => { awUpgrades[u.n] = Object.assign({}, u, { text:awText(u.n) }); }); out.awUpgrades = awUpgrades;
+    }
+    const fname = (String(cur.name).replace(/[^\w \-]+/g,"").trim() || "homebrew") + " (homebrew).json";
+    download(JSON.stringify(out, null, 1), fname, "application/json");
+    flashStatus(`Exported “${cur.name}” (${total} entr${total===1?"y":"ies"}) as JSON — re-import via the Studio or another sheet`);
   }
   function buildHbStudio(){
     if($("hb-studio")) return;
@@ -5908,8 +5981,11 @@
           `<label class="cspell-f" style="flex:1 1 160px"><span>Name</span><input type="text" id="hb-src-name" placeholder="My Homebrew"></label>`+
           `<label class="hb-src-enable"><input type="checkbox" id="hb-src-enabled"> Enabled</label>`+
           `<button class="btn" id="hb-src-new" type="button" title="Create a new homebrew source">+ Source</button>`+
+          `<button class="btn ghost" id="hb-src-import" type="button" title="Import a homebrew JSON file into THIS source (merged in, never replacing)">Import JSON…</button>`+
+          `<button class="btn ghost" id="hb-src-export" type="button" title="Export this source's homebrew as a JSON file">Export JSON…</button>`+
           `<button class="btn ghost" id="hb-src-del" type="button" title="Delete this homebrew source">Delete source</button>`+
         `</div>`+
+        `<input type="file" id="hb-import-file" accept="application/json,.json" multiple style="display:none">`+
         `<div class="hb-tabs"><button class="hb-tab active" data-hbtype="spells" type="button">Spells</button><button class="hb-tab" data-hbtype="items" type="button">Items</button></div>`+
         `<div id="hb-pane-spells" class="hb-pane">`+
         `<div class="hb-section-h"><span>Spells in this source</span><button class="btn" id="hb-new-spell" type="button">+ New spell</button></div>`+
@@ -5954,6 +6030,30 @@
     $("hb-src-enabled").addEventListener("change", e => { hbEnsureSource().enabled = e.target.checked; refreshHomebrew(); });
     $("hb-src-new").addEventListener("click", () => { homebrewSources.push({name:hbUniqueName("Homebrew"), enabled:true, spells:{}}); _hbCurId = homebrewSources.length - 1; hbCloseForm(); refreshHomebrew(); setTimeout(() => { const el = $("hb-src-name"); if(el){ el.focus(); el.select(); } }, 0); });
     $("hb-src-del").addEventListener("click", () => { const cur = homebrewSources[_hbCurId]; if(cur){ hbDeleteSource(cur.name); renderHbStudio(); } });
+    $("hb-src-export").addEventListener("click", () => hbExportSource(_hbCurId));
+    $("hb-src-import").addEventListener("click", () => $("hb-import-file").click());
+    $("hb-import-file").addEventListener("change", ev => {
+      const files = Array.from(ev.target.files || []); if(!files.length) return;
+      let pending = files.length; const totals = {}, bad = [];
+      const done = () => {
+        if(--pending > 0) return;
+        const grand = Object.values(totals).reduce((a,b) => a+b, 0);
+        if(grand){
+          refreshHomebrew();   // persist + re-render everything (incl. the Studio list); homebrew gets first-class treatment via the existing overlays
+          const parts = HB_IMPORT_TYPES.filter(t => totals[t.key]).map(t => totals[t.key] + " " + t.label + (totals[t.key]===1?"":"s"));
+          flashStatus(`Imported ${parts.join(" + ")} into “${homebrewSources[_hbCurId].name}”` + (bad.length ? " · " + bad.length + " skipped" : ""));
+        } else { flashStatus("Nothing imported" + (bad.length ? " — " + bad.join("; ") : "")); }
+        $("hb-import-file").value = "";
+      };
+      files.forEach(f => { const r = new FileReader();
+        r.onload = () => { let d; try{ d = JSON.parse(r.result); }catch(e){ bad.push(f.name + ": invalid JSON"); return done(); }
+          const res = hbImportIntoSource(_hbCurId, d);
+          if(res.err){ bad.push(f.name + ": " + res.err); } else { for(const k in res.counts) totals[k] = (totals[k]||0) + res.counts[k]; }
+          done(); };
+        r.onerror = () => { bad.push(f.name + ": couldn't be read"); done(); };
+        r.readAsText(f);
+      });
+    });
     $("hb-new-spell").addEventListener("click", () => hbOpenForm(null));
     $("hbf-cancel").addEventListener("click", hbCloseForm);
     $("hbf-save").addEventListener("click", hbSaveForm);
