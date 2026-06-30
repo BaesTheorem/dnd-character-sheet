@@ -1674,10 +1674,11 @@
         <strong>Manual overrides (advanced).</strong> You can still pin any calculated value by hand: double-click it on a computer, or long-press it on a phone or tablet. It's meant for homebrew, table rulings, and the odd item the rules engine doesn't know about. A pinned value stops auto-updating, so use it sparingly. To undo one, Alt-click it (or long-press and clear it), or clear them all under Settings → Manual overrides.
       </div>
       <details class="intro-changelog" id="intro-changelog" hidden=""></details>
-      <p class="intro-cta">Click "Create Character" to get started!</p>
+      <p class="intro-cta" id="intro-cta">Click "Create Character" to get started!</p>
       <div class="intro-actions">
         <button class="btn primary" type="button" id="intro-create">Create Character</button>
         <button class="intro-skip" type="button" id="intro-skip">or explore the sheet</button>
+        <button class="btn primary" type="button" id="intro-dismiss" hidden="">Dismiss</button>
       </div>
       <p class="intro-ver" id="intro-ver"></p>
     </div>
@@ -2687,11 +2688,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v348 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v349 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.38.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.39.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2699,6 +2700,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v349", semver:"2.39.0", items:[
+      "Welcome guide: if you already have characters saved, it now just offers a single Dismiss button instead of \"Create Character\" / \"explore the sheet.\" Those are for first-time setup, so returning users reading the changelog after an update get a cleaner close."
+    ]},
     {v:"v346", semver:"2.38.0", items:[
       "Updating from a downloaded file now shows a progress bar while it fetches the new version, so you can see it's working instead of staring at a frozen button. (The file is large — most of it is the baked sourcebook data — so the download takes a few seconds.)",
       "Made that download quicker: it no longer tacks a unique tag onto the request, which had been forcing a fresh fetch from the origin server every time instead of letting the CDN serve it from its cache."
@@ -10895,6 +10899,18 @@
   // Settings → General. Hidden (not removed) on dismiss so it can be reopened; handlers wire once.
   // seenVer: the version the user last acknowledged — a "vN (date)" string (returning user), null
   // (first-ever visit), or undefined (manually reopened from Settings).
+  // True once the browser holds at least one real (named) saved character — used to decide whether the
+  // intro shows onboarding actions (newcomer) or just a Dismiss (returning user reading the changelog).
+  function hasExistingCharacters(){
+    if(characterCreated) return true;
+    for(const k of csKeys()){
+      if(k.slice(-4) === "_img" || k.slice(-6) === "_thumb") continue;
+      if(!(k === BASE_KEY || k.indexOf(BASE_KEY + "::") === 0)) continue;
+      let d = null; try{ d = JSON.parse(csGet(k)); }catch(e){}
+      if(d && typeof d === "object" && (d.charname||"").trim()) return true;
+    }
+    return false;
+  }
   function showIntro(seenVer){
     const ov = $("intro-overlay"); if(!ov) return;
     if(!ov._wired){
@@ -10902,8 +10918,16 @@
       ov._onKey = e => { if(e.key === "Escape" && !ov.hidden) dismissIntro(); };
       $("intro-create").addEventListener("click", ()=>{ dismissIntro(); openWizard(); });
       $("intro-skip").addEventListener("click", dismissIntro);
+      $("intro-dismiss").addEventListener("click", dismissIntro);
       ov.addEventListener("click", e => { if(e.target === ov) dismissIntro(); });   // click the backdrop to dismiss
     }
+    // Returning user who already has characters: the guide is just a changelog, so collapse the two
+    // onboarding options down to a single Dismiss. Newcomers still get Create / explore the sheet.
+    const haveChars = hasExistingCharacters();
+    $("intro-create").hidden = haveChars;
+    $("intro-skip").hidden = haveChars;
+    $("intro-dismiss").hidden = !haveChars;
+    const cta = $("intro-cta"); if(cta) cta.hidden = haveChars;
     const isUpdate = (seenVer != null && seenVer !== APP_VERSION);   // came back after an update (not first-ever, not a manual reopen)
     const ver = $("intro-ver");
     if(ver) ver.textContent = isUpdate
