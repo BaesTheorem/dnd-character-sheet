@@ -2934,11 +2934,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v420 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v421 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.76.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.77.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2946,6 +2946,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v421", semver:"2.77.0", items:[
+      "Homebrew items can now give precise Action Economy entries. A new “Actions” field in the item form (one per line, “Label | cost”, where cost is action / bonus / reaction) lists each ability by its own name in the Action Economy section instead of just the item name. The Eye of Dendallen now shows “See through magical darkness” under Bonus Action and “Command the Dendallen familiar” under Action. Items without this field still fall back to scanning their description."
+    ]},
     {v:"v420", semver:"2.76.0", items:[
       "The Action Economy summary now includes your equipped magic items. Any item you have equipped (and attuned, if it requires attunement) whose text describes an action, bonus action, or reaction is listed there, the same way your features are. The Eye of Dendallen, for example, now shows a Bonus Action (see through magical darkness) and an Action (command the familiar). Covers homebrew and regular magic items, and updates live when you equip or attune something."
     ]},
@@ -6059,6 +6062,19 @@
       return label ? {label, max:((p[1]||"1").trim()||"1"), rec:((p[2]||"LR").trim()||"LR")} : null; }).filter(Boolean);
   }
   function hbLimitedToText(arr){ return (arr||[]).map(L => `${L.label} | ${L.max||"1"} | ${L.rec||"LR"}`).join("\n"); }
+  // Action-economy entries on a homebrew item (e.g. "See through magical darkness | bonus"). Stored as [{label, cost}],
+  // cost ∈ action|bonus|reaction; each becomes a precisely-labeled entry in the Action Economy section when equipped (+ attuned).
+  function _actCostKind(s){ s = String(s||"").toLowerCase(); return /reaction/.test(s) ? "reaction" : /bonus/.test(s) ? "bonus" : "action"; }
+  function hbNormActions(arr){
+    if(!Array.isArray(arr)) return [];
+    return arr.map(a => typeof a === "string" ? {label:a.trim(), cost:"action"}
+        : {label:String((a&&a.label)||"").trim(), cost:_actCostKind((a&&a.cost)||"action")}).filter(a => a.label);
+  }
+  function hbActionsFromText(t){   // textarea: one per line, "Label | cost" (cost defaults to action)
+    return String(t||"").split(/\n+/).map(line => { const p = line.split("|"); const label = (p[0]||"").trim();
+      return label ? {label, cost:_actCostKind(p[1]||"action")} : null; }).filter(Boolean);
+  }
+  function hbActionsToText(arr){ return (arr||[]).map(a => `${a.label} | ${a.cost||"action"}`).join("\n"); }
   function normHbItem(it){
     if(!it || typeof it !== "object") return null;
     const name = String(it.name||"").trim(); if(!name) return null;
@@ -6068,6 +6084,7 @@
     const gr = hbNormGrants(it.grantSpells); if(gr.length) o.grantSpells = gr;   // item-granted spells (at-will / X-per-rest)
     const lim = hbNormLimited(it.limited); if(lim.length) o.limited = lim;        // limited-use abilities → Limited Features rows
     if(Array.isArray(it.senses)){ const ss = it.senses.map(s => String(s||"").trim()).filter(Boolean); if(ss.length) o.senses = ss; }   // sense lines → the Senses box (like race/feat darkvision)
+    const acts = hbNormActions(it.actions); if(acts.length) o.actions = acts;     // precisely-labeled action-economy entries
     if(it.aw && typeof it.aw === "object") o.aw = it.aw;   // preserve an Ancestral Weapon build blob (re-editable)
     if(typeof it.img === "string" && it.img) o.img = it.img;
     return o;
@@ -6309,6 +6326,7 @@
             `<label class="cspell-f cspell-full"><span>Granted spells</span><textarea id="hbi-grant" rows="2" placeholder="One per line — e.g. See Invisibility | at will  (use defaults to “at will”; try “1/Long Rest”)" title="Spells this item lets you cast. Each shows in the Granted Spells table when the item is equipped (and attuned, if it requires attunement)."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Limited uses</span><textarea id="hbi-limited" rows="2" placeholder="One per line — Label | max | recharge  (e.g. See through magical darkness | 1 | Dusk; max defaults 1, recharge defaults LR)" title="Limited-use abilities. Each becomes a row in the Limited Features section when equipped (and attuned, if required). Recharge is free text: LR, SR, Dawn, Dusk, 1/Day, etc."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Senses</span><textarea id="hbi-senses" rows="2" placeholder="One per line — e.g. Darkvision 60 ft." title="Sense lines added to your Senses box when this item is equipped (and attuned, if required), the same way race/feat darkvision is written."></textarea></label>`+
+            `<label class="cspell-f cspell-full"><span>Actions</span><textarea id="hbi-actions" rows="2" placeholder="One per line — Label | cost  (cost = action / bonus / reaction, defaults action). e.g. See through magical darkness | bonus" title="Action-economy abilities. Each shows as a precisely-labeled entry in the Action Economy section when the item is equipped (and attuned, if required). If left blank, the sheet falls back to scanning the item description."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
             hbImgFieldHtml("item")+
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
@@ -6439,6 +6457,7 @@
     $("hbi-grant").value = hbGrantToText(base.grantSpells);
     $("hbi-limited").value = hbLimitedToText(base.limited);
     $("hbi-senses").value = (base.senses||[]).join("\n");
+    $("hbi-actions").value = hbActionsToText(base.actions);
     $("hbi-text").value = base.text || "";
     _hbImg.item = base.img || ""; hbImgSyncPreview("item");
     $("hb-item-list").style.display = "none";
@@ -6459,6 +6478,7 @@
     const gs = hbGrantFromText($("hbi-grant").value); if(gs.length) obj.grantSpells = gs;
     const lim = hbLimitedFromText($("hbi-limited").value); if(lim.length) obj.limited = lim;
     const ss = $("hbi-senses").value.split(/\n+/).map(s => s.trim()).filter(Boolean); if(ss.length) obj.senses = ss;
+    const acts = hbActionsFromText($("hbi-actions").value); if(acts.length) obj.actions = acts;
     if(_hbImg.item) obj.img = _hbImg.item;
     if(_hbEditItemKey && _hbEditItemKey !== lc) delete cur.items[_hbEditItemKey];   // renamed → drop old key
     cur.items[lc] = obj; cur.enabled = true;
@@ -11522,17 +11542,26 @@
       if(/^extra attack\b/i.test(c.title)) return;   // Extra Attack is already captured by the Attacks/Action box; don't also list it as a separate Action
       place(c, c.title.toLowerCase(), _actionCost(c.title + " " + (c.body||"")));
     });
-    // Equipped (+ attuned where required) magic items whose text describes an action/bonus/reaction — a quick combat
-    // reference (e.g. the Eye of Dendallen's bonus-action darkness sight + its action to command the familiar). Titled
-    // by item name; the tooltip carries the text. Covers homebrew AND baked items (allItemText merges both).
+    // Equipped (+ attuned where required) magic items contribute to the action economy. A homebrew item with structured
+    // `actions` [{label,cost}] yields PRECISELY-labeled entries (e.g. Eye of Dendallen → "See through magical darkness"
+    // bonus + "Command the Dendallen familiar" action). Otherwise the item's TEXT is scanned and listed by item name
+    // (covers baked items + un-tagged homebrew). The tooltip carries the text. allItemText merges baked + homebrew.
     { const txt = (typeof allItemText === "function") && allItemText();
+      const hi = (typeof hbActiveItems === "function") && hbActiveItems();
       if(txt){ const aset = attuneSet(), attuned = attunedNames(), seenItem = new Set();
         for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
           const lc = nm.toLowerCase(); if(seenItem.has(lc)) continue;
-          const d = txt[nm]; if(!d) continue;
           if(aset.has(lc) && !attuned.has(lc)) continue;   // needs attunement but isn't attuned → its powers are inactive
           seenItem.add(lc);
-          place({title:nm, body:d.slice(0,300)}, "item:"+lc, _actionCost(nm + " " + d));
+          const body = txt[nm] || "";   // allItemText is keyed by display NAME
+          const hit = hi && hi[lc];
+          if(hit && Array.isArray(hit.actions) && hit.actions.length){   // precise structured entries → exact labels, no text scan
+            hit.actions.forEach(a => place({title:a.label, body:body.slice(0,300)}, "item:"+lc+":"+a.label.toLowerCase(),
+              {action:a.cost==="action", bonus:a.cost==="bonus", reaction:a.cost==="reaction"}));
+            continue;
+          }
+          if(!body) continue;
+          place({title:nm, body:body.slice(0,300)}, "item:"+lc, _actionCost(nm + " " + body));
         }
       }
     }
