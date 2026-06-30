@@ -2922,11 +2922,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v409 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v410 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.67.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.68.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2934,6 +2934,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v410", semver:"2.68.0", items:[
+      "Homebrew Studio now creates feats, races (and subraces), backgrounds, and subclasses, not just spells and items. Each has its own tab with a form, and everything you make is fully first-class: a homebrew race shows in the race picker and applies its ability scores, size, speed, traits, resistances and darkvision; a feat shows in the feat/ASI picker and applies its ability bonus and proficiencies; a background applies its skills, tools, languages and feature; a subclass attaches to its parent class (load that class first) and grants its features by level. All of it toggles on/off, imports/exports as JSON, and travels with shared sheets, same as your homebrew spells and items. (Full classes and monsters are still to come.)"
+    ]},
     {v:"v409", semver:"2.67.0", items:[
       "Homebrew Studio: “Import JSON…” and “Export JSON…” buttons. Import merges a homebrew JSON file (spells and items) into the currently selected source; Export writes the selected source back out as a re-importable JSON file. Imported content gets full first-class support on the sheet, exactly like content you build by hand. (A full sourcebook file is politely redirected to Settings → Import files…)"
     ]},
@@ -4261,14 +4264,15 @@
   }
   function persistSources(){                      // save merged DATA (lean) + per-book raw, separately so quota issues can't lose both
     if(!DATA){ try{ localStorage.removeItem(SOURCES_KEY); localStorage.removeItem(SOURCES_RAW_KEY); }catch(e){} return; }
-    const raw = DATA._meta && DATA._meta.raw; if(raw) delete DATA._meta.raw;   // keep the merged copy lean
+    const raw = DATA._meta && DATA._meta.raw;
     let ok = true;
-    try{ localStorage.setItem(SOURCES_KEY, JSON.stringify(DATA)); }catch(e){ ok = false; }
-    finally{ if(raw) DATA._meta.raw = raw; }
+    try{ const lean = hbStripClone(DATA); lean._meta = Object.assign({}, lean._meta || {}); delete lean._meta.raw;   // strip _hb homebrew + drop bulky per-book raw (kept separately below)
+      localStorage.setItem(SOURCES_KEY, JSON.stringify(lean)); }catch(e){ ok = false; }
     if(raw){ try{ localStorage.setItem(SOURCES_RAW_KEY, JSON.stringify(raw)); }catch(e){} }
     return ok;
   }
   function refreshAfterData(){                     // one call to re-render everything that reads DATA
+    if(typeof hbApplyToData === "function") hbApplyToData();   // re-inject structured homebrew (feats/races/backgrounds/subclasses) into the freshly-changed DATA
     populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false);
     updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); renderLoadedBookList(); if(typeof renderTceToggles==="function") renderTceToggles(); compute();
   }
@@ -4305,7 +4309,7 @@
     if(fiveE.length) html += hdr("5etools sources", "built in, refreshed when you update. Uncheck to hide a book's content, ✕ to delete it") + fiveE.map(row).join("");
     if(mine.length)  html += hdr("Your loaded sources", "books you loaded yourself, kept across updates. Uncheck to hide, ✕ to delete") + mine.map(row).join("");
     if(homebrewSources.length){
-      const hbrow = src => { const ns = Object.keys(src.spells||{}).length, ni = Object.keys(src.items||{}).length; const n = ns + ni; const parts = []; if(ns) parts.push(ns+" spell"+(ns===1?"":"s")); if(ni) parts.push(ni+" item"+(ni===1?"":"s")); const cnt = parts.join(", ") || "empty";
+      const hbrow = src => { const parts = HB_BAGS.map(k => { const n = Object.keys(src[k]||{}).length; return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean); const cnt = parts.join(", ") || "empty";
         return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(${cnt})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
       html += hdr("Homebrew", "your own sources, authored in the Homebrew Studio. Uncheck to hide across all characters, ✕ to delete") + homebrewSources.map(hbrow).join("");
     }
@@ -4314,17 +4318,19 @@
   }
   function renderHomebrewList(){   // Settings: summary + entry to the Homebrew Studio (the sources themselves toggle/delete in the loaded-sources list above)
     const el = $("homebrew-list"); if(!el) return;
-    const ns = homebrewSources.length, sp = hbSpellCount(), it = hbItemCount();
+    const ns = homebrewSources.length;
+    const totals = HB_BAGS.map(k => { const n = homebrewSources.reduce((a,s) => a + Object.keys(s[k]||{}).length, 0); return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean);
+    const summary = totals.length ? (totals.join(", ") + " across " + (ns||0) + " source" + (ns===1?"":"s") + ".") : ("No homebrew content yet, across " + (ns||0) + " source" + (ns===1?"":"s") + ".");
     el.innerHTML = `<label class="lbl" style="display:block; margin:0 0 6px">Homebrew <span class="wiz-hint" style="font-weight:400; display:inline">— your own content, as one or more named sources (this browser; survives character clears; travels with shared sheets; toggle/delete each above)</span></label>`+
-      `<p class="wiz-hint" style="margin:0 0 8px">${sp} spell${sp===1?"":"s"} and ${it} item${it===1?"":"s"} across ${ns||0} source${ns===1?"":"s"}.</p>`+
+      `<p class="wiz-hint" style="margin:0 0 8px">${summary}</p>`+
       `<button class="btn primary" id="btn-hb-studio" type="button">Open Homebrew Studio…</button>`;
   }
-  function refreshHomebrew(){ saveHomebrew(); renderHomebrewList(); renderLoadedBookList(); if($("hb-studio")) renderHbStudio(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-render everything that reads homebrew
+  function refreshHomebrew(){ saveHomebrew(); if(typeof hbApplyToData === "function") hbApplyToData(); renderHomebrewList(); renderLoadedBookList(); if($("hb-studio")) renderHbStudio(); if(typeof populateWizard === "function") populateWizard(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-inject structured homebrew into DATA + re-render everything that reads homebrew (incl. the builder pickers)
   function hbToggleSource(name, enabled){ const i = hbFindIdx(name); if(i < 0) return; homebrewSources[i].enabled = enabled; refreshHomebrew(); flashStatus((homebrewSources[i].name) + (enabled ? " shown" : " hidden")); }
   function hbDeleteSource(name){
     const i = hbFindIdx(name); if(i < 0) return;
-    const src = homebrewSources[i], n = Object.keys(src.spells||{}).length;
-    if(!confirm(`Delete homebrew source “${src.name}”${n?` and its ${n} spell${n===1?"":"s"}`:""}? This can't be undone.`)) return;
+    const src = homebrewSources[i], n = HB_BAGS.reduce((a,k) => a + Object.keys(src[k]||{}).length, 0);
+    if(!confirm(`Delete homebrew source “${src.name}”${n?` and its ${n} entr${n===1?"y":"ies"}`:""}? This can't be undone.`)) return;
     homebrewSources.splice(i, 1);
     if(_hbCurId >= homebrewSources.length) _hbCurId = Math.max(0, homebrewSources.length - 1);
     refreshHomebrew(); flashStatus("“"+src.name+"” deleted");
@@ -5425,7 +5431,7 @@
     }catch(e){ flashStatus("Load all failed — is your 5etools server running at "+base+"?"); }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Load all books"; } }
   }
-  function bakeSourceData(){ const pd = $("source-data"); if(pd) pd.textContent = JSON.stringify(DATA || null); }
+  function bakeSourceData(){ const pd = $("source-data"); if(pd) pd.textContent = JSON.stringify(DATA ? hbStripClone(DATA) : null); }   // strip _hb-injected homebrew (it rides DATA.homebrew; never doubled into #source-data)
   function shareBlankSheet(){            // download a blank, ready-to-use copy: no character, default settings, every loaded book baked in
     bakeSourceData();
     const clone = document.documentElement.cloneNode(true);
@@ -5871,7 +5877,7 @@
     closeAwBuilder();
     flashStatus(`Saved Ancestral Weapon “${name}” (${d.rarity}) to ${src.name}`);
   }
-  function hbEnsureSourceAt(i){ if(!homebrewSources[i]) homebrewSources[i]={name:"My Homebrew",enabled:true,spells:{},items:{}}; const c=homebrewSources[i]; c.spells=c.spells||{}; c.items=c.items||{}; return c; }
+  function hbEnsureSourceAt(i){ if(!homebrewSources[i]) homebrewSources[i]={name:"My Homebrew",enabled:true}; const c=homebrewSources[i]; HB_BAGS.forEach(k => { c[k]=c[k]||{}; }); return c; }
   function exportAwContent(){   // write ALL Ancestral Weapons (across every homebrew source) to a re-importable JSON file
     const items = {}; let n = 0;
     homebrewSources.forEach(s => { for(const k in (s.items||{})){ const it = s.items[k]; if(it && it.aw){ items[String(it.name||k).toLowerCase()] = it; n++; } } });
@@ -5923,6 +5929,10 @@
   const HB_IMPORT_TYPES = [
     { key:"spells", label:"spell", norm:normHbSpell },
     { key:"items",  label:"item",  norm:normHbItem  },
+    { key:"feats",  label:"feat",  norm:hbPass },          // structured builder types carry the full DATA shape; name-guarded passthrough
+    { key:"races",  label:"race",  norm:hbPass },
+    { key:"backgrounds", label:"background", norm:hbPass },
+    { key:"subclasses",  label:"subclass",   norm:hbPass },
   ];
   function hbAwBundleInto(d){   // fold any Ancestral Weapons book content (upgrade defs + text) a file carries; shared by AW + homebrew import
     const up = (d && d.awUpgrades) || {};
@@ -5966,6 +5976,132 @@
     download(JSON.stringify(out, null, 1), fname, "application/json");
     flashStatus(`Exported “${cur.name}” (${total} entr${total===1?"y":"ies"}) as JSON — re-import via the Studio or another sheet`);
   }
+  // ---- Structured builder homebrew (feats / races / subraces / backgrounds / subclasses) -------------------------
+  // These differ from spells/items: the character BUILDER reads them from the live DATA arrays in dozens of places
+  // (race picker + applyRace, feat pickers + applyAsiBonuses, background picker + applyBackground, subclass picker +
+  // feature application). Rather than overlay every read site, we MERGE enabled homebrew of these types into DATA at
+  // refresh time — each injected entry tagged `_hb` — and strip the tags back out in bakeSourceData/persistSources so
+  // the shared #source-data + the localStorage cache never double them (homebrew always travels via DATA.homebrew).
+  // Idempotent: hbApplyToData strips its own prior injections first, then re-injects from the enabled sources.
+  const HB_BAG_LABEL = { spells:"spell", items:"item", feats:"feat", races:"race", backgrounds:"background", subclasses:"subclass" };
+  function hbActiveByType(key){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s[key]||{})) if(!(k in out)) out[k] = s[key][k]; }); return out; }
+  function hbStripData(d){ if(!d) return; ["races","feats","backgrounds"].forEach(cat => { if(Array.isArray(d[cat])) d[cat] = d[cat].filter(x => !(x && x._hb)); }); (d.classes||[]).forEach(c => { if(Array.isArray(c.subclasses)) c.subclasses = c.subclasses.filter(s => !(s && s._hb)); }); }
+  function hbApplyToData(){
+    if(!DATA) return;
+    hbStripData(DATA);
+    const mergeArr = cat => { DATA[cat] = DATA[cat] || []; const idx = new Map(DATA[cat].map((x,i) => [String(x.name).toLowerCase(), i]));
+      const hb = hbActiveByType(cat);
+      for(const lc in hb){ const o = Object.assign({}, hb[lc], {_hb:true});
+        if(idx.has(lc)){ const ex = DATA[cat][idx.get(lc)]; if(ex && ex._hb) DATA[cat][idx.get(lc)] = o; /* else: don't clobber a real sourcebook entry (it'd be lost on strip) */ }
+        else { idx.set(lc, DATA[cat].length); DATA[cat].push(o); } } };
+    mergeArr("races"); mergeArr("feats"); mergeArr("backgrounds");
+    const subs = hbActiveByType("subclasses");   // attach into the parent class's subclasses (the class must be loaded)
+    for(const lc in subs){ const sc = subs[lc]; const cls = (DATA.classes||[]).find(c => String(c.name).toLowerCase() === String(sc.className||"").toLowerCase()); if(!cls) continue;
+      cls.subclasses = cls.subclasses || []; const sObj = Object.assign({}, sc, {_hb:true}); if(typeof normalizeSubclass === "function") normalizeSubclass(sObj);
+      const j = cls.subclasses.findIndex(s => String(s.name).toLowerCase() === String(sc.name).toLowerCase());
+      if(j >= 0){ if(cls.subclasses[j] && cls.subclasses[j]._hb) cls.subclasses[j] = sObj; } else cls.subclasses.push(sObj); }
+    if(typeof resolveSubraces === "function") resolveSubraces(DATA);   // fold homebrew subraces (subraceOf) into their parents
+    _spellIndex = null;
+  }
+  function hbStripClone(d){ if(!d) return d; const c = Object.assign({}, d);
+    ["races","feats","backgrounds"].forEach(cat => { if(Array.isArray(d[cat])) c[cat] = d[cat].filter(x => !(x && x._hb)); });
+    if(Array.isArray(d.classes)) c.classes = d.classes.map(cl => (Array.isArray(cl.subclasses) && cl.subclasses.some(s => s && s._hb)) ? Object.assign({}, cl, {subclasses:cl.subclasses.filter(s => !(s && s._hb))}) : cl);
+    return c; }
+  // ---- Studio authoring for the structured types: a single field-spec-driven form, one pane reused per type --------
+  const csv = s => String(s||"").split(",").map(x => x.trim()).filter(Boolean);
+  const ABILS = ["str","dex","con","int","wis","cha"];
+  function profBlock(p){ p = p||{}; return { skills:p.skills||[], skillChoose:p.skillChoose||{count:0,from:[]}, tools:p.tools||[], languages:p.languages||[], weapons:p.weapons||[], armor:p.armor||[], other:p.other||[] }; }
+  function abilToRace(spec){ const out = []; csv(spec).forEach(tok => { const m = /^(str|dex|con|int|wis|cha)\s*([+-]?\d+)$/i.exec(tok.replace(/\s+/g,"")); if(m){ out.push({[m[1].toUpperCase()]: parseInt(m[2],10)}); return; } const c = /^choose\s*\+?(\d+)(?:\s*x\s*(\d+))?$/i.exec(tok.replace(/\s+/g,"")); if(c) out.push({choose:{amount:parseInt(c[1],10)||1, count:parseInt(c[2],10)||1}}); }); return out; }
+  function raceAbilToStr(arr){ return (arr||[]).map(a => { if(a.choose) return "choose+"+(a.choose.amount||1)+(a.choose.count>1?" x"+a.choose.count:""); const k = Object.keys(a)[0]; return k ? k.toLowerCase()+"+"+a[k] : ""; }).filter(Boolean).join(", "); }
+  function abilToFeat(spec){ const tok = String(spec||"").replace(/\s+/g,"").toLowerCase(); if(!tok) return null; const m = /^(str|dex|con|int|wis|cha)\+?(\d+)$/.exec(tok); if(m) return {fixed:{[m[1]]:parseInt(m[2],10)}}; const c = /^choose\+?(\d+)$/.exec(tok); if(c) return {choose:{from:ABILS.slice(), amount:parseInt(c[1],10)||1}}; return null; }
+  function featAbilToStr(a){ if(!a) return ""; if(a.fixed){ const k = Object.keys(a.fixed)[0]; if(k) return k+"+"+a.fixed[k]; } if(a.choose) return "choose+"+(a.choose.amount||1); return ""; }
+  function saveSpec(s){ const arr = csv(s).map(x => x.toLowerCase()).filter(x => ABILS.includes(x)); return arr.length ? {fixed:arr} : null; }
+  function traitsFromText(txt){ const paras = String(txt||"").split(/\n\s*\n/).map(p => p.trim()).filter(Boolean); return paras.map(p => { const m = /^(.{2,48}?)[.:]\s+([\s\S]+)$/.exec(p); return m ? {name:m[1].trim(), text:m[2].trim()} : {name:"Trait", text:p}; }); }
+  function traitsToText(arr){ return (arr||[]).map(t => (t.name && t.name !== "Trait") ? (t.name + ": " + (t.text||"")) : (t.text||"")).join("\n\n"); }
+  function spellRefs(spec){ return csv(spec).map(tok => { const m = /^(.*?)\s*:\s*(\d+)$/.exec(tok); return m ? {n:m[1].trim(), l:parseInt(m[2],10)||0} : {n:tok, l:0}; }); }
+  function spellRefsToStr(arr){ return (arr||[]).map(s => s.n + (s.l!=null ? ":"+s.l : "")).join(", "); }
+  function featuresFromText(txt){ return String(txt||"").split(/\n/).map(l => l.trim()).filter(Boolean).map(l => { const p = l.split("|").map(x => x.trim()); if(p.length >= 3) return {name:p[1], level:parseInt(p[0],10)||1, text:p.slice(2).join(" | ")}; if(p.length === 2) return {name:p[0], level:1, text:p[1]}; return {name:l, level:1, text:""}; }); }
+  function featuresToText(arr){ return (arr||[]).map(f => [f.level||1, f.name||"", f.text||""].join(" | ")).join("\n"); }
+  function hbPass(o){ if(!o || typeof o !== "object") return null; const name = String(o.name||"").trim(); if(!name) return null; return Object.assign({}, o, {name}); }   // structured-type import: name-guarded passthrough (these carry the full DATA shape) — declaration (hoisted) so HB_IMPORT_TYPES can reference it
+  const HB_GEN_SPECS = {
+    feats: { label:"feat", title:"Feats", bag:"feats",
+      fields:[ {id:"name",label:"Name",kind:"text"}, {id:"prereq",label:"Prerequisite",kind:"text",ph:"e.g. Dexterity 13+"},
+        {id:"ability",label:'Ability score increase',kind:"text",ph:'cha+1  or  choose+1'},
+        {id:"save",label:"Save proficiency",kind:"text",ph:"con"}, {id:"skills",label:"Skill proficiencies",kind:"text",ph:"Perception, Stealth"},
+        {id:"text",label:"Description",kind:"area"} ],
+      toObj:v => ({ name:v.name, text:v.text||"", prerequisite:v.prereq||"", ability:abilToFeat(v.ability), saves:saveSpec(v.save), prof:profBlock({skills:csv(v.skills)}) }),
+      fromObj:o => ({ name:o.name||"", prereq:o.prerequisite||"", ability:featAbilToStr(o.ability), save:((o.saves&&o.saves.fixed)||[]).join(", "), skills:((o.prof&&o.prof.skills)||[]).join(", "), text:o.text||"" }),
+      summary:o => o.prerequisite ? "needs "+o.prerequisite : "feat" },
+    races: { label:"race", title:"Races & subraces", bag:"races",
+      fields:[ {id:"name",label:"Name",kind:"text"}, {id:"subraceOf",label:"Subrace of (parent race)",kind:"text",ph:"leave blank for a base race"},
+        {id:"size",label:"Size",kind:"select",opts:["Medium","Small","Large"]}, {id:"speed",label:"Speed (ft)",kind:"num",ph:"30"},
+        {id:"speedExtra",label:"Extra speed",kind:"text",ph:"fly 30 ft."}, {id:"ability",label:"Ability score increase",kind:"text",ph:"str+2, con+1  or  choose+1 x2"},
+        {id:"darkvision",label:"Darkvision (ft)",kind:"num",ph:"0"}, {id:"resist",label:"Damage resistances",kind:"text",ph:"fire, poison"},
+        {id:"languages",label:"Languages",kind:"text",ph:"Common, Elvish"}, {id:"spells",label:"Innate/racial spells",kind:"text",ph:"Dancing Lights, Faerie Fire"},
+        {id:"traits",label:"Traits (one per paragraph, “Name: text”)",kind:"area"} ],
+      toObj:v => ({ name:v.name, subraceOf:(v.subraceOf||"").trim(), size:v.size||"Medium", speed:parseInt(v.speed,10)||30, speedExtra:v.speedExtra||"",
+        ability:abilToRace(v.ability), darkvision:parseInt(v.darkvision,10)||0, resist:csv(v.resist), spells:csv(v.spells),
+        prof:profBlock({languages:csv(v.languages)}), langChoose:0, traits:traitsFromText(v.traits), flavor:[] }),
+      fromObj:o => ({ name:o.name||"", subraceOf:o.subraceOf||"", size:o.size||"Medium", speed:o.speed||30, speedExtra:o.speedExtra||"",
+        ability:raceAbilToStr(o.ability), darkvision:o.darkvision||0, resist:(o.resist||[]).join(", "), languages:((o.prof&&o.prof.languages)||[]).join(", "), spells:(o.spells||[]).join(", "), traits:traitsToText(o.traits) }),
+      summary:o => o.subraceOf ? (o.subraceOf+" subrace") : (o.size||"Medium") },
+    backgrounds: { label:"background", title:"Backgrounds", bag:"backgrounds",
+      fields:[ {id:"name",label:"Name",kind:"text"}, {id:"skills",label:"Skill proficiencies",kind:"text",ph:"Insight, Religion"},
+        {id:"tools",label:"Tool proficiencies",kind:"text",ph:"Calligrapher's tools"}, {id:"languages",label:"Languages",kind:"text",ph:"any two"},
+        {id:"featureName",label:"Feature name",kind:"text",ph:"Shelter of the Faithful"}, {id:"featureText",label:"Feature description",kind:"area"} ],
+      toObj:v => ({ name:v.name, prof:profBlock({skills:csv(v.skills),tools:csv(v.tools),languages:csv(v.languages)}), feature:{name:v.featureName||"",text:v.featureText||""}, equip:{items:[],gold:0} }),
+      fromObj:o => ({ name:o.name||"", skills:((o.prof&&o.prof.skills)||[]).join(", "), tools:((o.prof&&o.prof.tools)||[]).join(", "), languages:((o.prof&&o.prof.languages)||[]).join(", "), featureName:(o.feature&&o.feature.name)||"", featureText:(o.feature&&o.feature.text)||"" }),
+      summary:o => ((o.prof&&o.prof.skills)||[]).slice(0,2).join(", ") || "background" },
+    subclasses: { label:"subclass", title:"Subclasses", bag:"subclasses",
+      fields:[ {id:"name",label:"Name",kind:"text",ph:"Path of the Storm"}, {id:"className",label:"Parent class (must be loaded)",kind:"text",ph:"Barbarian"},
+        {id:"spells",label:"Always-prepared spells",kind:"text",ph:"Fog Cloud:1, Gust of Wind:2"},
+        {id:"features",label:"Features (one per line: level | name | text)",kind:"area",ph:"3 | Storm Aura | At 3rd level…"} ],
+      toObj:v => ({ name:v.name, short:v.name, className:(v.className||"").trim(), features:featuresFromText(v.features), choosers:[], spells:spellRefs(v.spells), expanded:[] }),
+      fromObj:o => ({ name:o.name||"", className:o.className||"", spells:spellRefsToStr(o.spells), features:featuresToText(o.features) }),
+      summary:o => o.className ? (o.className+" subclass") : "subclass" },
+  };
+  let _hbGenEditKey = null;
+  function hbGenSpec(){ return HB_GEN_SPECS[_hbType] || null; }
+  function renderHbGen(){
+    const spec = hbGenSpec(), pane = $("hb-pane-gen"); if(!spec || !pane) return;
+    const cur = homebrewSources[_hbCurId] || {}; const bag = cur[spec.bag] || {};
+    const arr = Object.values(bag).sort((a,b) => String(a.name).localeCompare(String(b.name)));
+    const list = arr.length ? arr.map(o => `<div class="hb-row"><span class="hb-name">${esc(o.name)}</span><span class="hb-lvl">${esc(spec.summary(o)||"")}</span><button type="button" class="hbg-edit" data-name="${esc(o.name)}" title="Edit">✎</button><button type="button" class="hbg-del" data-name="${esc(o.name)}" title="Delete">✕</button></div>`).join("")
+      : `<div class="hb-empty">No ${esc(spec.title.toLowerCase())} in this source yet. Click “+ New ${esc(spec.label)}” to make one.</div>`;
+    const editing = _hbGenEditKey !== null;
+    const vals = editing ? spec.fromObj((bag[_hbGenEditKey]) || {}) : {};
+    const field = f => { const v = editing ? (vals[f.id]!=null?vals[f.id]:"") : ""; const ph = f.ph ? ` placeholder="${esc(f.ph)}"` : ""; const full = (f.kind==="area"||f.id==="name") ? " cspell-full" : "";
+      const inner = f.kind==="area" ? `<textarea id="hbg-${f.id}" rows="4">${esc(v)}</textarea>`
+        : f.kind==="select" ? `<select id="hbg-${f.id}">${f.opts.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`).join("")}</select>`
+        : f.kind==="num" ? `<input type="number" id="hbg-${f.id}" value="${esc(v)}"${ph}>`
+        : `<input type="text" id="hbg-${f.id}" value="${esc(v)}"${ph}>`;
+      return `<label class="cspell-f${full}"><span>${esc(f.label)}</span>${inner}</label>`; };
+    pane.innerHTML =
+      `<div class="hb-section-h"><span>${esc(spec.title)} in this source</span><button class="btn hbg-new" type="button">+ New ${esc(spec.label)}</button></div>`+
+      `<div class="hb-spells">${list}</div>`+
+      (editing ? `<div class="hb-form"><div class="cspell-grid">${spec.fields.map(field).join("")}</div><div class="hb-form-foot"><button class="btn ghost hbg-cancel" type="button">Cancel</button><button class="btn primary hbg-save" type="button">Save ${esc(spec.label)}</button></div></div>` : "");
+    if(editing) setTimeout(() => { const el = $("hbg-name"); if(el && !vals.name){ el.focus(); } }, 0);
+  }
+  function hbSaveGenForm(){
+    const spec = hbGenSpec(); if(!spec) return; const cur = hbEnsureSource();
+    const v = {}; spec.fields.forEach(f => { const el = $("hbg-"+f.id); v[f.id] = el ? el.value : ""; });
+    const name = (v.name||"").trim(); if(!name){ flashStatus("Name the "+spec.label+" first"); const n=$("hbg-name"); if(n) n.focus(); return; }
+    if(spec.bag === "subclasses" && !(v.className||"").trim()){ flashStatus("A subclass needs a parent class (e.g. Barbarian)"); const c=$("hbg-className"); if(c) c.focus(); return; }
+    const obj = spec.toObj(v); const lc = name.toLowerCase();
+    cur[spec.bag] = cur[spec.bag] || {};
+    if(_hbGenEditKey && _hbGenEditKey !== lc) delete cur[spec.bag][_hbGenEditKey];   // renamed → drop old key
+    cur[spec.bag][lc] = obj; cur.enabled = true;
+    _hbGenEditKey = null;
+    refreshHomebrew();
+    flashStatus(`Saved “${name}” to ${cur.name}`+(spec.bag==="subclasses" && !(DATA&&(DATA.classes||[]).some(c=>String(c.name).toLowerCase()===String(obj.className).toLowerCase())) ? ` — load the ${obj.className} class to use it` : ""));
+  }
+  function hbDelGen(name){
+    const spec = hbGenSpec(); if(!spec) return; const cur = hbEnsureSource(); const lc = String(name||"").toLowerCase();
+    if(!(cur[spec.bag]||{})[lc]) return;
+    if(!confirm(`Delete homebrew ${spec.label} “${name}” from ${cur.name}? This removes it for all characters.`)) return;
+    delete cur[spec.bag][lc]; if(_hbGenEditKey === lc) _hbGenEditKey = null;
+    refreshHomebrew();
+  }
   function buildHbStudio(){
     if($("hb-studio")) return;
     const lvlOpts = ['<option value="0">Cantrip</option>'].concat([1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}">Level ${n}</option>`)).join("");
@@ -5986,7 +6122,7 @@
           `<button class="btn ghost" id="hb-src-del" type="button" title="Delete this homebrew source">Delete source</button>`+
         `</div>`+
         `<input type="file" id="hb-import-file" accept="application/json,.json" multiple style="display:none">`+
-        `<div class="hb-tabs"><button class="hb-tab active" data-hbtype="spells" type="button">Spells</button><button class="hb-tab" data-hbtype="items" type="button">Items</button></div>`+
+        `<div class="hb-tabs"><button class="hb-tab active" data-hbtype="spells" type="button">Spells</button><button class="hb-tab" data-hbtype="items" type="button">Items</button><button class="hb-tab" data-hbtype="feats" type="button">Feats</button><button class="hb-tab" data-hbtype="races" type="button">Races</button><button class="hb-tab" data-hbtype="backgrounds" type="button">Backgrounds</button><button class="hb-tab" data-hbtype="subclasses" type="button">Subclasses</button></div>`+
         `<div id="hb-pane-spells" class="hb-pane">`+
         `<div class="hb-section-h"><span>Spells in this source</span><button class="btn" id="hb-new-spell" type="button">+ New spell</button></div>`+
         `<div id="hb-spell-list" class="hb-spells"></div>`+
@@ -6018,6 +6154,7 @@
             `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
         `</div>`+
+        `<div id="hb-pane-gen" class="hb-pane" style="display:none"></div>`+
       `</div>`+
       `<div class="modal-foot"><span class="wiz-hint" style="flex:1; margin:0">Saved as reusable sources; they show as togglable books and travel with sheets you share.</span><button class="btn primary" id="hb-done" type="button">Done</button></div></div>`;
     document.body.appendChild(m);
@@ -6061,7 +6198,14 @@
       const ed = e.target.closest(".hb-edit"); if(ed){ hbOpenForm(String(ed.dataset.name||"").toLowerCase()); return; }
       const del = e.target.closest(".hb-del"); if(del){ hbDeleteSpell(del.dataset.name); return; }
     });
-    m.querySelector(".hb-tabs").addEventListener("click", e => { const t = e.target.closest(".hb-tab"); if(t){ _hbType = t.dataset.hbtype; hbCloseForm(); hbCloseItemForm(); renderHbStudio(); } });
+    m.querySelector(".hb-tabs").addEventListener("click", e => { const t = e.target.closest(".hb-tab"); if(t){ _hbType = t.dataset.hbtype; hbCloseForm(); hbCloseItemForm(); _hbGenEditKey = null; renderHbStudio(); } });
+    $("hb-pane-gen").addEventListener("click", e => {   // generic builder-type panes (feats/races/backgrounds/subclasses) — delegated, since the pane is rebuilt each render
+      if(e.target.closest(".hbg-new")){ _hbGenEditKey = ""; renderHbGen(); return; }
+      const ed = e.target.closest(".hbg-edit"); if(ed){ _hbGenEditKey = String(ed.dataset.name||"").toLowerCase(); renderHbGen(); return; }
+      const del = e.target.closest(".hbg-del"); if(del){ hbDelGen(del.dataset.name); return; }
+      if(e.target.closest(".hbg-cancel")){ _hbGenEditKey = null; renderHbGen(); return; }
+      if(e.target.closest(".hbg-save")){ hbSaveGenForm(); return; }
+    });
     $("hb-new-item").addEventListener("click", () => hbOpenItemForm(null));
     $("hb-new-aw").addEventListener("click", () => openAwBuilder(_hbCurId));
     $("hbi-cancel").addEventListener("click", hbCloseItemForm);
@@ -6080,8 +6224,12 @@
     $("hb-src-enabled").checked = cur.enabled !== false;
     $("hb-src-del").style.display = homebrewSources.length > 1 ? "" : "none";   // always keep at least one source
     document.querySelectorAll("#hb-studio .hb-tab").forEach(b => b.classList.toggle("active", b.dataset.hbtype === _hbType));
-    const sp = $("hb-pane-spells"), ip = $("hb-pane-items"); if(sp) sp.style.display = _hbType === "items" ? "none" : ""; if(ip) ip.style.display = _hbType === "items" ? "" : "none";
-    if(_hbType === "items") renderHbItemList(); else renderHbSpellList();
+    const generic = !!HB_GEN_SPECS[_hbType];
+    const sp = $("hb-pane-spells"), ip = $("hb-pane-items"), gp = $("hb-pane-gen");
+    if(sp) sp.style.display = _hbType === "spells" ? "" : "none";
+    if(ip) ip.style.display = _hbType === "items" ? "" : "none";
+    if(gp) gp.style.display = generic ? "" : "none";
+    if(_hbType === "items") renderHbItemList(); else if(_hbType === "spells") renderHbSpellList(); else if(generic) renderHbGen();
     { const b = $("hb-new-aw"); if(b) b.style.display = awEnabled ? "" : "none"; }
   }
   function openHbStudio(rowCtx){
@@ -6320,7 +6468,8 @@
   let _hbEditItemKey = null;  // lc name of the item being edited in the item form (for rename), or null
   const HB_ITEM_TYPES = ["Wondrous Item","Weapon","Armor","Shield","Ring","Rod","Staff","Wand","Potion","Scroll","Other"];
   const HB_RARITIES = ["Common","Uncommon","Rare","Very Rare","Legendary","Artifact"];
-  function hbNormSources(arr){ return (arr||[]).filter(s => s && typeof s === "object").map(s => ({ name:(s.name || "My Homebrew"), enabled: s.enabled !== false, spells:(s.spells && typeof s.spells === "object") ? s.spells : {}, items:(s.items && typeof s.items === "object") ? s.items : {} })); }
+  const HB_BAGS = ["spells","items","feats","races","backgrounds","subclasses"];   // every content type a homebrew source can hold
+  function hbNormSources(arr){ return (arr||[]).filter(s => s && typeof s === "object").map(s => { const o = { name:(s.name || "My Homebrew"), enabled: s.enabled !== false }; HB_BAGS.forEach(k => { o[k] = (s[k] && typeof s[k] === "object" && !Array.isArray(s[k])) ? s[k] : {}; }); return o; }); }
   function hbSpellCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.spells||{}).length, 0); }
   function hbHasContent(){ return homebrewSources.some(s => Object.keys(s.spells||{}).length || Object.keys(s.items||{}).length); }
   function hbItemCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.items||{}).length, 0); }
@@ -6331,7 +6480,7 @@
     if(!attuned) return {base:it.aw.baseWeapon, bonus:0, rider:""};   // un-attuned Ancestral Weapon acts as a mundane weapon of its type (RAW)
     const d = awDerive(it.aw); return {base:it.aw.baseWeapon, bonus:d.magicBonus, rider:d.riders.join(", ")}; }   // attuned → base weapon + magic bonus + damage riders (upgrades + properties)
   function allItemText(){ const m = Object.assign({}, (DATA && DATA.itemText) || {}); const hi = hbActiveItems(); for(const lc in hi){ const it = hi[lc]; if(it.text) m[it.name] = it.text; } return m; }   // sourcebook item text + enabled homebrew item text (keyed by display name)
-  function hbEnsureSource(){ if(!homebrewSources.length){ homebrewSources.push({name:"My Homebrew", enabled:true, spells:{}}); _hbCurId = 0; } if(_hbCurId < 0 || _hbCurId >= homebrewSources.length) _hbCurId = 0; const cur = homebrewSources[_hbCurId]; if(!cur.spells) cur.spells = {}; if(!cur.items) cur.items = {}; return cur; }
+  function hbEnsureSource(){ if(!homebrewSources.length){ homebrewSources.push({name:"My Homebrew", enabled:true}); _hbCurId = 0; } if(_hbCurId < 0 || _hbCurId >= homebrewSources.length) _hbCurId = 0; return hbEnsureSourceAt(_hbCurId); }
   function hbUniqueName(base){ let n = base, i = 2; const taken = new Set(homebrewSources.map(s => String(s.name).toLowerCase())); while(taken.has(n.toLowerCase())) n = base+" "+(i++); return n; }
   function hbFindIdx(name){ const lc = String(name||"").toLowerCase(); return homebrewSources.findIndex(s => String(s.name).toLowerCase() === lc); }
   function hbEnabledSpell(lc){ for(const s of homebrewSources){ if(s.enabled !== false && s.spells[lc]) return s.spells[lc]; } return null; }   // first ENABLED source that defines this spell
@@ -11458,6 +11607,7 @@
     if(!data && !SLOT){ try{ data = JSON.parse($("embedded-data").textContent); }catch(e){} }  // fresh "New" slot / single-char file
     loadAwEnabled();   // Ancestral Weapons module on/off (browser-wide)
     loadHomebrew();   // source-material homebrew (browser-wide) — load before rendering spell sheets so its spells resolve
+    hbApplyToData();   // merge structured homebrew (feats/races/backgrounds/subclasses) into DATA before the builder pickers populate
     populateWizard();
     populateArmor(); populateItemList();
     populateMonsterList();
