@@ -230,7 +230,7 @@
     font-size:19px; font-weight:700; border:1px solid var(--line2); background:#fff; box-sizing:border-box}
 
   /* "Under the hood" — generation method + per-ability base & bonus inputs (modal) */
-  .hood-grid-head, .hood-row{display:grid; grid-template-columns:72px 72px repeat(5,1fr); gap:6px; align-items:center}
+  .hood-grid-head, .hood-row{display:grid; grid-template-columns:72px 72px repeat(5,minmax(42px,52px)); gap:6px; align-items:center; justify-content:start}
   .hood-grid-head{font-size:8px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     color:var(--muted); text-align:center; margin-bottom:5px}
   .hood-grid-head .hname{text-align:left}
@@ -2674,11 +2674,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v343 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v344 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.37.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.37.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2686,6 +2686,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v344", semver:"2.37.3", items:[
+      "On the Ability Scores step during character creation, a half-feat's +1 from a race feat (e.g. Fey Touched via Variant Human) now shows up in the Feat column right away, instead of only after the character was made.",
+      "Tightened the Ability Scores bonus boxes. The ASI / Feat / Racial / Magical / Misc inputs only ever hold a small number, so they no longer stretch across the row."
+    ]},
     {v:"v343", semver:"2.37.2", items:[
       "Variant Human and Custom Lineage feats now prompt for their spell during character creation. When you pick a spell-granting feat (Fey Touched, Shadow Touched, and the like) right in the Race step, you now get the spell picker there too, not just the ability picker. The chosen spell lands in your Granted Spells.",
       "Fixed Variant Human granting +1 to all six abilities. It now correctly gives +1 to two abilities of your choice. (The base Human's flat bonus was leaking onto the variant.)"
@@ -7687,6 +7691,21 @@
     if(r && !tceOn("origin-asi")) (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{ if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; }));   // Tasha's custom origin replaces the race's fixed boosts entirely with the picks below
     document.querySelectorAll(".rc-abil").forEach(sel => { const k = sel.value, amt = parseInt(sel.dataset.amt,10)||1; if(k && ABKEYS.includes(k)) bonusVals.racial[k] += amt; });   // + the Race step's "your choice" ability picks
   }
+  // The Feat column on the Ability Scores step, derived for the BUILDER. During creation a race feat (Variant Human /
+  // Custom Lineage) isn't an ASI slot yet, so its half-feat +1 is read live from the Race step's pickers; class ASI
+  // feats already chosen come from asiChoices. (The finished sheet recomputes this in applyAsiBonuses.)
+  function applyRaceFeatBonusOnly(){
+    bonusVals.feat = zeroAb();
+    const featOf = n => (DATA && DATA.feats) ? DATA.feats.find(x => x.name === n) : null;
+    const add = (featName, ab) => { const f = featOf(featName); if(!f || !f.ability) return;
+      for(const k in (f.ability.fixed||{})) if(bonusVals.feat[k] != null) bonusVals.feat[k] += f.ability.fixed[k];
+      if(f.ability.choose && ab && bonusVals.feat[ab] != null) bonusVals.feat[ab] += (f.ability.choose.amount || 1); };
+    asiChoices.forEach(s => { if(s.type === "feat" && s.feat && s.source !== "race") add(s.feat, s.featAbil); });   // class ASI feats (race feats come from the DOM below to avoid double-counting)
+    const box = $("wiz-race-choices");
+    if(box) box.querySelectorAll(".rc-feat-abil").forEach(abx => { const i = +abx.dataset.i;
+      const featName = (box.querySelector('input[name="rc-feat-'+i+'"]:checked')||{}).value;
+      if(featName) add(featName, (box.querySelector('.rc-featabil[data-i="'+i+'"]')||{}).value || ""); });
+  }
   function applyRace(name, opts){
     opts = opts || null;
     const keepRacial = !!(opts && opts.keepRacial);   // wizard pre-applied the Racial column (incl. the player's "choose" picks) → don't overwrite it
@@ -8229,7 +8248,7 @@
     $("wiz-dots").innerHTML = WIZ_TITLES.map((t, i) =>
       `<button type="button" class="wiz-dot${i === wizStep ? " active" : ""}" data-goto="${i}">${i + 1} ${t}</button>`).join("");
     if(wizStep === 0){ renderRaceList(); raceHint(); }   // build the race list + refresh the run-down / choice pickers on entry
-    if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial (the Race step restores the player's "choose" picks on Edit, so this re-derives the column faithfully)
+    if(wizStep === 1){ const race = $("wiz-race").value; if(race) applyRaceAbilityOnly(race); applyRaceFeatBonusOnly(); renderHoodControls(); compute(); }   // Ability Scores: race bonuses pre-filled in Racial, half-feat bonuses in Feat (the Race step restores the player's picks on Edit, so this re-derives the columns faithfully)
     if(wizStep === 2){ syncBuildToSheet(); renderBuilder(); }   // multiclass builder (also re-validates prereqs against the abilities just set)
     if(wizStep === 3) renderWizSkills();
     if(wizStep === 4) renderWizEquip();
