@@ -257,6 +257,16 @@
   .upd-prog-foot{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-top:4px}
   .upd-prog-label{font-size:11px; color:var(--muted)}
   .upd-prog-pct{font-size:12px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; flex:none}
+  .hb-img{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .hb-img-prev{max-width:120px; max-height:120px; border:1px solid var(--line2); object-fit:contain; background:var(--bg)}
+  /* hover/tap preview card (homebrew + sourcebook content) */
+  .pc-pop{position:fixed; z-index:2000; max-width:340px; pointer-events:none}
+  .pc-card{border:1px solid var(--ink); background:var(--bg); color:var(--ink); padding:10px 12px}
+  .pc-img{display:block; max-width:100%; max-height:170px; object-fit:contain; margin:0 0 8px; border:1px solid var(--line2)}
+  .pc-name{font-weight:700; font-size:14px; line-height:1.2}
+  .pc-meta{font-size:11px; color:var(--muted); margin:2px 0 6px}
+  .pc-body{font-size:12px; line-height:1.4; white-space:pre-wrap; max-height:320px; overflow:auto}
+  [data-card]{cursor:help}
 
   /* ASI / Feat attention flag (pulses until every improvement is chosen) */
   .asi-flag{display:block; width:100%; margin:0 0 10px; text-align:left; cursor:pointer;
@@ -2924,11 +2934,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v414 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v415 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.70.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.71.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2936,6 +2946,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v415", semver:"2.71.0", items:[
+      "Homebrew Studio: every type (spells, items, feats, races, backgrounds, subclasses) now takes an uploaded image. Pick one in the form and it’s saved with your content and travels with shared sheets.",
+      "Hover an item, spell, or other entry (or tap it on mobile) to see a full preview card pulled straight from its source — name, mechanics, flavor text, and any image. Works on your homebrew (in the Homebrew Studio lists) and on inventory item and spell names on the sheet, for both your homebrew and loaded sourcebook content."
+    ]},
     {v:"v414", semver:"2.70.0", items:[
       "The update progress bar now shows real progress with a percentage. When updating the hosted/web version it streams the new app and fills the bar as it downloads (it used to just show an indeterminate bar before reloading), and both the Settings and banner update widgets now show a numeric % next to the bar."
     ]},
@@ -5721,6 +5735,68 @@
   }
   function awAllItems(){ const out=[]; homebrewSources.forEach((s,si)=>{ if(s.enabled===false) return; const items=s.items||{}; Object.keys(items).forEach(k=>{ if(items[k].aw) out.push({it:items[k], si, key:k}); }); }); return out; }
   function awResizeImage(file, cb){ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=480, sc=Math.min(1, max/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*sc)||1; c.height=Math.round(img.height*sc)||1; c.getContext("2d").drawImage(img,0,0,c.width,c.height); cb(c.toDataURL("image/jpeg",0.85)); }; img.src=r.result; }; r.readAsDataURL(file); }
+  // ---- Shared homebrew image picker (spell / item / generic forms all use it via a data-scope) ----
+  const _hbImg = { spell:"", item:"", gen:"" };   // staged image dataURL for whichever form is open
+  function hbImgFieldHtml(scope){
+    return `<label class="cspell-f cspell-full"><span>Image</span>`+
+      `<div class="hb-img"><img class="hb-img-prev" data-scope="${scope}" alt="" style="display:none">`+
+      `<label class="btn hb-img-choose">Choose image…<input type="file" accept="image/*" class="hb-img-in" data-scope="${scope}" hidden></label>`+
+      `<button type="button" class="btn ghost hb-img-rm" data-scope="${scope}" style="display:none">Remove</button></div></label>`;
+  }
+  function hbImgSyncPreview(scope){   // reflect _hbImg[scope] into that scope's preview <img> + Remove button
+    const url = _hbImg[scope] || "";
+    document.querySelectorAll('#hb-studio .hb-img-prev[data-scope="'+scope+'"]').forEach(img => { if(url){ img.src = url; img.style.display = ""; } else { img.removeAttribute("src"); img.style.display = "none"; } });
+    document.querySelectorAll('#hb-studio .hb-img-rm[data-scope="'+scope+'"]').forEach(btn => { btn.style.display = url ? "" : "none"; });
+  }
+  // ---- Hover/tap preview card: a full item card pulled straight from its source (homebrew object or sourcebook DATA), image + flavor + mechanics ----
+  function previewCardLookup(name){
+    const lc = String(name||"").trim().toLowerCase(); if(!lc) return null;
+    for(const key of HB_BAGS){ const m = (typeof hbActiveByType==="function") ? hbActiveByType(key) : {}; if(m[lc]) return {obj:m[lc], type:key}; }   // your homebrew first (any type)
+    const D = (typeof DATA!=="undefined") ? DATA : null;
+    if(typeof spellData==="function"){ const sp = spellData(name); if(sp && (sp.level!=null || sp.text)) return {obj:sp, type:"spells"}; }
+    const find = (arr) => D && Array.isArray(D[arr]) ? D[arr].find(x => String(x.name).toLowerCase()===lc) : null;
+    const f = find("feats"); if(f) return {obj:f, type:"feats"};
+    const r = find("races"); if(r) return {obj:r, type:"races"};
+    const bg = find("backgrounds"); if(bg) return {obj:bg, type:"backgrounds"};
+    const itxt = (typeof allItemText==="function") ? allItemText() : ((D&&D.itemText)||{});   // sourcebook (+homebrew) item descriptions, keyed by display name
+    const ikey = Object.keys(itxt).find(k => k.toLowerCase()===lc); if(ikey) return {obj:{name:ikey, text:itxt[ikey]}, type:"items"};
+    return null;
+  }
+  function previewCardHtml(name){
+    const hit = previewCardLookup(name); if(!hit) return null;
+    const o = hit.obj, t = hit.type; let meta = "", body = "";
+    if(t==="spells"){ meta = [((o.level||0)===0?"Cantrip":"Level "+o.level), o.school].filter(Boolean).join(" · "); body = (o.text||"") + (o.higher?"\n\nAt Higher Levels. "+o.higher:""); }
+    else if(t==="items"){ meta = [o.type, o.rarity, o.attune?"requires attunement":""].filter(Boolean).join(" · "); body = o.text||""; }
+    else if(t==="feats"){ meta = o.prerequisite ? ("Prerequisite: "+o.prerequisite) : "Feat"; body = o.text||""; }
+    else if(t==="races"){ meta = [o.subraceOf?("Subrace of "+o.subraceOf):(o.size||""), o.speed?(o.speed+" ft"):""].filter(Boolean).join(" · "); body = (o.traits||[]).map(tr => (tr.name?tr.name+". ":"")+(tr.text||"")).join("\n\n") || (Array.isArray(o.flavor)?o.flavor.join("\n\n"):""); }
+    else if(t==="backgrounds"){ meta = "Background"; body = (o.feature && ((o.feature.name?o.feature.name+". ":"")+(o.feature.text||""))) || ""; }
+    else if(t==="subclasses"){ meta = (o.className||"") + " subclass"; body = (o.features||[]).map(ff => (ff.name||"")+(ff.level?" (lvl "+ff.level+")":"")+". "+(ff.text||"")).join("\n\n"); }
+    const img = o.img ? `<img class="pc-img" src="${o.img}" alt="">` : "";
+    return `<div class="pc-card">${img}<div class="pc-name">${esc(o.name||name)}</div>${meta?`<div class="pc-meta">${esc(meta)}</div>`:""}${body?`<div class="pc-body">${esc(body)}</div>`:""}</div>`;
+  }
+  let _pcFor = null;   // the element the card is currently shown for (tap toggle)
+  function showPreviewCard(name, anchor){
+    const html = previewCardHtml(name); if(!html){ hidePreviewCard(); return; }
+    let p = $("preview-card-pop"); if(!p){ p = document.createElement("div"); p.id = "preview-card-pop"; p.className = "pc-pop"; document.body.appendChild(p); }
+    p.innerHTML = html; p.style.visibility = "hidden"; p.style.display = "block";
+    const r = anchor.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight;
+    let left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
+    let top = r.bottom + 6; if(top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+    p.style.left = left + "px"; p.style.top = top + "px"; p.style.visibility = "";
+    _pcFor = anchor;
+  }
+  function hidePreviewCard(){ const p = $("preview-card-pop"); if(p) p.style.display = "none"; _pcFor = null; }
+  const PC_INPUT_SEL = 'input[id^="invname-"], input.sp-name';   // sheet surfaces whose VALUE is an item/spell name
+  function setupPreviewCards(){
+    if(document._pcWired) return; document._pcWired = true;
+    document.addEventListener("mouseover", e => { const dc = e.target.closest && e.target.closest("[data-card]"); if(dc){ showPreviewCard(dc.getAttribute("data-card"), dc); return; }
+      if(e.target.matches && e.target.matches(PC_INPUT_SEL) && e.target.value) showPreviewCard(e.target.value, e.target); });
+    document.addEventListener("mouseout", e => { if((e.target.closest && e.target.closest("[data-card]")) || (e.target.matches && e.target.matches(PC_INPUT_SEL))) hidePreviewCard(); });
+    document.addEventListener("focusin", e => { if(e.target.matches && e.target.matches(PC_INPUT_SEL) && e.target.value) showPreviewCard(e.target.value, e.target); });   // mobile: tapping a name field shows its card
+    document.addEventListener("focusout", e => { if(e.target.matches && e.target.matches(PC_INPUT_SEL)) hidePreviewCard(); });
+    document.addEventListener("click", e => { const dc = e.target.closest && e.target.closest("[data-card]"); if(dc){ if(_pcFor === dc){ hidePreviewCard(); } else { showPreviewCard(dc.getAttribute("data-card"), dc); } } });   // mobile tap-toggle on list rows
+    window.addEventListener("scroll", hidePreviewCard, true);
+  }
   function renderAwPage(){
     const host=$("aw-page-body"); if(!host) return;
     if(!host._wired){ host._wired=true;
@@ -5934,10 +6010,12 @@
     const name = String(s.name||"").trim(); if(!name) return null;
     let comp = s.components;
     if(comp && typeof comp === "object") comp = (comp.v?"V":"") + (comp.s?"S":"") + (comp.m?"M":"");   // tolerate 5etools-style {v,s,m}
-    return { name, level:Math.max(0, Math.min(9, parseInt(s.level,10)||0)), school:String(s.school||""),
+    const o = { name, level:Math.max(0, Math.min(9, parseInt(s.level,10)||0)), school:String(s.school||""),
       time:String(s.time||""), range:String(s.range||""), components:String(comp||"").toUpperCase().replace(/[^VSM]/g,""),
       duration:String(s.duration||""), material:String(s.material||""), conc:!!s.conc, ritual:!!s.ritual,
       text:String(s.text||""), higher:String(s.higher||"") };
+    if(typeof s.img === "string" && s.img) o.img = s.img;
+    return o;
   }
   function normHbItem(it){
     if(!it || typeof it !== "object") return null;
@@ -5946,6 +6024,7 @@
       attune:!!it.attune, acBonus:parseInt(it.acBonus,10)||0, spellAtk:parseInt(it.spellAtk,10)||0,
       spellDc:parseInt(it.spellDc,10)||0, text:String(it.text||"") };
     if(it.aw && typeof it.aw === "object") o.aw = it.aw;   // preserve an Ancestral Weapon build blob (re-editable)
+    if(typeof it.img === "string" && it.img) o.img = it.img;
     return o;
   }
   // The SINGLE source of truth for what content types a homebrew source can hold, and how each round-trips through
@@ -6093,10 +6172,11 @@
     const spec = hbGenSpec(), pane = $("hb-pane-gen"); if(!spec || !pane) return;
     const cur = homebrewSources[_hbCurId] || {}; const bag = cur[spec.bag] || {};
     const arr = Object.values(bag).sort((a,b) => String(a.name).localeCompare(String(b.name)));
-    const list = arr.length ? arr.map(o => `<div class="hb-row"><span class="hb-name">${esc(o.name)}</span><span class="hb-lvl">${esc(spec.summary(o)||"")}</span><button type="button" class="hbg-edit" data-name="${esc(o.name)}" title="Edit">✎</button><button type="button" class="hbg-del" data-name="${esc(o.name)}" title="Delete">✕</button></div>`).join("")
+    const list = arr.length ? arr.map(o => `<div class="hb-row"><span class="hb-name" data-card="${esc(o.name)}">${esc(o.name)}</span><span class="hb-lvl">${esc(spec.summary(o)||"")}</span><button type="button" class="hbg-edit" data-name="${esc(o.name)}" title="Edit">✎</button><button type="button" class="hbg-del" data-name="${esc(o.name)}" title="Delete">✕</button></div>`).join("")
       : `<div class="hb-empty">No ${esc(spec.title.toLowerCase())} in this source yet. Click “+ New ${esc(spec.label)}” to make one.</div>`;
     const editing = _hbGenEditKey !== null;
     const vals = editing ? spec.fromObj((bag[_hbGenEditKey]) || {}) : {};
+    if(editing) _hbImg.gen = (bag[_hbGenEditKey] || {}).img || "";
     const field = f => { const v = editing ? (vals[f.id]!=null?vals[f.id]:"") : ""; const ph = f.ph ? ` placeholder="${esc(f.ph)}"` : ""; const full = (f.kind==="area"||f.id==="name") ? " cspell-full" : "";
       const inner = f.kind==="area" ? `<textarea id="hbg-${f.id}" rows="4">${esc(v)}</textarea>`
         : f.kind==="select" ? `<select id="hbg-${f.id}">${f.opts.map(o=>`<option ${o===v?"selected":""}>${esc(o)}</option>`).join("")}</select>`
@@ -6106,8 +6186,8 @@
     pane.innerHTML =
       `<div class="hb-section-h"><span>${esc(spec.title)} in this source</span><button class="btn hbg-new" type="button">+ New ${esc(spec.label)}</button></div>`+
       `<div class="hb-spells">${list}</div>`+
-      (editing ? `<div class="hb-form"><div class="cspell-grid">${spec.fields.map(field).join("")}</div><div class="hb-form-foot"><button class="btn ghost hbg-cancel" type="button">Cancel</button><button class="btn primary hbg-save" type="button">Save ${esc(spec.label)}</button></div></div>` : "");
-    if(editing) setTimeout(() => { const el = $("hbg-name"); if(el && !vals.name){ el.focus(); } }, 0);
+      (editing ? `<div class="hb-form"><div class="cspell-grid">${spec.fields.map(field).join("")}${hbImgFieldHtml("gen")}</div><div class="hb-form-foot"><button class="btn ghost hbg-cancel" type="button">Cancel</button><button class="btn primary hbg-save" type="button">Save ${esc(spec.label)}</button></div></div>` : "");
+    if(editing){ hbImgSyncPreview("gen"); setTimeout(() => { const el = $("hbg-name"); if(el && !vals.name){ el.focus(); } }, 0); }
   }
   function hbSaveGenForm(){
     const spec = hbGenSpec(); if(!spec) return; const cur = hbEnsureSource();
@@ -6115,6 +6195,7 @@
     const name = (v.name||"").trim(); if(!name){ flashStatus("Name the "+spec.label+" first"); const n=$("hbg-name"); if(n) n.focus(); return; }
     if(spec.bag === "subclasses" && !(v.className||"").trim()){ flashStatus("A subclass needs a parent class (e.g. Barbarian)"); const c=$("hbg-className"); if(c) c.focus(); return; }
     const obj = spec.toObj(v); const lc = name.toLowerCase();
+    if(_hbImg.gen) obj.img = _hbImg.gen;
     cur[spec.bag] = cur[spec.bag] || {};
     if(_hbGenEditKey && _hbGenEditKey !== lc) delete cur[spec.bag][_hbGenEditKey];   // renamed → drop old key
     cur[spec.bag][lc] = obj; cur.enabled = true;
@@ -6165,6 +6246,7 @@
           `<div class="cspell-f cspell-full"><span>Flags</span><div class="cspell-checks"><label><input type="checkbox" id="hbf-conc"> Concentration</label><label><input type="checkbox" id="hbf-ritual"> Ritual</label></div></div>`+
           `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbf-text" rows="4"></textarea></label>`+
           `<label class="cspell-f cspell-full"><span>At Higher Levels</span><textarea id="hbf-higher" rows="2"></textarea></label>`+
+          hbImgFieldHtml("spell")+
         `</div><div class="hb-form-foot"><button class="btn ghost" id="hbf-cancel" type="button">Cancel</button><button class="btn primary" id="hbf-save" type="button">Save spell</button></div></div>`+
         `</div>`+
         `<div id="hb-pane-items" class="hb-pane" style="display:none">`+
@@ -6179,6 +6261,7 @@
             `<label class="cspell-f"><span>Spell attack bonus</span><input type="number" id="hbi-spatk" step="1" placeholder="0"></label>`+
             `<label class="cspell-f"><span>Spell save DC bonus</span><input type="number" id="hbi-spdc" step="1" placeholder="0"></label>`+
             `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
+            hbImgFieldHtml("item")+
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
         `</div>`+
         `<div id="hb-pane-gen" class="hb-pane" style="display:none"></div>`+
@@ -6188,6 +6271,8 @@
     $("hb-x").addEventListener("click", closeHbStudio);
     $("hb-done").addEventListener("click", closeHbStudio);
     m.addEventListener("mousedown", e => { if(e.target === m) closeHbStudio(); });   // click the backdrop to dismiss
+    m.addEventListener("change", e => { const inp = e.target.closest(".hb-img-in"); if(inp && inp.files && inp.files[0]){ const scope = inp.dataset.scope; awResizeImage(inp.files[0], url => { _hbImg[scope] = url; hbImgSyncPreview(scope); }); inp.value = ""; } });   // any form's image picker
+    m.addEventListener("click", e => { const rm = e.target.closest(".hb-img-rm"); if(rm){ _hbImg[rm.dataset.scope] = ""; hbImgSyncPreview(rm.dataset.scope); } });
     $("hb-src-select").addEventListener("change", e => { _hbCurId = parseInt(e.target.value, 10) || 0; hbCloseForm(); renderHbStudio(); });
     $("hb-src-name").addEventListener("change", e => { const cur = hbEnsureSource(); const want = (e.target.value||"").trim() || "My Homebrew";
       cur.name = (want.toLowerCase() === cur.name.toLowerCase()) ? want : hbUniqueName(want); refreshHomebrew(); });
@@ -6286,7 +6371,7 @@
     const arr = Object.values(cur.items||{}).filter(it => !(it.aw && !awEnabled)).sort((a,b) => String(a.name).localeCompare(String(b.name)));
     if(!arr.length){ el.innerHTML = `<div class="hb-empty">No items in this source yet. Click \u201c+ New item\u201d to make one.</div>`; return; }
     el.innerHTML = arr.map(it => { const tag = [it.type||"Item", it.rarity].filter(Boolean).join(" \u00b7 ") + (it.attune ? " \u00b7 attune" : "");
-      return `<div class="hb-row"><span class="hb-name">${esc(it.name)}</span><span class="hb-lvl">${esc(tag)}</span><button type="button" class="hb-edit" data-name="${esc(it.name)}" title="Edit item">\u270e</button><button type="button" class="hb-del" data-name="${esc(it.name)}" title="Delete item">\u2715</button></div>`;
+      return `<div class="hb-row"><span class="hb-name" data-card="${esc(it.name)}">${esc(it.name)}</span><span class="hb-lvl">${esc(tag)}</span><button type="button" class="hb-edit" data-name="${esc(it.name)}" title="Edit item">\u270e</button><button type="button" class="hb-del" data-name="${esc(it.name)}" title="Delete item">\u2715</button></div>`;
     }).join("");
   }
   function hbOpenItemForm(key, seed){   // key = lc name to edit in the current source (null = new); seed = item prefill
@@ -6302,6 +6387,7 @@
     $("hbi-spatk").value = base.spellAtk ? String(base.spellAtk) : "";
     $("hbi-spdc").value = base.spellDc ? String(base.spellDc) : "";
     $("hbi-text").value = base.text || "";
+    _hbImg.item = base.img || ""; hbImgSyncPreview("item");
     $("hb-item-list").style.display = "none";
     $("hb-item-form").style.display = "";
     setTimeout(() => $("hbi-name").focus(), 0);
@@ -6317,6 +6403,7 @@
       attune:$("hbi-attune").checked, acBonus:parseInt($("hbi-ac").value,10)||0,
       spellAtk:parseInt($("hbi-spatk").value,10)||0, spellDc:parseInt($("hbi-spdc").value,10)||0,
       text:$("hbi-text").value.trim() };
+    if(_hbImg.item) obj.img = _hbImg.item;
     if(_hbEditItemKey && _hbEditItemKey !== lc) delete cur.items[_hbEditItemKey];   // renamed → drop old key
     cur.items[lc] = obj; cur.enabled = true;
     refreshHbItems();
@@ -6337,7 +6424,7 @@
     const arr = Object.values(cur.spells||{}).sort((a,b) => (a.level||0)-(b.level||0) || String(a.name).localeCompare(String(b.name)));
     if(!arr.length){ el.innerHTML = `<div class="hb-empty">No spells in this source yet. Click “+ New spell” to make one.</div>`; return; }
     el.innerHTML = arr.map(s => { const lv = (s.level||0)===0 ? "Cantrip" : "Lv "+s.level;
-      return `<div class="hb-row"><span class="hb-name">${esc(s.name)}</span><span class="hb-lvl">${lv}</span><button type="button" class="hb-edit" data-name="${esc(s.name)}" title="Edit spell">✎</button><button type="button" class="hb-del" data-name="${esc(s.name)}" title="Delete spell">✕</button></div>`;
+      return `<div class="hb-row"><span class="hb-name" data-card="${esc(s.name)}">${esc(s.name)}</span><span class="hb-lvl">${lv}</span><button type="button" class="hb-edit" data-name="${esc(s.name)}" title="Edit spell">✎</button><button type="button" class="hb-del" data-name="${esc(s.name)}" title="Delete spell">✕</button></div>`;
     }).join("");
   }
   function hbOpenForm(key, seed){   // key = lc name to edit in the current source (null = new); seed = {name,level,...} prefill
@@ -6357,6 +6444,7 @@
     $("hbf-conc").checked = !!base.conc; $("hbf-ritual").checked = !!base.ritual;
     $("hbf-text").value = base.text || "";
     $("hbf-higher").value = base.higher || "";
+    _hbImg.spell = base.img || ""; hbImgSyncPreview("spell");
     $("hb-spell-list").style.display = "none";
     $("hb-spell-form").style.display = "";
     setTimeout(() => $("hbf-name").focus(), 0);
@@ -6377,6 +6465,7 @@
       range:$("hbf-range").value.trim(), components:comp, duration:$("hbf-duration").value.trim(),
       material:$("hbf-material").value.trim(), conc:$("hbf-conc").checked, ritual:$("hbf-ritual").checked,
       text:$("hbf-text").value.trim(), higher:$("hbf-higher").value.trim() };
+    if(_hbImg.spell) obj.img = _hbImg.spell;
     if(_hbEditKey && _hbEditKey !== lc) delete cur.spells[_hbEditKey];   // renamed → drop the old key
     cur.spells[lc] = obj; cur.enabled = true;
     saveHomebrew(); renderAllSpellSheets(false); compute(); renderHomebrewList(); renderLoadedBookList();
@@ -12187,6 +12276,7 @@
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
     ["attune-0","attune-1","attune-2"].forEach(id => { const el = $(id); if(el) el.addEventListener("change", () => { if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }); });   // attuning/un-attuning an Ancestral Weapon shows/hides its tab + refreshes its sheet
+    if(typeof setupPreviewCards==="function") setupPreviewCards();   // hover/tap full-card previews (homebrew + sourcebook) on Studio lists + inventory/spell name fields
     $("loaded-books").addEventListener("change", e => { const a = e.target.closest(".aw-module-toggle"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
     $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
