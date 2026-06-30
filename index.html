@@ -321,13 +321,13 @@
 
   /* combat */
   .combat-top{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
-  /* Combat card body: HP card on the left, AC/Initiative/Speed stacked beside it (wraps below on a narrow column) */
+  /* Combat card body: a fixed-width left column (HP card with the AC/Init/Speed row beneath it), then Defenses + Conditions */
   .combat-row{display:flex; flex-wrap:wrap; gap:14px; align-items:stretch; margin-top:12px}
-  .combat-row .hpbox{margin-top:0; flex:0 0 460px; align-self:flex-start}   /* HP card keeps its own width AND natural height (don't stretch to the taller Conditions panel) */
-  .combat-side{display:flex; flex-direction:column; gap:8px; flex:0 0 150px; min-width:140px}
-  .combat-row .combat-top{display:flex; flex-direction:column; grid-template-columns:none; gap:8px; flex:1 1 auto}
-  .combat-side .otherspeeds{margin-top:0}
-  /* Defenses + Conditions subsections — flex items of .combat-row, sitting to the right of the HP card + AC/Init/Speed stack */
+  .combat-left{flex:0 0 460px; max-width:100%; display:flex; flex-direction:column; gap:12px; align-self:flex-start}   /* fixed width, natural height */
+  .combat-left .hpbox{margin-top:0; width:100%; max-width:none}
+  .combat-left .combat-top{margin-top:0}   /* AC / Initiative / Speed sit in one 3-up row under the HP card (base .combat-top grid) */
+  .combat-left .otherspeeds{margin-top:0}
+  /* Defenses + Conditions subsections — flex items of .combat-row, sitting to the right of the HP/AC-Init-Speed column */
   .combat-sub{flex:1 1 260px; min-width:230px; display:flex; flex-direction:column; align-self:stretch}
   .combat-sub > h3{font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 8px}
   .combat-sub textarea{min-height:100px; line-height:1.5}
@@ -340,7 +340,9 @@
   .cond-open{font:inherit; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     border:1px solid var(--line); border-radius:7px; background:var(--card); color:var(--ink); padding:6px 10px; cursor:pointer; align-self:flex-start}
   .cond-open:hover{border-color:var(--accent)}
-  .cond-panel{margin-top:10px; border:1px solid var(--line); border-radius:8px; padding:4px 6px; max-height:360px; overflow:auto; background:var(--field)}
+  .cond-modal-panel{max-width:560px}
+  #cond-modal .modal-body{padding:10px 14px 14px}
+  .cond-panel{border:1px solid var(--line); border-radius:8px; padding:4px 6px; max-height:62vh; overflow:auto; background:var(--field)}
   .cond-row{border-bottom:1px solid var(--line)}
   .cond-row:last-child{border-bottom:none}
   .cond-head{display:flex; align-items:center; gap:10px; padding:7px 4px}
@@ -393,7 +395,7 @@
   @media print{ .ov{outline:none} .ov::after{display:none} input.ov{outline:none; background:none} }
   .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
   /* Compact HP widget — Heal/Damage on the left, Current / Max + Temp readout on the right (arithmetic-free) */
-  .hpbox{display:flex; align-items:stretch; gap:14px; margin-top:12px; padding:10px 12px;
+  .hpbox{display:flex; align-items:stretch; gap:14px; margin-top:12px; padding:15px 12px;
     background:var(--field); border:1px solid var(--line); border-radius:10px;
     max-width:460px}   /* it's a compact card — don't let it stretch to the full combat-card width in the landscape layout */
   .hp-adjust{display:flex; flex-direction:column; justify-content:center; gap:5px; width:94px; flex:0 0 94px}
@@ -2164,6 +2166,7 @@
             <div class="card" data-csec="combat" data-open>
               <h2>Combat</h2>
               <div class="combat-row">
+              <div class="combat-left">
               <div class="hpbox">
                 <div class="hp-adjust noprint">
                   <button type="button" class="hp-btn hp-heal" id="hp-heal" title="Add this much to Current HP (capped at Max)">Heal</button>
@@ -2204,13 +2207,12 @@
                   <div class="hp-foot">Hit Points</div>
                 </div>
               </div>
-              <div class="combat-side">
-                <div class="combat-top">
-                  <div class="stat"><div class="k">Armor Class</div><div class="calc" id="ac-calc"></div></div>
-                  <div class="stat"><div class="k">Initiative</div><div class="calc" id="init"></div></div>
-                  <div class="stat"><div class="k">Speed</div><input id="speed" title="Effective walking speed (encumbrance / Unarmored Movement applied). Click to edit your base speed."></div>
-                </div>
-                <div id="otherspeeds" class="otherspeeds" style="display:none" title="Other movement modes from your race. Encumbrance and heavy-armor penalties apply; Monk Unarmored Movement is walking only."></div>
+              <div class="combat-top">
+                <div class="stat"><div class="k">Armor Class</div><div class="calc" id="ac-calc"></div></div>
+                <div class="stat"><div class="k">Initiative</div><div class="calc" id="init"></div></div>
+                <div class="stat"><div class="k">Speed</div><input id="speed" title="Effective walking speed (encumbrance / Unarmored Movement applied). Click to edit your base speed."></div>
+              </div>
+              <div id="otherspeeds" class="otherspeeds" style="display:none" title="Other movement modes from your race. Encumbrance and heavy-armor penalties apply; Monk Unarmored Movement is walking only."></div>
               </div>
               <div class="combat-sub defenses-sub" data-csec="defenses">
                 <h3>Defenses</h3>
@@ -2221,7 +2223,6 @@
                 <h3>Conditions</h3>
                 <div class="cond-active" id="cond-active" title="Active conditions — click Manage to change"></div>
                 <button type="button" class="cond-open noprint" id="cond-open">Manage conditions</button>
-                <div class="cond-panel noprint" id="cond-panel" hidden></div>
               </div>
             </div>
           </div>
@@ -2778,6 +2779,17 @@
     </div>
   </div>
 
+  <!-- Conditions & Exhaustion picker (popup) — its list is built by buildConditionsPanel() -->
+  <div class="modal noprint" id="cond-modal">
+    <div class="modal-panel cond-modal-panel">
+      <div class="modal-head">
+        <h2>Conditions</h2>
+        <button class="btn ghost" id="cond-close" type="button">✕</button>
+      </div>
+      <div class="modal-body"><div class="cond-panel" id="cond-panel"></div></div>
+    </div>
+  </div>
+
   <!-- Embedded character data for "Save copy (HTML)". Leave as null in the master file. -->
   <script id="embedded-data" type="application/json">{"charname":"","classlevel":"","background":"","race":"","alignment":"","player":"","xp":"","savep-str":false,"savep-dex":false,"savep-con":false,"savep-int":false,"savep-wis":false,"savep-cha":false,"skp-acrobatics":false,"ske-acrobatics":false,"skp-animal":false,"ske-animal":false,"skp-arcana":false,"ske-arcana":false,"skp-athletics":false,"ske-athletics":false,"skp-deception":false,"ske-deception":false,"skp-history":false,"ske-history":false,"skp-insight":false,"ske-insight":false,"skp-intimidation":false,"ske-intimidation":false,"skp-investigation":false,"ske-investigation":false,"skp-medicine":false,"ske-medicine":false,"skp-nature":false,"ske-nature":false,"skp-perception":false,"ske-perception":false,"skp-performance":false,"ske-performance":false,"skp-persuasion":false,"ske-persuasion":false,"skp-religion":false,"ske-religion":false,"skp-sleight":false,"ske-sleight":false,"skp-stealth":false,"ske-stealth":false,"skp-survival":false,"ske-survival":false,"senses":"","hpmax":"","hpcur":"","hptmp":"","dss-0":false,"dss-1":false,"dss-2":false,"dsf-0":false,"dsf-1":false,"dsf-2":false,"defnotes":"","atkname-0":"","atkbonus-0":"","atkdmg-0":"","atkname-1":"","atkbonus-1":"","atkdmg-1":"","atkname-2":"","atkbonus-2":"","atkdmg-2":"","atkname-3":"","atkbonus-3":"","atkdmg-3":"","atkname-4":"","atkbonus-4":"","atkdmg-4":"","lfname-0":"","lfmax-0":"","lfrec-0":"","lfused-0":"","lfname-1":"","lfmax-1":"","lfrec-1":"","lfused-1":"","lfname-2":"","lfmax-2":"","lfrec-2":"","lfused-2":"","lfname-3":"","lfmax-3":"","lfrec-3":"","lfused-3":"","lfname-4":"","lfmax-4":"","lfrec-4":"","lfused-4":"","lfname-5":"","lfmax-5":"","lfrec-5":"","lfused-5":"","lfname-6":"","lfmax-6":"","lfrec-6":"","lfused-6":"","lfname-7":"","lfmax-7":"","lfrec-7":"","lfused-7":"","hitdice":"","hd-total":"","hd-used":"","proficiencies":"","pp":"","gp":"","ep":"","sp":"","cp":"","armorsel":"","armor-custom":"","armormod":"","attune-0":"","attune-1":"","attune-2":"","invname-0":"","invqty-0":"","invname-1":"","invqty-1":"","invname-2":"","invqty-2":"","invname-3":"","invqty-3":"","invname-4":"","invqty-4":"","invname-5":"","invqty-5":"","invname-6":"","invqty-6":"","invname-7":"","invqty-7":"","invname-8":"","invqty-8":"","invname-9":"","invqty-9":"","invname-10":"","invqty-10":"","invname-11":"","invqty-11":"","invname-12":"","invqty-12":"","invname-13":"","invqty-13":"","invname-14":"","invqty-14":"","invname-15":"","invqty-15":"","invname-16":"","invqty-16":"","invname-17":"","invqty-17":"","invname-18":"","invqty-18":"","invname-19":"","invqty-19":"","invname-20":"","invqty-20":"","invname-21":"","invqty-21":"","invname-22":"","invqty-22":"","invname-23":"","invqty-23":"","invname-24":"","invqty-24":"","invname-25":"","invqty-25":"","invname-26":"","invqty-26":"","invname-27":"","invqty-27":"","invname-28":"","invqty-28":"","invname-29":"","invqty-29":"","invname-30":"","invqty-30":"","invname-31":"","invqty-31":"","invname-32":"","invqty-32":"","invname-33":"","invqty-33":"","equipment":"","features":"","spellclass":"","spellability":"","slot1":"","slot1u":"","slot2":"","slot2u":"","slot3":"","slot3u":"","slot4":"","slot4u":"","slot5":"","slot5u":"","slot6":"","slot6u":"","slot7":"","slot7u":"","slot8":"","slot8u":"","slot9":"","slot9u":"","age":"","height":"","weight":"","eyes":"","skin":"","hair":"","personality":"","ideals":"","bonds":"","flaws":"","bg-allies":"","bg-enemies":"","backstory":"","notes":"","lfname-8":"","lfmax-8":"","lfrec-8":"","lfused-8":"","lfname-9":"","lfmax-9":"","lfrec-9":"","lfused-9":"","lfname-10":"","lfmax-10":"","lfrec-10":"","lfused-10":"","lfname-11":"","lfmax-11":"","lfrec-11":"","lfused-11":"","lfname-12":"","lfmax-12":"","lfrec-12":"","lfused-12":"","lfname-13":"","lfmax-13":"","lfrec-13":"","lfused-13":"","lfname-14":"","lfmax-14":"","lfrec-14":"","lfused-14":"","lfname-15":"","lfmax-15":"","lfrec-15":"","lfused-15":"","invname-34":"","invqty-34":"","invname-35":"","invqty-35":"","invname-36":"","invqty-36":"","invname-37":"","invqty-37":"","invname-38":"","invqty-38":"","invname-39":"","invqty-39":"","invname-40":"","invqty-40":"","invname-41":"","invqty-41":"","invname-42":"","invqty-42":"","invname-43":"","invqty-43":"","invname-44":"","invqty-44":"","invname-45":"","invqty-45":"","invname-46":"","invqty-46":"","invname-47":"","invqty-47":"","invname-48":"","invqty-48":"","invname-49":"","invqty-49":"","invname-50":"","invqty-50":"","invname-51":"","invqty-51":"","invname-52":"","invqty-52":"","invname-53":"","invqty-53":"","invname-54":"","invqty-54":"","invname-55":"","invqty-55":"","invname-56":"","invqty-56":"","invname-57":"","invqty-57":"","abilitynotes":"","inspiration":false,"genMode":"manual","rolledArray":null,"created":false,"manualScores":{"str":"","dex":"","con":"","int":"","wis":"","cha":""},"baseVals":{"str":null,"dex":null,"con":null,"int":null,"wis":null,"cha":null},"bonusVals":{"asi":{"str":0,"dex":0,"con":0,"int":0,"wis":0,"cha":0},"racial":{"str":0,"dex":0,"con":0,"int":0,"wis":0,"cha":0},"magical":{"str":0,"dex":0,"con":0,"int":0,"wis":0,"cha":0},"misc":{"str":0,"dex":0,"con":0,"int":0,"wis":0,"cha":0}},"portrait":null,"spellSheets":1,"spellSheetKind":["character"],"spellEntriesByInst":[{"0":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"1":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"2":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"3":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"4":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"5":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"6":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"7":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"8":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"9":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}]}],"preparedByInst":[{}],"spellMaxByInst":[9],"spellEntries":{"0":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"1":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"2":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"3":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"4":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"5":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"6":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"7":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"8":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}],"9":[{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false},{"name":"","prep":false}]},"spellMaxLevel":9,"preparedSpells":{},"hiddenPages":{},"showAddSpell":false,"hidePortrait":false,"variantEncumbrance":false,"showFuturistic":false,"showModern":false,"hitDieFaces":null,"charClasses":[],"charCustomBg":null,"charBgChoices":null,"charRaceChoices":null,"tceOff":{},"genTce":[],"genTceRemoved":[],"genFeatures":[],"genProf":[],"genDefenses":[],"genSpells":{},"levelMethod":"xp","hpMode":"manual","hpRolls":[],"speedBase":null,"asiChoices":[],"asiFeatsAdded":{},"invUnits":["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],"invConts":["","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",""],"collapsed":[],"overflowPages":1,"invEquip":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"atkLinks":["","","","",""],"companions":[],"lfDesc":["","","","","","","","","","","","","","","",""]}</script>
   <!-- Every character (for "Save" → one file holding your whole library). Null in the master file. -->
@@ -2842,11 +2854,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v372 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v373 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.49.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.50.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -10619,7 +10631,8 @@
       if(e.target.closest("#hpmax")){ const p = $("hpmax-pop"); if(p && p.hidden) openHpMaxPop(); else closeHpMaxPop(); return; }   // tap Max → modifier/override dialog
       if(!e.target.closest("#hpmax-pop") && !e.target.closest("#hpmax")) closeHpMaxPop();   // click elsewhere closes it
       // Conditions section
-      if(e.target.closest("#cond-open")){ const p = $("cond-panel"); if(p) p.hidden = !p.hidden; return; }   // open/close the conditions list
+      if(e.target.closest("#cond-open")){ const m = $("cond-modal"); if(m) m.classList.add("open"); return; }   // open the conditions popup
+      if(e.target.closest("#cond-close") || e.target.id === "cond-modal"){ const m = $("cond-modal"); if(m) m.classList.remove("open"); return; }   // close (✕ or backdrop)
       const cexp = e.target.closest(".cond-head .cn[data-exp]");
       if(cexp){ const r = cexp.closest(".cond-row"); if(r) r.classList.toggle("open"); return; }   // expand a condition's rules
       const pip = e.target.closest(".exh-pip");
