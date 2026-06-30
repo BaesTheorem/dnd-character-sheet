@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v385 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v386 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.54.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.54.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v386", semver:"2.54.3", items:[
+      "Action Economy no longer double-lists bonus-action and reaction features under Action. Abilities like the Monk's Martial Arts, Flurry of Blows, and Patient Defense (and others such as Rogue's Cunning Action) describe taking a standard action — \"after you take the Attack action…\", \"take the Dodge action as a bonus action\" — as their trigger or effect, which was being misread as a separate Action cost. They now appear only under Bonus Action (or Reaction), while features that genuinely cost an action still show under Action."
+    ]},
     {v:"v385", semver:"2.54.2", items:[
       "The +1/+2/+3 Dragonhide Belt now raises your Spell Save DC while it's attuned (it grants a bonus to a Monk's ki-feature save DCs, which on the sheet is the same Save DC stat for a Wisdom-based monk). 5etools states the belt's bonus only in its text, so it wasn't being picked up before; it's now recognized like other DC-boosting magic items and, as with all of them, only counts once the item is actually in an attunement slot.",
       "The Attacks / Action box now also counts the Extra Attack that an Artificer Battle Smith or Armorer gets at level 5, even on a manually-entered sheet (it was already counted once that feature appeared in your Features box)."
@@ -10411,7 +10414,14 @@
       const isReaction = /\breaction\b/.test(t);
       // strip the bonus/reaction phrases (and known false-positive idioms) before testing for a plain Action cost
       const tA = t.replace(/\bbonus action\b/g," ").replace(/\breaction\b/g," ").replace(/\baction surge\b/g," ").replace(/\bcourse of action\b/g," ");
-      const isAction = /\bas an action\b|\bas a magic action\b|\b(use|using|spend|spending) (?:your |an |one )?action\b|\btake the \w+ action\b|\baction on (?:your|each of your) turns?\b/.test(tA);
+      // STRONG signal — the feature itself COSTS an action ("as an action", "use/spend your action").
+      const strongAction = /\bas an action\b|\bas a magic action\b|\b(use|using|spend|spending) (?:your |an |one )?action\b/.test(tA);
+      // WEAK/contextual signal — references TAKING a standard action ("take the Attack action", "an action on your turn").
+      // For a Bonus-action / Reaction feature this is the trigger or the effect (Flurry of Blows: "after you take the
+      // Attack action … as a bonus action"; Patient Defense: "take the Dodge action as a bonus action"; Cunning Action),
+      // NOT a separate Action cost — so it only counts toward Action when the feature isn't already a bonus/reaction.
+      const weakAction = /\btake the \w+ action\b|\baction on (?:your|each of your) turns?\b/.test(tA);
+      const isAction = strongAction || (weakAction && !isBonus && !isReaction);
       const key = c.title.toLowerCase();
       if(isAction && !seen.action.has(key)){ seen.action.add(key); buckets.action.push(c); }
       if(isBonus && !seen.bonus.has(key)){ seen.bonus.add(key); buckets.bonus.push(c); }
