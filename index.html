@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v384 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v385 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.54.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.54.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v385", semver:"2.54.2", items:[
+      "The +1/+2/+3 Dragonhide Belt now raises your Spell Save DC while it's attuned (it grants a bonus to a Monk's ki-feature save DCs, which on the sheet is the same Save DC stat for a Wisdom-based monk). 5etools states the belt's bonus only in its text, so it wasn't being picked up before; it's now recognized like other DC-boosting magic items and, as with all of them, only counts once the item is actually in an attunement slot.",
+      "The Attacks / Action box now also counts the Extra Attack that an Artificer Battle Smith or Armorer gets at level 5, even on a manually-entered sheet (it was already counted once that feature appeared in your Features box)."
+    ]},
     {v:"v384", semver:"2.54.1", items:[
       "The Attacks / Action box now counts Monk's Extra Attack (a Monk 5+ shows 2 attacks per action, not 1), alongside the Fighter (2/3/4 at levels 5/11/20) and Barbarian/Paladin/Ranger cases it already handled. It also picks up Extra Attack granted by a subclass, such as an Artificer Battle Smith or Armorer.",
       "Extra Attack is no longer listed in the Action Economy summary — it's already represented by the Attacks / Action box, so listing it there too was redundant."
@@ -8887,7 +8891,16 @@
       s.value = cur; });
   }
   function acItemMap(){ const m = {}; ((DATA && DATA.acItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = it.b); return m; }
-  function spellBonusItemMap(){ const m = {}; ((DATA && DATA.spellBonusItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = {atk:it.atk||0, dc:it.dc||0}); return m; }
+  // Items whose save-DC bonus 5etools states only in the item's PROSE (no machine-readable bonusSpellSaveDc field), so
+  // etSpellBonusItems can't extract them. Names + numeric bonus are non-copyrightable mechanics, hand-coded like the
+  // other registries (survives a "Reload all sources"). The +N Dragonhide Belt (FTD, attune by a monk) grants "+N to the
+  // saving throw DCs of your ki features"; the sheet has one Save DC stat (Spell Save DC = 8 + prof + ability), which for
+  // a Wis-based monk equals the ki DC, so the bonus lands there. Attunement is enforced by spellItemBonus() (all of these
+  // are reqAttune → in ATTUNE_ALL_NAMES → only count once actually attuned). Add prose-only DC/attack items here.
+  const EXTRA_SPELL_DC_ITEMS = { "+1 dragonhide belt":{atk:0,dc:1}, "+2 dragonhide belt":{atk:0,dc:2}, "+3 dragonhide belt":{atk:0,dc:3} };
+  function spellBonusItemMap(){ const m = {}; ((DATA && DATA.spellBonusItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = {atk:it.atk||0, dc:it.dc||0});
+    for(const k in EXTRA_SPELL_DC_ITEMS) if(!(k in m)) m[k] = EXTRA_SPELL_DC_ITEMS[k];   // prose-only DC items 5etools doesn't tag structurally
+    return m; }
   function spellItemBonus(){   // total spell-attack / spell-DC bonus from EQUIPPED (and, where required, ATTUNED) items — Robe of the Archmagi, etc.
     const map = spellBonusItemMap(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(); let atk = 0, dc = 0; const from = [];
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !cb.checked || !nm) continue;
@@ -9150,6 +9163,7 @@
       if(/fighter/.test(cls)) n = lv>=20 ? 4 : lv>=11 ? 3 : lv>=5 ? 2 : 1;
       else if(/barbarian|paladin|ranger|monk/.test(cls)) n = lv>=5 ? 2 : 1;   // Monk also gains Extra Attack at 5
       if((/wizard/.test(cls) && /bladesinger/.test(sub)) || (/bard/.test(cls) && /(valor|swords)/.test(sub))){ if(lv>=6) n = Math.max(n,2); }
+      if(/artificer/.test(cls) && /(battle smith|armou?rer)/.test(sub)){ if(lv>=5) n = Math.max(n,2); }   // Battle Smith / Armorer gain Extra Attack at 5
       best = Math.max(best, n);
     }
     // A granted "Extra Attack" feature in the Features box → at least 2 (catches subclass sources the class+level table
