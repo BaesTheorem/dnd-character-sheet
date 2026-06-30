@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v382 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v383 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.53.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.54.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v383", semver:"2.54.0", items:[
+      "Building a Monk with the Way of Shadow subclass now automatically sets up your spell sheet for Shadow Arts — the spellcasting class is selected for you and the always-known spells appear: the Minor Illusion cantrip plus Darkness, Darkvision, Pass Without Trace, and Silence (cast with ki, no spell slots). Previously you had to go to the spell sheet and pick the class by hand. (This also fixes the same gap for any other subclass that grants a fixed spell list rather than spell slots.)"
+    ]},
     {v:"v382", semver:"2.53.2", items:[
       "Warforged Integrated Protection now keeps \"Unarmored\" selectable alongside the three modes, so a Warforged with a class- or race-based Unarmored Defense (Monk, Barbarian, Draconic Sorcerer, natural armor) can still use it. RAW these compete with the Integrated Protection modes and you pick the higher — e.g. a Monk with Dex 16 / Wis 16 gets 16 from Unarmored Defense vs. 14 from Darkwood Core, and they don't combine. (Worn armor and Mage Armor stay unavailable — a warforged gains no benefit from them.) Also fixed: a Wayfinder's-Guide Warforged no longer picks up the unrelated flat +1 AC from the other (Rising-from-the-Last-War) version of Integrated Protection."
     ]},
@@ -10487,7 +10490,10 @@
         if(pools.length) $("hitdice").value = pools.join(", "); }
       list.forEach((w,idx) => { const c=findBy(DATA.classes,w.name); if(c) applyProficiencies(resolveClassToolTokens(w, idx===0 ? c.prof : c.mcProf), w.name); });   // initial = full; secondary = multiclass subset; tool picks from the Class step baked in
       document.querySelectorAll(".wiz-skill-cb:checked").forEach(cb => { const box = $("skp-"+cb.value); if(box) box.checked = true; });   // initial-class skill picks
-      const primary = (primaryCasterOf(list)||{}).key || null;                    // primary spell sheet anchors the DC/attack ability + pre-filled list (non-Warlock preferred)
+      let primary = (primaryCasterOf(list)||{}).key || null;                      // primary spell sheet anchors the DC/attack ability + pre-filled list (non-Warlock preferred)
+      if(!primary){   // no slot/known caster — but a "fixed" caster subclass (e.g. Monk Way of Shadow → Shadow Arts) still anchors the spell sheet to its always-known list. primaryCasterOf excludes fixed casters (no slots/known progression), so catch it here.
+        for(const w of list){ const k = w.sub ? `${w.name} (${w.sub})` : w.name; if(CASTERS[k] && CASTERS[k].fixed){ primary = k; break; } }
+      }
       if(primary){ $("spellclass").value = primary; renderSpellStyle(true, 0); }
       const sInfo = primary && CASTERS[primary], featLines = [];
       list.forEach(w => {
