@@ -1442,22 +1442,22 @@
   }
 
   /* ============================================================================
-     Theme: "D&D Beyond" — a landscape sheet in the visual language of D&D Beyond:
+     Theme: "Universal Character Sheet" — a landscape dashboard sheet:
      a dark, gold-accented frame where the core info (abilities, saving throws,
      skills, senses, proficiencies, and combat stats) WRAPS AROUND a tabbed centre
      panel (Actions / Spells / Inventory / Features / Background / Notes / …).
      Two halves:
-       1. PALETTE + signatures — gated on body[data-theme="dndbeyond"]. Light +
-          dark so the universal Dark-Mode toggle composes (light is DDB's light
-          theme, dark is the charcoal look from the app screenshots). Printing
+       1. PALETTE + signatures — gated on body[data-theme="ucs"]. Light +
+          dark so the universal Dark-Mode toggle composes (light is the default light
+          theme, dark is a charcoal look). Printing
           keeps the light palette (handled globally).
-       2. LANDSCAPE LAYOUT — gated on body.ddb-layout AND @media screen only. The
-          ddb engine (JS, below) relocates the Core cards into the #ddb-* scaffold
+       2. LANDSCAPE LAYOUT — gated on body.ucs-layout AND @media screen only. The
+          layout engine (JS, below) relocates the Core cards into the #ucs-* scaffold
           and builds the centre tab bar; this CSS places that scaffold on a grid.
           Print is intentionally NOT reflowed — the engine restores the canonical
           DOM on beforeprint, so printing uses the standard one-page-per-tab flow.
      ============================================================================ */
-  body[data-theme="dndbeyond"]{
+  body[data-theme="ucs"]{
     --bg:#e9eaec;            /* desk behind the sheet (light) */
     --card:#ffffff;          /* panel surface */
     --ink:#1d1f23;           /* primary text */
@@ -1469,11 +1469,11 @@
     --field:#f5f6f8;         /* fillable boxes */
     --radius:6px;
     --shadow:none;
-    --ddb-panel:#f4f5f7;     /* slightly inset panels (rail/skills) */
-    --ddb-gold:#a07d22;
-    --ddb-hp:#9e2b25;
+    --ucs-panel:#f4f5f7;     /* slightly inset panels (rail/skills) */
+    --ucs-gold:#a07d22;
+    --ucs-hp:#9e2b25;
   }
-  body[data-theme="dndbeyond"].dark{
+  body[data-theme="ucs"].dark{
     --bg:#0c0d0f;            /* near-black desk */
     --card:#16181c;          /* charcoal panel */
     --ink:#e4e5e8;
@@ -1483,65 +1483,65 @@
     --accent:#e2c477;        /* bright gold values */
     --accent-soft:#23262c;
     --field:#1c1f25;
-    --ddb-panel:#101216;
-    --ddb-gold:#c6a458;
-    --ddb-hp:#d4534a;
+    --ucs-panel:#101216;
+    --ucs-gold:#c6a458;
+    --ucs-hp:#d4534a;
   }
 
   /* ---- Panels + gold section headers ---- */
-  body[data-theme="dndbeyond"]{ background:var(--bg); }
-  body[data-theme="dndbeyond"] .card{
+  body[data-theme="ucs"]{ background:var(--bg); }
+  body[data-theme="ucs"] .card{
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
     box-shadow:none; padding:11px 14px;
   }
-  body[data-theme="dndbeyond"] .card > h2,
-  body[data-theme="dndbeyond"] .atk-top h2{
-    color:var(--ddb-gold); text-transform:uppercase; font-weight:800;
+  body[data-theme="ucs"] .card > h2,
+  body[data-theme="ucs"] .atk-top h2{
+    color:var(--ucs-gold); text-transform:uppercase; font-weight:800;
     font-size:11px; letter-spacing:.13em; margin:0 0 10px; padding-bottom:6px;
     border-bottom:1px solid var(--line);
   }
   /* ---- Value chips: ability mod, save & skill totals, passive — gold-ringed pills ---- */
-  body[data-theme="dndbeyond"] .ability .mod,
-  body[data-theme="dndbeyond"] .row .total{
+  body[data-theme="ucs"] .ability .mod,
+  body[data-theme="ucs"] .row .total{
     background:var(--field) !important; color:var(--ink);
     border:1.5px solid var(--line2) !important; border-radius:8px !important; font-weight:700;
   }
-  body[data-theme="dndbeyond"] .score-out{
+  body[data-theme="ucs"] .score-out{
     background:var(--field) !important; border:1.5px solid var(--line) !important;
     border-radius:6px; color:var(--ink); font-weight:700;
   }
-  body[data-theme="dndbeyond"] .passive .v{
+  body[data-theme="ucs"] .passive .v{
     background:var(--field) !important; color:var(--ink);
     border:2px solid var(--line2) !important; border-radius:50% !important;
   }
-  body[data-theme="dndbeyond"] .stat,
-  body[data-theme="dndbeyond"] .chip{ background:var(--field); border:1px solid var(--line); border-radius:var(--radius); }
-  body[data-theme="dndbeyond"] .stat .calc{ color:var(--accent); font-weight:700; }
-  body[data-theme="dndbeyond"] .stat.on, body[data-theme="dndbeyond"] .chip.on{ background:var(--line2); border-color:var(--line2); }
-  body[data-theme="dndbeyond"] .stat.on .k, body[data-theme="dndbeyond"] .stat.on .calc,
-  body[data-theme="dndbeyond"] .chip.on .v, body[data-theme="dndbeyond"] .chip.on .k{ color:var(--card); }
-  body[data-theme="dndbeyond"] input, body[data-theme="dndbeyond"] select, body[data-theme="dndbeyond"] textarea{
+  body[data-theme="ucs"] .stat,
+  body[data-theme="ucs"] .chip{ background:var(--field); border:1px solid var(--line); border-radius:var(--radius); }
+  body[data-theme="ucs"] .stat .calc{ color:var(--accent); font-weight:700; }
+  body[data-theme="ucs"] .stat.on, body[data-theme="ucs"] .chip.on{ background:var(--line2); border-color:var(--line2); }
+  body[data-theme="ucs"] .stat.on .k, body[data-theme="ucs"] .stat.on .calc,
+  body[data-theme="ucs"] .chip.on .v, body[data-theme="ucs"] .chip.on .k{ color:var(--card); }
+  body[data-theme="ucs"] input, body[data-theme="ucs"] select, body[data-theme="ucs"] textarea{
     background:var(--field); border:1px solid var(--line); border-radius:5px; color:var(--ink);
   }
-  body[data-theme="dndbeyond"] input[type=checkbox], body[data-theme="dndbeyond"] input[type=radio]{ accent-color:var(--line2); }
-  body[data-theme="dndbeyond"] .charname input{ font-size:24px; font-weight:800; letter-spacing:.01em; color:var(--ink); border-bottom:2px solid var(--line2); }
-  body[data-theme="dndbeyond"] label.lbl, body[data-theme="dndbeyond"] .stat .k, body[data-theme="dndbeyond"] .chip .k,
-  body[data-theme="dndbeyond"] .passive .k, body[data-theme="dndbeyond"] .ability .name,
-  body[data-theme="dndbeyond"] .ability-head .col{ letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
-  body[data-theme="dndbeyond"] .btn:not(.xp-levelup){ border-color:var(--line); background:var(--field); color:var(--ink); }   /* don't flatten the gold Level Up button */
-  body[data-theme="dndbeyond"] .btn.primary{ background:var(--line2); color:var(--card); border-color:var(--line2); }
-  body[data-theme="dndbeyond"] table th{ color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.08em; border-bottom:1px solid var(--line2); }
-  body[data-theme="dndbeyond"] table td{ border-color:var(--line); }
+  body[data-theme="ucs"] input[type=checkbox], body[data-theme="ucs"] input[type=radio]{ accent-color:var(--line2); }
+  body[data-theme="ucs"] .charname input{ font-size:24px; font-weight:800; letter-spacing:.01em; color:var(--ink); border-bottom:2px solid var(--line2); }
+  body[data-theme="ucs"] label.lbl, body[data-theme="ucs"] .stat .k, body[data-theme="ucs"] .chip .k,
+  body[data-theme="ucs"] .passive .k, body[data-theme="ucs"] .ability .name,
+  body[data-theme="ucs"] .ability-head .col{ letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
+  body[data-theme="ucs"] .btn:not(.xp-levelup){ border-color:var(--line); background:var(--field); color:var(--ink); }   /* don't flatten the gold Level Up button */
+  body[data-theme="ucs"] .btn.primary{ background:var(--line2); color:var(--card); border-color:var(--line2); }
+  body[data-theme="ucs"] table th{ color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.08em; border-bottom:1px solid var(--line2); }
+  body[data-theme="ucs"] table td{ border-color:var(--line); }
 
   /* ============================================================================
-     LANDSCAPE LAYOUT — screen only. The #ddb-* scaffold is built + filled by the
-     ddb engine (JS below). The original #pagetabs and the (now-emptied) #page-core
+     LANDSCAPE LAYOUT — screen only. The #ucs-* scaffold is built + filled by the
+     layout engine (JS below). The original #pagetabs and the (now-emptied) #page-core
      are hidden; every other .page renders into the centre "main" cell, shown one at
      a time by the existing showPage()/.active mechanism.
      ============================================================================ */
-  #ddb-tabbar{ display:none; }            /* only shown under the landscape layout */
+  #ucs-tabbar{ display:none; }            /* only shown under the landscape layout */
   @media screen{
-    body.ddb-layout .sheet{
+    body.ucs-layout .sheet{
       max-width:1500px;
       display:grid;
       grid-template-columns:232px 268px minmax(0,1fr);
@@ -1553,71 +1553,71 @@
       grid-template-rows:auto auto auto minmax(0,1fr);
       gap:14px; align-items:start;
     }
-    body.ddb-layout .rest-bar{ grid-area:rest; margin:0; }
-    body.ddb-layout #pagetabs{ display:none !important; }
-    body.ddb-layout #page-core{ display:none !important; }   /* emptied — its cards live in the scaffold now */
+    body.ucs-layout .rest-bar{ grid-area:rest; margin:0; }
+    body.ucs-layout #pagetabs{ display:none !important; }
+    body.ucs-layout #page-core{ display:none !important; }   /* emptied — its cards live in the scaffold now */
 
-    /* Header band like D&D Beyond: a compact ident on the left, with the Abilities strip stacked over the
+    /* Header band: a compact ident on the left, with the Abilities strip stacked over the
        combat/prof cluster on the right — so the right side is filled instead of leaving a big gap. */
-    body.ddb-layout #ddb-topbar{ grid-area:top; display:grid; gap:12px; align-content:start;
+    body.ucs-layout #ucs-topbar{ grid-area:top; display:grid; gap:12px; align-content:start;
       grid-template-columns:minmax(0,1fr);
       grid-template-areas:"ident" "abilities" "combat"; }
-    body.ddb-layout #ddb-topbar > .card{ margin:0; }
-    body.ddb-layout #ddb-topbar .ddb-ident{ grid-area:ident; min-width:0; align-self:start; }
-    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid{ grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px 14px; margin-top:12px; }
-    body.ddb-layout #ddb-topbar .ddb-ident .meta-grid > div:last-child{ grid-column:span 2; }   /* Experience: double-wide cell for the XP total + Level Up + status */
-    body.ddb-layout #ddb-topbar .ddb-ident .portrait{ width:104px; min-width:104px; flex:0 0 104px; height:132px; }
-    body.ddb-layout #ddb-rail [data-csec="hitdice"] .hd-grid{ grid-template-columns:1fr 1fr; }   /* 4-across is too tight in the 232px rail — wrap to 2×2 */
-    body.ddb-layout #ddb-topbar .ddb-ident .xp-add, body.ddb-layout #ddb-topbar .ddb-ident #btn-addxp{ display:none; }   /* keep the +gained / Add XP convenience out of the header; edit the XP total directly */
-    body.ddb-layout #ddb-topbar .ddb-ident .xp-status{ font-size:11px; color:var(--muted); }   /* the Level Up button (#btn-levelup) + level/XP status now show in the full-width Experience row */
-    body.ddb-layout #ddb-topbar .ddb-abilstrip{ grid-area:abilities; align-self:start; display:flex; gap:12px; align-items:stretch; }
-    body.ddb-layout #ddb-topbar .ddb-abilstrip > .card{ margin:0; }
-    body.ddb-layout #ddb-topbar .ddb-abilstrip [data-csec="abilities"]{ flex:1 1 auto; }
-    body.ddb-layout #ddb-topbar [data-csec="topstats"]{ flex:0 0 150px; }   /* Prof Bonus + Inspiration sit at the end of the abilities strip, like DDB */
-    body.ddb-layout #ddb-topbar [data-csec="combat"]{ grid-area:combat; align-self:start; }
-    body.ddb-layout #ddb-topbar .ddb-flag-moved{ grid-column:1 / -1; }   /* ASI / sources / decisions banners span the full header width below the cards */
+    body.ucs-layout #ucs-topbar > .card{ margin:0; }
+    body.ucs-layout #ucs-topbar .ucs-ident{ grid-area:ident; min-width:0; align-self:start; }
+    body.ucs-layout #ucs-topbar .ucs-ident .meta-grid{ grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px 14px; margin-top:12px; }
+    body.ucs-layout #ucs-topbar .ucs-ident .meta-grid > div:last-child{ grid-column:span 2; }   /* Experience: double-wide cell for the XP total + Level Up + status */
+    body.ucs-layout #ucs-topbar .ucs-ident .portrait{ width:104px; min-width:104px; flex:0 0 104px; height:132px; }
+    body.ucs-layout #ucs-rail [data-csec="hitdice"] .hd-grid{ grid-template-columns:1fr 1fr; }   /* 4-across is too tight in the 232px rail — wrap to 2×2 */
+    body.ucs-layout #ucs-topbar .ucs-ident .xp-add, body.ucs-layout #ucs-topbar .ucs-ident #btn-addxp{ display:none; }   /* keep the +gained / Add XP convenience out of the header; edit the XP total directly */
+    body.ucs-layout #ucs-topbar .ucs-ident .xp-status{ font-size:11px; color:var(--muted); }   /* the Level Up button (#btn-levelup) + level/XP status now show in the full-width Experience row */
+    body.ucs-layout #ucs-topbar .ucs-abilstrip{ grid-area:abilities; align-self:start; display:flex; gap:12px; align-items:stretch; }
+    body.ucs-layout #ucs-topbar .ucs-abilstrip > .card{ margin:0; }
+    body.ucs-layout #ucs-topbar .ucs-abilstrip [data-csec="abilities"]{ flex:1 1 auto; }
+    body.ucs-layout #ucs-topbar [data-csec="topstats"]{ flex:0 0 150px; }   /* Prof Bonus + Inspiration sit at the end of the abilities strip */
+    body.ucs-layout #ucs-topbar [data-csec="combat"]{ grid-area:combat; align-self:start; }
+    body.ucs-layout #ucs-topbar .ucs-flag-moved{ grid-column:1 / -1; }   /* ASI / sources / decisions banners span the full header width below the cards */
 
     /* abilities become a row of 6 vertical tiles in the header band */
-    body.ddb-layout #ddb-topbar [data-csec="abilities"] > h2{ display:none; }   /* no "Abilities" heading (DDB shows none) — saves a row */
-    body.ddb-layout #ddb-topbar [data-csec="abilities"]{ padding-top:12px; padding-bottom:12px; }
-    body.ddb-layout #ddb-topbar [data-csec="abilities"] .ability-head{ display:none; }
-    body.ddb-layout #ddb-topbar [data-csec="abilities"] #abilities{ display:flex; gap:8px; }
-    body.ddb-layout #ddb-topbar [data-csec="abilities"] .ability{
+    body.ucs-layout #ucs-topbar [data-csec="abilities"] > h2{ display:none; }   /* no "Abilities" heading (none shown) — saves a row */
+    body.ucs-layout #ucs-topbar [data-csec="abilities"]{ padding-top:12px; padding-bottom:12px; }
+    body.ucs-layout #ucs-topbar [data-csec="abilities"] .ability-head{ display:none; }
+    body.ucs-layout #ucs-topbar [data-csec="abilities"] #abilities{ display:flex; gap:8px; }
+    body.ucs-layout #ucs-topbar [data-csec="abilities"] .ability{
       flex:1; flex-direction:column; align-items:center; gap:4px; padding:2px 0 0; border:none; min-width:0;
     }
-    body.ddb-layout #ddb-topbar [data-csec="abilities"] .ability .name{ font-size:8px; order:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
-    body.ddb-layout #ddb-topbar [data-csec="abilities"] .ability .mod{ order:1; width:42px; height:42px; font-size:18px; display:flex; align-items:center; justify-content:center; }
-    body.ddb-layout #ddb-topbar [data-csec="abilities"] .ability .score-out{ order:2; width:30px; height:22px; font-size:12px; }
+    body.ucs-layout #ucs-topbar [data-csec="abilities"] .ability .name{ font-size:8px; order:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+    body.ucs-layout #ucs-topbar [data-csec="abilities"] .ability .mod{ order:1; width:42px; height:42px; font-size:18px; display:flex; align-items:center; justify-content:center; }
+    body.ucs-layout #ucs-topbar [data-csec="abilities"] .ability .score-out{ order:2; width:30px; height:22px; font-size:12px; }
 
-    body.ddb-layout #ddb-rail{ grid-area:rail; display:flex; flex-direction:column; gap:14px; min-width:0; }
-    body.ddb-layout #ddb-rail > .card{ margin:0; }
-    body.ddb-layout #ddb-skills{ grid-area:skills; min-width:0; }
-    body.ddb-layout #ddb-skills > .card{ margin:0; }
+    body.ucs-layout #ucs-rail{ grid-area:rail; display:flex; flex-direction:column; gap:14px; min-width:0; }
+    body.ucs-layout #ucs-rail > .card{ margin:0; }
+    body.ucs-layout #ucs-skills{ grid-area:skills; min-width:0; }
+    body.ucs-layout #ucs-skills > .card{ margin:0; }
 
-    body.ddb-layout #ddb-tabbar{ grid-area:tabbar; display:flex; flex-wrap:wrap; gap:2px; border-bottom:1px solid var(--line2); padding-bottom:0; }
-    body.ddb-layout #ddb-tabbar .ddb-tab{
+    body.ucs-layout #ucs-tabbar{ grid-area:tabbar; display:flex; flex-wrap:wrap; gap:2px; border-bottom:1px solid var(--line2); padding-bottom:0; }
+    body.ucs-layout #ucs-tabbar .ucs-tab{
       font:inherit; font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
       background:transparent; border:none; border-bottom:3px solid transparent; color:var(--muted);
       padding:8px 12px; cursor:pointer; margin-bottom:-1px;
     }
-    body.ddb-layout #ddb-tabbar .ddb-tab:hover{ color:var(--ink); }
-    body.ddb-layout #ddb-tabbar .ddb-tab.active{ color:var(--ddb-gold); border-bottom-color:var(--ddb-gold); }
+    body.ucs-layout #ucs-tabbar .ucs-tab:hover{ color:var(--ink); }
+    body.ucs-layout #ucs-tabbar .ucs-tab.active{ color:var(--ucs-gold); border-bottom-color:var(--ucs-gold); }
 
-    body.ddb-layout #ddb-main{ grid-area:main; display:flex; flex-direction:column; gap:14px; }
-    body.ddb-layout #ddb-main > .card{ margin:0; }
-    body.ddb-layout .sheet > .page{ grid-area:main; }   /* the active tab page renders in the centre cell */
-    body.ddb-layout .sheet > .page > .card{ margin:0 0 14px; }
+    body.ucs-layout #ucs-main{ grid-area:main; display:flex; flex-direction:column; gap:14px; }
+    body.ucs-layout #ucs-main > .card{ margin:0; }
+    body.ucs-layout .sheet > .page{ grid-area:main; }   /* the active tab page renders in the centre cell */
+    body.ucs-layout .sheet > .page > .card{ margin:0 0 14px; }
 
-    /* rail/skills/main get a touch of inset so the wrap-around reads like DDB's frame */
-    body.ddb-layout #ddb-rail > .card, body.ddb-layout #ddb-skills > .card{ background:var(--card); }
+    /* rail/skills/main get a touch of inset so the wrap-around reads as a framed dashboard */
+    body.ucs-layout #ucs-rail > .card, body.ucs-layout #ucs-skills > .card{ background:var(--card); }
   }
   @media screen and (max-width:1080px){
     /* too narrow for the landscape frame — collapse to a single stacked column */
-    body.ddb-layout .sheet{ display:block; max-width:760px; }
-    body.ddb-layout #ddb-topbar{ display:block; }
-    body.ddb-layout #ddb-rail, body.ddb-layout #ddb-skills, body.ddb-layout #ddb-main{ display:block; }
-    body.ddb-layout #ddb-topbar > .card, body.ddb-layout #ddb-rail > .card,
-    body.ddb-layout #ddb-skills > .card, body.ddb-layout #ddb-main > .card{ margin:0 0 12px; }
+    body.ucs-layout .sheet{ display:block; max-width:760px; }
+    body.ucs-layout #ucs-topbar{ display:block; }
+    body.ucs-layout #ucs-rail, body.ucs-layout #ucs-skills, body.ucs-layout #ucs-main{ display:block; }
+    body.ucs-layout #ucs-topbar > .card, body.ucs-layout #ucs-rail > .card,
+    body.ucs-layout #ucs-skills > .card, body.ucs-layout #ucs-main > .card{ margin:0 0 12px; }
   }
 </style>
 </head>
@@ -2688,7 +2688,7 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v351 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v352 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
@@ -2798,16 +2798,16 @@
       "Fixed the Level Up button losing its gold look in the Universal Character Sheet and Classic themes (their generic button styling was overriding it)."
     ]},
     {v:"v314", semver:"2.24.0", items:[
-      "The landscape sheet (formerly called \"D&D Beyond\") is now simply the \"Universal Character Sheet\" and is the default look. On screen you get the landscape dashboard; when you print or save a PDF, it automatically falls back to the clean portrait character sheet — so the old Universal sheet lives on as the print layout. The separate portrait theme has been folded into this; characters that were on it switch over automatically."
+      "The landscape sheet is now simply the \"Universal Character Sheet\" and is the default look. On screen you get the landscape dashboard; when you print or save a PDF, it automatically falls back to the clean portrait character sheet — so the old Universal sheet lives on as the print layout. The separate portrait theme has been folded into this; characters that were on it switch over automatically."
     ]},
     {v:"v313", semver:"2.23.0", items:[
       "Death saves stay out of the way until they matter: the success/failure pips are hidden while you have hit points and only appear when your Current HP hits 0. Regain any HP and they disappear again — and reset to blank, since you stop making death saves the moment you\'re back up."
     ]},
     {v:"v312", semver:"2.22.0", items:[
-      "Reorganized the D&D Beyond header so it fills the space like the real thing instead of leaving a big empty gap. Your character details sit in a compact card on the left, the six ability tiles run across the top-right with Proficiency Bonus and Inspiration tucked at the end of that same strip, and the Combat block (AC, Initiative, Speed, HP, death saves) spans the full width just below — no more dead space."
+      "Reorganized the Universal Character Sheet header so it fills the space like the real thing instead of leaving a big empty gap. Your character details sit in a compact card on the left, the six ability tiles run across the top-right with Proficiency Bonus and Inspiration tucked at the end of that same strip, and the Combat block (AC, Initiative, Speed, HP, death saves) spans the full width just below — no more dead space."
     ]},
     {v:"v311", semver:"2.21.0", items:[
-      "D&D Beyond view fixes: the Level Up button (and your XP/level status) now show in a full-width Experience row instead of being hidden, the Ability Scores and Proficiency/Inspiration boxes no longer stretch to fill the row (so they take only the height they need), and nothing on the right of the header gets clipped.",
+      "Universal Character Sheet view fixes: the Level Up button (and your XP/level status) now show in a full-width Experience row instead of being hidden, the Ability Scores and Proficiency/Inspiration boxes no longer stretch to fill the row (so they take only the height they need), and nothing on the right of the header gets clipped.",
       "Retired the standalone Hit Dice card — Hit Dice are filled in from your class and level and spent through the Short/Long Rest buttons now, so the separate box was just clutter. (Nothing is lost: the rest screen still shows and rolls your Hit Dice.)"
     ]},
     {v:"v310", semver:"2.20.0", items:[
@@ -2876,7 +2876,7 @@
       "Other movement speeds from your race (fly, swim, climb, burrow) now show as their own Speeds line in the Combat box, with encumbrance applied, instead of sitting as plain text in Senses.",
     ]},
     {v:"v289", semver:"2.3.1", items:[
-      "Moved the Action Economy box onto the Core page, directly under Attacks, so your combat options sit with the rest of your combat stats. In the D&D Beyond theme it appears in the Actions tab.",
+      "Moved the Action Economy box onto the Core page, directly under Attacks, so your combat options sit with the rest of your combat stats. In the Universal Character Sheet theme it appears in the Actions tab.",
     ]},
     {v:"v288", semver:"2.3.0", items:[
       "New Action Economy box that automatically sorts your features into what you can do as an Action, a Bonus Action, or a Reaction.",
@@ -2917,7 +2917,7 @@
     ]},
     {v:"v268", semver:"2.0.0", items:[
       "Version numbers are now proper Semantic Versions (MAJOR.MINOR.PATCH, like 2.0.0) shown in the welcome guide and the update banner, instead of a raw build number. Bug fixes bump the last number, new features the middle one, big changes the first.",
-      "D&D Beyond theme fixes: the Hit Dice box no longer crams four cells into the narrow side rail (it wraps to a tidy 2×2), the character portrait keeps its proper shape instead of collapsing to a sliver, and the Mini tab is back in the tab bar.",
+      "Universal Character Sheet theme fixes: the Hit Dice box no longer crams four cells into the narrow side rail (it wraps to a tidy 2×2), the character portrait keeps its proper shape instead of collapsing to a sliver, and the Mini tab is back in the tab bar.",
     ]},
     {v:"v264", items:[
       "The Short Rest and Long Rest buttons now live on the sheet itself, in a small Rest bar at the top, instead of in the app toolbar. This means they show up on every theme — including Classic, where the toolbar is hidden — right where you can reach them while you play.",
@@ -2929,7 +2929,7 @@
       "New Short Rest and Long Rest buttons in the top toolbar (available on every theme). Short Rest resets your short-rest Limited Features, then walks you through spending Hit Dice to heal — it rolls the die and adds your Con modifier for you. Long Rest resets your short- and long-rest features, restores your hit points to full, clears temporary HP, and regains spent Hit Dice (up to half your total, rounded down). Each rest reads the Recover column on your Limited Features to decide what comes back — write LR, SR, or Dawn there.",
     ]},
     {v:"v258", items:[
-      "New “D&D Beyond” theme: a landscape character sheet in the style of D&D Beyond — your abilities, saving throws, skills, senses, proficiencies, and combat stats wrap around the edges while a tabbed centre panel switches between Actions, Spells, Inventory, Features & Traits, Background, Notes, Backstory, and Extras. Pick it per character under Settings → Character Settings → Theme. (Printing falls back to the standard one-page-per-tab layout.)",
+      "New “Universal Character Sheet” theme: a landscape character sheet — your abilities, saving throws, skills, senses, proficiencies, and combat stats wrap around the edges while a tabbed centre panel switches between Actions, Spells, Inventory, Features & Traits, Background, Notes, Backstory, and Extras. Pick it per character under Settings → Character Settings → Theme. (Printing falls back to the standard one-page-per-tab layout.)",
       "Classic theme: the spell sheet (page 3) is rebuilt too \u2014 the official spellcasting page over its real art (class/ability, save DC and attack, slots total/expended and prepared circles per level), wired to the sheet\u2019s spell engine. The pixel-for-pixel Classic rebuild is now complete across all three pages.",
     ]},
     {v:"v256", items:[
@@ -3828,15 +3828,15 @@
   // theme must ship both palettes. "universal" is the built-in baseline (the original flat/sharp
   // look): it rides on the default :root / body.dark palette, so it needs no extra CSS. Add a theme
   // by pushing an entry here AND adding its two CSS blocks. Theme is stored per-character (data.theme).
-  // "Universal Character Sheet" = the landscape dashboard ON SCREEN, and the original portrait sheet ON PRINT (the ddb engine
-  // drops back to the canonical portrait DOM + default palette in beforeprint). Its id stays "dndbeyond" so saved characters
-  // keep their theme; the old standalone "universal" portrait theme is rolled into this one as the print view (legacy
-  // theme:"universal" is migrated to it on load, and "universal" survives only as the default :root palette used for printing).
+  // "Universal Character Sheet" = the landscape dashboard ON SCREEN, and the original portrait sheet ON PRINT (the layout engine
+  // drops back to the canonical portrait DOM + default palette in beforeprint). Its id is "ucs"; legacy saves with
+  // theme:"universal" or the old "ucs" id are migrated to it on load, and "universal" survives only as the
+  // default :root palette used for printing.
   const THEMES = [
-    { id:"dndbeyond", name:"Universal Character Sheet" },        // landscape on screen, portrait on print
+    { id:"ucs", name:"Universal Character Sheet" },        // landscape on screen, portrait on print
     { id:"classic",   name:"Classic (Official 5e Sheet)" },     // WotC 2014 sheet look — ivory paper, black ruled frames
   ];
-  const DEFAULT_THEME = "dndbeyond";
+  const DEFAULT_THEME = "ucs";
   let theme = DEFAULT_THEME;                     // Settings → Character Settings → Theme (per-character)
   function applyThemeSetting(){ document.body.dataset.theme = theme || DEFAULT_THEME; }
   function renderThemeOptions(){
@@ -6687,7 +6687,7 @@
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
     theme = (data && typeof data.theme === "string" && data.theme) ? data.theme : DEFAULT_THEME;   // per-character; default Universal
-    if(theme === "universal") theme = "dndbeyond";   // the old portrait-only "Universal" theme is now the print view of the landscape "Universal Character Sheet"
+    if(theme === "universal" || theme === "dndbeyond") theme = "ucs";   // legacy theme ids migrate to the Universal Character Sheet
     // darkMode + noAnimations are global (localStorage), loaded once at startup — not per-character.
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     showFuturistic = !!(data && data.showFuturistic);   // default off
@@ -11783,21 +11783,21 @@
   </script>
 
   <!-- ============================================================
-       D&D BEYOND layout engine. When the per-character theme is
-       "dndbeyond", relocate the Core cards (abilities, saves, skills,
+       Universal Character Sheet layout engine. When the per-character theme is
+       "ucs", relocate the Core cards (abilities, saves, skills,
        senses, proficiencies, combat, attacks, limited features) into a
-       landscape #ddb-* scaffold and build a centre tab bar, so the core
-       info wraps around a tabbed panel like D&D Beyond. Real nodes are
+       landscape #ucs-* scaffold and build a centre tab bar, so the core
+       info wraps around a tabbed panel. Real nodes are
        moved (ids preserved), so every live calculation keeps working;
        autosave is a JSON blob keyed by field id, untouched by the move.
-       Each move leaves a keyed <template.ddb-ph> placeholder so the DOM
+       Each move leaves a keyed <template.ucs-ph> placeholder so the DOM
        can be restored exactly — used to self-heal a file saved while
        active, and to print with the standard one-page-per-tab layout.
        ============================================================ -->
   <script>
   (function(){
-    var SCAFFOLD_IDS = ['ddb-topbar','ddb-rail','ddb-skills','ddb-tabbar','ddb-main'];
-    // [tabKey, label, page key it drives]. "actions" = the relocated attacks/limited cards (shown via #ddb-main).
+    var SCAFFOLD_IDS = ['ucs-topbar','ucs-rail','ucs-skills','ucs-tabbar','ucs-main'];
+    // [tabKey, label, page key it drives]. "actions" = the relocated attacks/limited cards (shown via #ucs-main).
     var TABS = [
       ['actions','Actions','core'], ['spells','Spells','spells'], ['inv','Inventory','inv'],
       ['feat','Features & Traits','feat'], ['bg','Background','bg'], ['notes','Notes','notes'],
@@ -11805,8 +11805,8 @@
     ];
     function el(id){ return document.getElementById(id); }
     function sheet(){ return document.querySelector('.sheet'); }
-    function active(){ return document.body.classList.contains('ddb-layout'); }
-    function isDdb(){ return (typeof theme!=='undefined' && theme==='dndbeyond'); }
+    function active(){ return document.body.classList.contains('ucs-layout'); }
+    function isUcs(){ return (typeof theme!=='undefined' && theme==='ucs'); }
     function findCard(key){
       if(key==='ident'){ var n=el('charname'); return n ? n.closest('.card') : null; }
       return document.querySelector('[data-csec="'+key+'"]');
@@ -11814,23 +11814,23 @@
     // move a node into dest, leaving a keyed placeholder where it was (so it can be put back exactly)
     function relocate(node, dest, key){
       if(!node || !dest) return;
-      if(!node.closest || !node.closest('#ddb-topbar,#ddb-rail,#ddb-skills,#ddb-main')){
-        var ph=document.createElement('template'); ph.className='ddb-ph'; ph.setAttribute('data-ddb-home', key);
+      if(!node.closest || !node.closest('#ucs-topbar,#ucs-rail,#ucs-skills,#ucs-main')){
+        var ph=document.createElement('template'); ph.className='ucs-ph'; ph.setAttribute('data-ucs-home', key);
         node.parentNode.insertBefore(ph, node);
       }
       dest.appendChild(node);
     }
     // put every relocated card back at its placeholder, return the asi flags home, drop the scaffold
     function restoreCanonical(){
-      Array.prototype.forEach.call(document.querySelectorAll('template.ddb-ph'), function(ph){
-        var key=ph.getAttribute('data-ddb-home');
+      Array.prototype.forEach.call(document.querySelectorAll('template.ucs-ph'), function(ph){
+        var key=ph.getAttribute('data-ucs-home');
         var card = key==='ident' ? (el('charname') && el('charname').closest('.card'))
                                   : document.querySelector('[data-csec="'+key+'"]');
         if(card && ph.parentNode) ph.parentNode.insertBefore(card, ph);
         if(ph.parentNode) ph.parentNode.removeChild(ph);
       });
-      Array.prototype.forEach.call(document.querySelectorAll('.ddb-flag-moved'), function(f){
-        f.classList.remove('ddb-flag-moved');
+      Array.prototype.forEach.call(document.querySelectorAll('.ucs-flag-moved'), function(f){
+        f.classList.remove('ucs-flag-moved');
         var core=el('page-core'); if(core) core.insertBefore(f, core.querySelector('.columns'));
       });
       SCAFFOLD_IDS.forEach(function(id){ var n=el(id); if(n && n.parentNode) n.parentNode.removeChild(n); });
@@ -11844,7 +11844,7 @@
       if(bar.childElementCount) return;
       TABS.forEach(function(t){
         var b=document.createElement('button');
-        b.type='button'; b.className='ddb-tab'; b.setAttribute('data-tab', t[0]); b.textContent=t[1];
+        b.type='button'; b.className='ucs-tab'; b.setAttribute('data-tab', t[0]); b.textContent=t[1];
         b.addEventListener('click', function(){ if(typeof window.showPage==='function') window.showPage(t[2]); });
         bar.appendChild(b);
       });
@@ -11854,8 +11854,8 @@
       if(!active()) return;
       var ap=(document.querySelector('.sheet > .page.active')||{}).id || 'page-core';
       var pg=ap.replace(/^page-/,''); var isCore=(pg==='core');
-      var main=el('ddb-main'); if(main) main.style.display = isCore ? '' : 'none';
-      var bar=el('ddb-tabbar');
+      var main=el('ucs-main'); if(main) main.style.display = isCore ? '' : 'none';
+      var bar=el('ucs-tabbar');
       if(bar){
         var match=TABS.filter(function(t){ return t[2]===pg; })[0];
         var want = match ? match[0] : (isCore?'actions':null);
@@ -11866,32 +11866,32 @@
       if(active()) return;
       restoreCanonical();                                   // start from a clean canonical DOM
       var sc=ensureScaffold(); if(!sc) return;
-      relocate(findCard('ident'), sc['ddb-topbar'], 'ident');
-      var idc=findCard('ident'); if(idc) idc.classList.add('ddb-ident');
-      var strip=document.createElement('div'); strip.className='ddb-abilstrip'; sc['ddb-topbar'].appendChild(strip);   // abilities + Prof/Inspiration share one strip (like DDB)
+      relocate(findCard('ident'), sc['ucs-topbar'], 'ident');
+      var idc=findCard('ident'); if(idc) idc.classList.add('ucs-ident');
+      var strip=document.createElement('div'); strip.className='ucs-abilstrip'; sc['ucs-topbar'].appendChild(strip);   // abilities + Prof/Inspiration share one strip
       relocate(findCard('abilities'), strip, 'abilities');
       relocate(findCard('topstats'), strip, 'topstats');
-      relocate(findCard('combat'), sc['ddb-topbar'], 'combat');   // Combat takes the full-width row beneath the strip
-      ['sources-flag','asi-flag','decisions-flag'].forEach(function(id){ var f=el(id); if(f){ f.classList.add('ddb-flag-moved'); sc['ddb-topbar'].appendChild(f); } });
-      ['saves','senses','proficiencies','defenses'].forEach(function(k){ relocate(findCard(k), sc['ddb-rail'], k); });   // Hit Dice card retired — its tracking moved into Short/Long Rest
-      relocate(findCard('skills'), sc['ddb-skills'], 'skills');
-      relocate(findCard('attacks'), sc['ddb-main'], 'attacks');
-      relocate(findCard('actionecon'), sc['ddb-main'], 'actionecon');
-      relocate(findCard('limited'), sc['ddb-main'], 'limited');
-      buildTabbar(sc['ddb-tabbar']);
-      document.body.classList.add('ddb-layout');
+      relocate(findCard('combat'), sc['ucs-topbar'], 'combat');   // Combat takes the full-width row beneath the strip
+      ['sources-flag','asi-flag','decisions-flag'].forEach(function(id){ var f=el(id); if(f){ f.classList.add('ucs-flag-moved'); sc['ucs-topbar'].appendChild(f); } });
+      ['saves','senses','proficiencies','defenses'].forEach(function(k){ relocate(findCard(k), sc['ucs-rail'], k); });   // Hit Dice card retired — its tracking moved into Short/Long Rest
+      relocate(findCard('skills'), sc['ucs-skills'], 'skills');
+      relocate(findCard('attacks'), sc['ucs-main'], 'attacks');
+      relocate(findCard('actionecon'), sc['ucs-main'], 'actionecon');
+      relocate(findCard('limited'), sc['ucs-main'], 'limited');
+      buildTabbar(sc['ucs-tabbar']);
+      document.body.classList.add('ucs-layout');
       syncFromActive();
     }
     function deactivate(){
-      if(!active() && !document.querySelector('template.ddb-ph')) return;
-      document.body.classList.remove('ddb-layout');
+      if(!active() && !document.querySelector('template.ucs-ph')) return;
+      document.body.classList.remove('ucs-layout');
       restoreCanonical();
       if(typeof window.showPage==='function' && !document.querySelector('.sheet > .page.active')) window.showPage('core');
     }
 
     if(typeof window.applyThemeSetting==='function'){
       var oa=window.applyThemeSetting;
-      window.applyThemeSetting=function(){ var r=oa.apply(this,arguments); try{ if(isDdb()) activate(); else deactivate(); }catch(e){} return r; };
+      window.applyThemeSetting=function(){ var r=oa.apply(this,arguments); try{ if(isUcs()) activate(); else deactivate(); }catch(e){} return r; };
     }
     if(typeof window.showPage==='function'){
       var osp=window.showPage;
@@ -11899,14 +11899,14 @@
     }
     // "Universal Character Sheet" prints as the portrait sheet: drop the landscape DOM (deactivate restores the canonical
     // pages) AND swap the dashboard palette out for the clean default one, then restore the dashboard once printing ends.
-    function _ddbAfterPrint(){ if(window.__ddbPrint){ window.__ddbPrint=false; document.body.dataset.theme='dndbeyond'; if(isDdb()) activate(); } }
-    window.addEventListener('beforeprint', function(){ if(active()){ window.__ddbPrint=true; deactivate(); document.body.dataset.theme='universal'; } });
-    window.addEventListener('afterprint', _ddbAfterPrint);
-    window.addEventListener('focus', _ddbAfterPrint);   // some Safari/mobile skip afterprint — restore on refocus too
+    function _ucsAfterPrint(){ if(window.__ucsPrint){ window.__ucsPrint=false; document.body.dataset.theme='ucs'; if(isUcs()) activate(); } }
+    window.addEventListener('beforeprint', function(){ if(active()){ window.__ucsPrint=true; deactivate(); document.body.dataset.theme='universal'; } });
+    window.addEventListener('afterprint', _ucsAfterPrint);
+    window.addEventListener('focus', _ucsAfterPrint);   // some Safari/mobile skip afterprint — restore on refocus too
 
-    document.body.classList.remove('ddb-layout');           // a file saved WHILE the layout was active carries the class; clear it before self-healing so boot()'s activate() actually rebuilds the scaffold (else active() short-circuits and the cards stay stranded in the now-hidden page-core → blank sheet)
+    document.body.classList.remove('ucs-layout');           // a file saved WHILE the layout was active carries the class; clear it before self-healing so boot()'s activate() actually rebuilds the scaffold (else active() short-circuits and the cards stay stranded in the now-hidden page-core → blank sheet)
     restoreCanonical();                                     // self-heal a file saved while the layout was active
-    function boot(){ try{ if(isDdb()) activate(); }catch(e){} }
+    function boot(){ try{ if(isUcs()) activate(); }catch(e){} }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
   })();
   </script>
