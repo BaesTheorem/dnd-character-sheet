@@ -2688,11 +2688,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v349 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v350 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.39.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.39.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2700,6 +2700,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v350", semver:"2.39.1", items:[
+      "Character creation: a race's \"choose a skill proficiency\" picker (Half-Elf's Skill Versatility, Custom Lineage, etc.) is now a checkbox list that looks and behaves like the Class and Background skill pickers. It greys out a skill the race already grants, and the rest once you've picked enough, and your picks now stick if you jump back to the Race step instead of being wiped. Race-chosen skills also correctly grey out as duplicates in the Class and Background pickers."
+    ]},
     {v:"v349", semver:"2.39.0", items:[
       "Welcome guide: if you already have characters saved, it now just offers a single Dismiss button instead of \"Create Character\" / \"explore the sheet.\" Those are for first-time setup, so returning users reading the changelog after an update get a cleaner close."
     ]},
@@ -9067,17 +9070,21 @@
     const c = wizClass(); if(c && c.skillsFixed) c.skillsFixed.forEach(k => s.add(SKILL_KEY[k] || k));
     return s;
   }
-  function raceChosenSkills(){   // skills the race already grants (fixed, Tasha's-swapped, or a Custom-Lineage pick) → can't re-pick for class/background
+  function raceFixedSkills(){   // skills the race grants outright (its fixed proficiencies, Tasha's-swapped if that rule is on)
     const s = new Set();
     const r = DATA && findBy(DATA.races, $("wiz-race").value); if(!r) return s;
     const box = $("wiz-race-choices"), fixed = (r.prof && r.prof.skills) || [];
     if(tceOn("origin-prof") && fixed.length && box)            // Tasha's custom proficiencies → the rc-prof selects hold the (possibly swapped) skills
       box.querySelectorAll(".rc-prof").forEach(sel => { if(sel.value) s.add(SKILL_KEY[sel.value] || sel.value); });
     else fixed.forEach(k => s.add(SKILL_KEY[k] || k));
-    if(box){                                                   // Custom Lineage / variable skill-or-darkvision: a chosen skill proficiency
-      const skSel = $("rc-skill"), dvSkill = box.querySelector('input[name="rc-skilldv"][value="skill"]');
-      if(skSel && skSel.value && (!dvSkill || dvSkill.checked)) s.add(SKILL_KEY[skSel.value] || skSel.value);
-    }
+    return s;
+  }
+  function raceChosenSkills(){   // every skill the race ends up granting (fixed/Tasha's + Custom-Lineage pick + the "choose N" picks) → can't re-pick for class/background
+    const s = raceFixedSkills();
+    const box = $("wiz-race-choices"); if(!box) return s;
+    const skSel = $("rc-skill"), dvSkill = box.querySelector('input[name="rc-skilldv"][value="skill"]');   // Custom Lineage / variable skill-or-darkvision: a chosen skill proficiency
+    if(skSel && skSel.value && (!dvSkill || dvSkill.checked)) s.add(SKILL_KEY[skSel.value] || skSel.value);
+    box.querySelectorAll(".rc-skill-cb:checked").forEach(cb => s.add(cb.value));   // the race's own "choose N skills" picks
     return s;
   }
   function populateCustomBgTL(){
@@ -9353,17 +9360,18 @@
         + `<select class="rc-ancestry"><option value=""></option>${opt}</select>`
         + `<p class="wiz-hint" style="margin:4px 0 0">Sets your breath weapon's damage type, shape &amp; save, plus your damage resistance.</p></div>`;
     }
-    // A race's own "choose N skill proficiencies" (Half-Elf's Skill Versatility, etc.) — an interactive picker, not just a text note.
+    // A race's own "choose N skill proficiencies" (Half-Elf's Skill Versatility, etc.) — a checkbox picker that
+    // looks and behaves like the Class and Background skill pickers: it greys out skills the race already grants
+    // and the rest once you've picked N, and its picks survive jumping back to this step (see snap/restoreRaceDraft).
     const rsc = (r.prof && r.prof.skillChoose) ? r.prof.skillChoose : null;
     if(rsc && rsc.count && !r.variableSkillDarkvision){
       const fromKeys = (rsc.from && rsc.from.length)
         ? rsc.from.map(s => SKILL_KEY[String(s).toLowerCase()] || s).filter(k => SKILLS.some(x => x[0] === k))
         : SKILLS.map(s => s[0]);   // empty "from" = any skill
-      const opt = sel => `<option value=""></option>` + SKILLS.filter(s => fromKeys.includes(s[0]))
-        .map(s => `<option value="${s[0]}"${sel===s[0]?" selected":""}>${esc(s[1])}</option>`).join("");
-      let sh = `<label class="lbl">Skill proficienc${rsc.count>1?"ies":"y"} — your choice (${rsc.count})</label>`;
-      for(let i=0;i<rsc.count;i++) sh += `<select class="rc-skillchoose" data-i="${i}">${opt("")}</select> `;
-      html += `<div class="wiz-racechoice">${sh}</div>`;
+      const rows = SKILLS.filter(s => fromKeys.includes(s[0]))
+        .map(s => `<label class="wiz-skill"><input type="checkbox" class="rc-skill-cb" value="${esc(s[0])}"> <span>${esc(s[1])}</span></label>`).join("");
+      html += `<div class="wiz-racechoice"><label class="lbl">Skill proficienc${rsc.count>1?"ies":"y"} — your choice (${rsc.count})</label>`
+        + `<div id="rc-skills">${rows}</div><p class="wiz-hint" id="rc-skill-hint" style="margin:4px 0 0"></p></div>`;
     }
     // Tasha's custom proficiencies: each fixed racial skill becomes a picker, defaulting to the original (blank = drop it).
     const customProf = tceOn("origin-prof");
@@ -9402,10 +9410,6 @@
     box.innerHTML = html;
     const sk = $("rc-skill");
     if(sk) box.querySelectorAll('input[name="rc-skilldv"]').forEach(radio => radio.addEventListener("change", () => { sk.disabled = box.querySelector('input[name="rc-skilldv"][value="darkvision"]').checked; }));
-    // race skill-choice: stop the same skill being picked in two slots
-    const dedupSkillChoose = () => { const chosen = [...box.querySelectorAll(".rc-skillchoose")].map(s=>s.value).filter(Boolean);
-      box.querySelectorAll(".rc-skillchoose").forEach(sel => [...sel.options].forEach(o => { o.disabled = !!o.value && o.value !== sel.value && chosen.includes(o.value); })); };
-    box.querySelectorAll(".rc-skillchoose").forEach(sel => sel.addEventListener("change", dedupSkillChoose));
     if(characterCreated && $("wiz-race").value === wizOrigRace){          // editing the character's existing race → re-show the "your choice" picks it was built with
       // Ability-bonus picks: derive from the saved Racial column (total − the race's fixed bonuses), then fill the selects, matching each pick to a slot of the same amount. Tasha's custom origin contributes no fixed bonuses.
       const fixed = zeroAb();
@@ -9418,9 +9422,8 @@
         [...box.querySelectorAll(".rc-lang")].forEach((seln,i) => { if(langs[i] != null) seln.value = langs[i]; });
         const profs = charRaceChoices.profSkills || [];
         [...box.querySelectorAll(".rc-prof")].forEach((seln,i) => { if(profs[i] != null) seln.value = profs[i]; });
-        const chosenSk = charRaceChoices.chosenSkills || [];
-        [...box.querySelectorAll(".rc-skillchoose")].forEach((seln,i) => { if(chosenSk[i] != null) seln.value = chosenSk[i]; });
-        dedupSkillChoose();
+        const wantSk = new Set(charRaceChoices.chosenSkills || []);
+        box.querySelectorAll(".rc-skill-cb").forEach(cb => { cb.checked = wantSk.has(cb.value); });
         if(charRaceChoices.skillDv){
           const radio = box.querySelector('input[name="rc-skilldv"][value="'+charRaceChoices.skillDv+'"]');
           if(radio){ radio.checked = true; if(sk) sk.disabled = (charRaceChoices.skillDv === "darkvision"); }
@@ -9444,7 +9447,26 @@
       abilSelects.forEach(s => [...s.options].forEach(o => { o.disabled = !!o.value && o.value !== s.value && taken.includes(o.value); })); };
     abilSelects.forEach(s => s.addEventListener("change", syncAbilDupes));
     syncAbilDupes();
+    updateRaceSkillLimit();   // grey out race-granted dupes + lock the picker at its choose-count
     refreshLangPickers();
+  }
+  // Mirror of updateWizSkillLimit/updateCustomBgLimit for the Race step's "choose N skills" checkbox picker:
+  // disable a skill the race already grants outright, and once N are checked grey out the rest.
+  function updateRaceSkillLimit(){
+    const r = DATA && findBy(DATA.races, $("wiz-race").value);
+    const rsc = (r && r.prof && r.prof.skillChoose) ? r.prof.skillChoose : null;
+    const n = (rsc && rsc.count) ? rsc.count : 0;
+    const taken = raceFixedSkills();   // a skill the race hands you outright can't also be one of your free picks
+    const cbs = [...document.querySelectorAll(".rc-skill-cb")];
+    cbs.forEach(x => { if(taken.has(x.value)) x.checked = false; });
+    const checked = cbs.filter(x => x.checked).length;
+    cbs.forEach(x => {
+      const isTaken = taken.has(x.value), atMax = checked >= n && !x.checked, off = isTaken || atMax;
+      const row = x.closest(".wiz-skill");
+      x.disabled = off; row.classList.toggle("maxed", atMax); row.classList.toggle("taken", isTaken);
+      row.title = isTaken ? "Already granted by your race" : "";
+    });
+    const hint = $("rc-skill-hint"); if(hint) hint.textContent = n ? `(${checked}/${n} chosen)` : "";
   }
   // ===== Wizard draft: preserve in-progress sub-choices across step navigation =====
   // The Race / Skills / Equipment steps rebuild their pickers from scratch on every entry. On Edit they
@@ -9457,6 +9479,7 @@
     wizDraft.race = {
       sig: $("wiz-race").value,
       abil: [...box.querySelectorAll(".rc-abil")].map(s => s.value),
+      skills: [...box.querySelectorAll(".rc-skill-cb")].filter(cb => cb.checked).map(cb => cb.value),   // the race's "choose N skills" picks
       skill: ($("rc-skill") || {}).value || "",
       skilldv: (box.querySelector('input[name="rc-skilldv"]:checked') || {}).value || "",
       prof: [...box.querySelectorAll(".rc-prof")].map(s => s.value),
@@ -9474,6 +9497,7 @@
     const box = $("wiz-race-choices"), d = wizDraft.race; if(!box || !d || d.sig !== $("wiz-race").value) return;
     const setByOrder = (sel, vals) => [...box.querySelectorAll(sel)].forEach((s, i) => { if(vals[i] != null) s.value = vals[i]; });
     setByOrder(".rc-abil", d.abil); setByOrder(".rc-prof", d.prof); setByOrder(".rc-lang", d.lang);
+    if(Array.isArray(d.skills)){ const want = new Set(d.skills); box.querySelectorAll(".rc-skill-cb").forEach(cb => { cb.checked = want.has(cb.value); }); }   // the race's "choose N skills" picks
     if(d.skilldv){ const radio = box.querySelector('input[name="rc-skilldv"][value="' + d.skilldv + '"]'); if(radio){ radio.checked = true; const sk = $("rc-skill"); if(sk) sk.disabled = (d.skilldv === "darkvision"); } }
     if(d.skill){ const sk = $("rc-skill"); if(sk) sk.value = d.skill; }
     if(d.ancestry){ const a = box.querySelector(".rc-ancestry"); if(a) a.value = d.ancestry; }
@@ -9894,7 +9918,7 @@
     if(name) $("charname").value = name;
     if(race){
       const profSkills = [...document.querySelectorAll(".rc-prof")].map(s => s.value).filter(Boolean);   // Tasha's custom proficiencies
-      const chosenSkills = [...new Set([...document.querySelectorAll(".rc-skillchoose")].map(s => s.value).filter(Boolean))];   // race's own "choose N skills" (Half-Elf Skill Versatility)
+      const chosenSkills = [...new Set([...document.querySelectorAll(".rc-skill-cb:checked")].map(cb => cb.value))];   // race's own "choose N skills" (Half-Elf Skill Versatility)
       const ancestry = (document.querySelector(".rc-ancestry")||{}).value || "";   // Dragonborn draconic ancestry
       const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean),
         customLang:tceOn("origin-lang"), customProf:tceOn("origin-prof"), profSkills, chosenSkills, ancestry};   // keep the Racial column the wizard already set; pass the Tasha custom-origin picks
@@ -10816,6 +10840,8 @@
     $("wizard").addEventListener("change", e=>{
       if(e.target.matches(".rc-lang, .bg-lang, .cbg-tl")) refreshLangPickers();   // picking a language greys it in the other pickers
       if(e.target.matches('.rc-abil, #rc-skill, input[name="rc-skilldv"], .rc-prof, .rc-lang, .rc-feat-radio, .rc-featabil, .rc-featspell, .rc-featvariant')) snapRaceDraft();   // remember race sub-picks across step navigation
+      if(e.target.matches(".rc-skill-cb")){ updateRaceSkillLimit(); snapRaceDraft(); }   // race "choose N skills": grey out at max, then remember across navigation
+      if(e.target.matches(".rc-prof")) updateRaceSkillLimit();   // a Tasha's fixed-skill swap can newly collide with a chosen skill
       if(e.target.matches(".wiz-skill-cb")) snapSkillsDraft();
       if(e.target.matches(".equip-pick, .equip-wpick")) snapEquipDraft();
     });
