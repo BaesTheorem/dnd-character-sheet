@@ -2934,11 +2934,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v416 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v417 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.72.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.73.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2946,6 +2946,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v417", semver:"2.73.0", items:[
+      "Homebrew items can now grant spells. A new “Granted spells” field in the Homebrew Studio item form (one spell per line, e.g. “See Invisibility | at will”) makes those spells show up in your Granted Spells table whenever the item is equipped and — if it requires attunement — attuned. Built for items like the Eye of Dendallen that let you cast a spell at will."
+    ]},
     {v:"v416", semver:"2.72.0", items:[
       "Homebrew items can now grant a bonus to unarmed strikes. A new “Unarmed strike bonus” field in the Homebrew Studio item form adds that bonus to BOTH your attack and damage rolls with unarmed strikes whenever the item is equipped and (if it requires attunement) attuned — perfect for brass-knuckle items like Mage Mashers that are mechanically a ring but flavored as a weapon."
     ]},
@@ -6020,12 +6023,26 @@
     if(typeof s.img === "string" && s.img) o.img = s.img;
     return o;
   }
+  // Granted-spell list on a homebrew item (e.g. "cast See Invisibility at will"). Stored as [{name, use}];
+  // each entry surfaces as a row in the standalone "Granted Spells" table (grantedSpellRows) when equipped.
+  function hbNormGrants(arr){
+    if(!Array.isArray(arr)) return [];
+    return arr.map(g => typeof g === "string" ? {name:g.trim(), use:"at will"}
+        : {name:String((g&&g.name)||"").trim(), use:String((g&&g.use)||"at will").trim() || "at will"})
+      .filter(g => g.name);
+  }
+  function hbGrantFromText(t){   // textarea: one spell per line, "Spell Name" or "Spell Name | use" (use defaults to "at will")
+    return String(t||"").split(/\n+/).map(line => { const p = line.split("|"); const name = (p[0]||"").trim();
+      return name ? {name, use:(p[1]||"at will").trim() || "at will"} : null; }).filter(Boolean);
+  }
+  function hbGrantToText(arr){ return (arr||[]).map(g => (g.use && g.use !== "at will") ? `${g.name} | ${g.use}` : g.name).join("\n"); }
   function normHbItem(it){
     if(!it || typeof it !== "object") return null;
     const name = String(it.name||"").trim(); if(!name) return null;
     const o = { name, type:String(it.type||"Wondrous Item"), rarity:String(it.rarity||"Common"),
       attune:!!it.attune, acBonus:parseInt(it.acBonus,10)||0, spellAtk:parseInt(it.spellAtk,10)||0,
       spellDc:parseInt(it.spellDc,10)||0, unarmedBonus:parseInt(it.unarmedBonus,10)||0, text:String(it.text||"") };
+    const gr = hbNormGrants(it.grantSpells); if(gr.length) o.grantSpells = gr;   // item-granted spells (at-will / X-per-rest)
     if(it.aw && typeof it.aw === "object") o.aw = it.aw;   // preserve an Ancestral Weapon build blob (re-editable)
     if(typeof it.img === "string" && it.img) o.img = it.img;
     return o;
@@ -6264,6 +6281,7 @@
             `<label class="cspell-f"><span>Spell attack bonus</span><input type="number" id="hbi-spatk" step="1" placeholder="0"></label>`+
             `<label class="cspell-f"><span>Spell save DC bonus</span><input type="number" id="hbi-spdc" step="1" placeholder="0"></label>`+
             `<label class="cspell-f"><span>Unarmed strike bonus</span><input type="number" id="hbi-unarmed" step="1" placeholder="0" title="Bonus to attack AND damage rolls with unarmed strikes (e.g. brass-knuckle items). Applies when equipped + attuned."></label>`+
+            `<label class="cspell-f cspell-full"><span>Granted spells</span><textarea id="hbi-grant" rows="2" placeholder="One per line — e.g. See Invisibility | at will  (use defaults to “at will”; try “1/Long Rest”)" title="Spells this item lets you cast. Each shows in the Granted Spells table when the item is equipped (and attuned, if it requires attunement)."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
             hbImgFieldHtml("item")+
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
@@ -6391,6 +6409,7 @@
     $("hbi-spatk").value = base.spellAtk ? String(base.spellAtk) : "";
     $("hbi-spdc").value = base.spellDc ? String(base.spellDc) : "";
     $("hbi-unarmed").value = base.unarmedBonus ? String(base.unarmedBonus) : "";
+    $("hbi-grant").value = hbGrantToText(base.grantSpells);
     $("hbi-text").value = base.text || "";
     _hbImg.item = base.img || ""; hbImgSyncPreview("item");
     $("hb-item-list").style.display = "none";
@@ -6408,6 +6427,7 @@
       attune:$("hbi-attune").checked, acBonus:parseInt($("hbi-ac").value,10)||0,
       spellAtk:parseInt($("hbi-spatk").value,10)||0, spellDc:parseInt($("hbi-spdc").value,10)||0,
       unarmedBonus:parseInt($("hbi-unarmed").value,10)||0, text:$("hbi-text").value.trim() };
+    const gs = hbGrantFromText($("hbi-grant").value); if(gs.length) obj.grantSpells = gs;
     if(_hbImg.item) obj.img = _hbImg.item;
     if(_hbEditItemKey && _hbEditItemKey !== lc) delete cur.items[_hbEditItemKey];   // renamed → drop old key
     cur.items[lc] = obj; cur.enabled = true;
@@ -6995,6 +7015,14 @@
         const grants = isp[nm]; if(!grants || seen.has(nm.toLowerCase())) continue; seen.add(nm.toLowerCase());
         const dc = itemFixedDC(itext[nm]);                // fixedDC: the item's printed, ability-independent save DC
         grants.forEach(g => rows.push({kind:"Item", source:nm, spell:g.n, use:g.u||"", dc})); }
+    }
+    { const hi = (typeof hbActiveItems === "function") && hbActiveItems(); // --- homebrew items granting spells (e.g. Eye of Dendallen → See Invisibility at will) ---
+      if(hi){ const aset = attuneSet(), attuned = attunedNames(), seen = new Set();
+        for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim();
+          if(!cb || !cb.checked || !nm) continue;
+          const lc = nm.toLowerCase(), it = hi[lc]; if(!it || !it.grantSpells || !it.grantSpells.length || seen.has(lc)) continue; seen.add(lc);
+          if(it.attune && aset.has(lc) && !attuned.has(lc)) continue;   // requires attunement but isn't attuned → not active yet
+          it.grantSpells.forEach(g => rows.push({kind:"Item", source:nm, spell:g.name, use:g.use||"at will", dc:null})); } }
     }
     const rn = ($("race").value||"").trim(), ro = rn && D.races && findBy(D.races, rn);
     if(ro){                                               // --- racial innate spells ---
