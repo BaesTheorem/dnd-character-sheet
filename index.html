@@ -2934,11 +2934,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v418 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v419 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.74.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.75.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2946,6 +2946,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v419", semver:"2.75.0", items:[
+      "Homebrew items can now add to your Senses box. A new “Senses” field in the item form (one line each, e.g. “Darkvision 60 ft.”) writes those lines into Senses when the item is equipped and — if it requires attunement — attuned, the same way race and feat senses (Observant, Alert, racial darkvision) already do. Built for the Eye of Dendallen’s darkvision."
+    ]},
     {v:"v418", semver:"2.74.0", items:[
       "Homebrew items can now add limited-use abilities to your Limited Features section. A new “Limited uses” field in the item form (one per line, “Label | max | recharge”, e.g. “See through magical darkness | 1 | Dusk”) creates a tracked row whenever the item is equipped and — if it requires attunement — attuned. Recharge is free text, and the sheet now understands “dusk” (as in “until the following dusk”) alongside dawn/LR/SR. Built for the Eye of Dendallen.",
       "Attuning or unattuning an item you already have equipped now immediately updates your granted spells and item Limited Features rows (previously they only refreshed when something else changed)."
@@ -6061,6 +6064,7 @@
       spellDc:parseInt(it.spellDc,10)||0, unarmedBonus:parseInt(it.unarmedBonus,10)||0, text:String(it.text||"") };
     const gr = hbNormGrants(it.grantSpells); if(gr.length) o.grantSpells = gr;   // item-granted spells (at-will / X-per-rest)
     const lim = hbNormLimited(it.limited); if(lim.length) o.limited = lim;        // limited-use abilities → Limited Features rows
+    if(Array.isArray(it.senses)){ const ss = it.senses.map(s => String(s||"").trim()).filter(Boolean); if(ss.length) o.senses = ss; }   // sense lines → the Senses box (like race/feat darkvision)
     if(it.aw && typeof it.aw === "object") o.aw = it.aw;   // preserve an Ancestral Weapon build blob (re-editable)
     if(typeof it.img === "string" && it.img) o.img = it.img;
     return o;
@@ -6301,6 +6305,7 @@
             `<label class="cspell-f"><span>Unarmed strike bonus</span><input type="number" id="hbi-unarmed" step="1" placeholder="0" title="Bonus to attack AND damage rolls with unarmed strikes (e.g. brass-knuckle items). Applies when equipped + attuned."></label>`+
             `<label class="cspell-f cspell-full"><span>Granted spells</span><textarea id="hbi-grant" rows="2" placeholder="One per line — e.g. See Invisibility | at will  (use defaults to “at will”; try “1/Long Rest”)" title="Spells this item lets you cast. Each shows in the Granted Spells table when the item is equipped (and attuned, if it requires attunement)."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Limited uses</span><textarea id="hbi-limited" rows="2" placeholder="One per line — Label | max | recharge  (e.g. See through magical darkness | 1 | Dusk; max defaults 1, recharge defaults LR)" title="Limited-use abilities. Each becomes a row in the Limited Features section when equipped (and attuned, if required). Recharge is free text: LR, SR, Dawn, Dusk, 1/Day, etc."></textarea></label>`+
+            `<label class="cspell-f cspell-full"><span>Senses</span><textarea id="hbi-senses" rows="2" placeholder="One per line — e.g. Darkvision 60 ft." title="Sense lines added to your Senses box when this item is equipped (and attuned, if required), the same way race/feat darkvision is written."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
             hbImgFieldHtml("item")+
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
@@ -6430,6 +6435,7 @@
     $("hbi-unarmed").value = base.unarmedBonus ? String(base.unarmedBonus) : "";
     $("hbi-grant").value = hbGrantToText(base.grantSpells);
     $("hbi-limited").value = hbLimitedToText(base.limited);
+    $("hbi-senses").value = (base.senses||[]).join("\n");
     $("hbi-text").value = base.text || "";
     _hbImg.item = base.img || ""; hbImgSyncPreview("item");
     $("hb-item-list").style.display = "none";
@@ -6449,6 +6455,7 @@
       unarmedBonus:parseInt($("hbi-unarmed").value,10)||0, text:$("hbi-text").value.trim() };
     const gs = hbGrantFromText($("hbi-grant").value); if(gs.length) obj.grantSpells = gs;
     const lim = hbLimitedFromText($("hbi-limited").value); if(lim.length) obj.limited = lim;
+    const ss = $("hbi-senses").value.split(/\n+/).map(s => s.trim()).filter(Boolean); if(ss.length) obj.senses = ss;
     if(_hbImg.item) obj.img = _hbImg.item;
     if(_hbEditItemKey && _hbEditItemKey !== lc) delete cur.items[_hbEditItemKey];   // renamed → drop old key
     cur.items[lc] = obj; cur.enabled = true;
@@ -11554,10 +11561,12 @@
     const lfAset = attuneSet(), lfAttuned = attunedNames();
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
       const lc = nm.toLowerCase(), hit = hi && hi[lc];
-      if(hit && Array.isArray(hit.limited) && hit.limited.length){           // homebrew item with EXPLICIT limited-use rows (precise label/max/rec) → win over the text heuristic
-        if(hit.attune && lfAset.has(lc) && !lfAttuned.has(lc)) continue;      // requires attunement but isn't attuned → no rows yet
-        hit.limited.forEach(L => addLimitedRow(L.label, resolveLimMax(L.max), L.rec, (txt[nm]||"").slice(0,300)));
-        continue;
+      const hitLim = hit && Array.isArray(hit.limited) && hit.limited.length;
+      const hitSenses = hit && Array.isArray(hit.senses) && hit.senses.length;
+      if(hitLim || hitSenses){                                               // homebrew item granting Limited Features rows and/or Senses lines
+        if(hit.attune && lfAset.has(lc) && !lfAttuned.has(lc)) continue;      // requires attunement but isn't attuned → nothing applies yet
+        if(hitSenses) hit.senses.forEach(s => addSense(s));                   // darkvision/etc. into the Senses box, like race/feat senses
+        if(hitLim){ hit.limited.forEach(L => addLimitedRow(L.label, resolveLimMax(L.max), L.rec, (txt[nm]||"").slice(0,300))); continue; }   // explicit rows win over the text heuristic
       }
       const d = txt[nm]; if(!d) continue;
       const r = limitedFromText(nm, d); if(!r) continue;
