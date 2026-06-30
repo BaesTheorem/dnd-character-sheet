@@ -564,8 +564,8 @@
   .book-row{display:flex; align-items:center; gap:4px; border-bottom:1px solid var(--line)}
   .book-row:last-child{border-bottom:none}
   .book-row .lay-row{flex:1; min-width:0; border-bottom:none}
-  .book-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:13px; line-height:1; padding:4px 8px}
-  .book-del:hover{color:#b42318}
+  .book-del,.hbsrc-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:13px; line-height:1; padding:4px 8px}
+  .book-del:hover,.hbsrc-del:hover{color:#b42318}
   .imp-top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
   .imp-top .imp-count{color:var(--muted); font-size:12px}
   .imp-bulk{display:flex; gap:4px}
@@ -2922,11 +2922,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v411 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v412 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.69.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.69.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2934,6 +2934,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v412", semver:"2.69.1", items:[
+      "Settings → Source books: the delete “✕” next to homebrew sources now matches the one next to every other source (it was unstyled before). Removed the redundant “Export…” button on the Ancestral Weapons row — Ancestral Weapons live in your homebrew, so export them from the Homebrew Studio’s per-source “Export JSON…” instead."
+    ]},
     {v:"v411", semver:"2.69.0", items:[
       "Settings → Source books is now two clean sections. “5etools sources” lists all official content — books AND adventure modules — whether baked in or loaded from your 5etools server (an adventure you load now files here, where it belongs, instead of under a separate list). Everything else (your homebrew sources, imported files, and rules modules like Ancestral Weapons) is gathered under one “Other loaded sources” section. The old “Your loaded sources”, “Homebrew”, and “Rules modules” headers are gone.",
       "Hardened the 2024-edition blocklist: this is a 2014-rules sheet, so all 2024 (“One D&D”) books and adventures stay out of the loadable list. Verified against the full 5etools catalog — every 2024 hardcover and adventure is blocked, while 2014-rules books published in 2024 (e.g. Vecna: Eve of Ruin, Quests from the Infinite Staircase) remain available."
@@ -4320,7 +4323,7 @@
     // Other loaded sources: imported files + homebrew sources + rules modules, all in one list.
     const hbrow = src => { const parts = HB_BAGS.map(k => { const n = Object.keys(src[k]||{}).length; return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean); const cnt = parts.join(", ") || "empty";
       return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(homebrew · ${cnt})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
-    const awRow = `<div class="book-row"><label class="lay-row"><input type="checkbox" class="aw-module-toggle" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(rules module · Spirit-Points heirloom weapons)</span></label><button type="button" class="btn aw-export-btn" title="Export all your Ancestral Weapons as a JSON file — re-importable via Import files…">Export…</button></div>`;
+    const awRow = `<div class="book-row"><label class="lay-row"><input type="checkbox" class="aw-module-toggle" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(rules module · Spirit-Points heirloom weapons)</span></label></div>`;   // export is redundant with the Homebrew Studio's per-source “Export JSON…” (AW weapons live in homebrew sources)
     const otherHtml = other.map(row).join("") + homebrewSources.map(hbrow).join("") + awRow;
     html += hdr("Other loaded sources", "your homebrew, imported files, and rules modules. Uncheck to hide, ✕ to delete") + otherHtml;
     el.innerHTML = html;
@@ -12168,7 +12171,7 @@
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
     ["attune-0","attune-1","attune-2"].forEach(id => { const el = $(id); if(el) el.addEventListener("change", () => { if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }); });   // attuning/un-attuning an Ancestral Weapon shows/hides its tab + refreshes its sheet
     $("loaded-books").addEventListener("change", e => { const a = e.target.closest(".aw-module-toggle"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
-    $("loaded-books").addEventListener("click", e => { const x = e.target.closest(".aw-export-btn"); if(x){ exportAwContent(); return; } const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
+    $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
