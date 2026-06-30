@@ -1005,6 +1005,28 @@
   .hb-tabs{display:flex; gap:4px; margin:12px 0 2px; border-bottom:1px solid var(--line)}
   .hb-tab{flex:0 0 auto; padding:6px 16px; border:1px solid var(--line); border-bottom:none; background:var(--field); cursor:pointer; font:inherit; font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin-bottom:-1px}
   .hb-tab.active{background:var(--card); color:var(--accent); border-bottom:1px solid var(--card)}
+  #aw-builder .modal-panel{max-width:720px}
+  #aw-builder .modal-body{max-height:74vh; overflow:auto}
+  .aw-top{display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end}
+  .aw-summary{margin:12px 0 4px; padding:8px 10px; border:1px solid var(--line); background:var(--field); font-size:12px; line-height:1.5}
+  .aw-summary b{color:var(--accent)}
+  .aw-budget{font-size:12px; color:var(--muted)}
+  .aw-budget.over{color:#b42318; font-weight:700}
+  .aw-uplist{max-height:none}
+  .aw-tier{font-weight:700; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); padding:10px 0 3px; margin-top:8px}
+  .aw-up{display:flex; gap:8px; align-items:flex-start; padding:5px 2px; border-bottom:1px solid var(--line)}
+  .aw-up.chosen{background:color-mix(in srgb, var(--accent) 8%, transparent)}
+  .aw-buy{flex:0 0 auto; width:24px; height:24px; border:1px solid var(--line); background:var(--card); cursor:pointer; font-size:13px; line-height:1; color:var(--accent)}
+  .aw-up.chosen .aw-buy{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .aw-up.locked{opacity:.5}
+  .aw-up.locked .aw-buy{cursor:not-allowed; color:var(--muted)}
+  .aw-up-main{flex:1}
+  .aw-up-name{font-weight:600; font-size:13px}
+  .aw-up-cost{font-size:11px; color:var(--accent); margin-left:6px}
+  .aw-up-tag{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-left:6px}
+  .aw-up-tag.lim{color:#b4690e}
+  .aw-up-why{font-size:10px; color:#b42318; margin-left:6px}
+  .aw-up-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:2px}
   .cspell-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
   .cspell-f{display:flex; flex-direction:column; gap:4px; font-size:12px}
   .cspell-f > span{font-weight:700; font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
@@ -2872,11 +2894,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v396 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v397 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.57.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.58.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2884,6 +2906,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v397", semver:"2.58.0", items:[
+      "New: the Ancestral Weapons builder. In the Homebrew Studio's Items tab, click “+ Ancestral Weapon” to build a heirloom weapon with the Spirit Points point-buy system (134 upgrades across the four tiers). Pick a base weapon, set its Spirit Points, and buy upgrades — the builder enforces the real rules live (tier unlocks by character level, the 2-limited-upgrade cap, no duplicates, and class/weapon/spellcaster requirements) and shows the weapon's rarity and what's auto-applied as you go. Saving emits a homebrew weapon into the source you choose, and it auto-applies everything the sheet can take: the magic +X to attack and damage, extra-damage riders, AC and spell-attack bonuses, and attunement. The full rules text for each chosen upgrade travels on the weapon's description. (A dedicated Ancestral Weapon page with artwork and lore is coming next.)"
+    ]},
     {v:"v392", semver:"2.57.0", items:[
       "Homebrew Studio now makes items too, not just spells. Each source has a Spells tab and an Items tab. Create a magic item with a type, rarity, attunement requirement, an AC bonus, a spell-attack and/or spell-save-DC bonus, and a description. Homebrew items show up in your inventory's item autocomplete, can be equipped, grant their AC and spell bonuses when equipped (and attuned, if required), and travel with shared sheets — same as your homebrew spells."
     ]},
@@ -5559,6 +5584,131 @@
     return {magicBonus, ac, spellAtk, riders, slots, senses, speed, fly, profs, resists, points,
             rarity:awRarity(points), spent:awSpent(build.upgrades), attune:true};
   }
+  let _awBuild = null;   // current build: {name, baseWeapon, points, upgrades:[], lore, physical, sourceIdx, editKey}
+  function awCharLevel(){ const n = parseClassLevels($("classlevel").value).reduce((a,c)=>a+(c.level||0),0); return n>0 ? n : null; }   // null = no class set → don't tier-gate
+  function buildAwBuilder(){
+    if($("aw-builder")) return;
+    const m = document.createElement("div"); m.id = "aw-builder"; m.className = "modal noprint";
+    m.innerHTML =
+      `<div class="modal-panel"><div class="modal-head"><h2>Ancestral Weapon</h2><button class="btn ghost" id="aw-x" type="button">✕</button></div>`+
+      `<div class="modal-body">`+
+        `<div class="aw-top">`+
+          `<label class="cspell-f" style="flex:2 1 180px"><span>Name</span><input type="text" id="aw-name" placeholder="Griffon’s Rest"></label>`+
+          `<label class="cspell-f" style="flex:1 1 150px"><span>Base weapon</span><input type="text" id="aw-base" list="aw-base-list" placeholder="Longsword"><datalist id="aw-base-list"></datalist></label>`+
+          `<label class="cspell-f" style="flex:0 0 92px"><span>Spirit Points</span><input type="number" id="aw-points" min="0" max="25" step="1" value="0"></label>`+
+        `</div>`+
+        `<div class="aw-summary" id="aw-summary"></div>`+
+        `<div class="hb-section-h"><span>Upgrades</span><span class="aw-budget" id="aw-budget"></span></div>`+
+        `<div id="aw-upgrades" class="aw-uplist"></div>`+
+        `<label class="cspell-f cspell-full" style="margin-top:12px"><span>History / lore</span><textarea id="aw-lore" rows="3" placeholder="Who forged it, who carried it, what it has slain…"></textarea></label>`+
+        `<label class="cspell-f cspell-full"><span>Physical properties</span><textarea id="aw-physical" rows="2" placeholder="Appearance, materials, markings…"></textarea></label>`+
+      `</div>`+
+      `<div class="modal-foot"><label class="cspell-f" style="flex:0 1 230px"><span>Save into source</span><select id="aw-src"></select></label>`+
+      `<span class="cspell-foot-btns"><button class="btn ghost" id="aw-cancel" type="button">Cancel</button><button class="btn primary" id="aw-save" type="button">Save weapon</button></span></div></div>`;
+    document.body.appendChild(m);
+    $("aw-x").addEventListener("click", closeAwBuilder);
+    $("aw-cancel").addEventListener("click", closeAwBuilder);
+    m.addEventListener("mousedown", e => { if(e.target === m) closeAwBuilder(); });
+    $("aw-points").addEventListener("input", () => { _awBuild.points = parseInt($("aw-points").value,10)||0; awRenderState(); });
+    $("aw-base").addEventListener("change", () => { _awBuild.baseWeapon = $("aw-base").value.trim(); awRenderUpgrades(); awRenderState(); });
+    $("aw-save").addEventListener("click", awSaveBuild);
+    $("aw-upgrades").addEventListener("click", e => { const b = e.target.closest(".aw-buy"); if(b) awToggleUpgrade(b.dataset.up); });
+  }
+  function openAwBuilder(sourceIdx, editKey){
+    buildAwBuilder();
+    hbEnsureSource();
+    const idx = (sourceIdx != null) ? sourceIdx : _hbCurId;
+    const existing = (editKey && homebrewSources[idx] && homebrewSources[idx].items[editKey] && homebrewSources[idx].items[editKey].aw) || null;
+    _awBuild = existing
+      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), lore:existing.lore||"", physical:existing.physical||"", editKey}
+      : {name:"", baseWeapon:"", points:0, upgrades:[], lore:"", physical:"", editKey:null};
+    $("aw-base-list").innerHTML = ((DATA&&DATA.weapons)||[]).map(w=>w.name).sort().map(n=>`<option value="${esc(n)}"></option>`).join("");
+    $("aw-src").innerHTML = homebrewSources.map((s,i)=>`<option value="${i}" ${i===idx?"selected":""}>${esc(s.name)}</option>`).join("");
+    $("aw-name").value = _awBuild.name; $("aw-base").value = _awBuild.baseWeapon;
+    $("aw-points").value = String(_awBuild.points); $("aw-lore").value = _awBuild.lore; $("aw-physical").value = _awBuild.physical;
+    awRenderUpgrades(); awRenderState();
+    $("aw-builder").classList.add("open");
+    setTimeout(()=>$("aw-name").focus(),0);
+  }
+  function closeAwBuilder(){ const m=$("aw-builder"); if(m) m.classList.remove("open"); _awBuild=null; }
+  function awToggleUpgrade(name){
+    const b=_awBuild; const i=b.upgrades.findIndex(x=>x.toLowerCase()===name.toLowerCase());
+    if(i>=0){ b.upgrades.splice(i,1); }
+    else { const v=awCanAdd(name, b, awCharLevel()); if(!v.ok){ flashStatus(v.reason); return; } b.upgrades.push(name); }
+    awRenderUpgrades(); awRenderState();
+  }
+  function awRenderState(){
+    const b=_awBuild, d=awDerive(b);
+    const auto=[];
+    if(d.magicBonus) auto.push(`<b>+${d.magicBonus}</b> attack & damage`);
+    if(d.riders.length) auto.push(`+${d.riders.join(", ")} damage`);
+    if(d.ac) auto.push(`<b>+${d.ac}</b> AC`);
+    if(d.spellAtk) auto.push(`<b>+${d.spellAtk}</b> spell attack`);
+    if(d.slots.length) auto.push(`+spell slot${d.slots.length>1?"s":""} (lvl ${d.slots.join(", ")})`);
+    if(d.senses.length) auto.push(d.senses.join(", "));
+    if(d.speed) auto.push(`+${d.speed} ft speed`); if(d.fly) auto.push("flying speed");
+    if(d.profs) auto.push(`${d.profs} proficienc${d.profs>1?"ies":"y"}`);
+    if(d.resists.length) auto.push("resist "+d.resists.join(", "));
+    $("aw-summary").innerHTML = `<b>${esc(b.baseWeapon||"weapon")}</b> · <b>${d.rarity}</b> · requires attunement · ${b.upgrades.length} upgrade${b.upgrades.length===1?"":"s"}`+
+      (auto.length ? `<br>Auto-applied: ${auto.join(" · ")}` : `<br><span style="color:var(--muted)">No auto-applied effects yet — chosen upgrades show on the weapon as reminders.</span>`);
+    const over = d.spent > b.points;
+    const bud=$("aw-budget"); bud.textContent = `${d.spent} / ${b.points} SP spent${over?" — over budget":""} · ${awLimitedCount(b.upgrades)}/2 limited`;
+    bud.classList.toggle("over", over);
+  }
+  function awRenderUpgrades(){
+    const el=$("aw-upgrades"); if(!el) return;
+    const b=_awBuild, cl=awCharLevel(), chosen=new Set(b.upgrades.map(x=>x.toLowerCase()));
+    let html="";
+    [1,2,3,4].forEach(t=>{
+      html += `<div class="aw-tier">Tier ${t} — level ${AW_TIER_MIN[t]}+</div>`;
+      AW_UPGRADES.filter(u=>u.t===t).sort((a,c)=>(c.lim?1:0)-(a.lim?1:0) || a.n.localeCompare(c.n)).forEach(u=>{
+        const isCh=chosen.has(u.n.toLowerCase());
+        const v=isCh?{ok:true}:awCanAdd(u.n,b,cl);
+        const tags=[u.lim?`<span class="aw-up-tag lim">limited</span>`:"", u.req?`<span class="aw-up-tag">${esc(u.req)}</span>`:""].join("");
+        const why=(!isCh && !v.ok)?`<span class="aw-up-why">${esc(v.reason)}</span>`:"";
+        html += `<div class="aw-up ${isCh?"chosen":""} ${(!isCh&&!v.ok)?"locked":""}">`+
+          `<button type="button" class="aw-buy" data-up="${esc(u.n)}" title="${isCh?"Remove":"Add"}">${isCh?"✓":"+"}</button>`+
+          `<div class="aw-up-main"><span class="aw-up-name">${esc(u.n)}</span><span class="aw-up-cost">${u.c} SP</span>${tags}${why}`+
+          `<div class="aw-up-text">${esc(awText(u.n))}</div></div></div>`;
+      });
+    });
+    el.innerHTML=html;
+  }
+  function awDescribe(b,d){
+    const L=[`Ancestral Weapon — ${b.baseWeapon}, ${d.rarity} (requires attunement).`,
+      `Spirit Points: ${b.points} (${d.spent} spent on ${b.upgrades.length} upgrade${b.upgrades.length===1?"":"s"}).`];
+    const auto=[];
+    if(d.magicBonus) auto.push(`+${d.magicBonus} attack & damage`);
+    if(d.riders.length) auto.push(`extra ${d.riders.join(", ")} damage`);
+    if(d.ac) auto.push(`+${d.ac} AC`); if(d.spellAtk) auto.push(`+${d.spellAtk} spell attack`);
+    if(d.slots.length) auto.push(`extra spell slot(s) lvl ${d.slots.join(", ")}`);
+    if(d.senses.length) auto.push(d.senses.join(", ")); if(d.speed) auto.push(`+${d.speed} ft speed`); if(d.fly) auto.push("flying speed");
+    if(d.profs) auto.push(`${d.profs} proficiency choice(s)`); if(d.resists.length) auto.push("resistance: "+d.resists.join(", "));
+    if(auto.length) L.push("Applied: "+auto.join("; ")+".");
+    b.upgrades.forEach(nm=>{ const u=awUp(nm); L.push(`• ${nm} (${u?u.c:"?"} SP${u&&u.lim?", limited":""}): ${awText(nm)}`); });
+    if(b.lore) L.push("History: "+b.lore);
+    if(b.physical) L.push("Physical: "+b.physical);
+    return L.join("\n");
+  }
+  function awSaveBuild(){
+    const b=_awBuild; const name=($("aw-name").value||"").trim();
+    if(!name){ flashStatus("Name the weapon first"); $("aw-name").focus(); return; }
+    if(!($("aw-base").value||"").trim()){ flashStatus("Pick a base weapon"); $("aw-base").focus(); return; }
+    b.name=name; b.baseWeapon=$("aw-base").value.trim(); b.points=parseInt($("aw-points").value,10)||0;
+    b.lore=$("aw-lore").value.trim(); b.physical=$("aw-physical").value.trim();
+    const d=awDerive(b), lc=name.toLowerCase();
+    const item={name, type:"Weapon", rarity:d.rarity, attune:true, acBonus:d.ac, spellAtk:d.spellAtk, spellDc:0,
+      text:awDescribe(b,d),
+      aw:{baseWeapon:b.baseWeapon, points:b.points, upgrades:b.upgrades.slice(), lore:b.lore, physical:b.physical, magicBonus:d.magicBonus, rider:d.riders.join(", ")}};
+    const srcIdx=parseInt($("aw-src").value,10)||0;
+    const src=hbEnsureSourceAt(srcIdx); src.items=src.items||{};
+    if(b.editKey && b.editKey!==lc) delete src.items[b.editKey];
+    src.items[lc]=item; src.enabled=true;
+    refreshHbItems();
+    closeAwBuilder();
+    flashStatus(`Saved Ancestral Weapon “${name}” (${d.rarity}) to ${src.name}`);
+  }
+  function hbEnsureSourceAt(i){ if(!homebrewSources[i]) homebrewSources[i]={name:"My Homebrew",enabled:true,spells:{},items:{}}; const c=homebrewSources[i]; c.spells=c.spells||{}; c.items=c.items||{}; return c; }
   function buildHbStudio(){
     if($("hb-studio")) return;
     const lvlOpts = ['<option value="0">Cantrip</option>'].concat([1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}">Level ${n}</option>`)).join("");
@@ -5595,7 +5745,7 @@
         `</div><div class="hb-form-foot"><button class="btn ghost" id="hbf-cancel" type="button">Cancel</button><button class="btn primary" id="hbf-save" type="button">Save spell</button></div></div>`+
         `</div>`+
         `<div id="hb-pane-items" class="hb-pane" style="display:none">`+
-          `<div class="hb-section-h"><span>Items in this source</span><button class="btn" id="hb-new-item" type="button">+ New item</button></div>`+
+          `<div class="hb-section-h"><span>Items in this source</span><span style="display:flex;gap:6px"><button class="btn" id="hb-new-aw" type="button" title="Build an Ancestral Weapon (Spirit-Points point-buy)">+ Ancestral Weapon</button><button class="btn" id="hb-new-item" type="button">+ New item</button></span></div>`+
           `<div id="hb-item-list" class="hb-spells"></div>`+
           `<div id="hb-item-form" class="hb-form" style="display:none"><div class="cspell-grid">`+
             `<label class="cspell-f cspell-full"><span>Name</span><input type="text" id="hbi-name"></label>`+
@@ -5629,6 +5779,7 @@
     });
     m.querySelector(".hb-tabs").addEventListener("click", e => { const t = e.target.closest(".hb-tab"); if(t){ _hbType = t.dataset.hbtype; hbCloseForm(); hbCloseItemForm(); renderHbStudio(); } });
     $("hb-new-item").addEventListener("click", () => hbOpenItemForm(null));
+    $("hb-new-aw").addEventListener("click", () => openAwBuilder(_hbCurId));
     $("hbi-cancel").addEventListener("click", hbCloseItemForm);
     $("hbi-save").addEventListener("click", hbSaveItemForm);
     $("hb-item-list").addEventListener("click", e => {
@@ -5890,6 +6041,7 @@
   function hbItemCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.items||{}).length, 0); }
   function hbActiveItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})) if(!(k in out)) out[k] = s.items[k]; }); return out; }   // enabled-source homebrew items, keyed lc
   function hbEnabledItem(lc){ for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]) return s.items[lc]; } return null; }
+  function hbAwMagicWeapon(lc){ const it = hbEnabledItem(lc); if(it && it.aw && it.aw.baseWeapon) return {base:it.aw.baseWeapon, bonus:it.aw.magicBonus||0, rider:it.aw.rider||""}; return null; }   // an Ancestral Weapon homebrew item resolves as its base weapon + magic bonus + damage rider
   function allItemText(){ const m = Object.assign({}, (DATA && DATA.itemText) || {}); const hi = hbActiveItems(); for(const lc in hi){ const it = hi[lc]; if(it.text) m[it.name] = it.text; } return m; }   // sourcebook item text + enabled homebrew item text (keyed by display name)
   function hbEnsureSource(){ if(!homebrewSources.length){ homebrewSources.push({name:"My Homebrew", enabled:true, spells:{}}); _hbCurId = 0; } if(_hbCurId < 0 || _hbCurId >= homebrewSources.length) _hbCurId = 0; const cur = homebrewSources[_hbCurId]; if(!cur.spells) cur.spells = {}; if(!cur.items) cur.items = {}; return cur; }
   function hbUniqueName(base){ let n = base, i = 2; const taken = new Set(homebrewSources.map(s => String(s.name).toLowerCase())); while(taken.has(n.toLowerCase())) n = base+" "+(i++); return n; }
@@ -9425,7 +9577,7 @@
     const base = _baseWeapon(n);
     if(base) return base;
     // named magic weapon (Dagger of Venom, Mace of Disruption…): base weapon + magic bonus + any damage rider
-    const mw = (DATA && DATA.magicWeapons && DATA.magicWeapons[n]) || null;
+    const mw = hbAwMagicWeapon(n) || (DATA && DATA.magicWeapons && DATA.magicWeapons[n]) || null;
     if(mw){ const b = _baseWeapon((mw.base||"").toLowerCase()); if(b) return {...b, name, magicBonus: mw.bonus||0, rider: mw.rider||""}; }
     // generic "+N <weapon>" (e.g. "+2 Longsword"): apply the bonus to the base weapon
     const m = n.match(/^\+(\d+)\s+(.+)$/); if(m){ const b = _baseWeapon(m[2]); if(b) return {...b, name, magicBonus: parseInt(m[1],10)}; }
