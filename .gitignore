@@ -14,4 +14,4 @@ __pycache__/
 *.pyc
 
 # Ancestral Weapons catalog — copyrighted upgrade descriptions (regenerate via ancestral-weapons/extract.py)
-ancestral-weapons/upgrades.json
+ancestral-weapons/*.json
