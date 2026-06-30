@@ -254,7 +254,9 @@
   .upd-prog-fill.det{transition:width .12s linear}
   .upd-prog-fill.indet{width:34%; animation:upd-indet 1.05s ease-in-out infinite}
   @keyframes upd-indet{0%{margin-left:-34%}100%{margin-left:100%}}
-  .upd-prog-label{font-size:11px; color:var(--muted); margin-top:4px}
+  .upd-prog-foot{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-top:4px}
+  .upd-prog-label{font-size:11px; color:var(--muted)}
+  .upd-prog-pct{font-size:12px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; flex:none}
 
   /* ASI / Feat attention flag (pulses until every improvement is chosen) */
   .asi-flag{display:block; width:100%; margin:0 0 10px; text-align:left; cursor:pointer;
@@ -1823,7 +1825,7 @@
     <button class="btn ghost" id="ub-dismiss" type="button" title="Dismiss until the next version">✕</button>
     <div class="upd-prog ub-prog" id="ub-progress" hidden="">
       <div class="upd-prog-track"><div class="upd-prog-fill" id="ub-progress-fill"></div></div>
-      <div class="upd-prog-label" id="ub-progress-label"></div>
+      <div class="upd-prog-foot"><span class="upd-prog-label" id="ub-progress-label"></span><span class="upd-prog-pct" id="ub-progress-pct"></span></div>
     </div>
   </div>
 
@@ -2759,7 +2761,7 @@
               <button class="btn" id="btn-update" type="button" title="Fetch the latest version of the sheet from the web">Update to the latest version</button>
               <div class="upd-prog" id="update-progress" hidden>
                 <div class="upd-prog-track"><div class="upd-prog-fill" id="update-progress-fill"></div></div>
-                <div class="upd-prog-label" id="update-progress-label"></div>
+                <div class="upd-prog-foot"><span class="upd-prog-label" id="update-progress-label"></span><span class="upd-prog-pct" id="update-progress-pct"></span></div>
               </div>
               <p class="wiz-hint" id="update-note">Fetches the newest version of the whole app from the web and reloads. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.</p>
             </div>
@@ -2922,11 +2924,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v413 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v414 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.69.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.70.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2934,6 +2936,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v414", semver:"2.70.0", items:[
+      "The update progress bar now shows real progress with a percentage. When updating the hosted/web version it streams the new app and fills the bar as it downloads (it used to just show an indeterminate bar before reloading), and both the Settings and banner update widgets now show a numeric % next to the bar."
+    ]},
     {v:"v413", semver:"2.69.2", items:[
       "Fixed: the Ancestral Weapons tab/sheet now shows reliably whenever you’ve built an Ancestral Weapon (in an enabled source), so an attuned weapon always has its dedicated sheet. Previously the tab depended on detecting an attunement change, which could leave the sheet hidden. Each weapon’s card still shows whether it’s attuned (powers active) or mundane (not attuned), and all of its bonuses still apply only while attuned."
     ]},
@@ -8120,18 +8125,19 @@
     return null;
   }
   // ---- update progress bar (local-file download) ----
-  const UPD_PROG_WIDGETS = [["update-progress","update-progress-fill","update-progress-label"],   // in Settings
-                            ["ub-progress","ub-progress-fill","ub-progress-label"]];              // in the update banner
-  function updProg(pct, label){   // pct null → indeterminate (sliding) bar; a number → fill to that %. Updates both progress widgets.
-    UPD_PROG_WIDGETS.forEach(([w,f,l]) => {
-      const wrap = $(w), fill = $(f), lbl = $(l);
+  const UPD_PROG_WIDGETS = [["update-progress","update-progress-fill","update-progress-label","update-progress-pct"],   // in Settings
+                            ["ub-progress","ub-progress-fill","ub-progress-label","ub-progress-pct"]];                  // in the update banner
+  function updProg(pct, label){   // pct null → indeterminate (sliding) bar + no %; a number → fill the bar AND show the % number. Updates both widgets.
+    UPD_PROG_WIDGETS.forEach(([w,f,l,pc]) => {
+      const wrap = $(w), fill = $(f), lbl = $(l), pcl = $(pc);
       if(wrap) wrap.hidden = false;
       if(fill){ if(pct == null){ fill.classList.add("indet"); fill.classList.remove("det"); fill.style.width = ""; }
                 else { fill.classList.remove("indet"); fill.classList.add("det"); fill.style.width = Math.max(0, Math.min(100, pct)) + "%"; } }
       if(lbl && label != null) lbl.textContent = label;
+      if(pcl) pcl.textContent = (pct == null) ? "" : Math.round(Math.max(0, Math.min(100, pct))) + "%";   // dedicated numeric % indicator alongside the bar
     });
   }
-  function updProgDone(){ UPD_PROG_WIDGETS.forEach(([w,f]) => { const wrap = $(w), fill = $(f); if(wrap) wrap.hidden = true; if(fill){ fill.classList.remove("indet","det"); fill.style.width = "0"; } }); }
+  function updProgDone(){ UPD_PROG_WIDGETS.forEach(([w,f,l,pc]) => { const wrap = $(w), fill = $(f), pcl = $(pc); if(wrap) wrap.hidden = true; if(fill){ fill.classList.remove("indet","det"); fill.style.width = "0"; } if(pcl) pcl.textContent = ""; }); }
   function updateBlockMode(){   // the Update control reads differently hosted (refresh in place) vs. a local file (download a fresh copy)
     const hosted = /^https?:$/.test(location.protocol), btn = $("btn-update"), note = $("update-note");
     if(btn) btn.textContent = hosted ? "Update to the latest version" : "Download the latest version";
@@ -8163,10 +8169,18 @@
       try{ const probe = await fetch(location.pathname + "?_upd=" + Date.now(), {cache:"reload"}); if(!probe || !probe.ok) throw 0; }
       catch(e){ flashStatus("Couldn't reach the site to update — check your connection and try again."); restore(); return; }
       busy("Updating…");
-      updProg(null, "Updating… the page will reload");
-      try{ if("serviceWorker" in navigator){ const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); } }catch(e){}   // drop the SW so the reload isn't served the cached build
+      try{ if("serviceWorker" in navigator){ const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); } }catch(e){}   // drop the SW so the fetch + reload aren't served the cached build
       try{ if("caches" in window){ const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } }catch(e){}   // and clear its cache
-      location.reload();   // re-fetches every file fresh; localStorage (character + sourcebooks) is untouched
+      // Stream the new app so the bar shows REAL download progress (the reload alone is opaque), then reload —
+      // it's served fast from the HTTP cache we just warmed (cache:"reload" fetched fresh). localStorage is untouched.
+      updProg(0, "Downloading the latest version…");
+      await fetchLatestApp((received, total) => {
+        if(total && received <= total) updProg(Math.round(received/total*100), "Downloading the latest version…");
+        else updProg(null, "Downloading the latest version… "+(received/1048576).toFixed(1)+" MB");   // gzipped → no usable length, show MB
+      });
+      updProg(100, "Reloading…");
+      await new Promise(r => setTimeout(r, 200));   // let 100% paint before the navigation
+      location.reload();   // re-fetches fresh; localStorage (character + sourcebooks) is untouched
       return;
     }
     // local file: fetch the latest code, re-bake the current character + sourcebooks, download a fresh file to replace this one.
@@ -8174,7 +8188,7 @@
     updProg(0, "Downloading the latest version…");
     const html = await fetchLatestApp((received, total) => {
       const mb = (received/1048576).toFixed(1);
-      if(total && received <= total) updProg(Math.round(received/total*100), "Downloading the latest version… "+Math.round(received/total*100)+"%");
+      if(total && received <= total) updProg(Math.round(received/total*100), "Downloading the latest version…");   // % shown in the dedicated indicator
       else updProg(null, "Downloading the latest version… "+mb+" MB");   // gzipped responses report no usable length → show MB streamed
     });
     if(!html){ updProgDone(); flashStatus("Couldn't download the latest version — check your connection and try again."); restore(); return; }
