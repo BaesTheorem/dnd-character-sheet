@@ -2641,11 +2641,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v335 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v337 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.34.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.34.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2653,6 +2653,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v337", semver:"2.34.2", items:[
+      "Fixed a blank sheet when opening a downloaded copy. If you saved the file while the landscape (Universal) layout was on — which is the default — reopening it could show just the toolbar with an empty body. The layout now rebuilds itself correctly on open. (You'll need to download a fresh copy once to get the fix into your offline file.)"
+    ]},
     {v:"v335", semver:"2.34.1", items:[
       "Fighting Style descriptions now come from your loaded sourcebook data too (matching the invocations/maneuvers/metamagic change), so they show the full official text and stay current. The picker, the class lists, and all the AC and attack math are unchanged."
     ]},
@@ -11425,6 +11428,7 @@
     window.addEventListener('afterprint', _ddbAfterPrint);
     window.addEventListener('focus', _ddbAfterPrint);   // some Safari/mobile skip afterprint — restore on refocus too
 
+    document.body.classList.remove('ddb-layout');           // a file saved WHILE the layout was active carries the class; clear it before self-healing so boot()'s activate() actually rebuilds the scaffold (else active() short-circuits and the cards stay stranded in the now-hidden page-core → blank sheet)
     restoreCanonical();                                     // self-heal a file saved while the layout was active
     function boot(){ try{ if(isDdb()) activate(); }catch(e){} }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
