@@ -2925,11 +2925,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v402 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v403 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.61.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.62.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2937,6 +2937,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v403", semver:"2.62.0", items:[
+      "You can now export and import your Ancestral Weapons as a JSON sourcebook file. In Settings → Source books → Rules modules, the “Export…” button next to Ancestral Weapons downloads every weapon you've built (their full build: upgrades, added properties, lore, and art) as Ancestral Weapons.json. Bring it back with the normal “Import files…” button — into this sheet or anyone else's — and the weapons land in an “Ancestral Weapons” source, fully rebuilt (the upgrade rules are baked into every copy of the sheet, so they reconstitute anywhere)."
+    ]},
     {v:"v402", semver:"2.61.0", items:[
       "Ancestral Weapons is now a sourcebook-style module you can switch on or off, under Settings → Source books → Rules modules. Turn it off and the whole system disappears: the “+ Ancestral Weapon” builder button, every Ancestral Weapon you've made (gone from the item search, your weapons, attunement, and AC/spell bonuses), and the Ancestral Weapons tab. Turn it back on and everything returns exactly as it was — it's a hide, not a delete. Your other homebrew items are unaffected."
     ]},
@@ -4293,7 +4296,7 @@
         return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(${cnt})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
       html += hdr("Homebrew", "your own sources, authored in the Homebrew Studio. Uncheck to hide across all characters, ✕ to delete") + homebrewSources.map(hbrow).join("");
     }
-    html += hdr("Rules modules", "optional add-on systems") + `<div class="book-row"><label class="lay-row"><input type="checkbox" class="aw-module-toggle" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(Spirit-Points heirloom weapon builder — off hides its creator, items, and tab)</span></label></div>`;
+    html += hdr("Rules modules", "optional add-on systems") + `<div class="book-row"><label class="lay-row"><input type="checkbox" class="aw-module-toggle" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(Spirit-Points heirloom weapon builder)</span></label><button type="button" class="btn aw-export-btn" title="Export all your Ancestral Weapons as a JSON file — re-importable into this or another sheet via Import files…">Export…</button></div>`;
     el.innerHTML = html;
   }
   function renderHomebrewList(){   // Settings: summary + entry to the Homebrew Studio (the sources themselves toggle/delete in the loaded-sources list above)
@@ -5842,6 +5845,23 @@
     flashStatus(`Saved Ancestral Weapon “${name}” (${d.rarity}) to ${src.name}`);
   }
   function hbEnsureSourceAt(i){ if(!homebrewSources[i]) homebrewSources[i]={name:"My Homebrew",enabled:true,spells:{},items:{}}; const c=homebrewSources[i]; c.spells=c.spells||{}; c.items=c.items||{}; return c; }
+  function exportAwContent(){   // write ALL Ancestral Weapons (across every homebrew source) to a re-importable JSON file
+    const items = {}; let n = 0;
+    homebrewSources.forEach(s => { for(const k in (s.items||{})){ const it = s.items[k]; if(it && it.aw){ items[String(it.name||k).toLowerCase()] = it; n++; } } });
+    if(!n){ flashStatus("No Ancestral Weapons to export yet — build one first"); return; }
+    const out = { _meta:{ awExport:true, name:"Ancestral Weapons", dataVersion:(typeof DATA_VERSION!=="undefined"?DATA_VERSION:0), source:"Exported from the D&D Character Sheet — Ancestral Weapons content (Dungeon Rollers framework), personal use" }, items };
+    download(JSON.stringify(out, null, 1), "Ancestral Weapons.json", "application/json");
+    flashStatus("Exported " + n + " Ancestral Weapon" + (n===1?"":"s") + " as JSON — re-import via Import files\u2026");
+  }
+  function importAwContent(d){   // merge an Ancestral Weapons export into a dedicated "Ancestral Weapons" homebrew source
+    const items = (d && d.items) || {};
+    let src = homebrewSources.find(s => String(s.name).toLowerCase() === "ancestral weapons");
+    if(!src){ src = { name:(typeof hbUniqueName==="function"?hbUniqueName("Ancestral Weapons"):"Ancestral Weapons"), enabled:true, spells:{}, items:{} }; homebrewSources.push(src); }
+    src.items = src.items || {}; let n = 0;
+    for(const k in items){ const it = items[k]; if(it && it.aw){ src.items[String(it.name||k).toLowerCase()] = it; n++; } }
+    if(n){ src.enabled = true; if(typeof refreshHbItems==="function") refreshHbItems(); }
+    return n;
+  }
   function buildHbStudio(){
     if($("hb-studio")) return;
     const lvlOpts = ['<option value="0">Cantrip</option>'].concat([1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}">Level ${n}</option>`)).join("");
@@ -11837,7 +11857,7 @@
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
     ["attune-0","attune-1","attune-2"].forEach(id => { const el = $(id); if(el) el.addEventListener("change", () => { if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }); });   // attuning/un-attuning an Ancestral Weapon shows/hides its tab + refreshes its sheet
     $("loaded-books").addEventListener("change", e => { const a = e.target.closest(".aw-module-toggle"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
-    $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
+    $("loaded-books").addEventListener("click", e => { const x = e.target.closest(".aw-export-btn"); if(x){ exportAwContent(); return; } const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
@@ -11956,6 +11976,7 @@
           let d;
           try{ d = JSON.parse(r.result); }
           catch(e){ bad.push(f.name + " — not valid JSON"); return finish(); }
+          if(d && d._meta && d._meta.awExport){ const n = importAwContent(d); if(n){ added.push(f.name + " (" + n + " Ancestral Weapon" + (n===1?"":"s") + ")"); } else { bad.push(f.name + " — no Ancestral Weapons inside"); } return finish(); }
           if(!d || !Array.isArray(d.races) || !Array.isArray(d.classes) || !Array.isArray(d.spells)){
             bad.push(f.name + " — doesn't look like sourcebook data (needs races / classes / spells)"); return finish();
           }
