@@ -336,6 +336,32 @@
   .ovf:not([contenteditable="true"]){-webkit-user-select:none; user-select:none; -webkit-touch-callout:none}   /* touch long-press = edit, not the iOS text-selection magnifier */
   @media print{ .ov{outline:none} .ov::after{display:none} input.ov{outline:none; background:none} }
   .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
+  /* Compact HP widget — Heal/Damage on the left, Current / Max + Temp readout on the right (arithmetic-free) */
+  .hpbox{display:flex; align-items:stretch; gap:14px; margin-top:12px; padding:10px 12px;
+    background:var(--field); border:1px solid var(--line); border-radius:10px}
+  .hp-adjust{display:flex; flex-direction:column; justify-content:center; gap:5px; width:94px; flex:0 0 94px}
+  .hp-btn{font:inherit; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+    border:1px solid var(--line); border-radius:7px; background:var(--card); padding:5px 4px; cursor:pointer; line-height:1.1}
+  .hp-btn.hp-heal{color:#2e9e4f}
+  .hp-btn.hp-dmg{color:#c0392b}
+  .hp-btn:hover{border-color:var(--accent)}
+  .hp-btn:active{transform:translateY(1px)}
+  .hp-delta{text-align:center; font-size:16px; font-weight:700; padding:3px 2px; border:1px solid var(--line);
+    border-radius:7px; width:100%; appearance:auto; -moz-appearance:number-input}
+  .hp-delta::-webkit-inner-spin-button, .hp-delta::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:1}
+  .hp-readout{flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px}
+  .hp-vals{display:flex; align-items:flex-end; justify-content:center; gap:12px; width:100%}
+  .hp-col{display:flex; flex-direction:column; align-items:center; gap:1px; min-width:0}
+  .hp-lbl{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+  .hp-big{text-align:center; font-size:30px; font-weight:800; line-height:1.05; background:transparent !important;
+    border:none !important; padding:0; width:2.4ch; color:var(--ink)}
+  .hp-tempin{color:var(--muted)}
+  .hp-tempcol{margin-left:auto}
+  .hp-slash{font-size:26px; font-weight:300; line-height:1; color:var(--muted); padding-bottom:2px}
+  .hp-foot{font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+  body.dark .hp-delta{background:var(--field) !important}
+  body.dark .hp-btn{background:var(--field) !important}
+  body.dark .hp-big{background:transparent !important; border:none !important}   /* out-specify body.dark input so the readout digits stay box-free */
   .otherspeeds{margin-top:8px; font-size:12px; line-height:1.4; color:var(--ink)}
   .otherspeeds .k{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-right:6px}
   .otherspeeds .sp{font-weight:700; margin-right:8px; white-space:nowrap}
@@ -2052,10 +2078,21 @@
                 <div class="stat"><div class="k">Speed</div><input id="speed" title="Effective walking speed (encumbrance / Unarmored Movement applied). Click to edit your base speed."></div>
               </div>
               <div id="otherspeeds" class="otherspeeds" style="display:none" title="Other movement modes from your race. Encumbrance and heavy-armor penalties apply; Monk Unarmored Movement is walking only."></div>
-              <div class="hp-grid">
-                <div class="stat"><div class="k">Max HP</div><input data-save="" type="number" id="hpmax"></div>
-                <div class="stat"><div class="k">Current HP</div><input data-save="" type="number" id="hpcur"></div>
-                <div class="stat"><div class="k">Temp HP</div><input data-save="" type="number" id="hptmp"></div>
+              <div class="hpbox">
+                <div class="hp-adjust noprint">
+                  <button type="button" class="hp-btn hp-heal" id="hp-heal" title="Add this much to Current HP (capped at Max)">Heal</button>
+                  <input type="number" min="0" step="1" id="hp-delta" class="hp-delta" placeholder="0" aria-label="Heal or damage amount" title="Amount to heal or apply as damage">
+                  <button type="button" class="hp-btn hp-dmg" id="hp-damage" title="Subtract this much (Temp HP absorbs first)">Damage</button>
+                </div>
+                <div class="hp-readout">
+                  <div class="hp-vals">
+                    <div class="hp-col"><div class="hp-lbl">Current</div><input data-save="" type="number" id="hpcur" class="hp-big" title="Current hit points"></div>
+                    <div class="hp-slash">/</div>
+                    <div class="hp-col"><div class="hp-lbl">Max</div><input data-save="" type="number" id="hpmax" class="hp-big" title="Maximum hit points"></div>
+                    <div class="hp-col hp-tempcol"><div class="hp-lbl">Temp</div><input data-save="" type="number" id="hptmp" class="hp-big hp-tempin" placeholder="--" title="Temporary hit points"></div>
+                  </div>
+                  <div class="hp-foot">Hit Points</div>
+                </div>
               </div>
               <div class="deathsaves">
                 <span class="ds-title">Death Saves:</span>
@@ -2688,11 +2725,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v353 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v354 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.40.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.41.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2700,6 +2737,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v354", semver:"2.41.0", items:[
+      "Hit Points got a compact new readout: Current / Max with Temp alongside, and Heal and Damage buttons around a number field so you can apply healing or damage without doing the math. Damage burns through Temp HP first, then Current (it stops at 0); Heal tops you up and never goes over your Max. Drop below 0 and the death-save row appears as before."
+    ]},
     {v:"v353", semver:"2.40.1", items:[
       "Under-the-hood cleanup: the landscape theme's leftover internal code names were renamed to match what you already see, the Universal Character Sheet. Nothing changes on screen, and your saved characters keep their theme automatically."
     ]},
@@ -6135,6 +6175,29 @@
       DS_PIPS.forEach(id => { const c = $(id); if(c && c.checked){ c.checked = false; changed = true; } });
       if(changed) save();
     }
+  }
+  // Heal / Damage buttons on the HP widget — arithmetic-free. Damage burns Temp HP first (5e RAW),
+  // then Current (floored at 0); Heal adds to Current, capped at Max. Clears the amount after applying
+  // so a stray second click can't silently re-apply. compute() then refreshes derived fields + death saves.
+  function applyHpDelta(heal){
+    const f = $("hp-delta"); const d = Math.abs(num((f||{}).value, 0));
+    if(!d){ if(f) f.focus(); return; }
+    const maxRaw = ($("hpmax")||{}).value, max = maxRaw === "" ? null : num(maxRaw, 0);
+    let cur = num(($("hpcur")||{}).value, 0);
+    if(heal){
+      cur += d; if(max != null) cur = Math.min(cur, max);
+      if($("hpcur")) $("hpcur").value = String(cur);
+      flashStatus("Healed " + d + " — Current HP " + cur + (max != null ? " / " + max : ""));
+    } else {
+      let tmp = num(($("hptmp")||{}).value, 0), dmg = d, absorbed = 0;
+      if(tmp > 0){ absorbed = Math.min(tmp, dmg); tmp -= absorbed; dmg -= absorbed;
+        if($("hptmp")) $("hptmp").value = tmp > 0 ? String(tmp) : ""; }
+      cur = Math.max(0, cur - dmg);
+      if($("hpcur")) $("hpcur").value = String(cur);
+      flashStatus("Took " + d + " damage — Current HP " + cur + (max != null ? " / " + max : "") + (absorbed ? " (Temp absorbed " + absorbed + ")" : ""));
+    }
+    if(f) f.value = "";
+    compute(); save();
   }
   function compute(){
     // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
@@ -10228,6 +10291,8 @@
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
     document.addEventListener("click", e => {   // ammo "Fire/Throw" buttons + spell "Cast" buttons (delegated; survive re-renders)
+      const hpb = e.target.closest("#hp-heal, #hp-damage");
+      if(hpb){ applyHpDelta(hpb.id === "hp-heal"); return; }
       const fire = e.target.closest(".atk-fire");
       if(fire && !fire.disabled){ fireAmmo(fire.dataset.kind); return; }
       const cast = e.target.closest(".sp-cast");
