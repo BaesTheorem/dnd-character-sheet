@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v381 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v382 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.53.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.53.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v382", semver:"2.53.2", items:[
+      "Warforged Integrated Protection now keeps \"Unarmored\" selectable alongside the three modes, so a Warforged with a class- or race-based Unarmored Defense (Monk, Barbarian, Draconic Sorcerer, natural armor) can still use it. RAW these compete with the Integrated Protection modes and you pick the higher — e.g. a Monk with Dex 16 / Wis 16 gets 16 from Unarmored Defense vs. 14 from Darkwood Core, and they don't combine. (Worn armor and Mage Armor stay unavailable — a warforged gains no benefit from them.) Also fixed: a Wayfinder's-Guide Warforged no longer picks up the unrelated flat +1 AC from the other (Rising-from-the-Last-War) version of Integrated Protection."
+    ]},
     {v:"v381", semver:"2.53.1", items:[
       "Heavy Plating (Warforged Integrated Protection) now applies the live disadvantage badge to your Stealth skill, the same way ordinary heavy armor does — not just a note next to the Armor selector."
     ]},
@@ -6646,7 +6649,7 @@
         if(modVal === "adamantine"){ armNote.textContent = (armNote.textContent ? armNote.textContent + " " : "") + "Any critical hit against you becomes a normal hit (while worn)."; armNote.style.display = ""; }
         else if(modVal === "mithral" && !armNote.textContent){ armNote.textContent = "Mithral: no Stealth disadvantage or Strength requirement."; armNote.style.display = ""; }
       }
-      const warforged = (/warforged/.test(($("race").value || "").toLowerCase()) && !IP_MODE_NAMES.has(sel)) ? 1 : 0;   // ERLW Integrated Protection: flat +1 AC — suppressed when a WGtE mode is the selected "armor" (the mode already encodes full AC)
+      const warforged = (/warforged/.test(($("race").value || "").toLowerCase()) && !integratedProtectionModes()) ? 1 : 0;   // ERLW Integrated Protection: flat +1 AC in any configuration — applies ONLY to an ERLW Warforged. A WGtE Warforged (mode system) never gets it, whether they picked a mode OR Unarmored: its AC is purely the mode formula or its class/race unarmored-defense calc.
       const armorWorn = sel && sel !== "Unarmored" && sel !== "Mage Armor";       // Defense fighting style: +1 AC only while wearing actual armor
       const fsDefense = (armorWorn && hasFightingStyle("Defense")) ? 1 : 0;
       const infDef = (armorWorn || bonus > 0) ? infusionEnhancedDefenseBonus() : 0;   // Artificer Enhanced Defense infusion (needs worn armor or a shield)
@@ -8859,9 +8862,9 @@
     const as = $("armorsel");
     if(as){ const cur = as.value;
       const ipModes = integratedProtectionModes();
-      if(ipModes){   // Warforged Integrated Protection: the three modes are the ONLY options — ordinary armor gives no benefit
-        as.innerHTML = ipModes.map(m => optTag(m.name, m.label)).join("");
-        as.value = IP_MODE_NAMES.has(cur) ? cur : "Darkwood Core";   // snap a legacy/blank/non-mode pick to the default mode
+      if(ipModes){   // Warforged Integrated Protection: the three modes PLUS "Unarmored" — the latter keeps a class/race unarmored-defense calc (Monk, Barbarian, Draconic, natural armor) selectable, since RAW it competes with the modes and the player picks the higher. Physical armor + Mage Armor stay out (a warforged gains no benefit from worn armor).
+        as.innerHTML = ipModes.map(m => optTag(m.name, m.label)).join("") + `<option value="Unarmored">Unarmored (class/race defense)</option>`;
+        as.value = (IP_MODE_NAMES.has(cur) || cur === "Unarmored") ? cur : "Darkwood Core";   // snap a legacy/blank/armor pick to the default mode
       } else {
       const eq = byName(equippedNames(n => { const a = armorByName(n); return a && ["LA","MA","HA"].includes(a.type); }).map(n => ({name:n})));   // body armor only (shields are AC-bonus items)
       const mage = (hasSpellNamed("Mage Armor") || cur === "Mage Armor") ? `<option value="Mage Armor">Mage Armor (13 + Dex)</option>` : "";   // only when known
