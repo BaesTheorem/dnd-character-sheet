@@ -1027,6 +1027,23 @@
   .aw-up-tag.lim{color:#b4690e}
   .aw-up-why{font-size:10px; color:#b42318; margin-left:6px}
   .aw-up-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:2px}
+  .aw-card-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:6px; margin-bottom:8px}
+  .aw-rarity{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent)}
+  .aw-card-body{display:flex; gap:14px; flex-wrap:wrap}
+  .aw-art-col{flex:0 0 160px}
+  .aw-art{display:block; width:160px; height:160px; object-fit:cover; border:1px solid var(--line); background:var(--field)}
+  .aw-art-empty{display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; cursor:pointer}
+  .aw-stat-col{flex:1 1 280px; min-width:240px}
+  .aw-stats{display:flex; flex-wrap:wrap; gap:6px 10px; margin-bottom:8px}
+  .aw-stat{font-size:12px; padding:2px 8px; border:1px solid var(--line); background:var(--field)}
+  .aw-stat b{color:var(--accent)}
+  .aw-lore{font-size:12px; margin:4px 0; line-height:1.5}
+  .aw-lore .k{font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-right:4px}
+  .aw-abilities{margin-top:8px}
+  .aw-ability{border-top:1px solid var(--line); padding:5px 0}
+  .aw-ability-name{font-weight:600; font-size:12px}
+  .aw-ability-cost{font-size:10px; color:var(--accent); text-transform:uppercase; letter-spacing:.04em; margin-left:6px}
+  .aw-ability-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:1px}
   .cspell-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
   .cspell-f{display:flex; flex-direction:column; gap:4px; font-size:12px}
   .cspell-f > span{font-weight:700; font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
@@ -1124,7 +1141,7 @@
     .stack{display:flex; flex-direction:column; gap:5px}   /* tighter inter-card gaps buy Core a few mm of headroom so a filled character still fits one page */
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
     #page-inv{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards */
-    #page-spells:not(.excluded), .page.spell-extra:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), .page[data-page^="overflow-"]:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
+    #page-spells:not(.excluded), .page.spell-extra:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), #page-aw:not(.excluded), .page[data-page^="overflow-"]:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
     .comp-portrait{display:flex !important; width:112px; height:140px}   /* companion art prints (was screen-only); fit-to-size */
     .comp-portrait:not(.has-img){display:none !important}               /* but don't print an empty placeholder box */
     #page-inv .card.grow, .page[data-page^="overflow-"] .card.grow{flex:1 1 auto}   /* Equipment Notes / overflow Inventory takes the remaining height */
@@ -1945,6 +1962,7 @@
       <button class="ptab" data-page="feat" type="button">Features</button>
       <button class="ptab" data-page="spells" type="button">Spells</button>
       <button class="ptab muted" data-page="companion" type="button">Companions</button>
+      <button class="ptab muted" data-page="aw" type="button">Ancestral Weapons</button>
       <button class="ptab" data-page="bg" type="button">Background</button>
       <button class="ptab" data-page="story" type="button">Backstory</button>
       <button class="ptab" data-page="notes" type="button">Notes</button>
@@ -2510,6 +2528,10 @@
     </section>
 
     <!-- COMPANIONS & FORMS -->
+    <section class="page excluded" id="page-aw" data-page="aw">
+      <div class="card"><h2>Ancestral Weapons</h2><p class="wiz-hint" style="margin:0">Heirloom weapons built with the Spirit Points system. Build and edit them in the Homebrew Studio (Items → + Ancestral Weapon); their stats, abilities, art, and lore show here.</p></div>
+      <div id="aw-page-body"></div>
+    </section>
     <section class="page excluded" id="page-companion" data-page="companion">
       <div class="card">
         <h2>Companions &amp; Forms <button class="btn noprint" id="add-companion" type="button" style="float:right; font-size:11px; padding:4px 10px">+ Add creature</button></h2>
@@ -2894,11 +2916,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v398 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v399 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.58.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.59.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2906,6 +2928,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v399", semver:"2.59.0", items:[
+      "Ancestral Weapons now have their own page. Once you've built one, an “Ancestral Weapons” tab appears with a full sheet for each: artwork (upload your own), base weapon, rarity and Spirit Points, the computed stats it grants (attack/damage, AC, spell attack, speed, senses, and so on), its history and physical description, and the complete list of unlocked abilities with rules text. More of the mechanics now auto-apply too: while an Ancestral Weapon is attuned, its Mobile speed boost and Flying upgrade flow onto your sheet automatically."
+    ]},
     {v:"v397", semver:"2.58.0", items:[
       "New: the Ancestral Weapons builder. In the Homebrew Studio's Items tab, click “+ Ancestral Weapon” to build a heirloom weapon with the Spirit Points point-buy system (134 upgrades across the four tiers). Pick a base weapon, set its Spirit Points, and buy upgrades — the builder enforces the real rules live (tier unlocks by character level, the 2-limited-upgrade cap, no duplicates, and class/weapon/spellcaster requirements) and shows the weapon's rarity and what's auto-applied as you go. Saving emits a homebrew weapon into the source you choose, and it auto-applies everything the sheet can take: the magic +X to attack and damage, extra-damage riders, AC and spell-attack bonuses, and attunement. The full rules text for each chosen upgrade travels on the weapon's description. (A dedicated Ancestral Weapon page with artwork and lore is coming next.)"
     ]},
@@ -4076,10 +4101,11 @@
     document.querySelectorAll(".ptab").forEach(t => t.classList.toggle("active", t.dataset.page === name));
     document.querySelectorAll("#page-"+name+" textarea").forEach(autoGrow);   // re-fit now that it's visible
     if(typeof updatePrepFloat === "function") updatePrepFloat();
+    if(name === "aw" && typeof renderAwPage === "function") renderAwPage();
   }
   // ---- Layout: which pages/tabs are shown (Settings) ----
   const PAGES = [["core","Core"],["inv","Inventory"],["feat","Features"],["spells","Spells"],
-                 ["companion","Companions"],["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
+                 ["companion","Companions"],["aw","Ancestral Weapons"],["bg","Background"],["story","Backstory"],["notes","Notes"],["mini","Mini"]];
   let hiddenPages = {};                        // {pageKey:true} = hidden via Settings
   let showAddSpell = false;                     // Settings → Advanced: show the "+ Add spell sheet" button (off by default; created sheets are unaffected)
   function applyAddSpellSetting(){ const s = document.querySelector(".sheet"); if(s) s.classList.toggle("no-addspell", !showAddSpell); }
@@ -5369,9 +5395,10 @@
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
     const hasCompanion = (companions||[]).length > 0;
+    const hasAw = (typeof homebrewSources!=="undefined") && homebrewSources.some(s => s.enabled!==false && Object.values(s.items||{}).some(it => it.aw));
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
-      const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "companion" && !hasCompanion);
+      const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "companion" && !hasCompanion) || (key === "aw" && !hasAw);
       const tab = document.querySelector('.ptab[data-page="'+key+'"]');
       if(tab){ tab.style.display = userHidden ? "none" : ""; tab.classList.toggle("muted", excluded && !userHidden); }
       const page = $("page-"+key);
@@ -5595,6 +5622,45 @@
       out.slots.push(...d.slots); out.resists.push(...d.resists); out.profs += d.profs; out.names.push(it.name);
     });
     return out;
+  }
+  function awAllItems(){ const out=[]; homebrewSources.forEach((s,si)=>{ if(s.enabled===false) return; const items=s.items||{}; Object.keys(items).forEach(k=>{ if(items[k].aw) out.push({it:items[k], si, key:k}); }); }); return out; }
+  function awResizeImage(file, cb){ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=480, sc=Math.min(1, max/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*sc)||1; c.height=Math.round(img.height*sc)||1; c.getContext("2d").drawImage(img,0,0,c.width,c.height); cb(c.toDataURL("image/jpeg",0.85)); }; img.src=r.result; }; r.readAsDataURL(file); }
+  function renderAwPage(){
+    const host=$("aw-page-body"); if(!host) return;
+    if(!host._wired){ host._wired=true;
+      host.addEventListener("click", e=>{ const ed=e.target.closest(".aw-edit"); if(ed){ openAwBuilder(+ed.dataset.si, ed.dataset.key); return; } if(e.target.closest(".awpage-new")){ openAwBuilder(_hbCurId||0); } });
+      host.addEventListener("change", e=>{ const inp=e.target.closest(".aw-art-in"); if(inp && inp.files && inp.files[0]){ const si=+inp.dataset.si, key=inp.dataset.key; awResizeImage(inp.files[0], url=>{ const it=homebrewSources[si]&&homebrewSources[si].items[key]; if(it&&it.aw){ it.aw.art=url; saveHomebrew(); renderAwPage(); } }); } });
+    }
+    const aws=awAllItems();
+    const newBtn=`<button class="btn primary awpage-new" type="button">+ New Ancestral Weapon</button>`;
+    if(!aws.length){ host.innerHTML=`<div class="card"><p class="wiz-hint" style="margin:0 0 8px">No Ancestral Weapons yet.</p>${newBtn}</div>`; return; }
+    host.innerHTML = aws.map(({it,si,key})=>{
+      const a=it.aw, d=awDerive(a), w=weaponByName(a.baseWeapon);
+      const dmg = w ? ((w.dmg||"")+(w.dmgType?" "+w.dmgType:"")) : "";
+      const stat=[];
+      if(d.magicBonus) stat.push(`<b>+${d.magicBonus}</b> attack &amp; damage`);
+      if(dmg||d.riders.length) stat.push(`Damage: ${esc(dmg)}${d.riders.length?` + ${esc(d.riders.join(", "))}`:""}`);
+      if(d.ac) stat.push(`<b>+${d.ac}</b> AC`);
+      if(d.spellAtk) stat.push(`<b>+${d.spellAtk}</b> spell attack`);
+      if(d.senses.length) stat.push(esc(d.senses.join(", ")));
+      if(d.speed) stat.push(`+${d.speed} ft speed`); if(d.fly) stat.push("flying speed");
+      if(d.slots.length) stat.push(`extra spell slot${d.slots.length>1?"s":""} (lvl ${d.slots.join(", ")})`);
+      if(d.resists.length) stat.push("resist "+esc(d.resists.join(", ")));
+      if(d.profs) stat.push(`${d.profs} proficiency choice${d.profs>1?"s":""}`);
+      stat.push("requires attunement");
+      const abilities=(a.upgrades||[]).map(nm=>{ const u=awUp(nm); return `<div class="aw-ability"><span class="aw-ability-name">${esc(nm)}</span><span class="aw-ability-cost">${u?u.c:"?"} SP${u&&u.lim?" · limited":""}</span><div class="aw-ability-text">${esc(awText(nm))}</div></div>`; }).join("");
+      const art = a.art
+        ? `<img class="aw-art" src="${a.art}" alt=""><label class="btn" style="margin-top:6px; display:block; text-align:center">Change art<input type="file" accept="image/*" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`
+        : `<label class="aw-art aw-art-empty">+ Add art<input type="file" accept="image/*" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`;
+      return `<div class="card aw-card">`+
+        `<div class="aw-card-head"><h2 style="margin:0">${esc(it.name)}</h2><span class="aw-rarity">${esc(d.rarity)} · ${esc(a.baseWeapon)} · ${a.points} SP</span><span style="margin-left:auto"><button class="btn aw-edit" data-si="${si}" data-key="${esc(key)}" type="button">Edit in builder</button></span></div>`+
+        `<div class="aw-card-body"><div class="aw-art-col">${art}</div><div class="aw-stat-col">`+
+        `<div class="aw-stats">${stat.map(x=>`<span class="aw-stat">${x}</span>`).join("")}</div>`+
+        (a.lore?`<div class="aw-lore"><span class="k">History</span>${esc(a.lore)}</div>`:"")+
+        (a.physical?`<div class="aw-lore"><span class="k">Physical</span>${esc(a.physical)}</div>`:"")+
+        `<div class="aw-abilities">${abilities||'<span class="wiz-hint">No upgrades yet.</span>'}</div>`+
+        `</div></div></div>`;
+    }).join("") + `<div style="margin-top:10px">${newBtn}</div>`;
   }
   let _awBuild = null;   // current build: {name, baseWeapon, points, upgrades:[], lore, physical, sourceIdx, editKey}
   function awCharLevel(){ const n = parseClassLevels($("classlevel").value).reduce((a,c)=>a+(c.level||0),0); return n>0 ? n : null; }   // null = no class set → don't tier-gate
@@ -5859,7 +5925,7 @@
     setTimeout(() => $("hbi-name").focus(), 0);
   }
   function hbCloseItemForm(){ _hbEditItemKey = null; const f = $("hb-item-form"); if(f) f.style.display = "none"; const l = $("hb-item-list"); if(l) l.style.display = ""; }
-  function refreshHbItems(){ saveHomebrew(); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); renderHomebrewList(); renderLoadedBookList(); }   // persist + re-render everything that reads homebrew items
+  function refreshHbItems(){ saveHomebrew(); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); renderHomebrewList(); renderLoadedBookList(); if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }   // persist + re-render everything that reads homebrew items (applyLayout: AW page visibility)
   function hbSaveItemForm(){
     const cur = hbEnsureSource();
     const name = ($("hbi-name").value||"").trim();
