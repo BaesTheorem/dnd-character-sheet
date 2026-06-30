@@ -2773,11 +2773,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v363 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v364 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.44.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.44.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6260,11 +6260,13 @@
   function openHpMaxPop(){ const p = $("hpmax-pop"); if(!p) return; p.hidden = false; const m = $("hpmax-mod"); if(m){ m.focus(); m.select && m.select(); } }
   function closeHpMaxPop(){ const p = $("hpmax-pop"); if(p && !p.hidden){ p.hidden = true; } }
   // Heal / Damage buttons on the HP widget — arithmetic-free. Damage burns Temp HP first (5e RAW),
-  // then Current (floored at 0); Heal adds to Current, capped at Max. Clears the amount after applying
-  // so a stray second click can't silently re-apply. compute() then refreshes derived fields + death saves.
+  // then Current (floored at 0); Heal adds to Current, capped at Max. With the amount field EMPTY, a click
+  // nudges Current by 1 (Heal +1 / Damage −1). Clears a typed amount after applying so a stray second click
+  // can't silently re-apply. compute() then refreshes derived fields + death saves.
   function applyHpDelta(heal){
-    const f = $("hp-delta"); const d = Math.abs(num((f||{}).value, 0));
-    if(!d){ if(f) f.focus(); return; }
+    const f = $("hp-delta"), raw = (f || {}).value;
+    const d = (raw === "" || raw == null) ? 1 : Math.abs(num(raw, 0));   // empty field → step by 1
+    if(!d){ if(f) f.focus(); return; }   // a typed 0 (or junk) is a no-op
     const maxRaw = ($("hpmax")||{}).value, max = maxRaw === "" ? null : num(maxRaw, 0);
     let cur = num(($("hpcur")||{}).value, 0);
     if(heal){
