@@ -387,6 +387,8 @@
   .hp-pop-in::-webkit-inner-spin-button, .hp-pop-in::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:1}
   .hp-slash{font-size:26px; font-weight:300; line-height:1; color:var(--muted); padding-bottom:2px}
   .hp-foot{font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+  .rest-check{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; margin-top:6px}
+  .rest-check input{width:auto; margin:0}
   body.dark .hp-delta{background:var(--field) !important}
   body.dark .hp-btn{background:var(--field) !important}
   body.dark .hp-big{background:transparent !important; border:none !important}   /* out-specify body.dark input so the readout digits stay box-free */
@@ -2771,11 +2773,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v361 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v362 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.43.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.44.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -10495,7 +10497,7 @@
     let restState = null;   // { kind:'short'|'long', phase:'overview'|'spend'|'done', log:[] }
 
     function openRest(kind){
-      restState = { kind, phase: "overview", log: [] };
+      restState = { kind, phase: "overview", log: [], resetMaxHp: true };   // long rest defaults to clearing any Max HP modifier/override
       $("rest-title").textContent = (kind === "long" ? "Long Rest" : "Short Rest");
       $("rest-modal").classList.add("open");
       renderRest();
@@ -10565,10 +10567,19 @@
         }
 
         if(kind === "long"){
+          const _mEl = $("hpmax-mod"), _oEl = $("hpmax-override"), _bEl = $("hpmax-base");
+          const _maxChange = (_mEl && _mEl.value !== "" && num(_mEl.value, 0) !== 0) || (_oEl && _oEl.value !== "");
+          const _baseVal = (_bEl && _bEl.value !== "") ? num(_bEl.value, null) : null;
+          const _willReset = restState.resetMaxHp && _maxChange;
+          const _targetMax = (_willReset && _baseVal != null) ? _baseVal : hp.max;   // reset heals to baseline; otherwise to the effective max
           h += '<label class="lbl" style="display:block; margin:16px 0 6px">Hit Points</label>';
-          h += '<p class="wiz-hint" style="margin-top:0">' + (hp.max != null
-            ? 'Restored to full: ' + (hp.hasCur ? hp.cur + ' → ' : "") + hp.max + ' HP. Temporary HP is cleared.'
+          h += '<p class="wiz-hint" style="margin-top:0">' + (_targetMax != null
+            ? 'Restored to full: ' + (hp.hasCur ? hp.cur + ' → ' : "") + _targetMax + ' HP. Temporary HP is cleared.'
             : 'Set your Max HP to auto-restore it on a long rest.') + '</p>';
+          h += '<label class="rest-check"><input type="checkbox" id="rest-resetmaxhp"' + (restState.resetMaxHp ? ' checked' : '') + '>'
+            + ' Reset Max HP changes to baseline'
+            + (_maxChange ? ' <span class="wiz-hint" style="margin:0">(back to ' + esc((_bEl && _bEl.value) || "baseline") + ')</span>' : '')
+            + '</label>';
         }
 
         body.innerHTML = h + logHtml;
@@ -10635,7 +10646,15 @@
     }
 
     function takeLongRest(){
-      const feats = restGatherFeatures("long"), hd = restHdInfo(), hp = restHp();
+      const feats = restGatherFeatures("long"), hd = restHdInfo();
+      // Optionally clear any Max HP modifier/override back to baseline FIRST, so "restore to full" heals to the baseline max.
+      let maxResetTo = null;
+      if(restState.resetMaxHp){
+        const modEl = $("hpmax-mod"), ovEl = $("hpmax-override");
+        const had = (modEl && modEl.value !== "" && num(modEl.value, 0) !== 0) || (ovEl && ovEl.value !== "");
+        if(had){ if(modEl) modEl.value = ""; if(ovEl) ovEl.value = ""; recalcMaxHp(); maxResetTo = ($("hpmax-base") || {}).value || ""; }
+      }
+      const hp = restHp();
       feats.reset.forEach(f => { const el = $("lfused-" + f.i); if(el) el.value = ""; });
       const slotsCleared = restClearAllSlots();   // every spell slot returns on a long rest
       const regain = hd.used > 0 ? Math.min(hd.used, Math.max(1, Math.floor(hd.total / 2))) : 0;
@@ -10647,6 +10666,7 @@
         ? "Recovered " + feats.reset.length + " feature(s): " + feats.reset.map(f => f.name).join(", ") + "."
         : "No features needed resetting.");
       if(slotsCleared) log.push("All spell slots restored.");
+      if(maxResetTo != null) log.push("Max HP changes cleared — back to baseline" + (maxResetTo ? " (" + maxResetTo + ")" : "") + ".");
       if(hp.max != null) log.push("Hit points restored to full (" + hp.max + "). Temporary HP cleared.");
       log.push(regain > 0
         ? "Regained " + regain + " Hit Dice (used " + hd.used + " → " + (hd.used - regain) + ")."
@@ -10663,6 +10683,7 @@
     $("rest-close").addEventListener("click", closeRest);
     $("rest-modal").addEventListener("click", e => {
       if(e.target.id === "rest-modal") closeRest();                 // click the backdrop to dismiss
+      else if(e.target.id === "rest-resetmaxhp" && restState){ restState.resetMaxHp = e.target.checked; renderRest(); }   // remember the toggle + refresh the "restored to full" target
       else if(e.target.closest("[data-rest-roll]")) spendHitDie();  // delegated: the Spend button is re-rendered
       else if(e.target.closest("[data-arc-inc]")){ const L = +e.target.closest("[data-arc-inc]").dataset.arcInc; restState.arcane = restState.arcane || {}; restState.arcane[L] = (restState.arcane[L]||0) + 1; renderRest(); }
       else if(e.target.closest("[data-arc-dec]")){ const L = +e.target.closest("[data-arc-dec]").dataset.arcDec; restState.arcane = restState.arcane || {}; restState.arcane[L] = Math.max(0, (restState.arcane[L]||0) - 1); renderRest(); }
