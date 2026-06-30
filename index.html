@@ -240,6 +240,15 @@
   .hood-row input, .hood-row select{width:100%; box-sizing:border-box; text-align:center; padding:3px 2px; font-weight:700}
   .hood-row .stepper{justify-content:center}
 
+  /* Update progress bar (local-file download is ~13MB, so show how it's going) */
+  .upd-prog{margin-top:8px}
+  .upd-prog-track{height:6px; border:1px solid var(--line2); background:var(--bg); overflow:hidden}
+  .upd-prog-fill{height:100%; width:0; background:var(--accent)}
+  .upd-prog-fill.det{transition:width .12s linear}
+  .upd-prog-fill.indet{width:34%; animation:upd-indet 1.05s ease-in-out infinite}
+  @keyframes upd-indet{0%{margin-left:-34%}100%{margin-left:100%}}
+  .upd-prog-label{font-size:11px; color:var(--muted); margin-top:4px}
+
   /* ASI / Feat attention flag (pulses until every improvement is chosen) */
   .asi-flag{display:block; width:100%; margin:0 0 10px; text-align:left; cursor:pointer;
     border:1px solid #c2410c; border-left-width:4px; background:#fff7ed; color:#7c2d12;
@@ -2523,6 +2532,10 @@
             <div id="update-block">
               <label class="lbl" style="display:block; margin-bottom:6px">Update</label>
               <button class="btn" id="btn-update" type="button" title="Fetch the latest version of the sheet from the web">Update to the latest version</button>
+              <div class="upd-prog" id="update-progress" hidden>
+                <div class="upd-prog-track"><div class="upd-prog-fill" id="update-progress-fill"></div></div>
+                <div class="upd-prog-label" id="update-progress-label"></div>
+              </div>
               <p class="wiz-hint" id="update-note">Fetches the newest version of the whole app from the web and reloads. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.</p>
             </div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Appearance</label>
@@ -2674,11 +2687,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v345 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v346 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.37.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.38.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2686,6 +2699,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v346", semver:"2.38.0", items:[
+      "Updating from a downloaded file now shows a progress bar while it fetches the new version, so you can see it's working instead of staring at a frozen button. (The file is large — most of it is the baked sourcebook data — so the download takes a few seconds.)",
+      "Made that download quicker: it no longer tacks a unique tag onto the request, which had been forcing a fresh fetch from the origin server every time instead of letting the CDN serve it from its cache."
+    ]},
     {v:"v345", semver:"2.37.4", items:[
       "Variant Human now grants one feat, not two. (The base Human's data was being merged onto the variant, doubling its feat the same way it was doubling its ability bonus.)",
       "Ability Scores table: widened the ability-name column so longer names like Constitution and Intelligence aren't clipped, and centered the table now that the bonus boxes are compact."
@@ -6725,13 +6742,38 @@
   // and download a fresh copy with the current character + sourcebooks baked in — the user replaces their old file.
   const APP_SRC = "https://baestheorem.github.io/dnd-character-sheet/index.html";                       // canonical hosted build (sends ACAO:* so a file:// page can fetch it)
   const APP_SRC_FALLBACK = "https://raw.githubusercontent.com/BaesTheorem/dnd-character-sheet/main/index.html";   // same content, also ACAO:*
-  async function fetchLatestApp(){   // → newest index.html text, or null if unreachable / not the sheet
+  // → newest index.html text, or null if unreachable / not the sheet. onProgress(receivedBytes, totalBytes) is
+  // called as the body streams in (the file is ~13MB, so this drives the progress bar). cache:"reload" already
+  // bypasses the browser cache for a fresh copy; we deliberately DON'T add a unique cache-busting query param —
+  // that would make every request a unique URL the CDN can't serve from its edge, forcing a slow origin fetch.
+  async function fetchLatestApp(onProgress){
     for(const url of [APP_SRC, APP_SRC_FALLBACK]){
-      try{ const r = await fetch(url + (url.includes("?")?"&":"?") + "_upd=" + Date.now(), {cache:"reload"});
-        if(r && r.ok){ const t = await r.text(); if(/id="embedded-data"/.test(t) && /id="source-data"/.test(t)) return t; } }catch(e){}
+      try{
+        const r = await fetch(url, {cache:"reload"});
+        if(!r || !r.ok) continue;
+        let t;
+        if(onProgress && r.body && r.body.getReader){
+          const total = +(r.headers.get("content-length")) || 0;
+          const reader = r.body.getReader(); const chunks = []; let received = 0;
+          for(;;){ const {done, value} = await reader.read(); if(done) break; chunks.push(value); received += value.length; onProgress(received, total); }
+          let size = 0; chunks.forEach(c => size += c.length);
+          const buf = new Uint8Array(size); let off = 0; chunks.forEach(c => { buf.set(c, off); off += c.length; });
+          t = new TextDecoder("utf-8").decode(buf);
+        } else { t = await r.text(); }
+        if(/id="embedded-data"/.test(t) && /id="source-data"/.test(t)) return t;
+      }catch(e){}
     }
     return null;
   }
+  // ---- update progress bar (local-file download) ----
+  function updProg(pct, label){   // pct null → indeterminate (sliding) bar; a number → fill to that %
+    const wrap = $("update-progress"), fill = $("update-progress-fill"), lbl = $("update-progress-label");
+    if(wrap) wrap.hidden = false;
+    if(fill){ if(pct == null){ fill.classList.add("indet"); fill.classList.remove("det"); fill.style.width = ""; }
+              else { fill.classList.remove("indet"); fill.classList.add("det"); fill.style.width = Math.max(0, Math.min(100, pct)) + "%"; } }
+    if(lbl && label != null) lbl.textContent = label;
+  }
+  function updProgDone(){ const wrap = $("update-progress"), fill = $("update-progress-fill"); if(wrap) wrap.hidden = true; if(fill){ fill.classList.remove("indet","det"); fill.style.width = "0"; } }
   function updateBlockMode(){   // the Update control reads differently hosted (refresh in place) vs. a local file (download a fresh copy)
     const hosted = /^https?:$/.test(location.protocol), btn = $("btn-update"), note = $("update-note");
     if(btn) btn.textContent = hosted ? "Update to the latest version" : "Download the latest version";
@@ -6752,20 +6794,32 @@
       try{ const probe = await fetch(location.pathname + "?_upd=" + Date.now(), {cache:"reload"}); if(!probe || !probe.ok) throw 0; }
       catch(e){ flashStatus("Couldn't reach the site to update — check your connection and try again."); restore(); return; }
       if(btn) btn.textContent = "Updating…";
+      updProg(null, "Updating… the page will reload");
       try{ if("serviceWorker" in navigator){ const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); } }catch(e){}   // drop the SW so the reload isn't served the cached build
       try{ if("caches" in window){ const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } }catch(e){}   // and clear its cache
       location.reload();   // re-fetches every file fresh; localStorage (character + sourcebooks) is untouched
       return;
     }
-    // local file: fetch the latest code, re-bake the current character + sourcebooks, download a fresh file to replace this one
-    const html = await fetchLatestApp();
-    if(!html){ flashStatus("Couldn't download the latest version — check your connection and try again."); restore(); return; }
+    // local file: fetch the latest code, re-bake the current character + sourcebooks, download a fresh file to replace this one.
+    // The file is ~13MB (mostly baked sourcebook data), so the network download dominates — stream it with a progress bar.
+    updProg(0, "Downloading the latest version…");
+    const html = await fetchLatestApp((received, total) => {
+      const mb = (received/1048576).toFixed(1);
+      if(total && received <= total) updProg(Math.round(received/total*100), "Downloading the latest version… "+Math.round(received/total*100)+"%");
+      else updProg(null, "Downloading the latest version… "+mb+" MB");   // gzipped responses report no usable length → show MB streamed
+    });
+    if(!html){ updProgDone(); flashStatus("Couldn't download the latest version — check your connection and try again."); restore(); return; }
+    updProg(null, "Reading the new version…");
+    await new Promise(requestAnimationFrame);   // let the bar paint before the synchronous parse/bake
     let doc; try{ doc = new DOMParser().parseFromString(html, "text/html"); }catch(e){ doc = null; }
-    if(!(doc && doc.querySelector("#embedded-data"))){ flashStatus("That download didn't look like the sheet — update cancelled."); restore(); return; }
+    if(!(doc && doc.querySelector("#embedded-data"))){ updProgDone(); flashStatus("That download didn't look like the sheet — update cancelled."); restore(); return; }
     flushSave();
+    updProg(null, "Baking in your characters & sourcebooks…");
     const n = await bakeAllInto(doc.documentElement);                                                    // all your characters + sourcebooks travel into the new file
+    updProg(100, "Preparing your file…");
     const newVer = semverFromHtml(html) || versionFromHtml(html) || APP_VERSION;                          // name the file after the DOWNLOADED build (SemVer if it has one), not the one we're running
     download("<!DOCTYPE html>\n" + doc.documentElement.outerHTML, versionedFileName(newVer), "text/html");
+    updProgDone();
     flashStatus("Downloaded " + versionedFileName(newVer) + " (was " + appLabel() + ") with all "+n+" character"+(n===1?"":"s")+" baked in — replace your old file with this download.");
     restore();
   }
