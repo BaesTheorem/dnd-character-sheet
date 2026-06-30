@@ -2934,11 +2934,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v419 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v420 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.75.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.76.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2946,6 +2946,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v420", semver:"2.76.0", items:[
+      "The Action Economy summary now includes your equipped magic items. Any item you have equipped (and attuned, if it requires attunement) whose text describes an action, bonus action, or reaction is listed there, the same way your features are. The Eye of Dendallen, for example, now shows a Bonus Action (see through magical darkness) and an Action (command the familiar). Covers homebrew and regular magic items, and updates live when you equip or attune something."
+    ]},
     {v:"v419", semver:"2.75.0", items:[
       "Homebrew items can now add to your Senses box. A new “Senses” field in the item form (one line each, e.g. “Darkvision 60 ft.”) writes those lines into Senses when the item is equipped and — if it requires attunement — attuned, the same way race and feat senses (Observant, Alert, racial darkvision) already do. Built for the Eye of Dendallen’s darkvision."
     ]},
@@ -7885,10 +7888,10 @@
         + "" + scrollSig()   // spell scrolls in inventory surface as one-time-use casts in the granted table
         + "" + ["0","1","2"].map(k => ($("attune-"+k)||{}).value||"").join(",")   // attunement drives attune-gated granted spells + item Limited Features rows
         + "" + [...characterCasterKeys()].sort().join(",");   // caster classes drive which scrolls are castable (multiclassing opens up more lists)
-      if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); renderItemDefenses(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
+      if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); renderItemDefenses(); renderActionEconomy(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { let esp = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(cb && cb.checked && ELSEWHERE_ITEMS[nm]) esp += nm + "|"; }   // equipping a spellbook item changes the class spell list → re-render the spell sheets
       if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
-    { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); renderActionEconomy(); } }   // rebuild Feature cards (+ action-economy summary) only when the text changed
+    { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed (action economy is rebuilt in the lim-sig block, which also fires on equip/attune)
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
     renderWeaponFireButtons();   // per-weapon fire/throw button + live ammo badge in the Attacks table
     updateDeathSaves();   // show the death-save pips only at 0 HP
@@ -11490,31 +11493,49 @@
   }
   // MPMB-style "action" capability: sort the character's features by action-economy cost (Action / Bonus / Reaction),
   // derived from the feature prose. A quick combat reference, not exhaustive; weapon attacks stay in the Attacks table.
+  // Derive the action-economy cost of a prose blob → {action, bonus, reaction} flags. Shared by features AND equipped items.
+  function _actionCost(t){
+    t = String(t||"").toLowerCase();
+    const bonus = /\bbonus action\b/.test(t);
+    const reaction = /\breaction\b/.test(t);
+    // strip the bonus/reaction phrases (and known false-positive idioms) before testing for a plain Action cost
+    const tA = t.replace(/\bbonus action\b/g," ").replace(/\breaction\b/g," ").replace(/\baction surge\b/g," ").replace(/\bcourse of action\b/g," ");
+    // STRONG signal — the feature itself COSTS an action ("as an action", "use/spend your action").
+    const strong = /\bas an action\b|\bas a magic action\b|\b(use|using|spend|spending) (?:your |an |one )?action\b/.test(tA);
+    // WEAK/contextual signal — references TAKING a standard action ("take the Attack action", "an action on your turn").
+    // For a Bonus-action / Reaction feature this is the trigger or effect, NOT a separate Action cost — so it only counts
+    // toward Action when the feature isn't already a bonus/reaction.
+    const weak = /\btake the \w+ action\b|\baction on (?:your|each of your) turns?\b/.test(tA);
+    return {action: strong || (weak && !bonus && !reaction), bonus, reaction};
+  }
   function renderActionEconomy(){
     const card = $("action-econ-card"), wrap = $("action-econ");
     if(!card || !wrap) return;
     const buckets = {action:[], bonus:[], reaction:[]};
     const seen = {action:new Set(), bonus:new Set(), reaction:new Set()};
+    const place = (c, key, cost) => {   // drop a {title, body} card into whichever buckets its cost flags say (dedup per bucket by key)
+      if(cost.action && !seen.action.has(key)){ seen.action.add(key); buckets.action.push(c); }
+      if(cost.bonus && !seen.bonus.has(key)){ seen.bonus.add(key); buckets.bonus.push(c); }
+      if(cost.reaction && !seen.reaction.has(key)){ seen.reaction.add(key); buckets.reaction.push(c); }
+    };
     featureCards().forEach(c => {
       if(/^extra attack\b/i.test(c.title)) return;   // Extra Attack is already captured by the Attacks/Action box; don't also list it as a separate Action
-      const t = (c.title + " " + (c.body||"")).toLowerCase();
-      const isBonus = /\bbonus action\b/.test(t);
-      const isReaction = /\breaction\b/.test(t);
-      // strip the bonus/reaction phrases (and known false-positive idioms) before testing for a plain Action cost
-      const tA = t.replace(/\bbonus action\b/g," ").replace(/\breaction\b/g," ").replace(/\baction surge\b/g," ").replace(/\bcourse of action\b/g," ");
-      // STRONG signal — the feature itself COSTS an action ("as an action", "use/spend your action").
-      const strongAction = /\bas an action\b|\bas a magic action\b|\b(use|using|spend|spending) (?:your |an |one )?action\b/.test(tA);
-      // WEAK/contextual signal — references TAKING a standard action ("take the Attack action", "an action on your turn").
-      // For a Bonus-action / Reaction feature this is the trigger or the effect (Flurry of Blows: "after you take the
-      // Attack action … as a bonus action"; Patient Defense: "take the Dodge action as a bonus action"; Cunning Action),
-      // NOT a separate Action cost — so it only counts toward Action when the feature isn't already a bonus/reaction.
-      const weakAction = /\btake the \w+ action\b|\baction on (?:your|each of your) turns?\b/.test(tA);
-      const isAction = strongAction || (weakAction && !isBonus && !isReaction);
-      const key = c.title.toLowerCase();
-      if(isAction && !seen.action.has(key)){ seen.action.add(key); buckets.action.push(c); }
-      if(isBonus && !seen.bonus.has(key)){ seen.bonus.add(key); buckets.bonus.push(c); }
-      if(isReaction && !seen.reaction.has(key)){ seen.reaction.add(key); buckets.reaction.push(c); }
+      place(c, c.title.toLowerCase(), _actionCost(c.title + " " + (c.body||"")));
     });
+    // Equipped (+ attuned where required) magic items whose text describes an action/bonus/reaction — a quick combat
+    // reference (e.g. the Eye of Dendallen's bonus-action darkness sight + its action to command the familiar). Titled
+    // by item name; the tooltip carries the text. Covers homebrew AND baked items (allItemText merges both).
+    { const txt = (typeof allItemText === "function") && allItemText();
+      if(txt){ const aset = attuneSet(), attuned = attunedNames(), seenItem = new Set();
+        for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
+          const lc = nm.toLowerCase(); if(seenItem.has(lc)) continue;
+          const d = txt[nm]; if(!d) continue;
+          if(aset.has(lc) && !attuned.has(lc)) continue;   // needs attunement but isn't attuned → its powers are inactive
+          seenItem.add(lc);
+          place({title:nm, body:d.slice(0,300)}, "item:"+lc, _actionCost(nm + " " + d));
+        }
+      }
+    }
     const total = buckets.action.length + buckets.bonus.length + buckets.reaction.length;
     if(!total){ card.style.display = "none"; wrap.innerHTML = ""; return; }
     card.style.display = "";
