@@ -2728,11 +2728,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v357 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v358 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.41.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.41.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -7034,6 +7034,10 @@
       if(t.checked) P[t.dataset.sp] = true; else delete P[t.dataset.sp];
       if(e.type === "change") renderSpellTable(inst); }                // re-partition: a prepared spell leaves the collapsible, an unprepared one rejoins it
     if(t.id === "speed" && !hasOv("speed") && _ovEditing !== "speed"){ const v = t.value.match(/\d+/); speedBase = v ? parseInt(v[0],10) : null; }   // editing Speed sets the base (unless it's pinned or being pinned)
+    if(t.id === "hpcur" || t.id === "hpmax"){   // Current HP can never exceed Max (clamp on direct edit of either field; Heal/Damage already cap)
+      const maxRaw = ($("hpmax")||{}).value, max = maxRaw === "" ? null : num(maxRaw, null), cur = $("hpcur");
+      if(max != null && cur && cur.value !== "" && num(cur.value, 0) > max) cur.value = String(max);
+    }
     const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
     if(im){ const i = im[1];
       if(!t.value.trim()){ const q = $("invqty-"+i); if(q) q.value = ""; setRowUnit(i, null); const w = $("invwt-"+i); if(w) w.value = "";   // cleared → clear qty + weight
