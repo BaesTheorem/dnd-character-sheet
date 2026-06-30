@@ -359,9 +359,10 @@
   .exh-stages .st{display:flex; gap:8px; padding:1px 0}
   .exh-stages .st.cur{color:var(--ink); font-weight:600}
   .exh-stages .st .lv{font-weight:800; min-width:14px; text-align:right}
-  /* Advantage (green) / Disadvantage (red) d20 markers next to affected rolls */
-  .advmark{display:inline-flex; vertical-align:middle; margin-left:4px; line-height:0}
-  .advmark svg{display:block}
+  /* Advantage (green) / Disadvantage (red) d20 markers — standardized as a badge on the value box's upper-right corner */
+  .advmark-host{position:relative}
+  .advmark{position:absolute; top:-6px; right:-6px; z-index:5; line-height:0; pointer-events:auto}
+  .advmark svg{display:block; filter:drop-shadow(0 0 1.5px var(--card))}
   .topstats{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   .stat{background:var(--field); border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center}
   .stat .k{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
@@ -2830,11 +2831,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v370 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v371 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.47.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.48.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6399,11 +6400,12 @@
       + '<polygon points="10,1.5 17.5,6 17.5,14 10,18.5 2.5,14 2.5,6" fill="'+fill+'"/>'
       + '<text x="10" y="14.4" text-anchor="middle" font-size="11" font-weight="900" fill="#000" font-family="system-ui,Arial,sans-serif">'+ch+'</text></svg>';
   }
-  function setAdvMark(el, kind, title){
-    if(!el) return;
-    let m = el.querySelector(':scope > .advmark');
-    if(!kind){ if(m) m.remove(); return; }
-    if(!m){ m = document.createElement('span'); m.className = 'advmark'; el.appendChild(m); }
+  function setAdvMark(box, kind, title){   // box = the value's box; the badge pins to its upper-right corner
+    if(!box) return;
+    let m = box.querySelector(':scope > .advmark');
+    if(!kind){ if(m) m.remove(); box.classList.remove('advmark-host'); return; }
+    if(!m){ m = document.createElement('span'); m.className = 'advmark'; box.appendChild(m); }
+    box.classList.add('advmark-host');
     m.innerHTML = advIconSvg(kind);
     m.title = (kind==='adv' ? 'Advantage' : 'Disadvantage') + (title ? ' — ' + title : '');
   }
@@ -6473,12 +6475,14 @@
     if((a && d) || (!a && !d)) return null;
     return { kind: a ? 'adv' : 'disadv', note: notes.join('; ') };
   }
-  function renderConditionMarks(){   // green-A / red-D markers next to affected rolls (run LAST in compute, after values are written)
+  function renderConditionMarks(){   // green-A / red-D corner badges on affected value boxes (run LAST in compute, after values are written)
     const map = gatherAdvSources();
-    SKILLS.forEach(([k]) => { const tot = $("sktot-"+k), row = tot && tot.closest('.row'); const r = resolveAdv(map, ['check','skill:'+k]); setAdvMark(row ? row.querySelector('.rname') : null, r && r.kind, r && r.note); });
-    { const r = resolveAdv(map, ['check']); setAdvMark($("init"), r && r.kind, r && r.note); }
-    ABILITIES.forEach(([k]) => { const r = resolveAdv(map, ['save','save:'+k]); setAdvMark($("savetot-"+k), r && r.kind, r && r.note); });
-    { const r = resolveAdv(map, ['attack']); setAdvMark(document.querySelector('[data-csec="attacks"] .atk-top h2'), r && r.kind, r && r.note); }
+    SKILLS.forEach(([k]) => { const r = resolveAdv(map, ['check','skill:'+k]); setAdvMark($("sktot-"+k), r && r.kind, r && r.note); });   // the skill total box
+    { const r = resolveAdv(map, ['check']); const box = $("init") && $("init").closest('.stat'); setAdvMark(box, r && r.kind, r && r.note); }   // Initiative stat box
+    ABILITIES.forEach(([k]) => { const r = resolveAdv(map, ['save','save:'+k]); setAdvMark($("savetot-"+k), r && r.kind, r && r.note); });   // the save total box
+    { const r = resolveAdv(map, ['attack']);   // each filled attack row's Bonus cell
+      for(let i = 0; i < NATTACKS; i++){ const nm = $("atkname-"+i), bo = $("atkbonus-"+i), td = bo ? bo.closest('td') : null;
+        const filled = nm && (nm.value || "").trim(); setAdvMark(td, (filled && r) ? r.kind : null, r && r.note); } }
   }
   function compute(){
     // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
