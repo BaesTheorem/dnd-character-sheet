@@ -316,7 +316,7 @@
   .combat-top{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
   /* Combat card body: HP card on the left, AC/Initiative/Speed stacked beside it (wraps below on a narrow column) */
   .combat-row{display:flex; flex-wrap:wrap; gap:14px; align-items:stretch; margin-top:12px}
-  .combat-row .hpbox{margin-top:0}
+  .combat-row .hpbox{margin-top:0; flex:0 0 460px}   /* HP card stays fixed at its own size; only the other items flex */
   .combat-side{display:flex; flex-direction:column; gap:8px; flex:0 0 150px; min-width:140px}
   .combat-row .combat-top{display:flex; flex-direction:column; grid-template-columns:none; gap:8px; flex:1 1 auto}
   .combat-side .otherspeeds{margin-top:0}
@@ -2830,11 +2830,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v368 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v369 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.47.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.47.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
