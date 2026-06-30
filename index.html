@@ -2922,11 +2922,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v412 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v413 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.69.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.69.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2934,6 +2934,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v413", semver:"2.69.2", items:[
+      "Fixed: the Ancestral Weapons tab/sheet now shows reliably whenever you’ve built an Ancestral Weapon (in an enabled source), so an attuned weapon always has its dedicated sheet. Previously the tab depended on detecting an attunement change, which could leave the sheet hidden. Each weapon’s card still shows whether it’s attuned (powers active) or mundane (not attuned), and all of its bonuses still apply only while attuned."
+    ]},
     {v:"v412", semver:"2.69.1", items:[
       "Settings → Source books: the delete “✕” next to homebrew sources now matches the one next to every other source (it was unstyled before). Removed the redundant “Export…” button on the Ancestral Weapons row — Ancestral Weapons live in your homebrew, so export them from the Homebrew Studio’s per-source “Export JSON…” instead."
     ]},
@@ -5480,7 +5483,7 @@
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
     const hasCompanion = (companions||[]).length > 0;
-    const hasAw = awEnabled && (typeof attunedNames==="function") && (typeof hbEnabledItem==="function") && [...attunedNames()].some(lc => { const it = hbEnabledItem(lc); return !!(it && it.aw); });   // the AW tab shows once an Ancestral Weapon is attuned (and the module is enabled)
+    const hasAw = awEnabled && (typeof awAllItems === "function") && awAllItems().length > 0;   // the AW tab/sheet shows whenever you've built an Ancestral Weapon in an enabled source (each card shows its own attuned-vs-mundane state; mechanics still gate on attunement). Was gated on live attunement-change detection, which was fragile and hid the dedicated sheet for built-but-unattuned heirlooms.
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
       const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "companion" && !hasCompanion) || (key === "aw" && !hasAw);
