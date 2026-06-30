@@ -314,6 +314,12 @@
 
   /* combat */
   .combat-top{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+  /* Combat card body: HP card on the left, AC/Initiative/Speed stacked beside it (wraps below on a narrow column) */
+  .combat-row{display:flex; flex-wrap:wrap; gap:14px; align-items:stretch; margin-top:12px}
+  .combat-row .hpbox{margin-top:0}
+  .combat-side{display:flex; flex-direction:column; gap:8px; flex:0 0 150px; min-width:140px}
+  .combat-row .combat-top{display:flex; flex-direction:column; grid-template-columns:none; gap:8px; flex:1 1 auto}
+  .combat-side .otherspeeds{margin-top:0}
   .topstats{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   .stat{background:var(--field); border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center}
   .stat .k{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
@@ -1617,8 +1623,9 @@
     /* Header band: a compact ident on the left, with the Abilities strip stacked over the
        combat/prof cluster on the right — so the right side is filled instead of leaving a big gap. */
     body.ucs-layout #ucs-topbar{ grid-area:top; display:grid; gap:12px; align-content:start;
-      grid-template-columns:minmax(0,1fr);
-      grid-template-areas:"ident" "abilities" "combat"; }
+      grid-template-columns:auto minmax(240px,1fr);
+      grid-template-areas:"ident ident" "abilities abilities" "combat defenses"; }
+    body.ucs-layout #ucs-topbar [data-csec="defenses"]{ grid-area:defenses; align-self:stretch; }
     body.ucs-layout #ucs-topbar > .card{ margin:0; }
     body.ucs-layout #ucs-topbar .ucs-ident{ grid-area:ident; min-width:0; align-self:start; }
     body.ucs-layout #ucs-topbar .ucs-ident .meta-grid{ grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px 14px; margin-top:12px; }
@@ -2103,12 +2110,7 @@
             </div>
             <div class="card" data-csec="combat" data-open>
               <h2>Combat</h2>
-              <div class="combat-top">
-                <div class="stat"><div class="k">Armor Class</div><div class="calc" id="ac-calc"></div></div>
-                <div class="stat"><div class="k">Initiative</div><div class="calc" id="init"></div></div>
-                <div class="stat"><div class="k">Speed</div><input id="speed" title="Effective walking speed (encumbrance / Unarmored Movement applied). Click to edit your base speed."></div>
-              </div>
-              <div id="otherspeeds" class="otherspeeds" style="display:none" title="Other movement modes from your race. Encumbrance and heavy-armor penalties apply; Monk Unarmored Movement is walking only."></div>
+              <div class="combat-row">
               <div class="hpbox">
                 <div class="hp-adjust noprint">
                   <button type="button" class="hp-btn hp-heal" id="hp-heal" title="Add this much to Current HP (capped at Max)">Heal</button>
@@ -2149,10 +2151,19 @@
                   <div class="hp-foot">Hit Points</div>
                 </div>
               </div>
+              <div class="combat-side">
+                <div class="combat-top">
+                  <div class="stat"><div class="k">Armor Class</div><div class="calc" id="ac-calc"></div></div>
+                  <div class="stat"><div class="k">Initiative</div><div class="calc" id="init"></div></div>
+                  <div class="stat"><div class="k">Speed</div><input id="speed" title="Effective walking speed (encumbrance / Unarmored Movement applied). Click to edit your base speed."></div>
+                </div>
+                <div id="otherspeeds" class="otherspeeds" style="display:none" title="Other movement modes from your race. Encumbrance and heavy-armor penalties apply; Monk Unarmored Movement is walking only."></div>
+              </div>
+              </div>
             </div>
           </div>
           <div class="card grow defenses-card" data-csec="defenses">
-            <h2>Resistances / Immunities / Defenses</h2>
+            <h2>Defenses</h2>
             <textarea data-save="" id="defnotes" placeholder="Damage resistances/immunities/vulnerabilities, condition immunities, and other defenses…" style="height: 286px;"></textarea><div class="ta-print"></div>
             <div class="def-items" id="defenses-items"></div>
           </div>
@@ -2773,11 +2784,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v364 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v365 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.44.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.45.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -12052,9 +12063,10 @@
       var strip=document.createElement('div'); strip.className='ucs-abilstrip'; sc['ucs-topbar'].appendChild(strip);   // abilities + Prof/Inspiration share one strip
       relocate(findCard('abilities'), strip, 'abilities');
       relocate(findCard('topstats'), strip, 'topstats');
-      relocate(findCard('combat'), sc['ucs-topbar'], 'combat');   // Combat takes the full-width row beneath the strip
+      relocate(findCard('combat'), sc['ucs-topbar'], 'combat');   // Combat (HP + AC/Init/Speed stack) shares the header row with Defenses
+      relocate(findCard('defenses'), sc['ucs-topbar'], 'defenses');   // Defenses sits to the right of Combat's AC/Init/Speed stack
       ['sources-flag','asi-flag','decisions-flag'].forEach(function(id){ var f=el(id); if(f){ f.classList.add('ucs-flag-moved'); sc['ucs-topbar'].appendChild(f); } });
-      ['saves','senses','proficiencies','defenses'].forEach(function(k){ relocate(findCard(k), sc['ucs-rail'], k); });   // Hit Dice card retired — its tracking moved into Short/Long Rest
+      ['saves','senses','proficiencies'].forEach(function(k){ relocate(findCard(k), sc['ucs-rail'], k); });   // Hit Dice card retired — its tracking moved into Short/Long Rest
       relocate(findCard('skills'), sc['ucs-skills'], 'skills');
       relocate(findCard('attacks'), sc['ucs-main'], 'attacks');
       relocate(findCard('actionecon'), sc['ucs-main'], 'actionecon');
