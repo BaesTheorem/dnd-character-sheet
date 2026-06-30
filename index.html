@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v387 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v388 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.54.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.54.5";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v388", semver:"2.54.5", items:[
+      "Fixed a subrace import bug where a subrace that already lists its parent's content got it added a second time — e.g. a Warforged subrace showed \"Resistance: poison, poison\" and its racial traits were duplicated. Inherited resistances, traits, and spell grants are now deduplicated when a subrace is resolved. (Re-import the sourcebook, or re-create the character, to pick up the clean data; an already-saved sheet may need the doubled Defenses line corrected by hand.)"
+    ]},
     {v:"v387", semver:"2.54.4", items:[
       "Picking Warforged no longer drops \"Disadv. on Dexterity (Stealth) checks\" into your Defenses notes. That penalty belongs only to the Heavy Plating mode of Integrated Protection, so it's now applied live as a Stealth disadvantage when you actually select Heavy Plating, instead of being written into Defenses up front. (If an existing Warforged already has that stray line, just delete it from the Defenses box.)"
     ]},
@@ -4490,16 +4493,16 @@
       if(!(p.traits||[]).length) return;
       const have = new Set((r.traits||[]).map(tname));
       if((p.traits||[]).every(t => have.has(tname(t)))) return;     // parent traits already present → already merged (no-op)
-      r.traits = (p.traits||[]).concat(r.traits||[]);               // parent traits first, then the subrace's own
+      r.traits = (p.traits||[]).filter(t => !have.has(tname(t))).concat(r.traits||[]);   // parent traits the subrace LACKS, first, then the subrace's own — skip ones it already lists (some imported subraces redundantly carry the full inherited set, which would otherwise duplicate every shared trait)
       const haveAbil = new Set((r.ability||[]).flatMap(o => Object.keys(o||{})));
       (p.ability||[]).forEach(o => { if(!Object.keys(o||{}).some(k => haveAbil.has(k))) (r.ability = r.ability||[]).push(o); });   // add parent ability bonuses the subrace doesn't already grant (no double-count)
       r.speed = p.speed;                                            // delta-only subraces captured a wrong default speed → take the parent's
       if(!r.speedExtra) r.speedExtra = p.speedExtra || "";
       r.prof = etMergeProf(p.prof, r.prof);                         // parent languages/proficiencies + the subrace's
-      r.resist = (p.resist||[]).concat(r.resist||[]);
+      r.resist = [...new Set((p.resist||[]).concat(r.resist||[]))];   // dedup — a subrace that already lists the parent's resistance must not show it twice ("poison, poison")
       r.darkvision = Math.max(p.darkvision||0, r.darkvision||0);
       r.langChoose = (p.langChoose||0) + (r.langChoose||0);
-      r.spells = (p.spells||[]).concat(r.spells||[]);
+      r.spells = [...new Set((p.spells||[]).concat(r.spells||[]))];   // dedup racial spell grants the same way
       if((p.expanded||[]).length || (r.expanded||[]).length) r.expanded = (p.expanded||[]).concat(r.expanded||[]);   // keep the subrace's own expanded list (e.g. dragonmark spells) + any from the parent
       if(p.featGrants) r.featGrants = (r.featGrants||0) + p.featGrants;
       if(!r.flavor || !r.flavor.length) r.flavor = p.flavor || [];
