@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v377 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v378 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.51.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.51.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v378", semver:"2.51.3", items:[
+      "The Shield Guardian Amulet (and any other accessory that merely has \"shield\" in its name, like a Ring of Shield) no longer registers as a wearable shield: it stops offering a shield Equip checkbox and no longer adds shield AC. Real shields, including ones named \"Shield of ...\", are unaffected."
+    ]},
     {v:"v377", semver:"2.51.2", items:[
       "Defenses auto-scanner no longer mistakes a feature's condition for a granted advantage. Features like Sneak Attack that read \"...if you have advantage on the attack roll\" were wrongly adding a stray \"Adv. on the attacks\" line to your Defenses box; those conditional phrasings are now skipped, and any legitimate advantage line that did slip through reads more cleanly (no leftover \"the\")."
     ]},
@@ -8852,6 +8855,7 @@
   function shieldBonus(name){   // any item that reads as a shield grants +2 AC (plus any magic "+N" in the name); 0 if not a shield. So "Wooden Shield", "Sentinel Shield", "+1 Shield" all equip, not just the literal "Shield".
     const lc = String(name||"").trim().toLowerCase();
     if(/\bscroll\b/.test(lc)) return 0;   // "Scroll of Shield" casts the spell — it's not a physical shield
+    if(/\b(?:amulet|brooch|periapt|pendant|necklace|talisman|medallion|ring|rod|wand|staff|cloak|mantle|robe|boots|gauntlets|gloves|bracers|helm|circlet|crown|belt|girdle|figurine|horn|tome|manual|potion|oil)\b/.test(lc)) return 0;   // an accessory/wondrous item that merely references a shield ("Shield Guardian Amulet") is not a physical shield. Every real shield in the data is type "S" and none carry these slot nouns; real shields like "Shield of Missile Attraction" are unaffected.
     if(!/\bshield\b/.test(lc)) return 0;
     let b = 2; const m = lc.match(/\+\s*(\d+)/); if(m) b += parseInt(m[1], 10);   // "+1 Shield" → 2 + 1 = +3
     return b;
