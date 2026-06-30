@@ -411,7 +411,7 @@
   .hp-delta::-webkit-inner-spin-button, .hp-delta::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:0}
   .hp-delta:hover::-webkit-inner-spin-button, .hp-delta:hover::-webkit-outer-spin-button,
   .hp-delta:focus::-webkit-inner-spin-button, .hp-delta:focus::-webkit-outer-spin-button{opacity:1}
-  .hp-readout{flex:1 1 auto; position:relative; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px; padding-bottom:14px}
+  .hp-readout{flex:1 1 auto; position:relative; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px}
   .hp-vals{display:flex; align-items:flex-end; justify-content:center; gap:8px; width:100%}
   .hp-col{display:flex; flex-direction:column; align-items:center; gap:1px; min-width:0}
   .hp-lbl{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
@@ -444,7 +444,8 @@
     border-radius:6px; width:100%; appearance:auto; -moz-appearance:number-input}
   .hp-pop-in::-webkit-inner-spin-button, .hp-pop-in::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:1}
   .hp-slash{font-size:26px; font-weight:300; line-height:1; color:var(--muted); padding-bottom:2px}
-  .hp-foot{position:absolute; left:0; right:0; bottom:0; text-align:center; margin:0; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+  /* "Hit Points" header — sits above-left of the HP box, matching the Defenses/Conditions subsection headers */
+  .hp-head{font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0}
   .rest-check{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; margin-top:6px}
   .rest-check input{width:auto; margin:0}
   body.dark .hp-delta{background:var(--field) !important}
@@ -2167,6 +2168,7 @@
               <h2>Combat</h2>
               <div class="combat-row">
               <div class="combat-left">
+              <h3 class="hp-head">Hit Points</h3>
               <div class="hpbox">
                 <div class="hp-adjust noprint">
                   <button type="button" class="hp-btn hp-heal" id="hp-heal" title="Add this much to Current HP (capped at Max)">Heal</button>
@@ -2204,7 +2206,6 @@
                       <div class="grp"><span class="k">Failures</span><span class="pips" id="ds-fail"><input data-save="" type="checkbox" id="dsf-0"><input data-save="" type="checkbox" id="dsf-1"><input data-save="" type="checkbox" id="dsf-2"></span></div>
                     </div>
                   </div>
-                  <div class="hp-foot">Hit Points</div>
                 </div>
               </div>
               <div class="combat-top">
@@ -2854,11 +2855,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v373 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v374 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.50.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.51.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
