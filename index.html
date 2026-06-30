@@ -2674,11 +2674,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v342 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v343 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.37.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.37.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2686,6 +2686,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v343", semver:"2.37.2", items:[
+      "Variant Human and Custom Lineage feats now prompt for their spell during character creation. When you pick a spell-granting feat (Fey Touched, Shadow Touched, and the like) right in the Race step, you now get the spell picker there too, not just the ability picker. The chosen spell lands in your Granted Spells.",
+      "Fixed Variant Human granting +1 to all six abilities. It now correctly gives +1 to two abilities of your choice. (The base Human's flat bonus was leaking onto the variant.)"
+    ]},
     {v:"v342", semver:"2.37.1", items:[
       "Fixed the “Feat” column going missing from the Ability Scores step. The column for half-feat increases (Fey Touched, Resilient, and the like) was there in the header but its inputs were knocked out of alignment, so the whole table looked broken and the Feat column appeared to vanish. The grid now has the right number of columns and the Feat column shows and lines up again."
     ]},
@@ -4229,6 +4233,21 @@
       if((p.expanded||[]).length || (r.expanded||[]).length) r.expanded = (p.expanded||[]).concat(r.expanded||[]);   // keep the subrace's own expanded list (e.g. dragonmark spells) + any from the parent
       if(p.featGrants) r.featGrants = (r.featGrants||0) + p.featGrants;
       if(!r.flavor || !r.flavor.length) r.flavor = p.flavor || [];
+    });
+    // Variant Human (and Custom Lineage-style "give up your fixed bonuses for a choice" races) must NOT also carry
+    // the base race's flat +1-to-every-score — the subrace merge (here and in build-data.py) concatenates both, so
+    // Human (Variant) ends up with "+1 to all six" AND "+1 to two of your choice". If a race offers a `choose`
+    // ability bonus AND a fixed block that bumps all six scores by the same amount, that fixed block is the leaked
+    // base bonus, not a real grant — drop it. (Idempotent: safe to run on already-cleaned data.)
+    d.races.forEach(r => {
+      const ab = r.ability;
+      if(!Array.isArray(ab) || ab.length < 2 || !ab.some(b => b && b.choose)) return;
+      r.ability = ab.filter(b => {
+        if(!b || b.choose) return true;
+        const keys = Object.keys(b).filter(k => ABKEYS.includes(k));
+        const allSixEqual = keys.length === ABKEYS.length && keys.every(k => b[k] === b[keys[0]]);
+        return !allSixEqual;
+      });
     });
   }
   function etBgEquipment(b){                          // starting items + gold a background provides
@@ -9186,6 +9205,21 @@
     const lbl = (f.saves && f.saves.choose) ? "+1 &amp; save in" : "+1 to";
     box.innerHTML = `<label class="lbl" style="margin-top:6px">${lbl}</label><select class="rc-featabil" data-i="${i}">${opts}</select>`;
   }
+  // Spell picker for a spell-granting race feat (Fey Touched, Shadow Touched, …) taken via Variant Human / Custom
+  // Lineage. Reuses the ASI wizard's featSpellPicker, re-classed to rc-* so the Race-step handler owns its changes.
+  function renderRcFeatSpell(i){
+    const box = document.querySelector('.rc-feat-spell[data-i="'+i+'"]'); if(!box) return;
+    const checked = document.querySelector('input[name="rc-feat-'+i+'"]:checked');
+    const featName = checked && checked.value;
+    if(!featName || !FEAT_SPELLS[featName]){ box.innerHTML = ""; return; }
+    const slot = {   // a transient slot mirroring the picks currently in this box, so a re-render keeps them
+      feat: featName,
+      featVariant: (box.querySelector('.rc-featvariant')||{}).value || "",
+      featSpell: (box.querySelector('.rc-featspell:not([data-pick])')||{}).value || "",
+      featSpells: [...box.querySelectorAll('.rc-featspell[data-pick]')].reduce((a,s)=>{ a[+s.dataset.pick]=s.value; return a; }, []),
+    };
+    box.innerHTML = featSpellPicker(slot, i).replace(/asi-featspell/g,'rc-featspell').replace(/asi-featvariant/g,'rc-featvariant');
+  }
   function renderRaceChoices(){   // skill-or-darkvision (Custom Lineage) + language-of-your-choice pickers on the Race step
     const box = $("wiz-race-choices"); if(!box) return;
     const r = DATA && findBy(DATA.races, $("wiz-race").value);
@@ -9279,7 +9313,7 @@
             + `<div class="feat-list">` + feats.map(f =>
               `<div class="pick-item"><input type="radio" name="rc-feat-${i}" class="rc-feat-radio" data-i="${i}" value="${esc(f.name)}">`
               + `<details class="pick-det"><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("")
-            + `</div><div class="rc-feat-abil" data-i="${i}"></div></div>`;
+            + `</div><div class="rc-feat-abil" data-i="${i}"></div><div class="rc-feat-spell" data-i="${i}"></div></div>`;
         } else {
           html += `<div class="wiz-racechoice"><label class="lbl">Feat — your choice</label><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
         }
@@ -9318,8 +9352,9 @@
       asiChoices.filter(s => s.source === "race").forEach((slot,i) => {
         if(slot.feat){ const radio = [...box.querySelectorAll('input[name="rc-feat-'+i+'"]')].find(r => r.value === slot.feat);
           if(radio){ radio.checked = true; const d = radio.nextElementSibling; if(d && d.tagName === "DETAILS") d.open = true; } }
-        renderRcFeatAbil(i);
+        renderRcFeatAbil(i); renderRcFeatSpell(i);
         const sel = box.querySelector('.rc-featabil[data-i="'+i+'"]'); if(sel && slot.featAbil) sel.value = slot.featAbil;
+        applyRcFeatSpellPicks(i, {spell:slot.featSpell, spells:slot.featSpells, variant:slot.featVariant});
       });
     }
     restoreRaceDraft();   // fresh build → re-apply any in-progress race picks from a prior visit to this step
@@ -9348,6 +9383,10 @@
       lang: [...box.querySelectorAll(".rc-lang")].map(s => s.value),
       feats: [...box.querySelectorAll(".rc-feat-radio")].reduce((a, r) => { if(r.checked) a[+r.dataset.i] = r.value; return a; }, []),
       featAbil: [...box.querySelectorAll(".rc-featabil")].reduce((a, s) => { a[+s.dataset.i] = s.value; return a; }, []),
+      featSpell: [...box.querySelectorAll(".rc-feat-spell")].reduce((a, b) => { a[+b.dataset.i] = {   // spell-granting race feat picks, so they survive step navigation
+        spell: (b.querySelector('.rc-featspell:not([data-pick])')||{}).value || "",
+        spells: [...b.querySelectorAll('.rc-featspell[data-pick]')].reduce((x,s)=>{ x[+s.dataset.pick]=s.value; return x; }, []),
+        variant: (b.querySelector('.rc-featvariant')||{}).value || "" }; return a; }, []),
       ancestry: (box.querySelector(".rc-ancestry") || {}).value || "",
     };
   }
@@ -9360,8 +9399,18 @@
     if(d.ancestry){ const a = box.querySelector(".rc-ancestry"); if(a) a.value = d.ancestry; }
     (d.feats || []).forEach((val, i) => { if(!val) return;
       const radio = [...box.querySelectorAll('input[name="rc-feat-' + i + '"]')].find(r => r.value === val);
-      if(radio){ radio.checked = true; const dt = radio.nextElementSibling; if(dt && dt.tagName === "DETAILS") dt.open = true; renderRcFeatAbil(i); } });
+      if(radio){ radio.checked = true; const dt = radio.nextElementSibling; if(dt && dt.tagName === "DETAILS") dt.open = true; renderRcFeatAbil(i); renderRcFeatSpell(i); } });
     (d.featAbil || []).forEach((v, i) => { const sel = box.querySelector('.rc-featabil[data-i="' + i + '"]'); if(sel && v != null) sel.value = v; });
+    (d.featSpell || []).forEach((p, i) => { if(p) applyRcFeatSpellPicks(i, p); });
+  }
+  // Push saved spell-feat picks ({spell, spells[], variant}) back into a race feat's spell picker, re-rendering after
+  // the variant so its spell options match. Shared by draft-restore and edit-reopen.
+  function applyRcFeatSpellPicks(i, p){
+    const box = $("wiz-race-choices"); if(!box || !p) return;
+    let sb = box.querySelector('.rc-feat-spell[data-i="' + i + '"]'); if(!sb) return;
+    if(p.variant){ const v = sb.querySelector('.rc-featvariant'); if(v){ v.value = p.variant; renderRcFeatSpell(i); sb = box.querySelector('.rc-feat-spell[data-i="' + i + '"]'); } }
+    if(p.spell){ const s = sb.querySelector('.rc-featspell:not([data-pick])'); if(s) s.value = p.spell; }
+    (p.spells || []).forEach((sv, pi) => { const s = sb.querySelector('.rc-featspell[data-pick="' + pi + '"]'); if(s && sv != null) s.value = sv; });
   }
   function snapSkillsDraft(){ wizDraft.skills = { sig: wizSkillSig(), vals: [...document.querySelectorAll(".wiz-skill-cb")].reduce((a, cb) => { a[cb.value] = cb.checked; return a; }, {}) }; }
   function restoreSkillsDraft(){ const d = wizDraft.skills; if(!d || d.sig !== wizSkillSig()) return;
@@ -9778,10 +9827,14 @@
         skill: opts.skill || "", ancestry };
       applyRace(race, opts);   // after charRaceChoices is set, so the breath-weapon row can read the chosen ancestry
       syncAsiSlots();                                                              // race feats become ASI slots now that the race is on the sheet
-      const rcFeatPicks = []; document.querySelectorAll(".rc-feat-abil").forEach(ab => { const i = +ab.dataset.i;   // apply the Race step's feat picks (feat + any half-feat ability) to those slots
+      const rcFeatPicks = []; document.querySelectorAll(".rc-feat-abil").forEach(ab => { const i = +ab.dataset.i;   // apply the Race step's feat picks (feat + any half-feat ability + chosen spell) to those slots
+        const sb = document.querySelector('.rc-feat-spell[data-i="'+i+'"]');
         rcFeatPicks[i] = { feat: (document.querySelector('input[name="rc-feat-'+i+'"]:checked')||{}).value || "",
-          featAbil: (document.querySelector('.rc-featabil[data-i="'+i+'"]')||{}).value || "" }; });
-      let _rfi = 0; asiChoices.forEach(s => { if(s.source === "race"){ const p = rcFeatPicks[_rfi++]; if(p){ if(p.feat) s.feat = p.feat; s.featAbil = p.featAbil; } } });
+          featAbil: (document.querySelector('.rc-featabil[data-i="'+i+'"]')||{}).value || "",
+          featVariant: sb ? (sb.querySelector('.rc-featvariant')||{}).value || "" : "",
+          featSpell: sb ? (sb.querySelector('.rc-featspell:not([data-pick])')||{}).value || "" : "",
+          featSpells: sb ? [...sb.querySelectorAll('.rc-featspell[data-pick]')].reduce((x,s)=>{ x[+s.dataset.pick]=s.value; return x; }, []) : [] }; });
+      let _rfi = 0; asiChoices.forEach(s => { if(s.source === "race"){ const p = rcFeatPicks[_rfi++]; if(p){ if(p.feat) s.feat = p.feat; s.featAbil = p.featAbil; s.featSpell = p.featSpell; s.featSpells = p.featSpells; s.featVariant = p.featVariant; } } });
     }
     const _featBefore = new Set(_splitBlocks($("features").value));              // racial traits stay in the baseline (applyRace self-guards them); capture only class/subclass/bg feature blocks
     if(list.length){
@@ -10682,17 +10735,23 @@
     $("wiz-dots").addEventListener("click", e=>{ const b = e.target.closest(".wiz-dot"); if(b){ wizStep = +b.dataset.goto; renderWizStep(); } });   // jump straight to any section
     $("wizard").addEventListener("change", e=>{
       if(e.target.matches(".rc-lang, .bg-lang, .cbg-tl")) refreshLangPickers();   // picking a language greys it in the other pickers
-      if(e.target.matches('.rc-abil, #rc-skill, input[name="rc-skilldv"], .rc-prof, .rc-lang, .rc-feat-radio, .rc-featabil')) snapRaceDraft();   // remember race sub-picks across step navigation
+      if(e.target.matches('.rc-abil, #rc-skill, input[name="rc-skilldv"], .rc-prof, .rc-lang, .rc-feat-radio, .rc-featabil, .rc-featspell, .rc-featvariant')) snapRaceDraft();   // remember race sub-picks across step navigation
       if(e.target.matches(".wiz-skill-cb")) snapSkillsDraft();
       if(e.target.matches(".equip-pick, .equip-wpick")) snapEquipDraft();
     });
     $("wiz-race").addEventListener("change", raceHint);
     // Multiclass builder (step 2): class list focus, add, level edit, remove, and inline pending-decision pickers
     $("wiz-race-list").addEventListener("click", e => { const b = e.target.closest(".wiz-rce"); if(b){ $("wiz-race").value = b.dataset.race; $("wiz-race").dispatchEvent(new Event("change", {bubbles:true})); } });   // race buttons mirror the class list
-    $("wiz-race-choices").addEventListener("change", e => { const r = e.target.closest(".rc-feat-radio"); if(!r) return;   // race feat picked → open its description (close the rest) and show any half-feat ability picker, like the ASI wizard
-      const i = +r.dataset.i;
-      document.querySelectorAll('.rc-feat-radio[data-i="'+i+'"]').forEach(rr => { const d = rr.nextElementSibling; if(d && d.tagName === "DETAILS") d.open = (rr === r); });
-      renderRcFeatAbil(i); });
+    $("wiz-race-choices").addEventListener("change", e => {
+      const r = e.target.closest(".rc-feat-radio");
+      if(r){   // race feat picked → open its description (close the rest) and show any half-feat ability + spell pickers, like the ASI wizard
+        const i = +r.dataset.i;
+        document.querySelectorAll('.rc-feat-radio[data-i="'+i+'"]').forEach(rr => { const d = rr.nextElementSibling; if(d && d.tagName === "DETAILS") d.open = (rr === r); });
+        renderRcFeatAbil(i); renderRcFeatSpell(i); return;
+      }
+      const v = e.target.closest(".rc-featvariant");   // chose the class/college for a multi-pick spell feat → refresh its spell options
+      if(v) renderRcFeatSpell(+v.dataset.i);
+    });
     $("wiz-class-list").addEventListener("click", e => { const b = e.target.closest(".wiz-cls"); if(b){ wizFocus = b.dataset.cls; renderBuilder(); } });
     $("wiz-class-detail").addEventListener("click", e => { const b = e.target.closest(".wiz-add-class"); if(b) addClassToBuild(b.dataset.cls); });
     $("wiz-chosen").addEventListener("input", e => { const t = e.target.closest(".wiz-cls-lvl"); if(!t) return;
