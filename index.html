@@ -1358,6 +1358,20 @@
   html.mobile input[type=checkbox],html.mobile input[type=radio]{ width:20px; height:20px; }
   html.mobile .stepper .step{ width:30px; height:38px; font-size:18px; }
 
+  /* --- HP widget: stack it on a phone --- The desktop box is two columns
+     (Heal/Damage controls | Current/Max/Temp digits). In the narrow combat card
+     that starves the readout: three 3-digit values (e.g. 152 / 152 + 18 temp)
+     clip against each other and the slash. Stack instead — the big numbers take
+     the full width up top, Heal / amount / Damage become a control row beneath —
+     and widen the digit fields so 3 digits never clip. */
+  html.mobile .hpbox{ flex-direction:column; gap:11px; max-width:none; }
+  html.mobile .hp-readout{ order:0; width:100%; }
+  html.mobile .hp-vals{ gap:10px; }
+  html.mobile .hp-big{ width:4.3ch; }   /* room for a 3-digit value at the 30px readout size */
+  html.mobile .hp-adjust{ order:1; flex:0 0 auto; flex-direction:row; align-items:center; gap:8px; width:100%; }
+  html.mobile .hp-adjust .hp-btn{ flex:0 0 auto; padding:9px 14px; font-size:11px; }
+  html.mobile .hp-adjust .hp-delta{ flex:1 1 auto; min-width:0; }
+
   /* --- Modals: near full-screen, with their own internal scroll --- */
   html.mobile .modal{ padding:0; align-items:flex-start; }   /* flex-start (not stretch): a stretched panel gets a fixed viewport-height box, so tall wizard content overflows past the white background. min-height:100svh below still fills the screen for short content. */
   html.mobile .modal-panel,
@@ -2934,11 +2948,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v422 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v423 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.78.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.78.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2946,6 +2960,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v423", semver:"2.78.1", items:[
+      "Mobile: the Hit Points box now fits properly on a narrow screen. It stacks instead of squeezing side by side, so the big Current / Max / Temp numbers sit full-width across the top (3-digit hit points no longer clip into each other) with Heal, the amount field, and Damage in a row beneath."
+    ]},
     {v:"v422", semver:"2.78.0", items:[
       "Mobile view overhaul. On a phone, the sheet now uses a layout built for a narrow screen instead of squeezing the wide desktop dashboard into a tall column. The Core page shows full-width ability rows, a readable Hit Points and Combat card, and collapsible sections (Saving Throws, Skills, Attacks, Senses, and more) you can tap to open and close, with Abilities and Combat open by default. Toggling the Mobile button on a desktop switches to this layout too.",
       "Fixed Search on the default layout. Searching your character now finds everything on the Core page (name, class, abilities, saving throws, skills, attacks, hit points, senses, proficiencies), which the search box was missing before. Works in both the desktop and mobile layouts."
