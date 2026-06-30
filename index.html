@@ -1637,7 +1637,7 @@
     <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
     <button class="btn ghost" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
-    <input type="file" id="file-input" accept="application/json,.json" style="display:none">
+    <input type="file" id="file-input" accept="application/json,.json" multiple style="display:none">
     <input type="file" id="import-chars-input" accept=".html,.htm,text/html,application/json,.json" style="display:none">
   </div>
 
@@ -2549,9 +2549,9 @@
             <label class="lbl" style="display:block; margin:10px 0 4px" for="server-url">5etools server</label>
             <input id="server-url" value="http://localhost:5050" spellcheck="false">
             <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
-            <button class="btn" id="btn-import" title="Load a previously saved source-data.json file">Import file…</button>
+            <button class="btn" id="btn-import" title="Add one or more saved source-data.json files as sourcebooks — merged into what's already loaded, never replacing it">Import files…</button>
             <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
-            <p class="wiz-hint">A browser can't overwrite the open file, so loaded books live in this browser until you bake them into a file. <strong>Save</strong> (top bar) bakes them in alongside your character; <strong>Export a blank sheet</strong> (Settings → General) bakes them into a blank copy with no character. Keep either to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
+            <p class="wiz-hint"><strong>Import files…</strong> adds one or more <code>source-data.json</code> files as extra sourcebooks, merged into whatever's already loaded (it never replaces what you have — same as loading a book from the server). A browser can't overwrite the open file, so loaded books live in this browser until you bake them into a file. <strong>Save</strong> (top bar) bakes them in alongside your character; <strong>Export a blank sheet</strong> (Settings → General) bakes them into a blank copy with no character. Keep either to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
           </section>
         </div>
       </div>
@@ -2641,11 +2641,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v337 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v338 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.34.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.35.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2653,6 +2653,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v338", semver:"2.35.0", items:[
+      "Importing a source-data.json file now ADDS its books to what you already have instead of replacing everything. Settings → Source books → Import files… also takes more than one file at once, and each one merges in just like loading a book from your 5etools server. (Books brought in by an import can't be individually unchecked until you reload from the server, but your already-loaded books keep that.)"
+    ]},
     {v:"v337", semver:"2.34.2", items:[
       "Fixed a blank sheet when opening a downloaded copy. If you saved the file while the landscape (Universal) layout was on — which is the default — reopening it could show just the toolbar with an empty body. The layout now rebuilds itself correctly on open. (You'll need to download a fresh copy once to get the fix into your offline file.)"
     ]},
@@ -4822,6 +4825,21 @@
     if(bookName && !into._meta.books.includes(bookName)) into._meta.books.push(bookName);
     into._meta.dataVersion = DATA_VERSION;   // stamp the extractor version so stale localStorage data can be detected after an app update
     resolveSubraces(into);   // backfill cross-book subraces now that this book's parent races may be present (idempotent; load-order-safe)
+  }
+  // Fold a fully-merged source-data.json (build-data.py output, or another sheet's baked sources) into the
+  // live DATA as ADDITIONAL sourcebooks — same additive semantics as loading a book from the server, never a
+  // replace. Reuses mergeBook for the category merge, then records the imported book name(s) so they appear in
+  // the loaded-books list. An imported file is merged-only (carries no per-book raw), so the books it brings
+  // can't be individually filtered until a server reload — but everything already loaded keeps its raw/filtering.
+  function mergeImportedFile(d, fileName){
+    if(!DATA) DATA = {_meta:{books:[]}};
+    DATA._meta = DATA._meta || {};
+    DATA._meta.books = DATA._meta.books || (DATA._meta.book ? [DATA._meta.book] : []);   // normalize singular → plural
+    const m = d._meta || {};   // names the file declares: a plural list, else its singular book, else the file name
+    let names = (Array.isArray(m.books) && m.books.length) ? m.books.slice() : (m.book ? [m.book] : []);
+    if(!names.length) names = [ (fileName || "Imported sourcebook").replace(/\.json$/i, "") ];
+    mergeBook(DATA, d, null);   // merge every category; pass no single name (the file may carry many books)
+    names.forEach(nm => { if(nm && !DATA._meta.books.includes(nm)) DATA._meta.books.push(nm); });
   }
   const RULESET_2024 = new Set(["XPHB","XDMG","XMM"]);   // 2024 ("One D&D") core books
   function isBook2024(b){                                 // which ruleset a 5etools book belongs to
@@ -10378,28 +10396,45 @@
     $("btn-export-blank").addEventListener("click", shareBlankSheet);
     $("btn-import").addEventListener("click", ()=> $("file-input").click());
     $("btn-clearbooks").addEventListener("click", clearLoadedBooks);
+    // Import one or more source-data.json files as ADDITIONAL sourcebooks: each is merged into the
+    // already-loaded DATA (like loading a book from the server), never replacing it. Reads run in
+    // parallel; a single bake/persist/refresh fires once they've all merged.
     $("file-input").addEventListener("change", ev=>{
-      const f = ev.target.files[0]; if(!f) return;
-      const r = new FileReader();
-      r.onload = () => {
-        let d;
-        try{ d = JSON.parse(r.result); }
-        catch(e){ alert("That file isn't valid JSON."); $("file-input").value=""; return; }
-        if(!d || !Array.isArray(d.races) || !Array.isArray(d.classes) || !Array.isArray(d.spells)){
-          alert("That doesn't look like sourcebook data.\nExpected a source-data.json file generated by build-data.py (with races / classes / spells).");
-          $("file-input").value=""; return;
+      const files = Array.from(ev.target.files || []); if(!files.length) return;
+      const added = [], bad = [];
+      let pending = files.length;
+      const finish = ()=>{
+        if(--pending > 0) return;
+        if(added.length){
+          _spellIndex = null;
+          resolveSubraces(DATA);   // an imported file may predate cross-book subrace resolution
+          bakeSourceData();
+          const persisted = persistSources();
+          refreshAfterData();
+          const label = added.length === 1 ? added[0] : (added.length + " files");
+          flashStatus((persisted === false ? label + " merged (too large to persist locally)" : label + " merged in — Create is ready") +
+            (bad.length ? " · " + bad.length + " skipped" : ""));
+        } else if(bad.length){
+          alert("Nothing imported.\n" + bad.map(b => "• " + b).join("\n"));
         }
-        DATA = d; _spellIndex = null;
-        resolveSubraces(DATA);   // an imported file may predate cross-book subrace resolution
-        if(DATA._meta){ delete DATA._meta.raw; delete DATA._meta.disabled; }   // imported file is merged-only; per-book filtering needs a reload
-        try{ localStorage.removeItem(SOURCES_RAW_KEY); }catch(e){}
-        bakeSourceData();
-        if(persistSources() === false) flashStatus("Sourcebook loaded (too large to persist locally)");
-        refreshAfterData();
-        flashStatus("Sourcebook loaded — Create is ready");
         $("file-input").value = "";
       };
-      r.readAsText(f);
+      files.forEach(f=>{
+        const r = new FileReader();
+        r.onload = ()=>{
+          let d;
+          try{ d = JSON.parse(r.result); }
+          catch(e){ bad.push(f.name + " — not valid JSON"); return finish(); }
+          if(!d || !Array.isArray(d.races) || !Array.isArray(d.classes) || !Array.isArray(d.spells)){
+            bad.push(f.name + " — doesn't look like sourcebook data (needs races / classes / spells)"); return finish();
+          }
+          mergeImportedFile(d, f.name);
+          added.push(f.name);
+          finish();
+        };
+        r.onerror = ()=>{ bad.push(f.name + " — couldn't be read"); finish(); };
+        r.readAsText(f);
+      });
     });
 
     $("btn-savecopy").addEventListener("click", async ()=>{
