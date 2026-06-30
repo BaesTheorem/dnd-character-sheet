@@ -110,6 +110,13 @@
   .update-banner.critical{background:rgba(217,45,32,.12); border-bottom:2px solid #d92d20}
   .update-banner.critical .ub-msg strong{color:#e5484d}
   .update-banner .ub-note{display:block; width:100%; margin-top:3px; line-height:1.4}
+  .update-banner .ub-prog{flex:1 0 100%; margin-top:2px}
+  .update-banner .ub-prog[hidden]{display:none}
+  /* busy spinner on the Update buttons while checking / downloading */
+  .btn.btn-busy{opacity:.9; pointer-events:none}
+  .btn.btn-busy::before{content:""; display:inline-block; width:11px; height:11px; margin-right:7px; vertical-align:-1px;
+    border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:btn-spin .7s linear infinite}
+  @keyframes btn-spin{to{transform:rotate(360deg)}}
 
   /* ---- Sheet layout ---- */
   .sheet{max-width:1120px; margin:22px auto; padding:0 16px}
@@ -1748,6 +1755,10 @@
     <button class="btn" id="ub-save" type="button" title="Save a self-contained backup of this sheet before updating">Save a copy</button>
     <button class="btn primary" id="ub-update" type="button">Update now</button>
     <button class="btn ghost" id="ub-dismiss" type="button" title="Dismiss until the next version">✕</button>
+    <div class="upd-prog ub-prog" id="ub-progress" hidden="">
+      <div class="upd-prog-track"><div class="upd-prog-fill" id="ub-progress-fill"></div></div>
+      <div class="upd-prog-label" id="ub-progress-label"></div>
+    </div>
   </div>
 
   <div class="toolbar noprint">
@@ -2831,11 +2842,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v371 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v372 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.48.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.49.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -7135,14 +7146,18 @@
     return null;
   }
   // ---- update progress bar (local-file download) ----
-  function updProg(pct, label){   // pct null → indeterminate (sliding) bar; a number → fill to that %
-    const wrap = $("update-progress"), fill = $("update-progress-fill"), lbl = $("update-progress-label");
-    if(wrap) wrap.hidden = false;
-    if(fill){ if(pct == null){ fill.classList.add("indet"); fill.classList.remove("det"); fill.style.width = ""; }
-              else { fill.classList.remove("indet"); fill.classList.add("det"); fill.style.width = Math.max(0, Math.min(100, pct)) + "%"; } }
-    if(lbl && label != null) lbl.textContent = label;
+  const UPD_PROG_WIDGETS = [["update-progress","update-progress-fill","update-progress-label"],   // in Settings
+                            ["ub-progress","ub-progress-fill","ub-progress-label"]];              // in the update banner
+  function updProg(pct, label){   // pct null → indeterminate (sliding) bar; a number → fill to that %. Updates both progress widgets.
+    UPD_PROG_WIDGETS.forEach(([w,f,l]) => {
+      const wrap = $(w), fill = $(f), lbl = $(l);
+      if(wrap) wrap.hidden = false;
+      if(fill){ if(pct == null){ fill.classList.add("indet"); fill.classList.remove("det"); fill.style.width = ""; }
+                else { fill.classList.remove("indet"); fill.classList.add("det"); fill.style.width = Math.max(0, Math.min(100, pct)) + "%"; } }
+      if(lbl && label != null) lbl.textContent = label;
+    });
   }
-  function updProgDone(){ const wrap = $("update-progress"), fill = $("update-progress-fill"); if(wrap) wrap.hidden = true; if(fill){ fill.classList.remove("indet","det"); fill.style.width = "0"; } }
+  function updProgDone(){ UPD_PROG_WIDGETS.forEach(([w,f]) => { const wrap = $(w), fill = $(f); if(wrap) wrap.hidden = true; if(fill){ fill.classList.remove("indet","det"); fill.style.width = "0"; } }); }
   function updateBlockMode(){   // the Update control reads differently hosted (refresh in place) vs. a local file (download a fresh copy)
     const hosted = /^https?:$/.test(location.protocol), btn = $("btn-update"), note = $("update-note");
     if(btn) btn.textContent = hosted ? "Update to the latest version" : "Download the latest version";
@@ -7152,17 +7167,28 @@
   }
   async function updateApp(){
     const hosted = /^https?:$/.test(location.protocol);
-    const btn = $("btn-update"), label = hosted ? "Update to the latest version" : "Download the latest version";
-    const restore = () => { if(btn){ btn.disabled = false; btn.textContent = label; } };
+    const sBtn = $("btn-update"), bBtn = $("ub-update");
+    const sLabel = hosted ? "Update to the latest version" : "Download the latest version";
+    const bLabel = hosted ? "Update now" : "Download update";
+    const busy = txt => { if(sBtn){ sBtn.disabled = true; sBtn.classList.add("btn-busy"); sBtn.textContent = txt; } if(bBtn){ bBtn.disabled = true; bBtn.classList.add("btn-busy"); bBtn.textContent = txt; } };
+    const restore = () => { if(sBtn){ sBtn.disabled = false; sBtn.classList.remove("btn-busy"); sBtn.textContent = sLabel; } if(bBtn){ bBtn.disabled = false; bBtn.classList.remove("btn-busy"); bBtn.textContent = bLabel; } };
+    // First check whether a newer build actually exists — if not, don't prompt a needless re-download.
+    busy("Checking…");
+    const latest = await fetchLatestVersion();
+    if(latest && latest.version){
+      const cur = verNum(APP_VERSION), lat = verNum(latest.version);
+      if(cur != null && lat != null && lat <= cur){ restore(); flashStatus("You're already up to date (" + appLabel() + ")."); return; }
+    }
+    restore();   // back to normal while the confirm dialog is up
     if(!confirm(hosted
         ? "Update to the latest version of the sheet?\n\nYour current character and loaded sourcebooks are kept. If you want a backup, press Cancel, then Save a copy first."
         : "Download the latest version of the sheet, with your current character baked in?\n\nYou'll get a fresh HTML file to replace this one — your character and sourcebooks come with it. If you want a backup, press Cancel, then Save a copy first.")) return;
-    if(btn){ btn.disabled = true; btn.textContent = hosted ? "Checking…" : "Fetching latest…"; }
+    busy(hosted ? "Checking…" : "Fetching latest…");
     if(hosted){
       // reachability check that bypasses the offline cache (unique URL), so an offline "update" can't wipe the cache and leave nothing to load
       try{ const probe = await fetch(location.pathname + "?_upd=" + Date.now(), {cache:"reload"}); if(!probe || !probe.ok) throw 0; }
       catch(e){ flashStatus("Couldn't reach the site to update — check your connection and try again."); restore(); return; }
-      if(btn) btn.textContent = "Updating…";
+      busy("Updating…");
       updProg(null, "Updating… the page will reload");
       try{ if("serviceWorker" in navigator){ const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); } }catch(e){}   // drop the SW so the reload isn't served the cached build
       try{ if("caches" in window){ const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } }catch(e){}   // and clear its cache
