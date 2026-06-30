@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v386 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v387 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.54.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.54.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v387", semver:"2.54.4", items:[
+      "Picking Warforged no longer drops \"Disadv. on Dexterity (Stealth) checks\" into your Defenses notes. That penalty belongs only to the Heavy Plating mode of Integrated Protection, so it's now applied live as a Stealth disadvantage when you actually select Heavy Plating, instead of being written into Defenses up front. (If an existing Warforged already has that stray line, just delete it from the Defenses box.)"
+    ]},
     {v:"v386", semver:"2.54.3", items:[
       "Action Economy no longer double-lists bonus-action and reaction features under Action. Abilities like the Monk's Martial Arts, Flurry of Blows, and Patient Defense (and others such as Rogue's Cunning Action) describe taking a standard action — \"after you take the Attack action…\", \"take the Dodge action as a bonus action\" — as their trigger or effect, which was being misread as a separate Action cost. They now appear only under Bonus Action (or Reaction), while features that genuinely cost an action still show under Action."
     ]},
@@ -8300,7 +8303,8 @@
       syncFeatureAttacks();                            // add/remove breath weapon + natural-weapon attack rows to match the chosen race/ancestry
       if(r.traits && r.traits.length){                // save (dis)advantages stated in racial traits (Dwarven Resilience, Fey Ancestry, Gnome Cunning, Brave…) — race traits are baselined out of the genDefenses scan, so catch them here
         const n = $("defnotes");
-        if(n){ scanDefenses(r.traits.map(t=>`${t.name}. ${t.text}`).join("\n\n")).forEach(line => {
+        if(n){ const traitsForScan = r.traits.filter(t => !/^integrated protection\b/i.test((t.name||"").trim()));   // Integrated Protection's "Disadv. on Stealth" is a Heavy-Plating mode option (applied live when that mode is selected, via featureAdvEntries) — not an always-on defense, and the trait has no other defenses worth scraping
+          scanDefenses(traitsForScan.map(t=>`${t.name}. ${t.text}`).join("\n\n")).forEach(line => {
           if(/draconic ancestry|damage type associated/i.test(line)) return;   // placeholder text — the concrete resistance is set from the chosen ancestry
           if(!n.value.includes(line)){ n.value = n.value.trim() ? n.value+"\n"+line : line; } }); autoGrow(n); }
       }
