@@ -79,14 +79,4 @@ if [ -f sw.js ]; then
     && echo "pre-commit: stamped SW CACHE = dnd-sheet-v$num"
 fi
 
-# Slim code-only build for the in-app updater: a copy of the just-stamped index.html with the big baked
-# #source-data block blanked to null (~13MB -> ~3MB). The updater fetches THIS so an update doesn't re-download
-# the sourcebooks; bakeAllInto rebakes the user's own books into the result. The published index.html is
-# untouched (a manual download still gets the full file). Generated from index.html so the code/version always match.
-if [ -f index.html ] && command -v perl >/dev/null 2>&1; then
-  perl -0777 -pe 's{(<script id="source-data"[^>]*>).*?(</script>)}{${1}null${2}}s' index.html > update.html \
-    && git add update.html \
-    && echo "pre-commit: generated slim update.html ($(wc -c < update.html | tr -d ' ') bytes)"
-fi
-
 exit 0
