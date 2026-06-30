@@ -1002,6 +1002,9 @@
   .hb-empty{font-size:12px; color:var(--muted); padding:10px 2px}
   .hb-form{margin-top:12px; border-top:1px solid var(--line); padding-top:14px}
   .hb-form-foot{display:flex; justify-content:flex-end; gap:8px; margin-top:14px}
+  .hb-tabs{display:flex; gap:4px; margin:12px 0 2px; border-bottom:1px solid var(--line)}
+  .hb-tab{flex:0 0 auto; padding:6px 16px; border:1px solid var(--line); border-bottom:none; background:var(--field); cursor:pointer; font:inherit; font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin-bottom:-1px}
+  .hb-tab.active{background:var(--card); color:var(--accent); border-bottom:1px solid var(--card)}
   .cspell-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
   .cspell-f{display:flex; flex-direction:column; gap:4px; font-size:12px}
   .cspell-f > span{font-weight:700; font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
@@ -2867,11 +2870,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v391 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v392 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.56.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.57.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2879,6 +2882,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v392", semver:"2.57.0", items:[
+      "Homebrew Studio now makes items too, not just spells. Each source has a Spells tab and an Items tab. Create a magic item with a type, rarity, attunement requirement, an AC bonus, a spell-attack and/or spell-save-DC bonus, and a description. Homebrew items show up in your inventory's item autocomplete, can be equipped, grant their AC and spell bonuses when equipped (and attuned, if required), and travel with shared sheets — same as your homebrew spells."
+    ]},
     {v:"v391", semver:"2.56.1", items:[
       "Settings → Advanced reordered: Homebrew (Open Homebrew Studio) is now at the top, and the “Show the + Add spell sheet button” toggle moved to the very bottom."
     ]},
@@ -4202,20 +4208,20 @@
     if(fiveE.length) html += hdr("5etools sources", "built in, refreshed when you update. Uncheck to hide a book's content, ✕ to delete it") + fiveE.map(row).join("");
     if(mine.length)  html += hdr("Your loaded sources", "books you loaded yourself, kept across updates. Uncheck to hide, ✕ to delete") + mine.map(row).join("");
     if(homebrewSources.length){
-      const hbrow = src => { const n = Object.keys(src.spells||{}).length;
-        return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(${n} spell${n===1?"":"s"})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
+      const hbrow = src => { const ns = Object.keys(src.spells||{}).length, ni = Object.keys(src.items||{}).length; const n = ns + ni; const parts = []; if(ns) parts.push(ns+" spell"+(ns===1?"":"s")); if(ni) parts.push(ni+" item"+(ni===1?"":"s")); const cnt = parts.join(", ") || "empty";
+        return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(${cnt})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
       html += hdr("Homebrew", "your own sources, authored in the Homebrew Studio. Uncheck to hide across all characters, ✕ to delete") + homebrewSources.map(hbrow).join("");
     }
     el.innerHTML = html;
   }
   function renderHomebrewList(){   // Settings: summary + entry to the Homebrew Studio (the sources themselves toggle/delete in the loaded-sources list above)
     const el = $("homebrew-list"); if(!el) return;
-    const ns = homebrewSources.length, sp = hbSpellCount();
+    const ns = homebrewSources.length, sp = hbSpellCount(), it = hbItemCount();
     el.innerHTML = `<label class="lbl" style="display:block; margin:0 0 6px">Homebrew <span class="wiz-hint" style="font-weight:400; display:inline">— your own content, as one or more named sources (this browser; survives character clears; travels with shared sheets; toggle/delete each above)</span></label>`+
-      `<p class="wiz-hint" style="margin:0 0 8px">${sp} spell${sp===1?"":"s"} across ${ns||0} source${ns===1?"":"s"}.</p>`+
+      `<p class="wiz-hint" style="margin:0 0 8px">${sp} spell${sp===1?"":"s"} and ${it} item${it===1?"":"s"} across ${ns||0} source${ns===1?"":"s"}.</p>`+
       `<button class="btn primary" id="btn-hb-studio" type="button">Open Homebrew Studio…</button>`;
   }
-  function refreshHomebrew(){ saveHomebrew(); renderHomebrewList(); renderLoadedBookList(); if($("hb-studio")) renderHbStudio(); renderAllSpellSheets(false); compute(); }   // persist + re-render everything that reads homebrew
+  function refreshHomebrew(){ saveHomebrew(); renderHomebrewList(); renderLoadedBookList(); if($("hb-studio")) renderHbStudio(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-render everything that reads homebrew
   function hbToggleSource(name, enabled){ const i = hbFindIdx(name); if(i < 0) return; homebrewSources[i].enabled = enabled; refreshHomebrew(); flashStatus((homebrewSources[i].name) + (enabled ? " shown" : " hidden")); }
   function hbDeleteSource(name){
     const i = hbFindIdx(name); if(i < 0) return;
@@ -5507,6 +5513,8 @@
     if($("hb-studio")) return;
     const lvlOpts = ['<option value="0">Cantrip</option>'].concat([1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}">Level ${n}</option>`)).join("");
     const schoolOpts = '<option value=""></option>' + SPELL_SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join("");
+    const typeOpts = HB_ITEM_TYPES.map(t => `<option value="${t}">${t}</option>`).join("");
+    const rarityOpts = HB_RARITIES.map(r => `<option value="${r}">${r}</option>`).join("");
     const m = document.createElement("div"); m.id = "hb-studio"; m.className = "modal noprint";
     m.innerHTML =
       `<div class="modal-panel"><div class="modal-head"><h2>Homebrew Studio</h2><button class="btn ghost" id="hb-x" type="button">✕</button></div>`+
@@ -5518,6 +5526,8 @@
           `<button class="btn" id="hb-src-new" type="button" title="Create a new homebrew source">+ Source</button>`+
           `<button class="btn ghost" id="hb-src-del" type="button" title="Delete this homebrew source">Delete source</button>`+
         `</div>`+
+        `<div class="hb-tabs"><button class="hb-tab active" data-hbtype="spells" type="button">Spells</button><button class="hb-tab" data-hbtype="items" type="button">Items</button></div>`+
+        `<div id="hb-pane-spells" class="hb-pane">`+
         `<div class="hb-section-h"><span>Spells in this source</span><button class="btn" id="hb-new-spell" type="button">+ New spell</button></div>`+
         `<div id="hb-spell-list" class="hb-spells"></div>`+
         `<div id="hb-spell-form" class="hb-form" style="display:none"><div class="cspell-grid">`+
@@ -5533,6 +5543,21 @@
           `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbf-text" rows="4"></textarea></label>`+
           `<label class="cspell-f cspell-full"><span>At Higher Levels</span><textarea id="hbf-higher" rows="2"></textarea></label>`+
         `</div><div class="hb-form-foot"><button class="btn ghost" id="hbf-cancel" type="button">Cancel</button><button class="btn primary" id="hbf-save" type="button">Save spell</button></div></div>`+
+        `</div>`+
+        `<div id="hb-pane-items" class="hb-pane" style="display:none">`+
+          `<div class="hb-section-h"><span>Items in this source</span><button class="btn" id="hb-new-item" type="button">+ New item</button></div>`+
+          `<div id="hb-item-list" class="hb-spells"></div>`+
+          `<div id="hb-item-form" class="hb-form" style="display:none"><div class="cspell-grid">`+
+            `<label class="cspell-f cspell-full"><span>Name</span><input type="text" id="hbi-name"></label>`+
+            `<label class="cspell-f"><span>Type</span><select id="hbi-type">${typeOpts}</select></label>`+
+            `<label class="cspell-f"><span>Rarity</span><select id="hbi-rarity">${rarityOpts}</select></label>`+
+            `<div class="cspell-f cspell-full"><span>Attunement</span><div class="cspell-checks"><label><input type="checkbox" id="hbi-attune"> Requires attunement</label></div></div>`+
+            `<label class="cspell-f"><span>AC bonus</span><input type="number" id="hbi-ac" step="1" placeholder="0"></label>`+
+            `<label class="cspell-f"><span>Spell attack bonus</span><input type="number" id="hbi-spatk" step="1" placeholder="0"></label>`+
+            `<label class="cspell-f"><span>Spell save DC bonus</span><input type="number" id="hbi-spdc" step="1" placeholder="0"></label>`+
+            `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
+          `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
+        `</div>`+
       `</div>`+
       `<div class="modal-foot"><span class="wiz-hint" style="flex:1; margin:0">Saved as reusable sources; they show as togglable books and travel with sheets you share.</span><button class="btn primary" id="hb-done" type="button">Done</button></div></div>`;
     document.body.appendChild(m);
@@ -5552,6 +5577,14 @@
       const ed = e.target.closest(".hb-edit"); if(ed){ hbOpenForm(String(ed.dataset.name||"").toLowerCase()); return; }
       const del = e.target.closest(".hb-del"); if(del){ hbDeleteSpell(del.dataset.name); return; }
     });
+    m.querySelector(".hb-tabs").addEventListener("click", e => { const t = e.target.closest(".hb-tab"); if(t){ _hbType = t.dataset.hbtype; hbCloseForm(); hbCloseItemForm(); renderHbStudio(); } });
+    $("hb-new-item").addEventListener("click", () => hbOpenItemForm(null));
+    $("hbi-cancel").addEventListener("click", hbCloseItemForm);
+    $("hbi-save").addEventListener("click", hbSaveItemForm);
+    $("hb-item-list").addEventListener("click", e => {
+      const ed = e.target.closest(".hb-edit"); if(ed){ hbOpenItemForm(String(ed.dataset.name||"").toLowerCase()); return; }
+      const del = e.target.closest(".hb-del"); if(del){ hbDeleteItem(del.dataset.name); return; }
+    });
   }
   function renderHbStudio(){
     if(!$("hb-studio")) return;
@@ -5561,7 +5594,9 @@
     $("hb-src-name").value = cur.name;
     $("hb-src-enabled").checked = cur.enabled !== false;
     $("hb-src-del").style.display = homebrewSources.length > 1 ? "" : "none";   // always keep at least one source
-    renderHbSpellList();
+    document.querySelectorAll("#hb-studio .hb-tab").forEach(b => b.classList.toggle("active", b.dataset.hbtype === _hbType));
+    const sp = $("hb-pane-spells"), ip = $("hb-pane-items"); if(sp) sp.style.display = _hbType === "items" ? "none" : ""; if(ip) ip.style.display = _hbType === "items" ? "" : "none";
+    if(_hbType === "items") renderHbItemList(); else renderHbSpellList();
   }
   function openHbStudio(rowCtx){
     buildHbStudio();
@@ -5570,6 +5605,7 @@
       const SE = spellEntriesOf(rowCtx.inst), cur = (SE[rowCtx.l] && SE[rowCtx.l][rowCtx.i]) || {name:""};
       const nm = (cur.name||"").trim(), lc = nm.toLowerCase();
       const found = nm ? homebrewSources.findIndex(s => s.spells[lc]) : -1;
+      _hbType = "spells";
       if(found >= 0) _hbCurId = found; else hbEnsureSource();
       renderHbStudio();
       $("hb-studio").classList.add("open");
@@ -5582,7 +5618,58 @@
       hbCloseForm();
     }
   }
-  function closeHbStudio(){ const m = $("hb-studio"); if(m) m.classList.remove("open"); _hbRowCtx = null; _hbEditKey = null; }
+  function closeHbStudio(){ const m = $("hb-studio"); if(m) m.classList.remove("open"); _hbRowCtx = null; _hbEditKey = null; _hbEditItemKey = null; }
+  function renderHbItemList(){
+    const el = $("hb-item-list"); if(!el) return;
+    const cur = homebrewSources[_hbCurId] || {items:{}};
+    const arr = Object.values(cur.items||{}).sort((a,b) => String(a.name).localeCompare(String(b.name)));
+    if(!arr.length){ el.innerHTML = `<div class="hb-empty">No items in this source yet. Click \u201c+ New item\u201d to make one.</div>`; return; }
+    el.innerHTML = arr.map(it => { const tag = [it.type||"Item", it.rarity].filter(Boolean).join(" \u00b7 ") + (it.attune ? " \u00b7 attune" : "");
+      return `<div class="hb-row"><span class="hb-name">${esc(it.name)}</span><span class="hb-lvl">${esc(tag)}</span><button type="button" class="hb-edit" data-name="${esc(it.name)}" title="Edit item">\u270e</button><button type="button" class="hb-del" data-name="${esc(it.name)}" title="Delete item">\u2715</button></div>`;
+    }).join("");
+  }
+  function hbOpenItemForm(key, seed){   // key = lc name to edit in the current source (null = new); seed = item prefill
+    const cur = hbEnsureSource();
+    const lc = key ? String(key).toLowerCase() : null;
+    _hbEditItemKey = lc;
+    const base = (lc && cur.items[lc]) || seed || {};
+    $("hbi-name").value = base.name || "";
+    $("hbi-type").value = base.type || "Wondrous Item";
+    $("hbi-rarity").value = base.rarity || "Common";
+    $("hbi-attune").checked = !!base.attune;
+    $("hbi-ac").value = base.acBonus ? String(base.acBonus) : "";
+    $("hbi-spatk").value = base.spellAtk ? String(base.spellAtk) : "";
+    $("hbi-spdc").value = base.spellDc ? String(base.spellDc) : "";
+    $("hbi-text").value = base.text || "";
+    $("hb-item-list").style.display = "none";
+    $("hb-item-form").style.display = "";
+    setTimeout(() => $("hbi-name").focus(), 0);
+  }
+  function hbCloseItemForm(){ _hbEditItemKey = null; const f = $("hb-item-form"); if(f) f.style.display = "none"; const l = $("hb-item-list"); if(l) l.style.display = ""; }
+  function refreshHbItems(){ saveHomebrew(); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); renderHomebrewList(); renderLoadedBookList(); }   // persist + re-render everything that reads homebrew items
+  function hbSaveItemForm(){
+    const cur = hbEnsureSource();
+    const name = ($("hbi-name").value||"").trim();
+    if(!name){ flashStatus("Name the item first"); $("hbi-name").focus(); return; }
+    const lc = name.toLowerCase();
+    const obj = { name, type:$("hbi-type").value||"Wondrous Item", rarity:$("hbi-rarity").value||"Common",
+      attune:$("hbi-attune").checked, acBonus:parseInt($("hbi-ac").value,10)||0,
+      spellAtk:parseInt($("hbi-spatk").value,10)||0, spellDc:parseInt($("hbi-spdc").value,10)||0,
+      text:$("hbi-text").value.trim() };
+    if(_hbEditItemKey && _hbEditItemKey !== lc) delete cur.items[_hbEditItemKey];   // renamed → drop old key
+    cur.items[lc] = obj; cur.enabled = true;
+    refreshHbItems();
+    renderHbItemList(); hbCloseItemForm();
+    flashStatus(`Saved \u201c${name}\u201d to ${cur.name}`);
+  }
+  function hbDeleteItem(name){
+    const cur = hbEnsureSource();
+    const lc = String(name||"").toLowerCase();
+    if(!cur.items[lc]) return;
+    if(!confirm(`Delete homebrew item \u201c${name}\u201d from ${cur.name}? This removes it for all characters.`)) return;
+    delete cur.items[lc];
+    refreshHbItems(); renderHbItemList();
+  }
   function renderHbSpellList(){
     const el = $("hb-spell-list"); if(!el) return;
     const cur = homebrewSources[_hbCurId] || {spells:{}};
@@ -5743,10 +5830,18 @@
   let customSpells = {};   // CHARACTER-data homebrew, keyed by lowercased name → DATA-spell shape {name,level,school,time,range,components,duration,ritual,conc,material,text,higher}. Clears with the character.
   let homebrewSources = [];   // [{name, enabled, spells:{lc->spell}}] — browser-wide source material; multiple named homebrew "books" surfaced as togglable sources. Survives character clears; baked into shared files via #embedded-homebrew (NOT mixed into the 5etools #source-data blob, so it stays togglable server-less and separable).
   let _hbCurId = 0;           // index of the source currently open in the Studio
-  function hbNormSources(arr){ return (arr||[]).filter(s => s && typeof s === "object").map(s => ({ name:(s.name || "My Homebrew"), enabled: s.enabled !== false, spells:(s.spells && typeof s.spells === "object") ? s.spells : {} })); }
+  let _hbType = "spells";     // which content tab is active in the Studio: "spells" | "items"
+  let _hbEditItemKey = null;  // lc name of the item being edited in the item form (for rename), or null
+  const HB_ITEM_TYPES = ["Wondrous Item","Weapon","Armor","Shield","Ring","Rod","Staff","Wand","Potion","Scroll","Other"];
+  const HB_RARITIES = ["Common","Uncommon","Rare","Very Rare","Legendary","Artifact"];
+  function hbNormSources(arr){ return (arr||[]).filter(s => s && typeof s === "object").map(s => ({ name:(s.name || "My Homebrew"), enabled: s.enabled !== false, spells:(s.spells && typeof s.spells === "object") ? s.spells : {}, items:(s.items && typeof s.items === "object") ? s.items : {} })); }
   function hbSpellCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.spells||{}).length, 0); }
-  function hbHasContent(){ return homebrewSources.some(s => Object.keys(s.spells||{}).length); }
-  function hbEnsureSource(){ if(!homebrewSources.length){ homebrewSources.push({name:"My Homebrew", enabled:true, spells:{}}); _hbCurId = 0; } if(_hbCurId < 0 || _hbCurId >= homebrewSources.length) _hbCurId = 0; return homebrewSources[_hbCurId]; }
+  function hbHasContent(){ return homebrewSources.some(s => Object.keys(s.spells||{}).length || Object.keys(s.items||{}).length); }
+  function hbItemCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.items||{}).length, 0); }
+  function hbActiveItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})) if(!(k in out)) out[k] = s.items[k]; }); return out; }   // enabled-source homebrew items, keyed lc
+  function hbEnabledItem(lc){ for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]) return s.items[lc]; } return null; }
+  function allItemText(){ const m = Object.assign({}, (DATA && DATA.itemText) || {}); const hi = hbActiveItems(); for(const lc in hi){ const it = hi[lc]; if(it.text) m[it.name] = it.text; } return m; }   // sourcebook item text + enabled homebrew item text (keyed by display name)
+  function hbEnsureSource(){ if(!homebrewSources.length){ homebrewSources.push({name:"My Homebrew", enabled:true, spells:{}}); _hbCurId = 0; } if(_hbCurId < 0 || _hbCurId >= homebrewSources.length) _hbCurId = 0; const cur = homebrewSources[_hbCurId]; if(!cur.spells) cur.spells = {}; if(!cur.items) cur.items = {}; return cur; }
   function hbUniqueName(base){ let n = base, i = 2; const taken = new Set(homebrewSources.map(s => String(s.name).toLowerCase())); while(taken.has(n.toLowerCase())) n = base+" "+(i++); return n; }
   function hbFindIdx(name){ const lc = String(name||"").toLowerCase(); return homebrewSources.findIndex(s => String(s.name).toLowerCase() === lc); }
   function hbEnabledSpell(lc){ for(const s of homebrewSources){ if(s.enabled !== false && s.spells[lc]) return s.spells[lc]; } return null; }   // first ENABLED source that defines this spell
@@ -5754,11 +5849,11 @@
   function loadHomebrew(){
     const fromAny = h => Array.isArray(h) ? hbNormSources(h)                                  // new format: bare array of sources
       : (h && typeof h === "object" && Array.isArray(h.sources)) ? hbNormSources(h.sources)   // {sources:[...]}
-      : (h && typeof h === "object" && h.spells) ? hbNormSources([h]) : null;                 // legacy single {name,enabled,spells} → migrate to a one-element array
+      : (h && typeof h === "object" && (h.spells || h.items)) ? hbNormSources([h]) : null;     // legacy single {name,enabled,spells} → migrate to a one-element array
     let raw = null; try{ raw = localStorage.getItem(HOMEBREW_KEY); }catch(e){}
     if(raw){ try{ const got = fromAny(JSON.parse(raw)); if(got) homebrewSources = got; }catch(e){} return; }
     try{ const got = fromAny(JSON.parse($("embedded-homebrew").textContent));   // fresh browser opening a shared file → seed from the baked homebrew
-      if(got && got.some(s => Object.keys(s.spells||{}).length)){ homebrewSources = got; saveHomebrew(); } }catch(e){}
+      if(got && got.some(s => Object.keys(s.spells||{}).length || Object.keys(s.items||{}).length)){ homebrewSources = got; saveHomebrew(); } }catch(e){}
   }
   function bakeHomebrewInto(root){ const e = root.querySelector("#embedded-homebrew"); if(e) e.textContent = hbHasContent() ? JSON.stringify(homebrewSources) : "null"; }
   function saveHomebrew(){ try{ localStorage.setItem(HOMEBREW_KEY, JSON.stringify(homebrewSources)); }catch(e){} }
@@ -8977,15 +9072,15 @@
     el.value = (u == null) ? "" : String(round1(u * rowQty(i)));
   }
   function refreshAllWeights(){ for(let i=0;i<NINV;i++) refreshRowWeight(i); }
-  function populateItemList(){ const dl = $("item-options"); if(!dl) return; const names = (DATA && DATA.itemNames) || []; dl.innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join(""); }
+  function populateItemList(){ const dl = $("item-options"); if(!dl) return; const names = ((DATA && DATA.itemNames) || []).slice(); const hi = hbActiveItems(); for(const lc in hi) names.push(hi[lc].name); dl.innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join(""); }
   function armorByName(name){ const n = String(name||"").trim().toLowerCase(); return ((DATA && DATA.armor)||[]).find(a => (a.name||"").toLowerCase() === n) || null; }
-  function magicSet(){ const s = new Set(); ((DATA && DATA.magicItems)||[]).forEach(n => s.add(String(n).toLowerCase())); return s; }
+  function magicSet(){ const s = new Set(); ((DATA && DATA.magicItems)||[]).forEach(n => s.add(String(n).toLowerCase())); for(const lc in hbActiveItems()) s.add(lc); return s; }
   // Global cross-book registry of every attunement-requiring item NAME (lowercased) in the 5etools catalog. Names + the
   // attunement fact are mechanics, not copyrightable, so they live in app JS (survive a source rebake/reload). This lets a
   // free-typed item from a book the sheet can't load offer an Equip/attune option (e.g. "Shield Guardian Amulet", whose
   // source IDRotF is an ADVENTURE, not a loadable sourcebook). Regenerate: 5etools items*.json names where reqAttune is set, lowercased.
   const ATTUNE_ALL_NAMES = new Set(["+1 all-purpose tool","+1 amulet of the devout","+1 arcane grimoire","+1 bloodwell vial","+1 dragonhide belt","+1 fate dealer's deck","+1 moon sickle","+1 rhythm-maker's drum","+1 rod of the pact keeper","+1 wand of the war mage","+2 all-purpose tool","+2 amulet of the devout","+2 arcane grimoire","+2 bloodwell vial","+2 dragonhide belt","+2 fate dealer's deck","+2 moon sickle","+2 rhythm-maker's drum","+2 rod of the pact keeper","+2 wand of the war mage","+3 all-purpose tool","+3 amulet of the devout","+3 arcane grimoire","+3 bloodwell vial","+3 dragonhide belt","+3 fate dealer's deck","+3 moon sickle","+3 rhythm-maker's drum","+3 rod of the pact keeper","+3 wand of the war mage","accounting and valuation of all things","acid absorbing tattoo","adze of annam","akmon, hammer of purphoros","alchemical compendium","amethyst lodestone","amulet of appearance","amulet of betrayal","amulet of duplicity","amulet of harmony","amulet of health","amulet of proof against detection and location","amulet of protection from turning","amulet of the black skull","amulet of the inferno","amulet of the planes","animated shield","arcane propulsion arm","armor of invulnerability","armor of vulnerability (bludgeoning)","armor of vulnerability (piercing)","armor of vulnerability (slashing)","arrow-catching shield","astral shard","astromancy archive","atlas of endless horizons","axe of the dwarvish lords","azorius guild signet","azorius keyrune","azuredge","baba yaga's dancing broom","baba yaga's mortar and pestle","baba yaga's pestle","badge of the watch","banner of the krig rune","barrier tattoo (large)","barrier tattoo (medium)","barrier tattoo (small)","battering shield","battle standard of infernal power","belashyrra's beholder crown","bell branch","belt of cloud giant strength","belt of dwarvenkind","belt of fire giant strength","belt of frost giant strength","belt of hill giant strength","belt of stone giant strength","belt of storm giant strength","bigby's beneficent bracelet","black crystal tablet","black dragon mask","black dragon scale mail","blackrazor","blackstaff","blade of avernus","blade of broken mirrors (dormant)","blast scepter","blasted goggles","blod stone","blood fury tattoo","blood spear","bloodaxe","blue dragon mask","blue dragon scale mail","bobbing lily pad","book of exalted deeds","book of vile darkness","bookmark","boomerang shield","boots of levitation","boots of speed","boots of striding and springing","boots of the winding path","boots of the winterlands","boros guild signet","boros keyrune","bracelet of rock magic","bracer of flying daggers","bracers of archery","bracers of asmodeus","bracers of celerity","bracers of defense","brass dragon scale mail","breastplate of balance","bronze dragon scale mail","brooch of living essence","brooch of shielding","brooch of the elements","broom of flying","butcher's bib","calimemnon crystal","candle of invocation","canian fork","cap of vanishing","cape of enlargement","cauldron of rebirth","charlatan's die","charm of plant command","chip of creation","chronolometer","circlet of human perfection","claw of the wyrm rune","claws of the umber hulk","cloak of arachnida","cloak of displacement","cloak of elvenkind","cloak of invisibility","cloak of protection","cloak of the bat","cloak of the manta ray","coiling grasp tattoo","cold absorbing tattoo","conch of teleportation","constantori's portrait","copper dragon scale mail","crook of rao","crown of horns","crown of lies","crown of the wrath bringer","crown of whirling comets","crusader's shortsword","crystal ball","crystal ball of mind reading","crystal ball of telepathy","crystal ball of true seeing","crystalline chronicle","cube of force","cursed luckstone","daern's instant fortress","dagger of blindsight","danoth's visor (dormant)","daoud's wondrous lanthorn","dark shard amulet","dawnbringer","deck of dimensions","deck of oracles","dekella, bident of thassa","delver's claws","demon armor","demonomicon of iggwilv","devotee's censer","dimensional loop","dimir guild signet","dimir keyrune","docent","donjon's sundering sphere","dragon thighbone club","dragonstaff of ahghairon","drown","duplicitous manuscript","duskcrusher","dwarven thrower","dyrrn's tentacle whip","earworm","efreeti chain","eldritch claw tattoo","eldritch staff","elemental essence shard","elemental essence shard (air)","elemental essence shard (earth)","elemental essence shard (fire)","elemental essence shard (water)","elven thrower","enspelled staff (cantrip)","enspelled staff (level 1)","enspelled staff (level 2)","enspelled staff (level 3)","enspelled staff (level 4)","enspelled staff (level 5)","enspelled staff (level 6)","enspelled staff (level 7)","enspelled staff (level 8)","ephixis, bow of nylea","euryale's aegis","eye of vecna","eyes of charming","eyes of the eagle","fabulist gem","failed experiment wand","fane-eater","far gear","far realm shard","fate cutter shears","feather of diatryma summoning","feywild shard","finder's goggles","fire absorbing tattoo","flail of tiamat","flame tongue shortsword of greed","flayer slayer","flying citadel helm","force absorbing tattoo","fulminating treatise","galder's bubble pipe","gauntlets of flaming fury","gauntlets of ogre power","gauntlets of rage","gavel of the venn rune","gem of seeing","ghost lantern","ghost step tattoo","gloves of missile snaring","gloves of soul catching","gloves of swimming and climbing","goggles of object reading","gold dragon scale mail","golgari guild signet","golgari keyrune","greater silver sword","green dragon mask","green dragon scale mail","grimoire infinitus (dormant)","grovelthrash (dormant)","gruul guild signet","gruul keyrune","guardian emblem","gulthias staff","gurt's greataxe","hammer of runic focus","hand of vecna","harkon's bite","harp of gilded plenty","harper pin","hat of disguise","hat of many spells","hat of vortexes","hat of wizardry","hazirawn","headband of intellect","heart weaver's primer","hell hound cloak","helm of brilliance","helm of devil command","helm of disjunction","helm of perfect potential","helm of telepathy","helm of teleportation","helm of the gods","helm of the scavenger","helm of underwater action","heretic","heward's hireling armor","hide of the feral guardian (dormant)","holy symbol of ravenkind","horn of beckoning death","horned ring","hunter's coat","icon of ravenloft","iggwilv's cauldron","iggwilv's horn","illuminator's tattoo","illusionist's bracers","infernal amulet","infernal plate armor","infernal tack","infiltrator's key (dormant)","ingot of the skold rune","instrument of illusions","instrument of scribing","instrument of the bards, anstruth harp","instrument of the bards, canaith mandolin","instrument of the bards, cli lyre","instrument of the bards, doss lute","instrument of the bards, fochlucan bandore","instrument of the bards, mac-fuirmidh cittern","instrument of the bards, ollamh harp","ioun stone of vitality","ioun stone, absorption","ioun stone, agility","ioun stone, awareness","ioun stone, fortitude","ioun stone, greater absorption","ioun stone, historical knowledge","ioun stone, insight","ioun stone, intellect","ioun stone, language knowledge","ioun stone, leadership","ioun stone, mastery","ioun stone, natural knowledge","ioun stone, protection","ioun stone, regeneration","ioun stone, religious knowledge","ioun stone, reserve","ioun stone, self-preservation","ioun stone, strength","ioun stone, supreme intellect","ioun stone, sustenance","ironfang","izzet guild signet","izzet keyrune","javelin of backbiting","jester's mask","jewel of three prayers (dormant)","kagonesti forest shroud","keycharm","keystone of creation","khrusor, spear of heliod","knave's eye patch","korolnor scepter","kyrzin's ooze","lash of shadows (dormant)","leather golem armor","libram of souls and flesh","lifewell tattoo","lightning absorbing tattoo","living gloves","longbow of the healing hearth","lord's ensemble","lorehold primer","lost crown of besilmer","luba's tarokka of souls","lucent destroyer","luminous war pick","lyre of building","mace of disruption","mace of terror","mace of the black crown (dormant)","maddgoth's helm","manifold tool","mantle of spell resistance","mask of the dragon queen","masquerade tattoo","mastix, whip of erebos","matalotok","medallion of thoughts","mighty servant of leuk-o","mimir","mind lash","mind sharpener","mindblasting cap","mindguard crown","mirror of reflected pasts","mistral mantle","mizzium apparatus","moonblade","murgaxor's orb","mythallar cloak","nature's mantle","navigation orb","necklace of adaptation","necklace of prayer beads","necrotic absorbing tattoo","needle of mending","nepenthe","netherese ring of protection","nightbringer","nightfall pearl","niko's mace","nimbus coronet","oathbow","occultant abacus","opal of the ild rune","orb of damara","orb of dragonkind","orb of skoraeus","orb of the stein rune","orb of the veil","orc stone","orcsplitter","orrery of the wanderer","orzhov guild signet","orzhov keyrune","outer essence shard","outer essence shard (chaotic)","outer essence shard (evil)","outer essence shard (good)","outer essence shard (lawful)","pariah's shield","pearl of power","pennant of the vind rune","peregrine mask","periapt of health","periapt of proof against poison","periapt of wound closure","petrified grung egg","piercer","pipes of pestilence","pipes of the sewers","piwafwi (cloak of elvenkind)","piwafwi of fire resistance","planecaller's codex","plate armor of etherealness","plate of knight's fellowship","platinum scarf","poison absorbing tattoo","poison soaked kukri","powered armor","prismari primer","propeller helm","protective verses","psi crystal","psychic absorbing tattoo","pyroconverger","quandrix primer","quarterstaff of the acrobat","radiance","radiant absorbing tattoo","rakdos guild signet","rakdos keyrune","rakdos riteknife","ranseur of torture","reaper's scream","red dragon mask","red dragon scale mail","reveler's concertina","ring of acid resistance","ring of air elemental command","ring of amity","ring of cold resistance","ring of collecting","ring of djinni summoning","ring of earth elemental command","ring of elemental command (air)","ring of elemental command (earth)","ring of elemental command (fire)","ring of elemental command (water)","ring of evasion","ring of feather falling","ring of fire elemental command","ring of fire resistance","ring of force resistance","ring of free action","ring of invisibility","ring of jumping","ring of lightning resistance","ring of mind shielding","ring of necrotic resistance","ring of obscuring","ring of poison resistance","ring of protection","ring of psychic resistance","ring of radiant resistance","ring of red fury","ring of regeneration","ring of shooting stars","ring of spell storing","ring of spell turning","ring of telekinesis","ring of temporal salvation","ring of the copycat","ring of the orator","ring of the ram","ring of thunder resistance","ring of treachery","ring of truth telling","ring of warmth","ring of water elemental command","ring of winter","ring of x-ray vision","robe of eyes","robe of scintillating colors","robe of serpents","robe of stars","robe of summer","robe of the archmagi","rod of absorption","rod of alertness","rod of hellish flames","rod of lordly might","rod of resurrection","rod of retribution","rod of rulership","rod of seven parts","rod of the vonindod","rogue's mantle","rotor of return","ruby of the war mage","ruby rod of asmodeus","ruby weave gem","ruidium shield","ruin's wake (dormant)","ruinblade","ruinous flail","sage's signet (bear)","sage's signet (hart)","sage's signet (lion)","sage's signet (serpent)","sage's signet (songbird)","sage's signet (wolf)","saint markovia's thighbone","sanctum amulet","sapphire buckler","scarab of protection","scimitar of speed","scissors of shadow snipping","scorpion armor","scourge of shadow","scribe's pen","selesnya guild signet","selesnya keyrune","shadowfell brand tattoo","shadowfell shard","shard of the ise rune","shard of xeluan","shard solitaire (black sapphire)","shard solitaire (diamond)","shard solitaire (jacinth)","shard solitaire (rainbow pearl)","shard solitaire (ruby)","shatterspike","shield guardian amulet","shield of missile attraction","shield of the blazing dreadnought","shield of the cavalier","shield of the hidden lord","shield of the tortoise","shield of the uven rune","shrieking greaves","silken spite (dormant)","silver dragon scale mail","silver sword","silverquill primer","simic guild signet","simic keyrune","siren song lyre","skull helm","skull of selfish knowledge","skyblinder staff","slippers of spider climbing","slumbering dragon vessel","slumbering dragon-touched focus","slumbering scaled ornament","snicker-snack","spear of backbiting","spell bottle","spell gem (amber)","spell gem (bloodstone)","spell gem (diamond)","spell gem (jade)","spell gem (lapis lazuli)","spell gem (obsidian)","spell gem (quartz)","spell gem (ruby)","spell gem (star ruby)","spell gem (topaz)","spell-refueling ring","spellguard shield","spelljamming helm","spider staff","spies' murmur","spiked shield","spindle of fate","staff of charming","staff of defense","staff of dunamancy","staff of fate","staff of fire","staff of frost","staff of healing","staff of power","staff of ruling","staff of striking","staff of swarming insects","staff of the adder","staff of the forgotten one","staff of the ivory claw","staff of the magi","staff of the python","staff of the rooted hills","staff of the woodlands","staff of thunder and lightning","staff of withering","steel","stone of creation","stone of golorr","stone of good luck","stone of ill luck","stonebreaker's breastplate","stonemaker war pick","stonespeaker crystal","stonky's ring","stormgirdle (dormant)","sun blade","sun staff","sunforger","sunsword","sword of answering","sword of answering (answerer)","sword of answering (back talker)","sword of answering (concluder)","sword of answering (last quip)","sword of answering (rebutter)","sword of answering (replier)","sword of answering (retorter)","sword of answering (scather)","sword of answering (squelcher)","sword of kas","sword of the paruns","sword of zariel","talarith","talisman of pure good","talisman of the sphere","talisman of ultimate evil","talking doll","tasha's creeping keelboat","tearulai","teeth of dahlver-nar","tentacle rod","thayan spell tattoo","the bloody end (dormant)","the infernal machine of lum the mad","thunder absorbing tattoo","thunderous greatclub","tidecaller trident","timepiece of travel","tinderstrike","tome of the stilled tongue","topaz annihilator","trident of fish command","true-ice shards (dagger)","true-ice shards (rapier)","ventilating lungs","verminshroud (dormant)","vial of greed","voidwalker armor","voyager staff","wand of binding","wand of enemy detection","wand of entangle","wand of fear","wand of fireballs","wand of lightning bolts","wand of orcus","wand of paralysis","wand of polymorph","wand of viscid globs","wand of web","wand of winter","wand of wonder","wand sheath","warrior's passkey","watchful helm","wave","wayfarer's boots","waythe","weird tank","wheel of stars","whelm","whisper jar","white dragon mask","white dragon scale mail","will of the talon (dormant)","windvane","winged boots","wings of flying","wingwear","witchlight vane","witchlight watch","witherbloom primer","wreath of the prism (dormant)","wrought-iron tower","wyllow's staff of flowers","wyrmreaver gauntlets","ythryn mythallar"]);
-  function attuneSet(){ const s = new Set(ATTUNE_ALL_NAMES); ((DATA && DATA.attuneItems)||[]).forEach(n => s.add(String(n).toLowerCase())); return s; }
+  function attuneSet(){ const s = new Set(ATTUNE_ALL_NAMES); ((DATA && DATA.attuneItems)||[]).forEach(n => s.add(String(n).toLowerCase())); const hi = hbActiveItems(); for(const lc in hi) if(hi[lc].attune) s.add(lc); return s; }
   function equippedNames(pred){   // names of inventory rows that are checked Equipped and match pred(name)
     const out = [], seen = new Set();
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !nm) continue;
@@ -9025,7 +9120,7 @@
       s.innerHTML = `<option value=""></option>` + eqAtt.map(a => optTag(a.name, a.name)).join("");
       s.value = cur; });
   }
-  function acItemMap(){ const m = {}; ((DATA && DATA.acItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = it.b); return m; }
+  function acItemMap(){ const m = {}; ((DATA && DATA.acItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = it.b); const hi = hbActiveItems(); for(const lc in hi){ const b = +hi[lc].acBonus||0; if(b && !(lc in m)) m[lc] = b; } return m; }
   // Items whose save-DC bonus 5etools states only in the item's PROSE (no machine-readable bonusSpellSaveDc field), so
   // etSpellBonusItems can't extract them. Names + numeric bonus are non-copyrightable mechanics, hand-coded like the
   // other registries (survives a "Reload all sources"). The +N Dragonhide Belt (FTD, attune by a monk) grants "+N to the
@@ -9035,6 +9130,7 @@
   const EXTRA_SPELL_DC_ITEMS = { "+1 dragonhide belt":{atk:0,dc:1}, "+2 dragonhide belt":{atk:0,dc:2}, "+3 dragonhide belt":{atk:0,dc:3} };
   function spellBonusItemMap(){ const m = {}; ((DATA && DATA.spellBonusItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = {atk:it.atk||0, dc:it.dc||0});
     for(const k in EXTRA_SPELL_DC_ITEMS) if(!(k in m)) m[k] = EXTRA_SPELL_DC_ITEMS[k];   // prose-only DC items 5etools doesn't tag structurally
+    const hi = hbActiveItems(); for(const lc in hi){ const a = +hi[lc].spellAtk||0, d = +hi[lc].spellDc||0; if((a||d) && !(lc in m)) m[lc] = {atk:a, dc:d}; }   // homebrew items granting spell atk/DC
     return m; }
   function spellItemBonus(){   // total spell-attack / spell-DC bonus from EQUIPPED (and, where required, ATTUNED) items — Robe of the Archmagi, etc.
     const map = spellBonusItemMap(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(); let atk = 0, dc = 0; const from = [];
@@ -9609,7 +9705,7 @@
     for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(el && el.dataset.weapon) active.add(el.dataset.weapon.toLowerCase()); }
     // equipping matters for: weapons (→ Attacks), armor / AC-bonus items (→ AC), attunement items, spell-bonus items,
     // and charged items (→ Limited Features). Consumables (potions/scrolls/ammo) and otherwise-inert items get no box.
-    const aset = attuneSet(), acm = acItemMap(), sbm = spellBonusItemMap(), itext = (DATA && DATA.itemText) || {};
+    const aset = attuneSet(), acm = acItemMap(), sbm = spellBonusItemMap(), itext = allItemText();
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !nm) continue;
       const name = (nm.value||"").trim(), lc = name.toLowerCase(), w = weaponByName(name);
       const eq = !!w || !!armorByName(name) || aset.has(lc) || (lc in acm) || (lc in sbm) || (name in itext) || shieldBonus(name) > 0;
@@ -10600,7 +10696,7 @@
     if(ro && Array.isArray(ro.spellUses)){ const lvl = charLevel() || 1;
       const altSlot = Array.isArray(ro.traits) && _altSlot(ro.traits.map(tr => tr.text || "").join(" ")) ? " or slot" : "";   // altResource: race also lets you cast these via a spell slot (Fairy, Hexblood, Multiverse races)
       ro.spellUses.forEach(su => { if((su.l||1) <= lvl) addLimitedRow(su.n, su.max, su.rec + altSlot, `Racial innate spell — ${rn} (recharges on a ${su.rec === "SR" ? "short" : "long"} rest)${altSlot ? ", or cast it using a spell slot" : ""}`); }); }
-    const txt = (DATA && DATA.itemText) || {};
+    const txt = allItemText();
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
       const d = txt[nm]; if(!d) continue;
       const r = limitedFromText(nm, d); if(!r) continue;
