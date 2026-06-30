@@ -320,6 +320,49 @@
   .combat-side{display:flex; flex-direction:column; gap:8px; flex:0 0 150px; min-width:140px}
   .combat-row .combat-top{display:flex; flex-direction:column; grid-template-columns:none; gap:8px; flex:1 1 auto}
   .combat-side .otherspeeds{margin-top:0}
+  /* Defenses + Conditions subsections inside the Combat card */
+  .combat-subs{display:flex; flex-wrap:wrap; gap:16px; margin-top:14px; align-items:flex-start}
+  .combat-sub{flex:1 1 300px; min-width:240px; display:flex; flex-direction:column}
+  .combat-sub > h3{font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 8px}
+  .combat-sub textarea{min-height:100px; line-height:1.5}
+  .cond-active{display:flex; flex-wrap:wrap; gap:6px; min-height:24px; margin-bottom:8px}
+  .cond-active:empty::before{content:"None active"; color:var(--muted); font-size:12px; font-style:italic}
+  .cond-chip{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; padding:3px 8px;
+    border:1px solid var(--line2); border-radius:12px; background:var(--field); color:var(--ink)}
+  .cond-chip .x{cursor:pointer; color:var(--muted); font-weight:900; line-height:1}
+  .cond-chip .x:hover{color:#c0392b}
+  .cond-open{font:inherit; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    border:1px solid var(--line); border-radius:7px; background:var(--card); color:var(--ink); padding:6px 10px; cursor:pointer; align-self:flex-start}
+  .cond-open:hover{border-color:var(--accent)}
+  .cond-panel{margin-top:10px; border:1px solid var(--line); border-radius:8px; padding:4px 6px; max-height:360px; overflow:auto; background:var(--field)}
+  .cond-row{border-bottom:1px solid var(--line)}
+  .cond-row:last-child{border-bottom:none}
+  .cond-head{display:flex; align-items:center; gap:10px; padding:7px 4px}
+  .cond-head .cn{flex:1 1 auto; font-weight:700; font-size:13px; cursor:pointer; user-select:none}
+  .cond-head .cn .exp{display:inline-block; width:12px; font-size:10px; color:var(--muted); transition:transform .1s}
+  .cond-row.open .cond-head .cn .exp{transform:rotate(90deg)}
+  .cond-row.active .cn{color:var(--accent)}
+  .cond-desc{display:none; padding:0 8px 10px 18px; font-size:12px; line-height:1.5; color:var(--muted)}
+  .cond-row.open .cond-desc{display:block}
+  .cond-sw{position:relative; width:34px; height:18px; flex:none}
+  .cond-sw input{position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:2}
+  .cond-sw .track{position:absolute; inset:0; background:var(--line); border:1px solid var(--line2); border-radius:10px; transition:background .1s}
+  .cond-sw .knob{position:absolute; top:2px; left:2px; width:14px; height:14px; background:#fff; border-radius:50%; transition:left .1s}
+  .cond-sw input:checked + .track{background:#c0392b}
+  .cond-sw input:checked ~ .knob{left:18px}
+  .exh-block{padding:8px 4px 4px}
+  .exh-title{display:flex; align-items:center; gap:10px; font-weight:700; font-size:13px; margin-bottom:8px}
+  .exh-pips{display:flex; gap:5px; margin-left:auto}
+  .exh-pip{width:24px; height:24px; border:1px solid var(--line2); border-radius:6px; background:var(--card); color:var(--muted);
+    font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center}
+  .exh-pip.on{background:#c0392b; border-color:#c0392b; color:#fff}
+  .exh-stages{font-size:12px; line-height:1.5; color:var(--muted)}
+  .exh-stages .st{display:flex; gap:8px; padding:1px 0}
+  .exh-stages .st.cur{color:var(--ink); font-weight:600}
+  .exh-stages .st .lv{font-weight:800; min-width:14px; text-align:right}
+  /* Advantage (green) / Disadvantage (red) d20 markers next to affected rolls */
+  .advmark{display:inline-flex; vertical-align:middle; margin-left:4px; line-height:0}
+  .advmark svg{display:block}
   .topstats{display:grid; grid-template-columns:1fr 1fr; gap:10px}
   .stat{background:var(--field); border:1px solid var(--line); border-radius:10px; padding:8px; text-align:center}
   .stat .k{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
@@ -409,7 +452,7 @@
   .deathsaves .grp .k{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
     width:74px; flex:none; text-align:center}   /* fixed label column so Successes/Failures pips line up + words center on each other */
   .pips{display:flex; gap:5px}
-  .topblock{display:grid; grid-template-columns:332px 1fr; gap:16px; align-items:stretch}   /* Combat/PB squished to the min that keeps every box label on one line; Resistances takes the rest */
+  .topblock{display:grid; grid-template-columns:minmax(0,1fr); gap:16px; align-items:stretch}   /* Defenses + Conditions now live inside the Combat card, so this is a single column */
   .topblock-left{display:flex; flex-direction:column; gap:16px; min-width:0}
   .topblock-left .stat .k{white-space:nowrap}
   .topblock-left > .card{margin:0}
@@ -1623,9 +1666,8 @@
     /* Header band: a compact ident on the left, with the Abilities strip stacked over the
        combat/prof cluster on the right — so the right side is filled instead of leaving a big gap. */
     body.ucs-layout #ucs-topbar{ grid-area:top; display:grid; gap:12px; align-content:start;
-      grid-template-columns:auto minmax(240px,1fr);
-      grid-template-areas:"ident ident" "abilities abilities" "combat defenses"; }
-    body.ucs-layout #ucs-topbar [data-csec="defenses"]{ grid-area:defenses; align-self:stretch; }
+      grid-template-columns:minmax(0,1fr);
+      grid-template-areas:"ident" "abilities" "combat"; }
     body.ucs-layout #ucs-topbar > .card{ margin:0; }
     body.ucs-layout #ucs-topbar .ucs-ident{ grid-area:ident; min-width:0; align-self:start; }
     body.ucs-layout #ucs-topbar .ucs-ident .meta-grid{ grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px 14px; margin-top:12px; }
@@ -2160,12 +2202,20 @@
                 <div id="otherspeeds" class="otherspeeds" style="display:none" title="Other movement modes from your race. Encumbrance and heavy-armor penalties apply; Monk Unarmored Movement is walking only."></div>
               </div>
               </div>
+              <div class="combat-subs">
+                <div class="combat-sub defenses-sub" data-csec="defenses">
+                  <h3>Defenses</h3>
+                  <textarea data-save="" id="defnotes" placeholder="Damage resistances/immunities/vulnerabilities, condition immunities, and other defenses…" style="height: 120px;"></textarea><div class="ta-print"></div>
+                  <div class="def-items" id="defenses-items"></div>
+                </div>
+                <div class="combat-sub conditions-sub">
+                  <h3>Conditions</h3>
+                  <div class="cond-active" id="cond-active" title="Active conditions — click Manage to change"></div>
+                  <button type="button" class="cond-open noprint" id="cond-open">Manage conditions</button>
+                  <div class="cond-panel noprint" id="cond-panel" hidden></div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="card grow defenses-card" data-csec="defenses">
-            <h2>Defenses</h2>
-            <textarea data-save="" id="defnotes" placeholder="Damage resistances/immunities/vulnerabilities, condition immunities, and other defenses…" style="height: 286px;"></textarea><div class="ta-print"></div>
-            <div class="def-items" id="defenses-items"></div>
           </div>
         </div>
 
@@ -2784,11 +2834,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v365 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v366 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.45.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.46.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6258,6 +6308,7 @@
     const mod = modBlank ? 0 : num(modEl.value, 0);
     const hasOv = !ovBlank && !isNaN(num(ovEl.value, NaN));
     let eff = hasOv ? num(ovEl.value, 0) : (base == null ? null : base + mod);
+    if(eff != null && (typeof exhaustionLevel === "function") && exhaustionLevel() >= 4) eff = Math.floor(eff / 2);   // exhaustion 4: hit point maximum halved
     maxEl.value = (eff == null) ? "" : String(eff);
     maxEl.classList.remove("hp-mod-up", "hp-mod-down");
     if(disp){ disp.hidden = true; disp.textContent = ""; disp.classList.remove("hp-mod-up", "hp-mod-down"); }
@@ -6294,6 +6345,109 @@
     }
     if(f) f.value = "";
     compute(); save();
+  }
+
+  // ===== Conditions & Exhaustion =====
+  // Paraphrased rules (my own concise wording — copyright-clean) + the mechanical effects each applies to THIS sheet.
+  // eff.disadv/adv target the player's OWN d20 rolls: 'attack' (all attacks), 'check' (all ability checks incl. skills &
+  // initiative), 'save' (all saves), 'save:str'/'save:dex' (one ability). speed:0|'half'. autofail: saves that auto-fail
+  // (shown with the disadvantage marker). incap: can't take actions/reactions (informational only).
+  const CONDITIONS = [
+    {k:'blinded', name:'Blinded', eff:{disadv:['attack']}, text:"Can't see; auto-fail any ability check that needs sight. Attacks against you have advantage, and your attack rolls have disadvantage."},
+    {k:'charmed', name:'Charmed', eff:{}, text:"You can't attack the charmer or target it with harmful effects. The charmer has advantage on any check to interact with you socially."},
+    {k:'deafened', name:'Deafened', eff:{}, text:"Can't hear; auto-fail any ability check that needs hearing."},
+    {k:'frightened', name:'Frightened', eff:{disadv:['check','attack']}, text:"While the source of your fear is in line of sight: disadvantage on ability checks and attack rolls. You can't willingly move closer to it."},
+    {k:'grappled', name:'Grappled', eff:{speed:0}, text:"Your speed becomes 0 and can't benefit from any bonus to it. Ends if the grappler is incapacitated or you're moved out of its reach."},
+    {k:'incapacitated', name:'Incapacitated', eff:{incap:true}, text:"You can't take actions or reactions."},
+    {k:'invisible', name:'Invisible', eff:{adv:['attack']}, text:"Impossible to see without magic or a special sense; counts as heavily obscured for hiding. Attacks against you have disadvantage, and your attack rolls have advantage."},
+    {k:'paralyzed', name:'Paralyzed', eff:{incap:true, speed:0, autofail:['str','dex']}, text:"Incapacitated; can't move or speak. You auto-fail Strength and Dexterity saves. Attacks against you have advantage, and any hit from within 5 ft is a critical hit."},
+    {k:'petrified', name:'Petrified', eff:{incap:true, speed:0, autofail:['str','dex']}, text:"Turned to solid substance; incapacitated, can't move or speak, unaware of surroundings. Weight ×10, aging stops. You auto-fail Strength and Dexterity saves. Resistance to all damage; immune to poison and disease. Attacks against you have advantage."},
+    {k:'poisoned', name:'Poisoned', eff:{disadv:['attack','check']}, text:"Disadvantage on attack rolls and ability checks."},
+    {k:'prone', name:'Prone', eff:{disadv:['attack'], speed:'half'}, text:"Your only move option is to crawl (half speed) unless you stand up. Disadvantage on attack rolls. Attacks against you have advantage from within 5 ft, disadvantage from farther away."},
+    {k:'restrained', name:'Restrained', eff:{speed:0, disadv:['attack','save:dex']}, text:"Your speed becomes 0 and can't benefit from any bonus to it. Disadvantage on attack rolls and Dexterity saves. Attacks against you have advantage."},
+    {k:'stunned', name:'Stunned', eff:{incap:true, speed:0, autofail:['str','dex']}, text:"Incapacitated, can't move, can speak only falteringly. You auto-fail Strength and Dexterity saves. Attacks against you have advantage."},
+    {k:'unconscious', name:'Unconscious', eff:{incap:true, speed:0, autofail:['str','dex']}, text:"Incapacitated, can't move or speak, unaware; you drop what you're holding and fall prone. You auto-fail Strength and Dexterity saves. Attacks against you have advantage, and any hit from within 5 ft is a critical hit."},
+  ];
+  const EXHAUSTION_STAGES = [
+    "Disadvantage on ability checks.",
+    "Speed halved.",
+    "Disadvantage on attack rolls and saving throws.",
+    "Hit point maximum halved.",
+    "Speed reduced to 0.",
+    "Death.",
+  ];
+  function isCondActive(k){ const c = $("cond-"+k); return !!(c && c.checked); }
+  function exhaustionLevel(){ const e = $("exhaustion"); return e ? Math.max(0, Math.min(6, num(e.value,0))) : 0; }
+  function condEffects(){   // aggregate every active condition + exhaustion into one effect set
+    const out = {disadv:new Set(), adv:new Set(), speedZero:false, speedHalf:false, hpHalf:false, incap:false};
+    CONDITIONS.forEach(c => { if(!isCondActive(c.k)) return; const e = c.eff;
+      (e.disadv||[]).forEach(t => out.disadv.add(t));
+      (e.adv||[]).forEach(t => out.adv.add(t));
+      (e.autofail||[]).forEach(a => out.disadv.add('save:'+a));
+      if(e.speed === 0) out.speedZero = true; else if(e.speed === 'half') out.speedHalf = true;
+      if(e.incap) out.incap = true;
+    });
+    const ex = exhaustionLevel();
+    if(ex>=1) out.disadv.add('check');
+    if(ex>=2) out.speedHalf = true;
+    if(ex>=3){ out.disadv.add('attack'); out.disadv.add('save'); }
+    if(ex>=4) out.hpHalf = true;
+    if(ex>=5) out.speedZero = true;
+    return out;
+  }
+  function conditionSpeed(){ const e = condEffects(); return {zero:e.speedZero, half:e.speedHalf}; }
+  function advFor(eff, keys){ let a=false, d=false; keys.forEach(k => { if(eff.adv.has(k)) a=true; if(eff.disadv.has(k)) d=true; }); if(a&&d) return null; return a?'adv':(d?'disadv':null); }   // adv & disadv cancel
+  function advIconSvg(kind){
+    const fill = kind==='adv' ? '#2e9e4f' : '#c0392b', ch = kind==='adv' ? 'A' : 'D';
+    return '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">'
+      + '<polygon points="10,1.5 17.5,6 17.5,14 10,18.5 2.5,14 2.5,6" fill="'+fill+'"/>'
+      + '<text x="10" y="14.4" text-anchor="middle" font-size="11" font-weight="900" fill="#000" font-family="system-ui,Arial,sans-serif">'+ch+'</text></svg>';
+  }
+  function setAdvMark(el, kind, title){
+    if(!el) return;
+    let m = el.querySelector(':scope > .advmark');
+    if(!kind){ if(m) m.remove(); return; }
+    if(!m){ m = document.createElement('span'); m.className = 'advmark'; el.appendChild(m); }
+    m.innerHTML = advIconSvg(kind);
+    m.title = (kind==='adv' ? 'Advantage' : 'Disadvantage') + (title ? ' — ' + title : '');
+  }
+  function buildConditionsPanel(){
+    const p = $("cond-panel"); if(!p || p.dataset.built) return;
+    let h = '';
+    CONDITIONS.forEach(c => {
+      h += '<div class="cond-row" data-cond="'+c.k+'">'
+        + '<div class="cond-head">'
+        +   '<label class="cond-sw"><input type="checkbox" data-save="" id="cond-'+c.k+'"><span class="track"></span><span class="knob"></span></label>'
+        +   '<span class="cn" data-exp><span class="exp">▶</span> '+c.name+'</span>'
+        + '</div><div class="cond-desc">'+esc(c.text)+'</div></div>';
+    });
+    h += '<div class="exh-block"><div class="exh-title"><span>Exhaustion</span>'
+      + '<span class="exh-pips" id="exh-pips">' + [1,2,3,4,5,6].map(n => '<span class="exh-pip" data-exh="'+n+'">'+n+'</span>').join('') + '</span></div>'
+      + '<input type="hidden" data-save="" id="exhaustion">'
+      + '<div class="exh-stages" id="exh-stages">' + EXHAUSTION_STAGES.map((s,i) => '<div class="st" data-lv="'+(i+1)+'"><span class="lv">'+(i+1)+'</span><span>'+esc(s)+'</span></div>').join('') + '</div></div>';
+    p.innerHTML = h;
+    p.dataset.built = '1';
+  }
+  function renderConditions(){   // active chips + panel row/exhaustion state (called from compute)
+    const wrap = $("cond-active");
+    if(wrap){
+      let h = '';
+      CONDITIONS.forEach(c => { if(isCondActive(c.k)) h += '<span class="cond-chip">'+esc(c.name)+'<span class="x" data-condoff="'+c.k+'" title="Remove">✕</span></span>'; });
+      const ex = exhaustionLevel();
+      if(ex>0) h += '<span class="cond-chip">Exhaustion '+ex+'<span class="x" data-exhoff title="Clear exhaustion">✕</span></span>';
+      wrap.innerHTML = h;
+    }
+    CONDITIONS.forEach(c => { const r = document.querySelector('.cond-row[data-cond="'+c.k+'"]'); if(r) r.classList.toggle('active', isCondActive(c.k)); });
+    const ex = exhaustionLevel();
+    document.querySelectorAll('.exh-pip').forEach(p => p.classList.toggle('on', +p.dataset.exh <= ex));
+    document.querySelectorAll('.exh-stages .st').forEach(s => s.classList.toggle('cur', +s.dataset.lv <= ex));
+  }
+  function renderConditionMarks(){   // green-A / red-D markers next to affected rolls (run LAST in compute, after values are written)
+    const eff = condEffects();
+    SKILLS.forEach(([k]) => { const tot = $("sktot-"+k), row = tot && tot.closest('.row'); setAdvMark(row ? row.querySelector('.rname') : null, advFor(eff,['check']), 'ability checks'); });
+    setAdvMark($("init"), advFor(eff,['check']), 'initiative (Dex check)');
+    ABILITIES.forEach(([k]) => setAdvMark($("savetot-"+k), advFor(eff,['save','save:'+k]), 'saving throws'));
+    setAdvMark(document.querySelector('[data-csec="attacks"] .atk-top h2'), advFor(eff,['attack']), 'attack rolls');
   }
   function compute(){
     // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
@@ -6484,9 +6638,12 @@
       const mm = clsLow.match(/monk[^\d]*(\d+)/), mlvl = mm ? parseInt(mm[1],10) : (charLevel() || 0);
       if(mlvl >= 2) speedBonus = Math.min(30, Math.floor((mlvl - 2) / 4) * 5 + 10);
     }
-    // Combat Speed (page 1): box shows base − encumbrance penalty + Unarmored Movement (not while editing)
-    if(document.activeElement !== $("speed"))
-      $("speed").value = (baseSpeed == null) ? "" : Math.max(0, baseSpeed - speedPenalty + speedBonus) + " ft";
+    // Combat Speed (page 1): box shows base − encumbrance penalty + Unarmored Movement, then condition effects (not while editing)
+    if(document.activeElement !== $("speed")){
+      let effSpeed = (baseSpeed == null) ? null : Math.max(0, baseSpeed - speedPenalty + speedBonus);
+      if(effSpeed != null){ const cs = conditionSpeed(); if(cs.zero) effSpeed = 0; else if(cs.half) effSpeed = Math.floor(effSpeed / 2); }   // grappled/restrained/exhaustion 5 → 0; prone/exhaustion 2 → half
+      $("speed").value = (effSpeed == null) ? "" : effSpeed + " ft";
+    }
     // Other movement modes (page 1): fly/swim/climb/burrow from race, with encumbrance/armor penalty applied (not the Monk bonus, which is walking only)
     { const os = $("otherspeeds");
       if(os){
@@ -6562,6 +6719,8 @@
     applyOverrides();    // repaint any hand-pinned leaf values over what compute() just wrote (sources already cascaded via the helpers)
     refreshSimulacrumButton();   // surface the "Create Simulacrum" button only when the Simulacrum spell is on a sheet
     refreshSpellDamageCells();   // keep the per-spell Damage column live as level/scores change (in place, no re-render)
+    renderConditions();          // active-condition chips + panel state
+    renderConditionMarks();      // advantage/disadvantage d20 markers (must run last, after all roll values are written)
   }
 
   // ===== Manual overrides: pin any computed value by hand =====
@@ -10360,6 +10519,7 @@
     await csInit();   // load characters from IndexedDB (+ migrate any from localStorage) before anything reads them
     try{ localStorage.removeItem(STORE_PROBE_KEY); }catch(e){}   // sweep a probe temp key if a prior probe was ever interrupted
     buildStatic();
+    buildConditionsPanel();   // build the conditions/exhaustion controls (with their data-save inputs) BEFORE applyAll restores them
     wireLabels();
     let _stored = null, _baked = null;
     try{ const s = localStorage.getItem(SOURCES_KEY); if(s) _stored = JSON.parse(s); }catch(e){}            // books loaded from the server / imported
@@ -10397,6 +10557,15 @@
       if(hpb){ applyHpDelta(hpb.id === "hp-heal"); return; }
       if(e.target.closest("#hpmax")){ const p = $("hpmax-pop"); if(p && p.hidden) openHpMaxPop(); else closeHpMaxPop(); return; }   // tap Max → modifier/override dialog
       if(!e.target.closest("#hpmax-pop") && !e.target.closest("#hpmax")) closeHpMaxPop();   // click elsewhere closes it
+      // Conditions section
+      if(e.target.closest("#cond-open")){ const p = $("cond-panel"); if(p) p.hidden = !p.hidden; return; }   // open/close the conditions list
+      const cexp = e.target.closest(".cond-head .cn[data-exp]");
+      if(cexp){ const r = cexp.closest(".cond-row"); if(r) r.classList.toggle("open"); return; }   // expand a condition's rules
+      const pip = e.target.closest(".exh-pip");
+      if(pip){ const n = +pip.dataset.exh, cur = exhaustionLevel(), ex = $("exhaustion"); if(ex){ ex.value = String(cur === n ? n - 1 : n); save(); compute(); } return; }   // set/toggle exhaustion level
+      const coff = e.target.closest("[data-condoff]");
+      if(coff){ const c = $("cond-" + coff.dataset.condoff); if(c){ c.checked = false; save(); compute(); } return; }   // remove an active-condition chip
+      if(e.target.closest("[data-exhoff]")){ const ex = $("exhaustion"); if(ex){ ex.value = "0"; save(); compute(); } return; }   // clear exhaustion chip
       const fire = e.target.closest(".atk-fire");
       if(fire && !fire.disabled){ fireAmmo(fire.dataset.kind); return; }
       const cast = e.target.closest(".sp-cast");
@@ -12063,8 +12232,7 @@
       var strip=document.createElement('div'); strip.className='ucs-abilstrip'; sc['ucs-topbar'].appendChild(strip);   // abilities + Prof/Inspiration share one strip
       relocate(findCard('abilities'), strip, 'abilities');
       relocate(findCard('topstats'), strip, 'topstats');
-      relocate(findCard('combat'), sc['ucs-topbar'], 'combat');   // Combat (HP + AC/Init/Speed stack) shares the header row with Defenses
-      relocate(findCard('defenses'), sc['ucs-topbar'], 'defenses');   // Defenses sits to the right of Combat's AC/Init/Speed stack
+      relocate(findCard('combat'), sc['ucs-topbar'], 'combat');   // Combat takes the full-width header row (HP + AC/Init/Speed stack + Defenses & Conditions subsections)
       ['sources-flag','asi-flag','decisions-flag'].forEach(function(id){ var f=el(id); if(f){ f.classList.add('ucs-flag-moved'); sc['ucs-topbar'].appendChild(f); } });
       ['saves','senses','proficiencies'].forEach(function(k){ relocate(findCard(k), sc['ucs-rail'], k); });   // Hit Dice card retired — its tracking moved into Short/Long Rest
       relocate(findCard('skills'), sc['ucs-skills'], 'skills');
