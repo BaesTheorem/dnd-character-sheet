@@ -2925,11 +2925,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v401 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v402 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.60.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.61.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2937,6 +2937,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v402", semver:"2.61.0", items:[
+      "Ancestral Weapons is now a sourcebook-style module you can switch on or off, under Settings → Source books → Rules modules. Turn it off and the whole system disappears: the “+ Ancestral Weapon” builder button, every Ancestral Weapon you've made (gone from the item search, your weapons, attunement, and AC/spell bonuses), and the Ancestral Weapons tab. Turn it back on and everything returns exactly as it was — it's a hide, not a delete. Your other homebrew items are unaffected."
+    ]},
     {v:"v401", semver:"2.60.1", items:[
       "Fixed: homebrew items you build in the Homebrew Studio now show up in the inventory item search (the “Search items… to add” box on the Inventory page), not just the per-row autocomplete. Previously that search only looked at loaded sourcebooks, so items like a custom wondrous item couldn't be found there."
     ]},
@@ -3296,6 +3299,11 @@
   const SERVER_KEY  = "dnd-sheet-5et-server"; // remembered 5etools server URL
   const SOURCES_RAW_KEY = "dnd-sheet-sources-raw";   // per-book processed data, kept so individual books can be filtered out
   const HOMEBREW_KEY = "dnd-sheet-homebrew";   // homebrew saved as SOURCE MATERIAL — browser-wide, survives character clears, managed in Settings
+  const AW_ENABLED_KEY = "dnd-sheet-aw-enabled";   // Ancestral Weapons rules module on/off (browser-wide, like a togglable sourcebook)
+  let awEnabled = true;
+  function loadAwEnabled(){ try{ const v = localStorage.getItem(AW_ENABLED_KEY); awEnabled = (v === null) ? true : v !== "0"; }catch(e){ awEnabled = true; } }
+  function saveAwEnabled(){ try{ localStorage.setItem(AW_ENABLED_KEY, awEnabled ? "1" : "0"); }catch(e){} }
+  function setAwEnabled(on){ awEnabled = !!on; saveAwEnabled(); if(typeof refreshHbItems==="function") refreshHbItems(); if($("hb-studio")) renderHbStudio(); flashStatus("Ancestral Weapons " + (awEnabled ? "enabled" : "disabled")); }
   function serverBase(){ return (($("server-url")||{}).value || "").trim() || "http://localhost:5050"; }   // the 5etools server URL (single source)
 
   const ABILITIES = [
@@ -4268,7 +4276,7 @@
   function renderLoadedBookList(){
     const el = $("loaded-books"); if(!el) return;
     const names = loadedBooks(); const off = disabledBooks();
-    if(!names.length && !homebrewSources.length){ el.innerHTML = ""; return; }
+    // (always render — the Ancestral Weapons module toggle below shows even with no books/homebrew loaded)
     const baked = new Set(((DATA && DATA._meta && DATA._meta.bakedBooks) || []).map(String));
     const sorted = names.slice().sort((a,b)=>String(a).localeCompare(String(b)));
     const row = nm => `<div class="book-row"><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label><button type="button" class="book-del" data-book="${esc(nm)}" title="Delete this sourcebook entirely" aria-label="Delete ${esc(nm)}">✕</button></div>`;
@@ -4285,6 +4293,7 @@
         return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(${cnt})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
       html += hdr("Homebrew", "your own sources, authored in the Homebrew Studio. Uncheck to hide across all characters, ✕ to delete") + homebrewSources.map(hbrow).join("");
     }
+    html += hdr("Rules modules", "optional add-on systems") + `<div class="book-row"><label class="lay-row"><input type="checkbox" class="aw-module-toggle" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(Spirit-Points heirloom weapon builder — off hides its creator, items, and tab)</span></label></div>`;
     el.innerHTML = html;
   }
   function renderHomebrewList(){   // Settings: summary + entry to the Homebrew Studio (the sources themselves toggle/delete in the loaded-sources list above)
@@ -5415,7 +5424,7 @@
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
     const hasCompanion = (companions||[]).length > 0;
-    const hasAw = (typeof attunedNames==="function") && (typeof hbEnabledItem==="function") && [...attunedNames()].some(lc => { const it = hbEnabledItem(lc); return !!(it && it.aw); });   // the AW tab shows once an Ancestral Weapon is attuned
+    const hasAw = awEnabled && (typeof attunedNames==="function") && (typeof hbEnabledItem==="function") && [...attunedNames()].some(lc => { const it = hbEnabledItem(lc); return !!(it && it.aw); });   // the AW tab shows once an Ancestral Weapon is attuned (and the module is enabled)
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
       const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "companion" && !hasCompanion) || (key === "aw" && !hasAw);
@@ -5922,6 +5931,7 @@
     document.querySelectorAll("#hb-studio .hb-tab").forEach(b => b.classList.toggle("active", b.dataset.hbtype === _hbType));
     const sp = $("hb-pane-spells"), ip = $("hb-pane-items"); if(sp) sp.style.display = _hbType === "items" ? "none" : ""; if(ip) ip.style.display = _hbType === "items" ? "" : "none";
     if(_hbType === "items") renderHbItemList(); else renderHbSpellList();
+    { const b = $("hb-new-aw"); if(b) b.style.display = awEnabled ? "" : "none"; }
   }
   function openHbStudio(rowCtx){
     buildHbStudio();
@@ -5947,7 +5957,7 @@
   function renderHbItemList(){
     const el = $("hb-item-list"); if(!el) return;
     const cur = homebrewSources[_hbCurId] || {items:{}};
-    const arr = Object.values(cur.items||{}).sort((a,b) => String(a.name).localeCompare(String(b.name)));
+    const arr = Object.values(cur.items||{}).filter(it => !(it.aw && !awEnabled)).sort((a,b) => String(a.name).localeCompare(String(b.name)));
     if(!arr.length){ el.innerHTML = `<div class="hb-empty">No items in this source yet. Click \u201c+ New item\u201d to make one.</div>`; return; }
     el.innerHTML = arr.map(it => { const tag = [it.type||"Item", it.rarity].filter(Boolean).join(" \u00b7 ") + (it.attune ? " \u00b7 attune" : "");
       return `<div class="hb-row"><span class="hb-name">${esc(it.name)}</span><span class="hb-lvl">${esc(tag)}</span><button type="button" class="hb-edit" data-name="${esc(it.name)}" title="Edit item">\u270e</button><button type="button" class="hb-del" data-name="${esc(it.name)}" title="Delete item">\u2715</button></div>`;
@@ -6163,8 +6173,8 @@
   function hbSpellCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.spells||{}).length, 0); }
   function hbHasContent(){ return homebrewSources.some(s => Object.keys(s.spells||{}).length || Object.keys(s.items||{}).length); }
   function hbItemCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.items||{}).length, 0); }
-  function hbActiveItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})) if(!(k in out)) out[k] = s.items[k]; }); return out; }   // enabled-source homebrew items, keyed lc
-  function hbEnabledItem(lc){ for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]) return s.items[lc]; } return null; }
+  function hbActiveItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})){ const it = s.items[k]; if(it.aw && !awEnabled) continue; if(!(k in out)) out[k] = it; } }); return out; }   // enabled-source homebrew items, keyed lc (AW items drop out when the Ancestral Weapons module is off)
+  function hbEnabledItem(lc){ for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]){ const it = s.items[lc]; if(it.aw && !awEnabled) return null; return it; } } return null; }
   function hbAwMagicWeapon(lc){ const it = hbEnabledItem(lc); if(!(it && it.aw && it.aw.baseWeapon)) return null;
     const attuned = (typeof attunedNames === "function") && attunedNames().has(String(lc).toLowerCase());
     if(!attuned) return {base:it.aw.baseWeapon, bonus:0, rider:""};   // un-attuned Ancestral Weapon acts as a mundane weapon of its type (RAW)
@@ -11281,6 +11291,7 @@
     let data = null;
     try{ data = JSON.parse(csGet(KEY)); }catch(e){}
     if(!data && !SLOT){ try{ data = JSON.parse($("embedded-data").textContent); }catch(e){} }  // fresh "New" slot / single-char file
+    loadAwEnabled();   // Ancestral Weapons module on/off (browser-wide)
     loadHomebrew();   // source-material homebrew (browser-wide) — load before rendering spell sheets so its spells resolve
     populateWizard();
     populateArmor(); populateItemList();
@@ -11825,7 +11836,7 @@
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
     ["attune-0","attune-1","attune-2"].forEach(id => { const el = $(id); if(el) el.addEventListener("change", () => { if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }); });   // attuning/un-attuning an Ancestral Weapon shows/hides its tab + refreshes its sheet
-    $("loaded-books").addEventListener("change", e => { const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
+    $("loaded-books").addEventListener("change", e => { const a = e.target.closest(".aw-module-toggle"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
     $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
