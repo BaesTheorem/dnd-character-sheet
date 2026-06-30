@@ -992,7 +992,7 @@
   /* Custom Spell wizard */
   #hb-studio .modal-panel{max-width:640px}
   #hb-studio .modal-body{max-height:72vh; overflow:auto}
-  .hb-src-row{display:flex; gap:14px; align-items:flex-end; margin-bottom:6px}
+  .hb-src-row{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; margin-bottom:6px}
   .hb-src-enable{display:flex; gap:5px; align-items:center; font-size:13px; white-space:nowrap; padding-bottom:7px; cursor:pointer}
   .hb-section-h{display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--line); padding-top:12px; margin-top:12px; margin-bottom:4px}
   .hb-section-h > span{font-weight:700; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
@@ -2867,11 +2867,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v389 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v390 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.55.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.56.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2879,6 +2879,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v390", semver:"2.56.0", items:[
+      "Homebrew Studio now supports multiple named sources, so you can organize your custom content into separate books (e.g. one per campaign or theme). Create and switch between sources from the picker at the top of the studio, and put each spell in whichever source you want. Every homebrew source now shows in Settings → Source books as its own togglable book — check or uncheck it to turn it on or off across all your characters, or ✕ to delete it. Sharing a blank sheet bakes your homebrew sources in (with their on/off state), so whoever opens it gets them as ready-to-use sources."
+    ]},
     {v:"v389", semver:"2.55.0", items:[
       "New: Homebrew Studio. Manage all your custom content in one place, deposited into a single named source you can rename (\"My Homebrew\" by default). Open it from Settings → Source books → Open Homebrew Studio, or by clicking the ✎ on any write-in spell row. Create, edit, and delete homebrew spells from a clean form; everything saves as reusable source material that survives character changes and travels with sheets you share. This replaces the old per-row Custom Spell dialog. (Spells first; more homebrew types to come.)"
     ]},
@@ -4183,28 +4186,42 @@
   function renderLoadedBookList(){
     const el = $("loaded-books"); if(!el) return;
     const names = loadedBooks(); const off = disabledBooks();
-    if(!names.length){ el.innerHTML = ""; return; }
+    if(!names.length && !homebrewSources.length){ el.innerHTML = ""; return; }
     const baked = new Set(((DATA && DATA._meta && DATA._meta.bakedBooks) || []).map(String));
     const sorted = names.slice().sort((a,b)=>String(a).localeCompare(String(b)));
     const row = nm => `<div class="book-row"><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label><button type="button" class="book-del" data-book="${esc(nm)}" title="Delete this sourcebook entirely" aria-label="Delete ${esc(nm)}">✕</button></div>`;
     const hdr = (t,h) => `<label class="lbl" style="display:block; margin:14px 0 4px">${t} <span class="wiz-hint" style="font-weight:400; display:inline">— ${h}</span></label>`;
-    // Two sections: the built-in 5etools books (refreshed when you update) and books you loaded yourself
-    // (kept across updates). With no bakedBooks marker (old data), everything falls back to one list.
+    // Sections: built-in 5etools books, books you loaded yourself, and your homebrew sources. With no bakedBooks marker
+    // (old data), the 5etools/loaded split collapses to one list; homebrew is always its own section.
     const fiveE = baked.size ? sorted.filter(nm => baked.has(String(nm))) : sorted;
     const mine  = baked.size ? sorted.filter(nm => !baked.has(String(nm))) : [];
     let html = "";
     if(fiveE.length) html += hdr("5etools sources", "built in, refreshed when you update. Uncheck to hide a book's content, ✕ to delete it") + fiveE.map(row).join("");
     if(mine.length)  html += hdr("Your loaded sources", "books you loaded yourself, kept across updates. Uncheck to hide, ✕ to delete") + mine.map(row).join("");
+    if(homebrewSources.length){
+      const hbrow = src => { const n = Object.keys(src.spells||{}).length;
+        return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(${n} spell${n===1?"":"s"})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
+      html += hdr("Homebrew", "your own sources, authored in the Homebrew Studio. Uncheck to hide across all characters, ✕ to delete") + homebrewSources.map(hbrow).join("");
+    }
     el.innerHTML = html;
   }
-  function renderHomebrewList(){   // Settings: a summary + entry point to the Homebrew Studio (the studio is where homebrew is authored/managed)
+  function renderHomebrewList(){   // Settings: summary + entry to the Homebrew Studio (the sources themselves toggle/delete in the loaded-sources list above)
     const el = $("homebrew-list"); if(!el) return;
-    const n = Object.keys(homebrew.spells||{}).length;
-    el.innerHTML = `<label class="lbl" style="display:block; margin:18px 0 4px; border-top:1px solid var(--line); padding-top:14px">Homebrew <span class="wiz-hint" style="font-weight:400; display:inline">— your custom content, saved as one named source (this browser; survives character clears; travels with shared sheets)</span></label>`+
-      `<p class="wiz-hint" style="margin:0 0 8px">${n} spell${n===1?"":"s"} in “${esc(homebrew.name||"My Homebrew")}”${homebrew.enabled?"":" — currently disabled"}.</p>`+
+    const ns = homebrewSources.length, sp = hbSpellCount();
+    el.innerHTML = `<label class="lbl" style="display:block; margin:18px 0 4px; border-top:1px solid var(--line); padding-top:14px">Homebrew <span class="wiz-hint" style="font-weight:400; display:inline">— your own content, as one or more named sources (this browser; survives character clears; travels with shared sheets; toggle/delete each above)</span></label>`+
+      `<p class="wiz-hint" style="margin:0 0 8px">${sp} spell${sp===1?"":"s"} across ${ns||0} source${ns===1?"":"s"}.</p>`+
       `<button class="btn primary" id="btn-hb-studio" type="button">Open Homebrew Studio…</button>`;
   }
-  function refreshHomebrew(){ saveHomebrew(); renderHomebrewList(); if($("hb-spell-list")) renderHbSpellList(); renderAllSpellSheets(false); compute(); }   // persist + re-render everything that reads spell data
+  function refreshHomebrew(){ saveHomebrew(); renderHomebrewList(); renderLoadedBookList(); if($("hb-studio")) renderHbStudio(); renderAllSpellSheets(false); compute(); }   // persist + re-render everything that reads homebrew
+  function hbToggleSource(name, enabled){ const i = hbFindIdx(name); if(i < 0) return; homebrewSources[i].enabled = enabled; refreshHomebrew(); flashStatus((homebrewSources[i].name) + (enabled ? " shown" : " hidden")); }
+  function hbDeleteSource(name){
+    const i = hbFindIdx(name); if(i < 0) return;
+    const src = homebrewSources[i], n = Object.keys(src.spells||{}).length;
+    if(!confirm(`Delete homebrew source “${src.name}”${n?` and its ${n} spell${n===1?"":"s"}`:""}? This can't be undone.`)) return;
+    homebrewSources.splice(i, 1);
+    if(_hbCurId >= homebrewSources.length) _hbCurId = Math.max(0, homebrewSources.length - 1);
+    refreshHomebrew(); flashStatus("“"+src.name+"” deleted");
+  }
   async function toggleBook(name, enabled){
     if(!DATA || !DATA._meta) return;
     const prev = (DATA._meta.disabled || []).slice();
@@ -5492,10 +5509,13 @@
       `<div class="modal-panel"><div class="modal-head"><h2>Homebrew Studio</h2><button class="btn ghost" id="hb-x" type="button">✕</button></div>`+
       `<div class="modal-body">`+
         `<div class="hb-src-row">`+
-          `<label class="cspell-f" style="flex:1"><span>Sourcebook name</span><input type="text" id="hb-src-name" placeholder="My Homebrew"></label>`+
+          `<label class="cspell-f" style="flex:0 0 auto"><span>Source</span><select id="hb-src-select"></select></label>`+
+          `<label class="cspell-f" style="flex:1 1 160px"><span>Name</span><input type="text" id="hb-src-name" placeholder="My Homebrew"></label>`+
           `<label class="hb-src-enable"><input type="checkbox" id="hb-src-enabled"> Enabled</label>`+
+          `<button class="btn" id="hb-src-new" type="button" title="Create a new homebrew source">+ Source</button>`+
+          `<button class="btn ghost" id="hb-src-del" type="button" title="Delete this homebrew source">Delete source</button>`+
         `</div>`+
-        `<div class="hb-section-h"><span>Spells</span><button class="btn" id="hb-new-spell" type="button">+ New spell</button></div>`+
+        `<div class="hb-section-h"><span>Spells in this source</span><button class="btn" id="hb-new-spell" type="button">+ New spell</button></div>`+
         `<div id="hb-spell-list" class="hb-spells"></div>`+
         `<div id="hb-spell-form" class="hb-form" style="display:none"><div class="cspell-grid">`+
           `<label class="cspell-f cspell-full"><span>Name</span><input type="text" id="hbf-name"></label>`+
@@ -5511,13 +5531,17 @@
           `<label class="cspell-f cspell-full"><span>At Higher Levels</span><textarea id="hbf-higher" rows="2"></textarea></label>`+
         `</div><div class="hb-form-foot"><button class="btn ghost" id="hbf-cancel" type="button">Cancel</button><button class="btn primary" id="hbf-save" type="button">Save spell</button></div></div>`+
       `</div>`+
-      `<div class="modal-foot"><span class="wiz-hint" style="flex:1; margin:0">Saved as reusable source material; travels with sheets you share.</span><button class="btn primary" id="hb-done" type="button">Done</button></div></div>`;
+      `<div class="modal-foot"><span class="wiz-hint" style="flex:1; margin:0">Saved as reusable sources; they show as togglable books and travel with sheets you share.</span><button class="btn primary" id="hb-done" type="button">Done</button></div></div>`;
     document.body.appendChild(m);
     $("hb-x").addEventListener("click", closeHbStudio);
     $("hb-done").addEventListener("click", closeHbStudio);
     m.addEventListener("mousedown", e => { if(e.target === m) closeHbStudio(); });   // click the backdrop to dismiss
-    $("hb-src-name").addEventListener("change", e => { homebrew.name = (e.target.value||"").trim() || "My Homebrew"; e.target.value = homebrew.name; saveHomebrew(); renderHomebrewList(); });
-    $("hb-src-enabled").addEventListener("change", e => { homebrew.enabled = e.target.checked; refreshHomebrew(); });
+    $("hb-src-select").addEventListener("change", e => { _hbCurId = parseInt(e.target.value, 10) || 0; hbCloseForm(); renderHbStudio(); });
+    $("hb-src-name").addEventListener("change", e => { const cur = hbEnsureSource(); const want = (e.target.value||"").trim() || "My Homebrew";
+      cur.name = (want.toLowerCase() === cur.name.toLowerCase()) ? want : hbUniqueName(want); refreshHomebrew(); });
+    $("hb-src-enabled").addEventListener("change", e => { hbEnsureSource().enabled = e.target.checked; refreshHomebrew(); });
+    $("hb-src-new").addEventListener("click", () => { homebrewSources.push({name:hbUniqueName("Homebrew"), enabled:true, spells:{}}); _hbCurId = homebrewSources.length - 1; hbCloseForm(); refreshHomebrew(); setTimeout(() => { const el = $("hb-src-name"); if(el){ el.focus(); el.select(); } }, 0); });
+    $("hb-src-del").addEventListener("click", () => { const cur = homebrewSources[_hbCurId]; if(cur){ hbDeleteSource(cur.name); renderHbStudio(); } });
     $("hb-new-spell").addEventListener("click", () => hbOpenForm(null));
     $("hbf-cancel").addEventListener("click", hbCloseForm);
     $("hbf-save").addEventListener("click", hbSaveForm);
@@ -5526,34 +5550,50 @@
       const del = e.target.closest(".hb-del"); if(del){ hbDeleteSpell(del.dataset.name); return; }
     });
   }
+  function renderHbStudio(){
+    if(!$("hb-studio")) return;
+    hbEnsureSource();
+    $("hb-src-select").innerHTML = homebrewSources.map((s,i) => `<option value="${i}" ${i===_hbCurId?"selected":""}>${esc(s.name)}</option>`).join("");
+    const cur = homebrewSources[_hbCurId];
+    $("hb-src-name").value = cur.name;
+    $("hb-src-enabled").checked = cur.enabled !== false;
+    $("hb-src-del").style.display = homebrewSources.length > 1 ? "" : "none";   // always keep at least one source
+    renderHbSpellList();
+  }
   function openHbStudio(rowCtx){
     buildHbStudio();
     _hbRowCtx = rowCtx || null;
-    $("hb-src-name").value = homebrew.name || "My Homebrew";
-    $("hb-src-enabled").checked = homebrew.enabled !== false;
-    renderHbSpellList();
-    $("hb-studio").classList.add("open");
-    if(rowCtx){   // opened from a write-in row → jump straight to its spell form
+    if(rowCtx){   // opened from a write-in row → anchor to the source that already has the spell (if any), then jump to its form
       const SE = spellEntriesOf(rowCtx.inst), cur = (SE[rowCtx.l] && SE[rowCtx.l][rowCtx.i]) || {name:""};
       const nm = (cur.name||"").trim(), lc = nm.toLowerCase();
-      if(nm && homebrew.spells[lc]) hbOpenForm(lc);                                  // already homebrew → edit it
-      else { const known = nm ? spellData(nm) : null;                               // known sourcebook spell → seed a homebrew override; else blank at this level
+      const found = nm ? homebrewSources.findIndex(s => s.spells[lc]) : -1;
+      if(found >= 0) _hbCurId = found; else hbEnsureSource();
+      renderHbStudio();
+      $("hb-studio").classList.add("open");
+      if(found >= 0) hbOpenForm(lc);
+      else { const known = nm ? spellData(nm) : null;
         hbOpenForm(null, known ? Object.assign({}, known, {name:nm}) : {name:nm, level:rowCtx.l}); }
-    } else hbCloseForm();
+    } else {
+      hbEnsureSource(); renderHbStudio();
+      $("hb-studio").classList.add("open");
+      hbCloseForm();
+    }
   }
   function closeHbStudio(){ const m = $("hb-studio"); if(m) m.classList.remove("open"); _hbRowCtx = null; _hbEditKey = null; }
   function renderHbSpellList(){
     const el = $("hb-spell-list"); if(!el) return;
-    const arr = Object.values(homebrew.spells||{}).sort((a,b) => (a.level||0)-(b.level||0) || String(a.name).localeCompare(String(b.name)));
-    if(!arr.length){ el.innerHTML = `<div class="hb-empty">No homebrew spells yet. Click “+ New spell” to make one.</div>`; return; }
+    const cur = homebrewSources[_hbCurId] || {spells:{}};
+    const arr = Object.values(cur.spells||{}).sort((a,b) => (a.level||0)-(b.level||0) || String(a.name).localeCompare(String(b.name)));
+    if(!arr.length){ el.innerHTML = `<div class="hb-empty">No spells in this source yet. Click “+ New spell” to make one.</div>`; return; }
     el.innerHTML = arr.map(s => { const lv = (s.level||0)===0 ? "Cantrip" : "Lv "+s.level;
       return `<div class="hb-row"><span class="hb-name">${esc(s.name)}</span><span class="hb-lvl">${lv}</span><button type="button" class="hb-edit" data-name="${esc(s.name)}" title="Edit spell">✎</button><button type="button" class="hb-del" data-name="${esc(s.name)}" title="Delete spell">✕</button></div>`;
     }).join("");
   }
-  function hbOpenForm(key, seed){   // key = lc name to edit (null = new); seed = {name,level,...} prefill for a new/derived spell
+  function hbOpenForm(key, seed){   // key = lc name to edit in the current source (null = new); seed = {name,level,...} prefill
+    const cur = hbEnsureSource();
     const lc = key ? String(key).toLowerCase() : null;
     _hbEditKey = lc;
-    const base = (lc && homebrew.spells[lc]) || seed || {};
+    const base = (lc && cur.spells[lc]) || seed || {};
     $("hbf-name").value = base.name || "";
     $("hbf-level").value = String(base.level || 0);
     $("hbf-school").value = base.school || "";
@@ -5576,6 +5616,7 @@
     const l = $("hb-spell-list"); if(l) l.style.display = "";
   }
   function hbSaveForm(){
+    const cur = hbEnsureSource();
     const name = ($("hbf-name").value||"").trim();
     if(!name){ flashStatus("Name the spell first"); $("hbf-name").focus(); return; }
     const level = Math.max(0, Math.min(9, parseInt($("hbf-level").value, 10) || 0));
@@ -5585,9 +5626,9 @@
       range:$("hbf-range").value.trim(), components:comp, duration:$("hbf-duration").value.trim(),
       material:$("hbf-material").value.trim(), conc:$("hbf-conc").checked, ritual:$("hbf-ritual").checked,
       text:$("hbf-text").value.trim(), higher:$("hbf-higher").value.trim() };
-    if(_hbEditKey && _hbEditKey !== lc) delete homebrew.spells[_hbEditKey];   // renamed → drop the old key
-    homebrew.spells[lc] = obj; homebrew.enabled = true;
-    saveHomebrew(); renderAllSpellSheets(false); compute(); renderHomebrewList();
+    if(_hbEditKey && _hbEditKey !== lc) delete cur.spells[_hbEditKey];   // renamed → drop the old key
+    cur.spells[lc] = obj; cur.enabled = true;
+    saveHomebrew(); renderAllSpellSheets(false); compute(); renderHomebrewList(); renderLoadedBookList();
     if(_hbRowCtx){   // opened from a write-in row → link it + refile by level, then close the Studio
       const {inst, l, i} = _hbRowCtx, SE = spellEntriesOf(inst);
       SE[l] = SE[l] || []; SE[l][i] = SE[l][i] || {name:"", prep:false};
@@ -5596,15 +5637,16 @@
       renderSpellTable(inst); save(); compute();
       closeHbStudio(); return;
     }
-    renderHbSpellList(); hbCloseForm();
-    flashStatus(`Saved “${name}” to ${homebrew.name||"My Homebrew"}`);
+    renderHbStudio(); hbCloseForm();
+    flashStatus(`Saved “${name}” to ${cur.name}`);
   }
   function hbDeleteSpell(name){
+    const cur = hbEnsureSource();
     const lc = String(name||"").toLowerCase();
-    if(!homebrew.spells[lc]) return;
-    if(!confirm(`Delete homebrew spell “${name}”? This removes it from ${homebrew.name||"My Homebrew"} for all characters.`)) return;
-    delete homebrew.spells[lc];
-    saveHomebrew(); renderAllSpellSheets(false); compute(); renderHomebrewList(); renderHbSpellList();
+    if(!cur.spells[lc]) return;
+    if(!confirm(`Delete homebrew spell “${name}” from ${cur.name}? This removes it for all characters.`)) return;
+    delete cur.spells[lc];
+    saveHomebrew(); renderAllSpellSheets(false); compute(); renderHomebrewList(); renderLoadedBookList(); renderHbSpellList();
   }
   // the highest spell level a class can EVER reach (caps the sheet by class alone, even with no level)
   const THIRD_CASTERS = ["Fighter (Eldritch Knight)","Rogue (Arcane Trickster)"];
@@ -5696,21 +5738,32 @@
     return _spellIndex;
   }
   let customSpells = {};   // CHARACTER-data homebrew, keyed by lowercased name → DATA-spell shape {name,level,school,time,range,components,duration,ritual,conc,material,text,higher}. Clears with the character.
-  let homebrew = { name: "My Homebrew", enabled: true, spells: {} };   // SOURCE-material homebrew — browser-wide, survives character clears; authored in the Homebrew Studio, deposited into one named source (homebrew.name)
+  let homebrewSources = [];   // [{name, enabled, spells:{lc->spell}}] — browser-wide source material; multiple named homebrew "books" surfaced as togglable sources. Survives character clears; baked into shared files via #embedded-homebrew (NOT mixed into the 5etools #source-data blob, so it stays togglable server-less and separable).
+  let _hbCurId = 0;           // index of the source currently open in the Studio
+  function hbNormSources(arr){ return (arr||[]).filter(s => s && typeof s === "object").map(s => ({ name:(s.name || "My Homebrew"), enabled: s.enabled !== false, spells:(s.spells && typeof s.spells === "object") ? s.spells : {} })); }
+  function hbSpellCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.spells||{}).length, 0); }
+  function hbHasContent(){ return homebrewSources.some(s => Object.keys(s.spells||{}).length); }
+  function hbEnsureSource(){ if(!homebrewSources.length){ homebrewSources.push({name:"My Homebrew", enabled:true, spells:{}}); _hbCurId = 0; } if(_hbCurId < 0 || _hbCurId >= homebrewSources.length) _hbCurId = 0; return homebrewSources[_hbCurId]; }
+  function hbUniqueName(base){ let n = base, i = 2; const taken = new Set(homebrewSources.map(s => String(s.name).toLowerCase())); while(taken.has(n.toLowerCase())) n = base+" "+(i++); return n; }
+  function hbFindIdx(name){ const lc = String(name||"").toLowerCase(); return homebrewSources.findIndex(s => String(s.name).toLowerCase() === lc); }
+  function hbEnabledSpell(lc){ for(const s of homebrewSources){ if(s.enabled !== false && s.spells[lc]) return s.spells[lc]; } return null; }   // first ENABLED source that defines this spell
+  function hbActiveSpells(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in s.spells) if(!(k in out)) out[k] = s.spells[k]; }); return out; }
   function loadHomebrew(){
+    const fromAny = h => Array.isArray(h) ? hbNormSources(h)                                  // new format: bare array of sources
+      : (h && typeof h === "object" && Array.isArray(h.sources)) ? hbNormSources(h.sources)   // {sources:[...]}
+      : (h && typeof h === "object" && h.spells) ? hbNormSources([h]) : null;                 // legacy single {name,enabled,spells} → migrate to a one-element array
     let raw = null; try{ raw = localStorage.getItem(HOMEBREW_KEY); }catch(e){}
-    if(raw){ try{ const h = JSON.parse(raw); if(h && typeof h === "object") homebrew = { name: (h.name || "My Homebrew"), enabled: h.enabled !== false, spells: (h.spells && typeof h.spells === "object") ? h.spells : {} }; }catch(e){} return; }
-    try{ const seed = JSON.parse($("embedded-homebrew").textContent);   // fresh browser opening a shared file → seed from the baked homebrew
-      if(seed && typeof seed === "object" && seed.spells && Object.keys(seed.spells).length){ homebrew = { name: (seed.name || "My Homebrew"), enabled: seed.enabled !== false, spells: seed.spells }; saveHomebrew(); } }catch(e){}
+    if(raw){ try{ const got = fromAny(JSON.parse(raw)); if(got) homebrewSources = got; }catch(e){} return; }
+    try{ const got = fromAny(JSON.parse($("embedded-homebrew").textContent));   // fresh browser opening a shared file → seed from the baked homebrew
+      if(got && got.some(s => Object.keys(s.spells||{}).length)){ homebrewSources = got; saveHomebrew(); } }catch(e){}
   }
-  function bakeHomebrewInto(root){ const e = root.querySelector("#embedded-homebrew"); if(e) e.textContent = (homebrew && Object.keys(homebrew.spells||{}).length) ? JSON.stringify(homebrew) : "null"; }
-  function saveHomebrew(){ try{ localStorage.setItem(HOMEBREW_KEY, JSON.stringify(homebrew)); }catch(e){} }
-  function homebrewActiveSpells(){ return homebrew.enabled ? homebrew.spells : {}; }
-  function spellData(name){ if(!name) return null; const lc = String(name).toLowerCase();   // precedence: this character's homebrew → enabled source homebrew → loaded sourcebooks
-    return customSpells[lc] || (homebrew.enabled ? homebrew.spells[lc] : null) || spellIndex()[lc] || null; }
+  function bakeHomebrewInto(root){ const e = root.querySelector("#embedded-homebrew"); if(e) e.textContent = hbHasContent() ? JSON.stringify(homebrewSources) : "null"; }
+  function saveHomebrew(){ try{ localStorage.setItem(HOMEBREW_KEY, JSON.stringify(homebrewSources)); }catch(e){} }
+  function spellData(name){ if(!name) return null; const lc = String(name).toLowerCase();   // precedence: this character's customs → enabled homebrew source → loaded sourcebooks
+    return customSpells[lc] || hbEnabledSpell(lc) || spellIndex()[lc] || null; }
   function customSpellNamesAt(l){   // names to autocomplete in a write-in row's datalist: character customs + enabled source homebrew
     const out = [], seen = new Set();
-    [...Object.values(customSpells), ...Object.values(homebrewActiveSpells())].forEach(s => { if((s.level||0) === l){ const k = (s.name||"").toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(s.name); } } });
+    [...Object.values(customSpells), ...Object.values(hbActiveSpells())].forEach(s => { if((s.level||0) === l){ const k = (s.name||"").toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(s.name); } } });
     return out;
   }
   // MPMB `spellChanges`: a feature/race/invocation that overrides how a specific known spell is cast.
@@ -11335,8 +11388,8 @@
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
-    $("loaded-books").addEventListener("change", e => { const t = e.target.closest(".book-toggle"); if(t) toggleBook(t.dataset.book, t.checked); });
-    $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b) deleteBook(b.dataset.book); });
+    $("loaded-books").addEventListener("change", e => { const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
+    $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
