@@ -353,11 +353,11 @@
   .hp-delta:hover::-webkit-inner-spin-button, .hp-delta:hover::-webkit-outer-spin-button,
   .hp-delta:focus::-webkit-inner-spin-button, .hp-delta:focus::-webkit-outer-spin-button{opacity:1}
   .hp-readout{flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px}
-  .hp-vals{display:flex; align-items:flex-end; justify-content:center; gap:12px; width:100%}
+  .hp-vals{display:flex; align-items:flex-end; justify-content:center; gap:8px; width:100%}
   .hp-col{display:flex; flex-direction:column; align-items:center; gap:1px; min-width:0}
   .hp-lbl{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
   .hp-big{text-align:center; font-size:30px; font-weight:800; line-height:1.05; background:transparent !important;
-    border:none !important; padding:0; width:2.4ch; color:var(--ink)}
+    border:none !important; padding:0; width:3.6ch; box-sizing:content-box; color:var(--ink)}
   .hp-tempin{color:var(--muted)}
   .hp-tempcol{margin-left:auto}
   .hp-slash{font-size:26px; font-weight:300; line-height:1; color:var(--muted); padding-bottom:2px}
@@ -2728,11 +2728,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v356 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v357 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.41.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.41.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
