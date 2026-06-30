@@ -2934,11 +2934,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v415 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v416 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.71.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.72.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2946,6 +2946,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v416", semver:"2.72.0", items:[
+      "Homebrew items can now grant a bonus to unarmed strikes. A new “Unarmed strike bonus” field in the Homebrew Studio item form adds that bonus to BOTH your attack and damage rolls with unarmed strikes whenever the item is equipped and (if it requires attunement) attuned — perfect for brass-knuckle items like Mage Mashers that are mechanically a ring but flavored as a weapon."
+    ]},
     {v:"v415", semver:"2.71.0", items:[
       "Homebrew Studio: every type (spells, items, feats, races, backgrounds, subclasses) now takes an uploaded image. Pick one in the form and it’s saved with your content and travels with shared sheets.",
       "Hover an item, spell, or other entry (or tap it on mobile) to see a full preview card pulled straight from its source — name, mechanics, flavor text, and any image. Works on your homebrew (in the Homebrew Studio lists) and on inventory item and spell names on the sheet, for both your homebrew and loaded sourcebook content."
@@ -6022,7 +6025,7 @@
     const name = String(it.name||"").trim(); if(!name) return null;
     const o = { name, type:String(it.type||"Wondrous Item"), rarity:String(it.rarity||"Common"),
       attune:!!it.attune, acBonus:parseInt(it.acBonus,10)||0, spellAtk:parseInt(it.spellAtk,10)||0,
-      spellDc:parseInt(it.spellDc,10)||0, text:String(it.text||"") };
+      spellDc:parseInt(it.spellDc,10)||0, unarmedBonus:parseInt(it.unarmedBonus,10)||0, text:String(it.text||"") };
     if(it.aw && typeof it.aw === "object") o.aw = it.aw;   // preserve an Ancestral Weapon build blob (re-editable)
     if(typeof it.img === "string" && it.img) o.img = it.img;
     return o;
@@ -6260,6 +6263,7 @@
             `<label class="cspell-f"><span>AC bonus</span><input type="number" id="hbi-ac" step="1" placeholder="0"></label>`+
             `<label class="cspell-f"><span>Spell attack bonus</span><input type="number" id="hbi-spatk" step="1" placeholder="0"></label>`+
             `<label class="cspell-f"><span>Spell save DC bonus</span><input type="number" id="hbi-spdc" step="1" placeholder="0"></label>`+
+            `<label class="cspell-f"><span>Unarmed strike bonus</span><input type="number" id="hbi-unarmed" step="1" placeholder="0" title="Bonus to attack AND damage rolls with unarmed strikes (e.g. brass-knuckle items). Applies when equipped + attuned."></label>`+
             `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
             hbImgFieldHtml("item")+
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
@@ -6386,6 +6390,7 @@
     $("hbi-ac").value = base.acBonus ? String(base.acBonus) : "";
     $("hbi-spatk").value = base.spellAtk ? String(base.spellAtk) : "";
     $("hbi-spdc").value = base.spellDc ? String(base.spellDc) : "";
+    $("hbi-unarmed").value = base.unarmedBonus ? String(base.unarmedBonus) : "";
     $("hbi-text").value = base.text || "";
     _hbImg.item = base.img || ""; hbImgSyncPreview("item");
     $("hb-item-list").style.display = "none";
@@ -6402,7 +6407,7 @@
     const obj = { name, type:$("hbi-type").value||"Wondrous Item", rarity:$("hbi-rarity").value||"Common",
       attune:$("hbi-attune").checked, acBonus:parseInt($("hbi-ac").value,10)||0,
       spellAtk:parseInt($("hbi-spatk").value,10)||0, spellDc:parseInt($("hbi-spdc").value,10)||0,
-      text:$("hbi-text").value.trim() };
+      unarmedBonus:parseInt($("hbi-unarmed").value,10)||0, text:$("hbi-text").value.trim() };
     if(_hbImg.item) obj.img = _hbImg.item;
     if(_hbEditItemKey && _hbEditItemKey !== lc) delete cur.items[_hbEditItemKey];   // renamed → drop old key
     cur.items[lc] = obj; cur.enabled = true;
@@ -9915,6 +9920,16 @@
     }
     return {atk, dc, from};
   }
+  function unarmedItemBonus(){   // total +X to unarmed-strike ATTACK and DAMAGE from EQUIPPED (+ ATTUNED where required) homebrew items — e.g. Mage Mashers (brass knuckles flavored as a ring)
+    const hi = hbActiveItems(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(); let bonus = 0; const from = [];
+    for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(!cb || !cb.checked || !nm) continue;
+      const name = (nm.value||"").trim(), lc = name.toLowerCase(); if(!lc || !(lc in hi) || seen.has(lc)) continue; seen.add(lc);
+      const b = +hi[lc].unarmedBonus||0; if(!b) continue;
+      if(aset.has(lc) && !attuned.has(lc)) continue;   // needs attunement but isn't attuned → no bonus yet
+      bonus += b; from.push(name + ` (${b>0?"+":""}${b})`);
+    }
+    return {bonus, from};
+  }
   function attunedNames(){ const s = new Set(); ["0","1","2"].forEach(k => { const v = ($("attune-"+k)||{}).value; if(v) s.add(String(v).toLowerCase()); }); return s; }   // items actually in an attunement slot
   function acItemsState(){   // equipped AC-bonus items; attunement items count only once attuned
     const map = acItemMap(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(), items = []; let bonus = 0;
@@ -10249,8 +10264,10 @@
     if(hasFightingStyle("Unarmed Fighting")) die = Math.max(die, 6);      // Unarmed Fighting: at least 1d6 (1d8 situational)
     if(isMonk){ const mm = cls.match(/monk[^\d]*(\d+)/), ml = mm ? parseInt(mm[1],10) : (lvl||1);
       die = Math.max(die, ml>=17?10 : ml>=11?8 : ml>=5?6 : 4); }          // Martial Arts die scales with monk level
-    const dmg = die ? `1d${die}${m?md(m):""} bludgeoning` : `${1+m} bludgeoning`;
-    return {bonus: sgn(m + pb), dmg};
+    const ib = unarmedItemBonus().bonus;                                  // +X to attack AND damage from an equipped+attuned item (e.g. Mage Mashers)
+    const dm = m + ib;                                                    // damage modifier folds the item bonus in alongside the ability mod
+    const dmg = die ? `1d${die}${dm?md(dm):""} bludgeoning` : `${1+dm} bludgeoning`;
+    return {bonus: sgn(m + pb + ib), dmg};
   }
   function ensureUnarmedStrike(){             // every generated character gets Unarmed Strike as the first attack
     for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(el && (el.dataset.unarmed === "1" || /^unarmed strike$/i.test((el.value||"").trim()))) return; }
