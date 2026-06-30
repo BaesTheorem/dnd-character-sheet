@@ -1044,6 +1044,15 @@
   .aw-ability-name{font-weight:600; font-size:12px}
   .aw-ability-cost{font-size:10px; color:var(--accent); text-transform:uppercase; letter-spacing:.04em; margin-left:6px}
   .aw-ability-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:1px}
+  .aw-extra{border-top:1px solid var(--line); padding:6px 0}
+  .aw-extra-top{display:flex; gap:6px; align-items:center}
+  .aw-extra input, .aw-extra textarea{padding:5px 7px; border:1px solid var(--line); background:var(--field); font:inherit; font-size:12px; width:100%}
+  .aw-x-name{flex:2 1 110px} .aw-x-bonus{flex:0 0 60px} .aw-x-dmg{flex:1 1 110px}
+  .aw-extra textarea{margin-top:5px; resize:vertical}
+  .aw-x-del{flex:0 0 26px; width:26px; height:28px; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer}
+  .aw-x-del:hover{color:#b42318}
+  .aw-attuned{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#1a7f37; font-weight:700}
+  .aw-mundane{font-size:11px; color:var(--muted)}
   .cspell-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px}
   .cspell-f{display:flex; flex-direction:column; gap:4px; font-size:12px}
   .cspell-f > span{font-weight:700; font-size:10px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
@@ -2916,11 +2925,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v399 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v400 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.59.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.60.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2928,6 +2937,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v400", semver:"2.60.0", items:[
+      "Ancestral Weapons are now fully gated behind attunement, and you can add other magic-weapon properties to them. An unattuned Ancestral Weapon acts as a plain weapon of its type (no bonuses) — attune it and all of its powers switch on, including the magic +X to attack and damage, which previously applied without attunement. The “Ancestral Weapons” tab now appears when a weapon is attuned (not merely built), and an Ancestral Weapon can be attuned just by carrying it in your inventory (it doesn't need to be in your Attacks list first). In the builder there's a new “Additional properties” section: add things like Vorpal or Flame Tongue (or anything custom) with rules text, plus an optional magic bonus and extra-damage rider that fold into the weapon and auto-apply when attuned. A freshly built Ancestral Weapon is also dropped into your inventory automatically so it's ready to wield and attune."
+    ]},
     {v:"v399", semver:"2.59.0", items:[
       "Ancestral Weapons now have their own page. Once you've built one, an “Ancestral Weapons” tab appears with a full sheet for each: artwork (upload your own), base weapon, rarity and Spirit Points, the computed stats it grants (attack/damage, AC, spell attack, speed, senses, and so on), its history and physical description, and the complete list of unlocked abilities with rules text. More of the mechanics now auto-apply too: while an Ancestral Weapon is attuned, its Mobile speed boost and Flying upgrade flow onto your sheet automatically."
     ]},
@@ -5395,7 +5407,7 @@
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
     const hasCompanion = (companions||[]).length > 0;
-    const hasAw = (typeof homebrewSources!=="undefined") && homebrewSources.some(s => s.enabled!==false && Object.values(s.items||{}).some(it => it.aw));
+    const hasAw = (typeof attunedNames==="function") && (typeof hbEnabledItem==="function") && [...attunedNames()].some(lc => { const it = hbEnabledItem(lc); return !!(it && it.aw); });   // the AW tab shows once an Ancestral Weapon is attuned
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
       const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "companion" && !hasCompanion) || (key === "aw" && !hasAw);
@@ -5607,6 +5619,10 @@
       if(f.prof) profs += f.prof;
       if(f.resist) resists.push(f.resist);
     });
+    (build.extras||[]).forEach(x => {   // additional properties (Vorpal, Flame Tongue, custom) — optional magic bonus + extra-damage rider
+      if(x.bonus) magicBonus = Math.max(magicBonus, parseInt(x.bonus,10)||0);
+      if(x.extraDamage && String(x.extraDamage).trim()) riders.push(String(x.extraDamage).trim());
+    });
     const points = +build.points||0;
     return {magicBonus, ac, spellAtk, riders, slots, senses, speed, fly, profs, resists, points,
             rarity:awRarity(points), spent:awSpent(build.upgrades), attune:true};
@@ -5636,6 +5652,7 @@
     if(!aws.length){ host.innerHTML=`<div class="card"><p class="wiz-hint" style="margin:0 0 8px">No Ancestral Weapons yet.</p>${newBtn}</div>`; return; }
     host.innerHTML = aws.map(({it,si,key})=>{
       const a=it.aw, d=awDerive(a), w=weaponByName(a.baseWeapon);
+      const attuned=(typeof attunedNames==="function") && attunedNames().has(String(key).toLowerCase());
       const dmg = w ? ((w.dmg||"")+(w.dmgType?" "+w.dmgType:"")) : "";
       const stat=[];
       if(d.magicBonus) stat.push(`<b>+${d.magicBonus}</b> attack &amp; damage`);
@@ -5649,16 +5666,17 @@
       if(d.profs) stat.push(`${d.profs} proficiency choice${d.profs>1?"s":""}`);
       stat.push("requires attunement");
       const abilities=(a.upgrades||[]).map(nm=>{ const u=awUp(nm); return `<div class="aw-ability"><span class="aw-ability-name">${esc(nm)}</span><span class="aw-ability-cost">${u?u.c:"?"} SP${u&&u.lim?" · limited":""}</span><div class="aw-ability-text">${esc(awText(nm))}</div></div>`; }).join("");
+      const extraAb=(a.extras||[]).map(x=>`<div class="aw-ability"><span class="aw-ability-name">${esc(x.name||"Property")}</span>${x.bonus?`<span class="aw-ability-cost">+${esc(String(x.bonus))}</span>`:""}${x.extraDamage?`<span class="aw-ability-cost">${esc(x.extraDamage)} dmg</span>`:""}<div class="aw-ability-text">${esc(x.text||"")}</div></div>`).join("");
       const art = a.art
         ? `<img class="aw-art" src="${a.art}" alt=""><label class="btn" style="margin-top:6px; display:block; text-align:center">Change art<input type="file" accept="image/*" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`
         : `<label class="aw-art aw-art-empty">+ Add art<input type="file" accept="image/*" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`;
       return `<div class="card aw-card">`+
-        `<div class="aw-card-head"><h2 style="margin:0">${esc(it.name)}</h2><span class="aw-rarity">${esc(d.rarity)} · ${esc(a.baseWeapon)} · ${a.points} SP</span><span style="margin-left:auto"><button class="btn aw-edit" data-si="${si}" data-key="${esc(key)}" type="button">Edit in builder</button></span></div>`+
+        `<div class="aw-card-head"><h2 style="margin:0">${esc(it.name)}</h2><span class="aw-rarity">${esc(d.rarity)} · ${esc(a.baseWeapon)} · ${a.points} SP</span>${attuned?'<span class="aw-attuned">● Attuned</span>':'<span class="aw-mundane">Not attuned — mundane until attuned</span>'}<span style="margin-left:auto"><button class="btn aw-edit" data-si="${si}" data-key="${esc(key)}" type="button">Edit in builder</button></span></div>`+
         `<div class="aw-card-body"><div class="aw-art-col">${art}</div><div class="aw-stat-col">`+
         `<div class="aw-stats">${stat.map(x=>`<span class="aw-stat">${x}</span>`).join("")}</div>`+
         (a.lore?`<div class="aw-lore"><span class="k">History</span>${esc(a.lore)}</div>`:"")+
         (a.physical?`<div class="aw-lore"><span class="k">Physical</span>${esc(a.physical)}</div>`:"")+
-        `<div class="aw-abilities">${abilities||'<span class="wiz-hint">No upgrades yet.</span>'}</div>`+
+        `<div class="aw-abilities">${(abilities+extraAb)||'<span class="wiz-hint">No upgrades or properties yet.</span>'}</div>`+
         `</div></div></div>`;
     }).join("") + `<div style="margin-top:10px">${newBtn}</div>`;
   }
@@ -5678,6 +5696,8 @@
         `<div class="aw-summary" id="aw-summary"></div>`+
         `<div class="hb-section-h"><span>Upgrades</span><span class="aw-budget" id="aw-budget"></span></div>`+
         `<div id="aw-upgrades" class="aw-uplist"></div>`+
+        `<div class="hb-section-h"><span>Additional properties</span><button class="btn" id="aw-add-extra" type="button">+ Property</button></div>`+
+        `<div id="aw-extras"></div>`+
         `<label class="cspell-f cspell-full" style="margin-top:12px"><span>History / lore</span><textarea id="aw-lore" rows="3" placeholder="Who forged it, who carried it, what it has slain…"></textarea></label>`+
         `<label class="cspell-f cspell-full"><span>Physical properties</span><textarea id="aw-physical" rows="2" placeholder="Appearance, materials, markings…"></textarea></label>`+
       `</div>`+
@@ -5691,6 +5711,11 @@
     $("aw-base").addEventListener("change", () => { _awBuild.baseWeapon = $("aw-base").value.trim(); awRenderUpgrades(); awRenderState(); });
     $("aw-save").addEventListener("click", awSaveBuild);
     $("aw-upgrades").addEventListener("click", e => { const b = e.target.closest(".aw-buy"); if(b) awToggleUpgrade(b.dataset.up); });
+    $("aw-add-extra").addEventListener("click", () => { (_awBuild.extras = _awBuild.extras || []).push({name:"", text:"", bonus:"", extraDamage:""}); awRenderExtras(); awRenderState(); });
+    $("aw-extras").addEventListener("input", e => { const t = e.target, i = +t.dataset.i; if(isNaN(i) || !(_awBuild.extras||[])[i]) return; const x = _awBuild.extras[i];
+      if(t.classList.contains("aw-x-name")) x.name = t.value; else if(t.classList.contains("aw-x-bonus")) x.bonus = t.value; else if(t.classList.contains("aw-x-dmg")) x.extraDamage = t.value; else if(t.classList.contains("aw-x-text")) x.text = t.value;
+      awRenderState(); });
+    $("aw-extras").addEventListener("click", e => { const d = e.target.closest(".aw-x-del"); if(d){ _awBuild.extras.splice(+d.dataset.i, 1); awRenderExtras(); awRenderState(); } });
   }
   function openAwBuilder(sourceIdx, editKey){
     buildAwBuilder();
@@ -5698,13 +5723,13 @@
     const idx = (sourceIdx != null) ? sourceIdx : _hbCurId;
     const existing = (editKey && homebrewSources[idx] && homebrewSources[idx].items[editKey] && homebrewSources[idx].items[editKey].aw) || null;
     _awBuild = existing
-      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), lore:existing.lore||"", physical:existing.physical||"", editKey}
-      : {name:"", baseWeapon:"", points:0, upgrades:[], lore:"", physical:"", editKey:null};
+      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), extras:(existing.extras||[]).map(x=>Object.assign({},x)), lore:existing.lore||"", physical:existing.physical||"", editKey}
+      : {name:"", baseWeapon:"", points:0, upgrades:[], extras:[], lore:"", physical:"", editKey:null};
     $("aw-base-list").innerHTML = ((DATA&&DATA.weapons)||[]).map(w=>w.name).sort().map(n=>`<option value="${esc(n)}"></option>`).join("");
     $("aw-src").innerHTML = homebrewSources.map((s,i)=>`<option value="${i}" ${i===idx?"selected":""}>${esc(s.name)}</option>`).join("");
     $("aw-name").value = _awBuild.name; $("aw-base").value = _awBuild.baseWeapon;
     $("aw-points").value = String(_awBuild.points); $("aw-lore").value = _awBuild.lore; $("aw-physical").value = _awBuild.physical;
-    awRenderUpgrades(); awRenderState();
+    awRenderUpgrades(); awRenderExtras(); awRenderState();
     $("aw-builder").classList.add("open");
     setTimeout(()=>$("aw-name").focus(),0);
   }
@@ -5752,6 +5777,17 @@
     });
     el.innerHTML=html;
   }
+  function awRenderExtras(){
+    const el=$("aw-extras"); if(!el) return; const ex=_awBuild.extras||[];
+    el.innerHTML = ex.length ? ex.map((x,i)=>
+      `<div class="aw-extra"><div class="aw-extra-top">`+
+        `<input class="aw-x-name" data-i="${i}" placeholder="Property (e.g. Vorpal)" value="${esc(x.name||"")}">`+
+        `<input type="number" class="aw-x-bonus" data-i="${i}" placeholder="+N" value="${(x.bonus!=null&&x.bonus!=="")?esc(String(x.bonus)):""}" title="Magic bonus to attack &amp; damage (optional)">`+
+        `<input class="aw-x-dmg" data-i="${i}" placeholder="extra dmg (e.g. 2d6 force)" value="${esc(x.extraDamage||"")}" title="Extra-damage rider (optional)">`+
+        `<button type="button" class="aw-x-del" data-i="${i}" title="Remove">\u2715</button></div>`+
+        `<textarea class="aw-x-text" data-i="${i}" rows="2" placeholder="Rules text\u2026">${esc(x.text||"")}</textarea></div>`
+    ).join("") : `<div class="wiz-hint" style="padding:4px 2px">None. Add magic-weapon properties like <b>Vorpal</b> or Flame Tongue, or any custom feature \u2014 an optional +N bonus and extra-damage rider auto-apply when the weapon is attuned.</div>`;
+  }
   function awDescribe(b,d){
     const L=[`Ancestral Weapon — ${b.baseWeapon}, ${d.rarity} (requires attunement).`,
       `Spirit Points: ${b.points} (${d.spent} spent on ${b.upgrades.length} upgrade${b.upgrades.length===1?"":"s"}).`];
@@ -5764,6 +5800,7 @@
     if(d.profs) auto.push(`${d.profs} proficiency choice(s)`); if(d.resists.length) auto.push("resistance: "+d.resists.join(", "));
     if(auto.length) L.push("Applied: "+auto.join("; ")+".");
     b.upgrades.forEach(nm=>{ const u=awUp(nm); L.push(`• ${nm} (${u?u.c:"?"} SP${u&&u.lim?", limited":""}): ${awText(nm)}`); });
+    (b.extras||[]).forEach(x=>{ if(x.name||x.text) L.push(`• ${x.name||"Property"}${x.bonus?` (+${x.bonus})`:""}${x.extraDamage?` (+${x.extraDamage} dmg)`:""}: ${x.text||""}`); });
     if(b.lore) L.push("History: "+b.lore);
     if(b.physical) L.push("Physical: "+b.physical);
     return L.join("\n");
@@ -5777,11 +5814,12 @@
     const d=awDerive(b), lc=name.toLowerCase();
     const item={name, type:"Weapon", rarity:d.rarity, attune:true, acBonus:d.ac, spellAtk:d.spellAtk, spellDc:0,
       text:awDescribe(b,d),
-      aw:{baseWeapon:b.baseWeapon, points:b.points, upgrades:b.upgrades.slice(), lore:b.lore, physical:b.physical, magicBonus:d.magicBonus, rider:d.riders.join(", ")}};
+      aw:{baseWeapon:b.baseWeapon, points:b.points, upgrades:b.upgrades.slice(), extras:(b.extras||[]).map(x=>Object.assign({},x)), lore:b.lore, physical:b.physical, magicBonus:d.magicBonus, rider:d.riders.join(", ")}};
     const srcIdx=parseInt($("aw-src").value,10)||0;
     const src=hbEnsureSourceAt(srcIdx); src.items=src.items||{};
     if(b.editKey && b.editKey!==lc) delete src.items[b.editKey];
     src.items[lc]=item; src.enabled=true;
+    if(!b.editKey){ let inInv=false; for(let i=0;i<NINV;i++){ const el=$("invname-"+i); if(el && (el.value||"").trim().toLowerCase()===lc){ inInv=true; break; } } if(!inInv && typeof addInvItem==="function") addInvItem(name); }   // put a freshly-built weapon in the pack so it can be equipped + attuned
     refreshHbItems();
     closeAwBuilder();
     flashStatus(`Saved Ancestral Weapon “${name}” (${d.rarity}) to ${src.name}`);
@@ -6119,7 +6157,10 @@
   function hbItemCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.items||{}).length, 0); }
   function hbActiveItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})) if(!(k in out)) out[k] = s.items[k]; }); return out; }   // enabled-source homebrew items, keyed lc
   function hbEnabledItem(lc){ for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]) return s.items[lc]; } return null; }
-  function hbAwMagicWeapon(lc){ const it = hbEnabledItem(lc); if(it && it.aw && it.aw.baseWeapon) return {base:it.aw.baseWeapon, bonus:it.aw.magicBonus||0, rider:it.aw.rider||""}; return null; }   // an Ancestral Weapon homebrew item resolves as its base weapon + magic bonus + damage rider
+  function hbAwMagicWeapon(lc){ const it = hbEnabledItem(lc); if(!(it && it.aw && it.aw.baseWeapon)) return null;
+    const attuned = (typeof attunedNames === "function") && attunedNames().has(String(lc).toLowerCase());
+    if(!attuned) return {base:it.aw.baseWeapon, bonus:0, rider:""};   // un-attuned Ancestral Weapon acts as a mundane weapon of its type (RAW)
+    const d = awDerive(it.aw); return {base:it.aw.baseWeapon, bonus:d.magicBonus, rider:d.riders.join(", ")}; }   // attuned → base weapon + magic bonus + damage riders (upgrades + properties)
   function allItemText(){ const m = Object.assign({}, (DATA && DATA.itemText) || {}); const hi = hbActiveItems(); for(const lc in hi){ const it = hi[lc]; if(it.text) m[it.name] = it.text; } return m; }   // sourcebook item text + enabled homebrew item text (keyed by display name)
   function hbEnsureSource(){ if(!homebrewSources.length){ homebrewSources.push({name:"My Homebrew", enabled:true, spells:{}}); _hbCurId = 0; } if(_hbCurId < 0 || _hbCurId >= homebrewSources.length) _hbCurId = 0; const cur = homebrewSources[_hbCurId]; if(!cur.spells) cur.spells = {}; if(!cur.items) cur.items = {}; return cur; }
   function hbUniqueName(base){ let n = base, i = 2; const taken = new Set(homebrewSources.map(s => String(s.name).toLowerCase())); while(taken.has(n.toLowerCase())) n = base+" "+(i++); return n; }
@@ -9399,6 +9440,11 @@
       }
     }
     const eqAtt = byName(equippedNames(n => aset.has(n.toLowerCase())).map(n => ({name:n})));
+    // Ancestral Weapons can be attuned just by carrying them (a heirloom you always bear), so include any AW in inventory
+    // even if it isn't "equipped" (weapons equip via the Attacks table). Their bonuses still gate on attunement.
+    const seenAtt = new Set(eqAtt.map(a => a.name.toLowerCase()));
+    for(let i=0;i<NINV;i++){ const nm = $("invname-"+i); if(!nm) continue; const name = (nm.value||"").trim(), lc = name.toLowerCase();
+      if(name && !seenAtt.has(lc)){ const it = (typeof hbEnabledItem==="function") && hbEnabledItem(lc); if(it && it.aw){ seenAtt.add(lc); eqAtt.push({name}); } } }
     ["0","1","2"].forEach(k => { const s = $("attune-"+k); if(!s) return; const cur = s.value;
       s.innerHTML = `<option value=""></option>` + eqAtt.map(a => optTag(a.name, a.name)).join("");
       s.value = cur; });
@@ -11770,6 +11816,7 @@
     $("btn-loadbook").addEventListener("click", loadBookFromServer);
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
+    ["attune-0","attune-1","attune-2"].forEach(id => { const el = $(id); if(el) el.addEventListener("change", () => { if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }); });   // attuning/un-attuning an Ancestral Weapon shows/hides its tab + refreshes its sheet
     $("loaded-books").addEventListener("change", e => { const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
     $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
