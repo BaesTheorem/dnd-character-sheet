@@ -2934,11 +2934,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v417 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v418 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.73.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.74.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2946,6 +2946,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v418", semver:"2.74.0", items:[
+      "Homebrew items can now add limited-use abilities to your Limited Features section. A new “Limited uses” field in the item form (one per line, “Label | max | recharge”, e.g. “See through magical darkness | 1 | Dusk”) creates a tracked row whenever the item is equipped and — if it requires attunement — attuned. Recharge is free text, and the sheet now understands “dusk” (as in “until the following dusk”) alongside dawn/LR/SR. Built for the Eye of Dendallen.",
+      "Attuning or unattuning an item you already have equipped now immediately updates your granted spells and item Limited Features rows (previously they only refreshed when something else changed)."
+    ]},
     {v:"v417", semver:"2.73.0", items:[
       "Homebrew items can now grant spells. A new “Granted spells” field in the Homebrew Studio item form (one spell per line, e.g. “See Invisibility | at will”) makes those spells show up in your Granted Spells table whenever the item is equipped and — if it requires attunement — attuned. Built for items like the Eye of Dendallen that let you cast a spell at will."
     ]},
@@ -6036,6 +6040,19 @@
       return name ? {name, use:(p[1]||"at will").trim() || "at will"} : null; }).filter(Boolean);
   }
   function hbGrantToText(arr){ return (arr||[]).map(g => (g.use && g.use !== "at will") ? `${g.name} | ${g.use}` : g.name).join("\n"); }
+  // Limited-use entries on a homebrew item (e.g. "see through magical darkness, 1/dusk"). Stored as [{label, max, rec}];
+  // each becomes a row in the Limited Features section (via refreshLimitedFeatures) when equipped (+ attuned if required).
+  function hbNormLimited(arr){
+    if(!Array.isArray(arr)) return [];
+    return arr.map(L => typeof L === "string" ? {label:L.trim(), max:"1", rec:"LR"}
+        : {label:String((L&&L.label)||"").trim(), max:(String((L&&L.max!=null)?L.max:"1").trim()||"1"), rec:(String((L&&L.rec)||"LR").trim()||"LR")})
+      .filter(L => L.label);
+  }
+  function hbLimitedFromText(t){   // textarea: one per line, "Label | max | recharge" (max defaults 1, rec defaults LR; rec is free text like Dusk/Dawn/LR/SR)
+    return String(t||"").split(/\n+/).map(line => { const p = line.split("|"); const label = (p[0]||"").trim();
+      return label ? {label, max:((p[1]||"1").trim()||"1"), rec:((p[2]||"LR").trim()||"LR")} : null; }).filter(Boolean);
+  }
+  function hbLimitedToText(arr){ return (arr||[]).map(L => `${L.label} | ${L.max||"1"} | ${L.rec||"LR"}`).join("\n"); }
   function normHbItem(it){
     if(!it || typeof it !== "object") return null;
     const name = String(it.name||"").trim(); if(!name) return null;
@@ -6043,6 +6060,7 @@
       attune:!!it.attune, acBonus:parseInt(it.acBonus,10)||0, spellAtk:parseInt(it.spellAtk,10)||0,
       spellDc:parseInt(it.spellDc,10)||0, unarmedBonus:parseInt(it.unarmedBonus,10)||0, text:String(it.text||"") };
     const gr = hbNormGrants(it.grantSpells); if(gr.length) o.grantSpells = gr;   // item-granted spells (at-will / X-per-rest)
+    const lim = hbNormLimited(it.limited); if(lim.length) o.limited = lim;        // limited-use abilities → Limited Features rows
     if(it.aw && typeof it.aw === "object") o.aw = it.aw;   // preserve an Ancestral Weapon build blob (re-editable)
     if(typeof it.img === "string" && it.img) o.img = it.img;
     return o;
@@ -6282,6 +6300,7 @@
             `<label class="cspell-f"><span>Spell save DC bonus</span><input type="number" id="hbi-spdc" step="1" placeholder="0"></label>`+
             `<label class="cspell-f"><span>Unarmed strike bonus</span><input type="number" id="hbi-unarmed" step="1" placeholder="0" title="Bonus to attack AND damage rolls with unarmed strikes (e.g. brass-knuckle items). Applies when equipped + attuned."></label>`+
             `<label class="cspell-f cspell-full"><span>Granted spells</span><textarea id="hbi-grant" rows="2" placeholder="One per line — e.g. See Invisibility | at will  (use defaults to “at will”; try “1/Long Rest”)" title="Spells this item lets you cast. Each shows in the Granted Spells table when the item is equipped (and attuned, if it requires attunement)."></textarea></label>`+
+            `<label class="cspell-f cspell-full"><span>Limited uses</span><textarea id="hbi-limited" rows="2" placeholder="One per line — Label | max | recharge  (e.g. See through magical darkness | 1 | Dusk; max defaults 1, recharge defaults LR)" title="Limited-use abilities. Each becomes a row in the Limited Features section when equipped (and attuned, if required). Recharge is free text: LR, SR, Dawn, Dusk, 1/Day, etc."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
             hbImgFieldHtml("item")+
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
@@ -6410,6 +6429,7 @@
     $("hbi-spdc").value = base.spellDc ? String(base.spellDc) : "";
     $("hbi-unarmed").value = base.unarmedBonus ? String(base.unarmedBonus) : "";
     $("hbi-grant").value = hbGrantToText(base.grantSpells);
+    $("hbi-limited").value = hbLimitedToText(base.limited);
     $("hbi-text").value = base.text || "";
     _hbImg.item = base.img || ""; hbImgSyncPreview("item");
     $("hb-item-list").style.display = "none";
@@ -6428,6 +6448,7 @@
       spellAtk:parseInt($("hbi-spatk").value,10)||0, spellDc:parseInt($("hbi-spdc").value,10)||0,
       unarmedBonus:parseInt($("hbi-unarmed").value,10)||0, text:$("hbi-text").value.trim() };
     const gs = hbGrantFromText($("hbi-grant").value); if(gs.length) obj.grantSpells = gs;
+    const lim = hbLimitedFromText($("hbi-limited").value); if(lim.length) obj.limited = lim;
     if(_hbImg.item) obj.img = _hbImg.item;
     if(_hbEditItemKey && _hbEditItemKey !== lc) delete cur.items[_hbEditItemKey];   // renamed → drop old key
     cur.items[lc] = obj; cur.enabled = true;
@@ -7855,6 +7876,7 @@
     { const sig = $("features").value + "" + ($("classlevel").value||"") + "" + ABILITIES.map(([k])=>modOf(k)).join(",") + "" + equippedSig() + "" + ($("race").value||"")
         + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")+":"+(s.featVariant||"")+":"+((s.featSpells||[]).join("|"))).join(",")   // feat type + spell picks drive limited rows, granted spells, and learned-spell sync
         + "" + scrollSig()   // spell scrolls in inventory surface as one-time-use casts in the granted table
+        + "" + ["0","1","2"].map(k => ($("attune-"+k)||{}).value||"").join(",")   // attunement drives attune-gated granted spells + item Limited Features rows
         + "" + [...characterCasterKeys()].sort().join(",");   // caster classes drive which scrolls are castable (multiclassing opens up more lists)
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); renderItemDefenses(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { let esp = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(cb && cb.checked && ELSEWHERE_ITEMS[nm]) esp += nm + "|"; }   // equipping a spellbook item changes the class spell list → re-render the spell sheets
@@ -11379,7 +11401,8 @@
     if(/\bonce per day\b|\bper day\b|\/day\b|\beach day\b/.test(t)) rec = "1/Day";   // "per day" = a DAILY recharge even if used on a short rest (e.g. Arcane Recovery)
     else if(/short or long rest|short rest/.test(t)) rec = "SR";
     else if(/long rest/.test(t)) rec = "LR";
-    else if(/\bat dawn\b|\beach dawn\b|\bnext dawn\b/.test(t)) rec = "Dawn";
+    else if(/\b(?:at|each|next|following) dawn\b/.test(t)) rec = "Dawn";
+    else if(/\b(?:at|each|next|following) dusk\b/.test(t)) rec = "Dusk";   // some items recharge "until the following dusk" (e.g. Eye of Dendallen)
     if(!rec) return null;
     const countRe = /\b(\d+)\s+(?:charges|uses|luck points|ki points|sorcery points)\b/;
     const usage =   // a recovery is already required above; these are the "limited number of uses" signals
@@ -11387,7 +11410,7 @@
       /\b(?:expend|spend)s?\b[^.]{0,40}\b(?:charge|use|luck point|ki point|sorcery point)\b/.test(t) ||
       /\bregains?\b[^.]{0,60}\b(?:expended|all)\b[^.]{0,30}\b(?:charges|uses|luck points|ki points|sorcery points)\b/.test(t) ||
       /\b(?:once|twice|three times|\d+ times)\b(?!\s+(?:your|the\b|per\b|equal))/.test(t) ||   // "three times" (not a multiplier like "twice your level")
-      /\bonce per (?:day|dawn|short rest|long rest|rest)\b/.test(t) ||                          // "once per day" (Arcane Recovery) — a real 1/use, not "once per turn"
+      /\bonce per (?:day|dawn|dusk|short rest|long rest|rest)\b/.test(t) ||                      // "once per day" (Arcane Recovery) — a real 1/use, not "once per turn"
       /\bcan(?:'t|not)\b[^.]{0,25}\bagain\b/.test(t) ||                                          // "can't be used / use it / do so again until you finish a rest"
       /\bto use (?:it|this)\b[^.]{0,40}\bagain\b/.test(t) ||                                      // "to use this feature again, you must finish a long rest" (e.g. Ghost Walk)
       /\bnumber of times equal to\b/.test(t);
@@ -11400,7 +11423,7 @@
       if(am) max = am[1].slice(0,3) + "mod"; }
     if(!max){                                                   // word counts / single-use-until-rest
       if(/\bthree times\b/.test(t)) max = "3";
-      else if(/\bonce per (?:day|dawn|short rest|long rest|rest)\b/.test(t)) max = "1";   // "once per day" → 1 use
+      else if(/\bonce per (?:day|dawn|dusk|short rest|long rest|rest)\b/.test(t)) max = "1";   // "once per day" → 1 use
       else if(/\btwice\b/.test(t)) max = "2";
       else if(/\bcan(?:'t|not)\b[^.]{0,25}\bagain\b/.test(t)) max = "1";          // "can't do so / use it again until you finish a rest"
       else if(/\bto use (?:it|this)\b[^.]{0,40}\bagain\b/.test(t)) max = "1";     // "to use this feature again, you must finish a long rest" (e.g. Ghost Walk)
@@ -11527,7 +11550,15 @@
       const altSlot = Array.isArray(ro.traits) && _altSlot(ro.traits.map(tr => tr.text || "").join(" ")) ? " or slot" : "";   // altResource: race also lets you cast these via a spell slot (Fairy, Hexblood, Multiverse races)
       ro.spellUses.forEach(su => { if((su.l||1) <= lvl) addLimitedRow(su.n, su.max, su.rec + altSlot, `Racial innate spell — ${rn} (recharges on a ${su.rec === "SR" ? "short" : "long"} rest)${altSlot ? ", or cast it using a spell slot" : ""}`); }); }
     const txt = allItemText();
+    const hi = (typeof hbActiveItems === "function") && hbActiveItems();
+    const lfAset = attuneSet(), lfAttuned = attunedNames();
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
+      const lc = nm.toLowerCase(), hit = hi && hi[lc];
+      if(hit && Array.isArray(hit.limited) && hit.limited.length){           // homebrew item with EXPLICIT limited-use rows (precise label/max/rec) → win over the text heuristic
+        if(hit.attune && lfAset.has(lc) && !lfAttuned.has(lc)) continue;      // requires attunement but isn't attuned → no rows yet
+        hit.limited.forEach(L => addLimitedRow(L.label, resolveLimMax(L.max), L.rec, (txt[nm]||"").slice(0,300)));
+        continue;
+      }
       const d = txt[nm]; if(!d) continue;
       const r = limitedFromText(nm, d); if(!r) continue;
       const dc = itemFixedDC(d);                                            // fixedDC: the item's printed save DC, shown in the row name
