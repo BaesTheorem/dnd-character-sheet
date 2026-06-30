@@ -230,7 +230,7 @@
     font-size:19px; font-weight:700; border:1px solid var(--line2); background:#fff; box-sizing:border-box}
 
   /* "Under the hood" — generation method + per-ability base & bonus inputs (modal) */
-  .hood-grid-head, .hood-row{display:grid; grid-template-columns:72px 72px repeat(5,minmax(42px,52px)); gap:6px; align-items:center; justify-content:start}
+  .hood-grid-head, .hood-row{display:grid; grid-template-columns:104px 72px repeat(5,minmax(42px,52px)); gap:6px; align-items:center; justify-content:center}
   .hood-grid-head{font-size:8px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     color:var(--muted); text-align:center; margin-bottom:5px}
   .hood-grid-head .hname{text-align:left}
@@ -2674,11 +2674,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v344 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v345 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.37.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.37.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2686,6 +2686,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v345", semver:"2.37.4", items:[
+      "Variant Human now grants one feat, not two. (The base Human's data was being merged onto the variant, doubling its feat the same way it was doubling its ability bonus.)",
+      "Ability Scores table: widened the ability-name column so longer names like Constitution and Intelligence aren't clipped, and centered the table now that the bonus boxes are compact."
+    ]},
     {v:"v344", semver:"2.37.3", items:[
       "On the Ability Scores step during character creation, a half-feat's +1 from a race feat (e.g. Fey Touched via Variant Human) now shows up in the Feat column right away, instead of only after the character was made.",
       "Tightened the Ability Scores bonus boxes. The ASI / Feat / Racial / Magical / Misc inputs only ever hold a small number, so they no longer stretch across the row."
@@ -4239,19 +4243,18 @@
       if(!r.flavor || !r.flavor.length) r.flavor = p.flavor || [];
     });
     // Variant Human (and Custom Lineage-style "give up your fixed bonuses for a choice" races) must NOT also carry
-    // the base race's flat +1-to-every-score — the subrace merge (here and in build-data.py) concatenates both, so
-    // Human (Variant) ends up with "+1 to all six" AND "+1 to two of your choice". If a race offers a `choose`
-    // ability bonus AND a fixed block that bumps all six scores by the same amount, that fixed block is the leaked
-    // base bonus, not a real grant — drop it. (Idempotent: safe to run on already-cleaned data.)
+    // the base race's flat +1-to-every-score — the subrace merge (here and in build-data.py) concatenates the base
+    // Human onto the variant, so Human (Variant) ends up with BOTH "+1 to all six" AND "+1 to two of your choice",
+    // AND its single feat grant doubled to two. Detect that exact signature (a `choose` bonus plus a fixed block
+    // that bumps all six scores equally — verified unique to Human (Variant)) and undo both: drop the leaked all-six
+    // block, and clamp the feat grant back to one. (Idempotent: safe to run on already-cleaned data.)
+    const allSixEqual = b => { if(!b || b.choose) return false; const keys = Object.keys(b).filter(k => ABKEYS.includes(k));
+      return keys.length === ABKEYS.length && keys.every(k => b[k] === b[keys[0]]); };
     d.races.forEach(r => {
       const ab = r.ability;
-      if(!Array.isArray(ab) || ab.length < 2 || !ab.some(b => b && b.choose)) return;
-      r.ability = ab.filter(b => {
-        if(!b || b.choose) return true;
-        const keys = Object.keys(b).filter(k => ABKEYS.includes(k));
-        const allSixEqual = keys.length === ABKEYS.length && keys.every(k => b[k] === b[keys[0]]);
-        return !allSixEqual;
-      });
+      if(!Array.isArray(ab) || ab.length < 2 || !ab.some(b => b && b.choose) || !ab.some(allSixEqual)) return;
+      r.ability = ab.filter(b => !allSixEqual(b));   // drop the leaked base "+1 to all six"
+      if(r.featGrants > 1) r.featGrants = 1;          // the same merge doubled the feat grant — Variant Human grants exactly one feat
     });
   }
   function etBgEquipment(b){                          // starting items + gold a background provides
