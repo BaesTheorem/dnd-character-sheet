@@ -367,6 +367,24 @@
   .hp-tempin:hover::-webkit-inner-spin-button, .hp-tempin:focus::-webkit-inner-spin-button,
   .hp-tempin:hover::-webkit-outer-spin-button, .hp-tempin:focus::-webkit-outer-spin-button{opacity:1}
   .hp-tempcol{margin-left:6px}
+  /* Max HP: tap to open a modifier/override dialog; effective value turns green (raised) / red (lowered) with the baseline in parens */
+  .hp-maxcol-wrap{position:relative}
+  .hp-maxline{display:flex; align-items:flex-end; justify-content:center; gap:3px}
+  .hp-maxin{cursor:pointer}
+  .hp-maxin.hp-mod-up{color:#2e9e4f !important}
+  .hp-maxin.hp-mod-down{color:#c0392b !important}
+  .hp-maxbase{font-size:14px; font-weight:700; line-height:1; padding-bottom:4px; color:var(--muted)}
+  .hp-maxbase.hp-mod-up{color:#2e9e4f}
+  .hp-maxbase.hp-mod-down{color:#c0392b}
+  .hp-pop{position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); z-index:40;
+    background:var(--card); border:1px solid var(--line2); border-radius:8px; padding:10px; width:188px; text-align:left}
+  .hp-pop[hidden]{display:none}
+  .hp-pop-row{display:flex; flex-direction:column; gap:3px}
+  .hp-pop-row + .hp-pop-row{margin-top:8px}
+  .hp-pop-row label{font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+  .hp-pop-in{font-size:15px; font-weight:700; text-align:center; padding:4px; border:1px solid var(--line);
+    border-radius:6px; width:100%; appearance:auto; -moz-appearance:number-input}
+  .hp-pop-in::-webkit-inner-spin-button, .hp-pop-in::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:1}
   .hp-slash{font-size:26px; font-weight:300; line-height:1; color:var(--muted); padding-bottom:2px}
   .hp-foot{font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
   body.dark .hp-delta{background:var(--field) !important}
@@ -2099,7 +2117,24 @@
                   <div class="hp-vals">
                     <div class="hp-col"><div class="hp-lbl">Current</div><input data-save="" type="number" id="hpcur" class="hp-big" title="Current hit points"></div>
                     <div class="hp-slash">/</div>
-                    <div class="hp-col"><div class="hp-lbl">Max</div><input data-save="" type="number" id="hpmax" class="hp-big" title="Maximum hit points"></div>
+                    <div class="hp-col hp-maxcol-wrap">
+                      <div class="hp-lbl">Max</div>
+                      <div class="hp-maxline">
+                        <input data-save="" type="number" id="hpmax" class="hp-big hp-maxin" readonly title="Tap to set a Max HP modifier or override">
+                        <span class="hp-maxbase" id="hpmax-base-disp" hidden></span>
+                      </div>
+                      <input type="hidden" data-save="" id="hpmax-base">
+                      <div class="hp-pop noprint" id="hpmax-pop" hidden>
+                        <div class="hp-pop-row">
+                          <label for="hpmax-mod">Max HP modifier</label>
+                          <input data-save="" type="number" step="1" id="hpmax-mod" class="hp-pop-in" placeholder="0">
+                        </div>
+                        <div class="hp-pop-row">
+                          <label for="hpmax-override">Override max HP</label>
+                          <input data-save="" type="number" step="1" min="0" id="hpmax-override" class="hp-pop-in" placeholder="—">
+                        </div>
+                      </div>
+                    </div>
                     <div class="hp-col hp-tempcol"><div class="hp-lbl">Temp</div><input data-save="" type="number" min="0" id="hptmp" class="hp-big hp-tempin" placeholder="--" title="Temporary hit points — tap to add"></div>
                   </div>
                   <div class="hp-foot">Hit Points</div>
@@ -2736,11 +2771,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v360 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v361 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.42.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.43.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6187,6 +6222,37 @@
       if(changed) save();
     }
   }
+  // Max HP = baseline (#hpmax-base, set by compute() from per-level HP) adjusted by an optional modifier
+  // (#hpmax-mod, ±) or replaced by an override (#hpmax-override, wins over the modifier). The effective value
+  // lives in #hpmax (what every consumer reads) and is tinted green/red vs the baseline, with the baseline in
+  // parens. Legacy/manual sheets with a value in #hpmax but no recorded baseline adopt it as the baseline.
+  function recalcMaxHp(){
+    const maxEl = $("hpmax"); if(!maxEl) return;
+    const baseEl = $("hpmax-base"), modEl = $("hpmax-mod"), ovEl = $("hpmax-override"), disp = $("hpmax-base-disp");
+    // one-time migration of a pre-dialog manual override (overrides.hpmax) into the new Override field
+    if(typeof overrides === "object" && overrides && overrides.hpmax != null && ovEl && ovEl.value === ""){
+      ovEl.value = String(overrides.hpmax); delete overrides.hpmax;
+    }
+    let base = (baseEl && baseEl.value !== "") ? num(baseEl.value, null) : null;
+    const modBlank = !modEl || modEl.value === "", ovBlank = !ovEl || ovEl.value === "";
+    if(base == null && modBlank && ovBlank && maxEl.value !== ""){   // legacy/manual sheet → adopt the existing max as baseline
+      base = num(maxEl.value, null); if(baseEl && base != null) baseEl.value = String(base);
+    }
+    const mod = modBlank ? 0 : num(modEl.value, 0);
+    const hasOv = !ovBlank && !isNaN(num(ovEl.value, NaN));
+    let eff = hasOv ? num(ovEl.value, 0) : (base == null ? null : base + mod);
+    maxEl.value = (eff == null) ? "" : String(eff);
+    maxEl.classList.remove("hp-mod-up", "hp-mod-down");
+    if(disp){ disp.hidden = true; disp.textContent = ""; disp.classList.remove("hp-mod-up", "hp-mod-down"); }
+    if(base != null && eff != null && eff !== base){
+      const up = eff > base, cls = up ? "hp-mod-up" : "hp-mod-down";
+      maxEl.classList.add(cls);
+      if(disp){ disp.textContent = "(" + base + ")"; disp.hidden = false; disp.classList.add(cls); }
+    }
+    if(eff != null){ const cur = $("hpcur"); if(cur && cur.value !== "" && num(cur.value, 0) > eff) cur.value = String(eff); }   // keep Current ≤ effective Max
+  }
+  function openHpMaxPop(){ const p = $("hpmax-pop"); if(!p) return; p.hidden = false; const m = $("hpmax-mod"); if(m){ m.focus(); m.select && m.select(); } }
+  function closeHpMaxPop(){ const p = $("hpmax-pop"); if(p && !p.hidden){ p.hidden = true; } }
   // Heal / Damage buttons on the HP widget — arithmetic-free. Damage burns Temp HP first (5e RAW),
   // then Current (floored at 0); Heal adds to Current, capped at Max. Clears the amount after applying
   // so a stray second click can't silently re-apply. compute() then refreshes derived fields + death saves.
@@ -6313,18 +6379,20 @@
         $("hitdice").value = "1d" + hitDieFaces + (cm ? (cm > 0 ? "+"+cm : ""+cm) : "");
       }
     }
-    // --- Max HP from the per-level records: sum of die rolls + Con per level (Con applied live so it stays correct) ---
+    // --- Max HP baseline from the per-level records: sum of die rolls + Con per level (Con applied live so it stays correct).
+    //     The baseline goes into #hpmax-base; recalcMaxHp() then layers the modifier/override into the displayed #hpmax. ---
     {
-      const hm = $("hpmax");
+      const hm = $("hpmax"), hb = $("hpmax-base");
       if(hm){
-        if(hpRolls.length){
+        hm.readOnly = true;   // Max is edited through the modifier/override dialog now, never inline
+        if(hpRolls.length && hb){
           const con = (mods.con == null) ? 0 : mods.con, lvl = hpRolls.length;
           const hpb = hpFeatureBonus(lvl);
-          hm.value = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*lvl + hpb.total;
-          hm.readOnly = !hasOv("hpmax");
-          hm.title = "Set from HP by level (Create/Edit Character → HP). Con is applied per level."
+          hb.value = hpRolls.reduce((a,b)=>a+(+b||0),0) + con*lvl + hpb.total;
+          hm.title = "Baseline set from HP by level (Create/Edit Character → HP). Con applied per level. Tap to set a Max HP modifier or override."
             + (hpb.parts.length ? "\n+ " + hpb.parts.map(p => p.amt + " " + p.label).join(", ") : "");
-        } else { hm.readOnly = false; hm.removeAttribute("title"); }   // no records → manual entry
+        }
+        recalcMaxHp();
       }
     }
 
@@ -6482,8 +6550,8 @@
   // Source fields (ability scores/modifiers, proficiency bonus) cascade through compute() via the helpers;
   // the rest are leaves repainted here. Calculated value is kept as a "Calculated X" ghost so drift stays visible.
   function overrideIds(){
-    const ids = ["pb","ac-calc","init","passive","attacks-per","hd-avail","hitdice","hpmax","speed",
-                 "carry","enc5","enc10","pushdrag","coinwt","totalwt","carried"];
+    const ids = ["pb","ac-calc","init","passive","attacks-per","hd-avail","hitdice","speed",
+                 "carry","enc5","enc10","pushdrag","coinwt","totalwt","carried"];   // hpmax is handled by its own modifier/override dialog, not the generic pin
     ABILITIES.forEach(([k]) => ids.push("score-"+k+"-out","mod-"+k,"savetot-"+k));
     SKILLS.forEach(([k]) => ids.push("sktot-"+k));
     for(let i=0;i<NATTACKS;i++) ids.push("atkbonus-"+i,"atkdmg-"+i);
@@ -10308,6 +10376,8 @@
     document.addEventListener("click", e => {   // ammo "Fire/Throw" buttons + spell "Cast" buttons (delegated; survive re-renders)
       const hpb = e.target.closest("#hp-heal, #hp-damage");
       if(hpb){ applyHpDelta(hpb.id === "hp-heal"); return; }
+      if(e.target.closest("#hpmax")){ const p = $("hpmax-pop"); if(p && p.hidden) openHpMaxPop(); else closeHpMaxPop(); return; }   // tap Max → modifier/override dialog
+      if(!e.target.closest("#hpmax-pop") && !e.target.closest("#hpmax")) closeHpMaxPop();   // click elsewhere closes it
       const fire = e.target.closest(".atk-fire");
       if(fire && !fire.disabled){ fireAmmo(fire.dataset.kind); return; }
       const cast = e.target.closest(".sp-cast");
@@ -11511,6 +11581,7 @@
       const half = String(Math.floor(maxhp / 2));
       d.hpMode = "manual"; d.hpRolls = [];
       d.hpmax = half; d.hpcur = half; d.hptmp = "";
+      d["hpmax-base"] = half; d["hpmax-mod"] = ""; d["hpmax-override"] = "";   // halve the baseline too, and drop any modifier/override so the halved max sticks
       if(d.overrides){ delete d.overrides.hpmax; delete d.overrides.hpcur; }
     }
     // no equipment — clear inventory rows, armor, attunement, currency, and any weapon-linked attack rows
