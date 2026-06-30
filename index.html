@@ -353,7 +353,7 @@
   .hp-delta::-webkit-inner-spin-button, .hp-delta::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:0}
   .hp-delta:hover::-webkit-inner-spin-button, .hp-delta:hover::-webkit-outer-spin-button,
   .hp-delta:focus::-webkit-inner-spin-button, .hp-delta:focus::-webkit-outer-spin-button{opacity:1}
-  .hp-readout{flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px}
+  .hp-readout{flex:1 1 auto; position:relative; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px; padding-bottom:14px}
   .hp-vals{display:flex; align-items:flex-end; justify-content:center; gap:8px; width:100%}
   .hp-col{display:flex; flex-direction:column; align-items:center; gap:1px; min-width:0}
   .hp-lbl{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
@@ -386,7 +386,7 @@
     border-radius:6px; width:100%; appearance:auto; -moz-appearance:number-input}
   .hp-pop-in::-webkit-inner-spin-button, .hp-pop-in::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:1}
   .hp-slash{font-size:26px; font-weight:300; line-height:1; color:var(--muted); padding-bottom:2px}
-  .hp-foot{font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+  .hp-foot{position:absolute; left:0; right:0; bottom:0; text-align:center; margin:0; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
   .rest-check{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--ink); cursor:pointer; margin-top:6px}
   .rest-check input{width:auto; margin:0}
   body.dark .hp-delta{background:var(--field) !important}
@@ -396,7 +396,7 @@
   .otherspeeds{margin-top:8px; font-size:12px; line-height:1.4; color:var(--ink)}
   .otherspeeds .k{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-right:6px}
   .otherspeeds .sp{font-weight:700; margin-right:8px; white-space:nowrap}
-  .deathsaves{display:flex; align-items:center; gap:16px; margin-top:12px}
+  .deathsaves{display:flex; align-items:center; justify-content:center; gap:16px; margin:0; width:100%}
   .deathsaves .ds-title{font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--ink)}
   .ds-rows{display:flex; flex-direction:column; gap:8px}   /* Failures stacked under Successes */
   .deathsaves .grp{display:flex; align-items:center; gap:8px}
@@ -2139,14 +2139,14 @@
                     </div>
                     <div class="hp-col hp-tempcol"><div class="hp-lbl">Temp</div><input data-save="" type="number" min="0" id="hptmp" class="hp-big hp-tempin" placeholder="--" title="Temporary hit points — tap to add"></div>
                   </div>
+                  <div class="deathsaves" style="display:none">
+                    <span class="ds-title">Death Saves</span>
+                    <div class="ds-rows">
+                      <div class="grp"><span class="k">Successes</span><span class="pips" id="ds-success"><input data-save="" type="checkbox" id="dss-0"><input data-save="" type="checkbox" id="dss-1"><input data-save="" type="checkbox" id="dss-2"></span></div>
+                      <div class="grp"><span class="k">Failures</span><span class="pips" id="ds-fail"><input data-save="" type="checkbox" id="dsf-0"><input data-save="" type="checkbox" id="dsf-1"><input data-save="" type="checkbox" id="dsf-2"></span></div>
+                    </div>
+                  </div>
                   <div class="hp-foot">Hit Points</div>
-                </div>
-              </div>
-              <div class="deathsaves">
-                <span class="ds-title">Death Saves:</span>
-                <div class="ds-rows">
-                  <div class="grp"><span class="k">Successes</span><span class="pips" id="ds-success"><input data-save="" type="checkbox" id="dss-0"><input data-save="" type="checkbox" id="dss-1"><input data-save="" type="checkbox" id="dss-2"></span></div>
-                  <div class="grp"><span class="k">Failures</span><span class="pips" id="ds-fail"><input data-save="" type="checkbox" id="dsf-0"><input data-save="" type="checkbox" id="dsf-1"><input data-save="" type="checkbox" id="dsf-2"></span></div>
                 </div>
               </div>
             </div>
@@ -2773,11 +2773,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v362 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v363 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.44.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.44.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6211,13 +6211,17 @@
   }
   let _lastFeatSig = null, _lastLimSig = null, _lastEspSig = null;   // change-gates so compute() skips the heavy Feature-card / Limited-Features / spellbook-item rebuilds when their inputs are unchanged
   function equippedSig(){ let s = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = $("invname-"+i); if(cb && cb.checked && nm && nm.value) s += nm.value + ","; } return s; }
-  // Death saves only matter while you're at 0 HP — hide the row otherwise, and clear the pips when you regain HP (RAW: death
-  // saves reset when you're no longer dying). Shown only when Current HP is an explicit number ≤ 0 (blank = unknown → hidden).
+  // Death saves only matter while you're at 0 HP. At ≤0 they REPLACE the Current/Max/Temp readout in the HP card; above 0
+  // they hide and the numbers return (and the pips clear — RAW: death saves reset when you're no longer dying). Shown only
+  // when Current HP is an explicit number ≤ 0 (blank = unknown → numbers stay).
   const DS_PIPS = ["dss-0","dss-1","dss-2","dsf-0","dsf-1","dsf-2"];
   function updateDeathSaves(){
     const row = document.querySelector(".deathsaves"); if(!row) return;
+    const vals = document.querySelector(".hp-vals");
     const raw = ($("hpcur")||{}).value, hp = raw === "" ? null : num(raw, null);
-    row.style.display = (hp != null && hp <= 0) ? "" : "none";
+    const dying = (hp != null && hp <= 0);
+    row.style.display = dying ? "" : "none";
+    if(vals) vals.style.display = dying ? "none" : "";   // death saves stand in for the numbers while dying
     if(hp != null && hp > 0){   // back above 0 → clear any marked death saves so they're fresh next time
       let changed = false;
       DS_PIPS.forEach(id => { const c = $(id); if(c && c.checked){ c.checked = false; changed = true; } });
