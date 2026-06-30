@@ -432,6 +432,14 @@
   /* Import-characters picker: checkbox list of every character found in a saved file */
   #charimport .modal-panel{max-width:560px}
   #charimport{z-index:60}   /* import is launched from Settings; all modals share z-index:50, so without this it stacks BEHIND the later-in-DOM #settings. Float it above. */
+  #bookexport .modal-panel{max-width:560px}
+  #bookexport{z-index:60}   /* same as #charimport: launched from Settings, must float above it */
+  /* Loaded-sources filter row: checkbox label + a delete (✕) button to remove a book entirely */
+  .book-row{display:flex; align-items:center; gap:4px; border-bottom:1px solid var(--line)}
+  .book-row:last-child{border-bottom:none}
+  .book-row .lay-row{flex:1; min-width:0; border-bottom:none}
+  .book-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:13px; line-height:1; padding:4px 8px}
+  .book-del:hover{color:#b42318}
   .imp-top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
   .imp-top .imp-count{color:var(--muted); font-size:12px}
   .imp-bulk{display:flex; gap:4px}
@@ -1732,6 +1740,30 @@
     </div>
   </div>
 
+  <!-- Export sourcebooks: tick which loaded books to write out, each as its own source-data.json, bundled in a .zip -->
+  <div class="modal noprint" id="bookexport">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2>Export sourcebooks</h2>
+        <button class="btn ghost" id="bex-cancel" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="imp-top">
+          <span class="imp-count" id="bex-count"></span>
+          <span class="imp-bulk"><button class="btn ghost" id="bex-all" type="button">Select all</button><button class="btn ghost" id="bex-none" type="button">Select none</button></span>
+        </div>
+        <div class="imp-list" id="bex-list"></div>
+        <p class="wiz-hint" style="margin-top:12px">Each ticked book is written as its own <code>source-data.json</code>, bundled together in a single <code>.zip</code>. Re-import any of them later with <strong>Import files…</strong></p>
+        <p class="wiz-hint" id="bex-missing" style="margin-top:8px; color:#b45309"></p>
+      </div>
+      <div class="modal-foot">
+        <span class="wiz-hint" style="flex:1; margin:0"></span>
+        <button class="btn ghost" id="bex-cancel2" type="button">Cancel</button>
+        <button class="btn primary" id="bex-do" type="button">Export</button>
+      </div>
+    </div>
+  </div>
+
   <div class="sheet no-addspell">
     <!-- Rest controls, grafted onto the sheet itself so they're present on every theme
          (the app toolbar is hidden under the Classic theme). -->
@@ -2552,7 +2584,7 @@
             <button class="btn" id="btn-import" title="Add one or more saved source-data.json files as sourcebooks — merged into what's already loaded, never replacing it">Import files…</button>
             <button class="btn" id="btn-export-books" title="Download every loaded sourcebook as its own source-data.json file, bundled together in a .zip">Export books as JSON…</button>
             <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
-            <p class="wiz-hint"><strong>Import files…</strong> adds one or more <code>source-data.json</code> files as extra sourcebooks, merged into whatever's already loaded (it never replaces what you have — same as loading a book from the server). <strong>Export books as JSON…</strong> does the reverse: it splits every loaded book back into its own <code>source-data.json</code>, bundled in a <code>.zip</code>, so you can back them up or share a single book (each re-imports as one book). A browser can't overwrite the open file, so loaded books live in this browser until you bake them into a file. <strong>Save</strong> (top bar) bakes them in alongside your character; <strong>Export a blank sheet</strong> (Settings → General) bakes them into a blank copy with no character. Keep either to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
+            <p class="wiz-hint"><strong>Import files…</strong> adds one or more <code>source-data.json</code> files as extra sourcebooks, merged into whatever's already loaded (it never replaces what you have — same as loading a book from the server). <strong>Export books as JSON…</strong> does the reverse: pick which loaded books to write out and it splits each into its own <code>source-data.json</code>, bundled in a <code>.zip</code>, so you can back them up or share a single book (each re-imports as one book). In the loaded-sources list above, the <strong>✕</strong> next to a book deletes it from this browser entirely (with confirmation). A browser can't overwrite the open file, so loaded books live in this browser until you bake them into a file. <strong>Save</strong> (top bar) bakes them in alongside your character; <strong>Export a blank sheet</strong> (Settings → General) bakes them into a blank copy with no character. Keep either to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
           </section>
         </div>
       </div>
@@ -2642,11 +2674,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v340 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v341 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.36.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.37.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2654,6 +2686,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v341", semver:"2.37.0", items:[
+      "Export books as JSON now lets you pick exactly which loaded books to write out, instead of always exporting all of them.",
+      "You can now delete a sourcebook entirely: each book in the loaded-sources list (Settings → Source books) has an ✕ that removes it from this browser, with a confirmation. Hiding it (the checkbox) and deleting it (the ✕) are now separate."
+    ]},
     {v:"v340", semver:"2.36.0", items:[
       "New “Export books as JSON…” button (Settings → Source books) downloads every loaded sourcebook as its own source-data.json file, bundled in a single .zip. It's the mirror of Import: handy for backing up your books or sharing just one, and each file re-imports as a single book."
     ]},
@@ -3856,15 +3892,15 @@
     if(!names.length){ el.innerHTML = ""; return; }
     const baked = new Set(((DATA && DATA._meta && DATA._meta.bakedBooks) || []).map(String));
     const sorted = names.slice().sort((a,b)=>String(a).localeCompare(String(b)));
-    const row = nm => `<label class="lay-row"><input type="checkbox" class="book-toggle" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label>`;
+    const row = nm => `<div class="book-row"><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label><button type="button" class="book-del" data-book="${esc(nm)}" title="Delete this sourcebook entirely" aria-label="Delete ${esc(nm)}">✕</button></div>`;
     const hdr = (t,h) => `<label class="lbl" style="display:block; margin:14px 0 4px">${t} <span class="wiz-hint" style="font-weight:400; display:inline">— ${h}</span></label>`;
     // Two sections: the built-in 5etools books (refreshed when you update) and books you loaded yourself
     // (kept across updates). With no bakedBooks marker (old data), everything falls back to one list.
     const fiveE = baked.size ? sorted.filter(nm => baked.has(String(nm))) : sorted;
     const mine  = baked.size ? sorted.filter(nm => !baked.has(String(nm))) : [];
     let html = "";
-    if(fiveE.length) html += hdr("5etools sources", "built in, refreshed when you update. Uncheck to hide a book's content") + fiveE.map(row).join("");
-    if(mine.length)  html += hdr("Your loaded sources", "books you loaded yourself, kept across updates. Uncheck to hide") + mine.map(row).join("");
+    if(fiveE.length) html += hdr("5etools sources", "built in, refreshed when you update. Uncheck to hide a book's content, ✕ to delete it") + fiveE.map(row).join("");
+    if(mine.length)  html += hdr("Your loaded sources", "books you loaded yourself, kept across updates. Uncheck to hide, ✕ to delete") + mine.map(row).join("");
     el.innerHTML = html;
   }
   function renderHomebrewList(){   // Settings: the homebrew "source material" — enable/disable the whole source + delete individual spells
@@ -6919,11 +6955,12 @@
   // Export every loaded sourcebook as its OWN source-data.json (the per-book data the filter list already keeps in
   // _meta.raw), bundled into one .zip. Each file re-imports cleanly via "Import files…" as a single book. Books with
   // no per-book data (an old saved sheet that never kept raw) are skipped with a note to reload them from the server.
-  function exportBooksAsJson(){
+  function exportBooksAsJson(names){
     if(!DATA || !DATA._meta){ flashStatus("No sourcebooks loaded to export"); return; }
     const raw = DATA._meta.raw || {}, ver = DATA._meta.dataVersion || DATA_VERSION;
+    const list = (names && names.length) ? names : loadedBooks();   // a chosen subset, else every loaded book
     const enc = new TextEncoder(), files = [], used = new Set(); let missing = 0;
-    loadedBooks().forEach(nm => {
+    list.forEach(nm => {
       const book = raw[nm];
       if(!book){ missing++; return; }
       const out = Object.assign({}, book, {_meta:{book:nm, dataVersion:ver,
@@ -6937,6 +6974,70 @@
     download(zipStore(files), "Sourcebooks ("+files.length+" book"+(files.length===1?"":"s")+").zip", "application/zip");
     flashStatus("Exported "+files.length+" book"+(files.length===1?"":"s")+" as individual JSON files" +
       (missing ? " ("+missing+" skipped — no per-book data; reload from your server to include)" : "") + ".");
+  }
+  // ---- Export picker: choose which loaded books to write out ----
+  let _bexCandidates = [];
+  function openBookExport(){
+    if(!DATA || !DATA._meta){ flashStatus("No sourcebooks loaded to export"); return; }
+    const raw = DATA._meta.raw || {};
+    const all = loadedBooks();
+    _bexCandidates = all.filter(nm => raw[nm]).slice().sort((a,b)=>String(a).localeCompare(String(b)));   // only books we have per-book data for can be split out
+    if(!_bexCandidates.length){ flashStatus("No per-book data to export" + (all.length ? " — reload your books from the server first" : "")); return; }
+    renderBookExport(all.length - _bexCandidates.length);
+    $("bookexport").classList.add("open");
+  }
+  function renderBookExport(missing){
+    const list = $("bex-list"); if(!list) return;
+    list.innerHTML = "";
+    _bexCandidates.forEach((nm, i) => {
+      const row = document.createElement("label");
+      row.className = "imp-row";
+      row.innerHTML = `<input type="checkbox" class="bex-cb" data-i="${i}" checked><span class="imp-name">${esc(nm)}</span>`;
+      list.appendChild(row);
+    });
+    const note = $("bex-missing");
+    if(note) note.textContent = missing ? (missing + " loaded book" + (missing===1?"":"s") + " can't be exported (no per-book data — reload from your 5etools server to include).") : "";
+    updateBookExportCount();
+  }
+  function updateBookExportCount(){
+    const n = [...document.querySelectorAll(".bex-cb")].filter(cb => cb.checked).length, total = _bexCandidates.length;
+    const c = $("bex-count"); if(c) c.textContent = n + " of " + total + " selected";
+    const go = $("bex-do"); if(go){ go.disabled = n === 0; go.textContent = n ? ("Export " + n + " book" + (n===1?"":"s")) : "Export"; }
+  }
+  function doBookExport(){
+    const picked = [...document.querySelectorAll(".bex-cb")].filter(cb => cb.checked).map(cb => _bexCandidates[+cb.dataset.i]).filter(Boolean);
+    if(!picked.length) return;
+    closeBookExport();
+    exportBooksAsJson(picked);
+  }
+  function closeBookExport(){ const m = $("bookexport"); if(m) m.classList.remove("open"); }
+  // Entirely remove a loaded sourcebook (with confirmation): drop its content + per-book data, then rebuild the
+  // merged set from the books that remain. Characters aren't touched. If a KEPT book lacks per-book data we can't
+  // rebuild without it, so we first re-fetch from the 5etools server (same fallback the filter uses).
+  async function deleteBook(name){
+    if(!DATA || !DATA._meta || !name) return;
+    if(!(DATA._meta.books || []).includes(name)) return;
+    if(!confirm("Delete this sourcebook entirely?\n\n“"+name+"” is removed from this browser. Characters you've made aren't deleted, but anything they used from this book may stop resolving until you re-add it (load it from your 5etools server or import its JSON again).")) return;
+    const remaining = (DATA._meta.books || []).filter(n => n !== name);
+    if(remaining.length && !remaining.every(n => DATA._meta.raw && DATA._meta.raw[n])){
+      flashStatus("Fetching source data so the other books can be kept…");
+      const ok = await reloadAllBooks(true);   // populate per-book data from the server, then we can rebuild without the deleted book
+      if(!ok){ flashStatus("Couldn't delete cleanly — start your 5etools server and try again"); return; }
+    }
+    DATA._meta.books = (DATA._meta.books || []).filter(n => n !== name);
+    if(DATA._meta.raw) delete DATA._meta.raw[name];
+    if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== name);
+    if(DATA._meta.bakedBooks) DATA._meta.bakedBooks = DATA._meta.bakedBooks.filter(n => n !== name);
+    if(!DATA._meta.books.length){   // nothing left → clear stored sources, fall back to no data
+      DATA = null; _spellIndex = null;
+      try{ localStorage.removeItem(SOURCES_KEY); localStorage.removeItem(SOURCES_RAW_KEY); }catch(e){}
+      bakeSourceData(); refreshAfterData();
+      flashStatus("“"+name+"” deleted — no sourcebooks loaded now");
+      return;
+    }
+    rebuildFromRaw();   // rebuild the merged data from the remaining enabled books
+    bakeSourceData(); persistSources(); refreshAfterData();
+    flashStatus("“"+name+"” deleted");
   }
   function versionFromHtml(html){   // pull "v193 (2026-06-11)" out of another build's source (its baked APP_VERSION)
     const m = String(html||"").match(/APP_VERSION\s*=\s*"([^"]+)"/);
@@ -10377,6 +10478,7 @@
     $("btn-loadall").addEventListener("click", loadAllBooks);
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
     $("loaded-books").addEventListener("change", e => { const t = e.target.closest(".book-toggle"); if(t) toggleBook(t.dataset.book, t.checked); });
+    $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b) deleteBook(b.dataset.book); });
     $("homebrew-list").addEventListener("change", e => { if(e.target.id === "homebrew-enabled"){ homebrew.enabled = e.target.checked; refreshHomebrew(); } });
     $("homebrew-list").addEventListener("click", e => { const b = e.target.closest(".hb-del"); if(b){ const nm = b.dataset.name||""; if(confirm(`Delete homebrew spell "${nm}"? This removes it from your source material for all characters.`)){ delete homebrew.spells[nm.toLowerCase()]; refreshHomebrew(); } } });
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
@@ -10465,7 +10567,7 @@
 
     $("btn-export-blank").addEventListener("click", shareBlankSheet);
     $("btn-import").addEventListener("click", ()=> $("file-input").click());
-    { const eb = $("btn-export-books"); if(eb) eb.addEventListener("click", exportBooksAsJson); }
+    { const eb = $("btn-export-books"); if(eb) eb.addEventListener("click", openBookExport); }
     $("btn-clearbooks").addEventListener("click", clearLoadedBooks);
     // Import one or more source-data.json files as ADDITIONAL sourcebooks: each is merged into the
     // already-loaded DATA (like loading a book from the server), never replacing it. Reads run in
@@ -10542,6 +10644,15 @@
     $("imp-all").addEventListener("click", ()=>{ document.querySelectorAll(".imp-cb").forEach(cb=> cb.checked = true); updateImportCount(); });
     $("imp-none").addEventListener("click", ()=>{ document.querySelectorAll(".imp-cb").forEach(cb=> cb.checked = false); updateImportCount(); });
     $("charimport").addEventListener("click", e=>{ if(e.target.id === "charimport") closeCharImport(); });   // click backdrop to close
+    { const g = id => $(id);   // export-sourcebooks picker
+      if(g("bex-cancel")) g("bex-cancel").addEventListener("click", closeBookExport);
+      if(g("bex-cancel2")) g("bex-cancel2").addEventListener("click", closeBookExport);
+      if(g("bex-do")) g("bex-do").addEventListener("click", doBookExport);
+      if(g("bex-list")) g("bex-list").addEventListener("change", e=>{ if(e.target.classList.contains("bex-cb")) updateBookExportCount(); });
+      if(g("bex-all")) g("bex-all").addEventListener("click", ()=>{ document.querySelectorAll(".bex-cb").forEach(cb=> cb.checked = true); updateBookExportCount(); });
+      if(g("bex-none")) g("bex-none").addEventListener("click", ()=>{ document.querySelectorAll(".bex-cb").forEach(cb=> cb.checked = false); updateBookExportCount(); });
+      if(g("bookexport")) g("bookexport").addEventListener("click", e=>{ if(e.target.id === "bookexport") closeBookExport(); });   // click backdrop to close
+    }
     $("btn-showguide").addEventListener("click", ()=>{ $("settings").classList.remove("open"); showIntro(); });   // close Settings, re-run the welcome guide
     $("btn-update").addEventListener("click", updateApp);
     // "Update available" banner controls
