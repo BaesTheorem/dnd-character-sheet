@@ -2922,11 +2922,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v407 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v408 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.65.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.66.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2934,6 +2934,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v408", semver:"2.66.0", items:[
+      "Settings → Source books now lists adventure modules alongside sourcebooks, so you can load the player content from books like The Wild Beyond the Witchlight (Fairy & Harengon races, magic items) and Icewind Dale: Rime of the Frostmaiden (items, spells). They appear under an “Adventures” group in the book picker and load exactly like a sourcebook."
+    ]},
     {v:"v405", semver:"2.64.0", items:[
       "Tasha\u2019s Cauldron of Everything optional rules now follow the book itself. If you turn off (or delete) Tasha\u2019s in Settings \u2192 Source books, its optional rules are switched off and their toggles are hidden, instead of staying active independently. Turn Tasha\u2019s back on and the rules (and their checkboxes) return. The rules also stay off on any sheet that doesn\u2019t have Tasha\u2019s loaded.",
       "Imported Ancestral Weapons now land in your regular homebrew (your \u201cMy Homebrew\u201d source) rather than a separate auto-created source, so all your weapons live together in your homebrew content."
@@ -5323,6 +5326,17 @@
     // The 2024 PHB launched 2024-09-17; every WotC 5e book released since is 2024-ruleset.
     return (b.published || "") >= "2024-09-01";
   }
+  // The 5etools catalog is split into sourcebooks (books.json) and adventure modules (adventures.json). Both load
+  // through the SAME source-code pipeline (fetch5etoolsBook filters every category file by srcCode and never touches
+  // the book/adventure prose file), so adventures with player content — WBtW's Fairy/Harengon, IDRotF's items/spells —
+  // are fully loadable; they were just never listed. books.json must reach the server (throws → "start your server");
+  // adventures.json is best-effort (a server/mirror without it still lists sourcebooks).
+  async function fetchBookCatalog(base){
+    const root = base.replace(/\/+$/,"")+"/data/";
+    const J = (p, optional) => fetch(root+p).then(r => { if(!r.ok){ if(optional) return {}; throw 0; } return r.json(); }).catch(e => { if(optional) return {}; throw e; });
+    const [bj, aj] = await Promise.all([ J("books.json", false), J("adventures.json", true) ]);
+    return { books:(bj.book||[]), adventures:(aj.adventure||[]) };
+  }
   async function populateBookSelect(){
     const sel = $("book-select"); if(!sel) return;
     const rbtn = $("btn-reload-all");
@@ -5331,12 +5345,16 @@
     sel.innerHTML = '<option value="">Loading book list…</option>'; sel.disabled = true;
     const opt = b => `<option value="${esc(b.id||b.source)}" data-name="${esc(b.name||b.id)}">${esc(b.name||b.id)}</option>`;
     try{
-      const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
-      // 2014-ruleset sheet — 2024 books are filtered out, as are already-loaded ones (use "Reload all" to refresh those).
+      const cat = await fetchBookCatalog(base);
+      // 2014-ruleset sheet — 2024 books/adventures are filtered out, as are already-loaded ones (use "Reload all" to refresh those).
       const loaded = new Set(loadedBooks().map(n => String(n).toLowerCase()));
-      const fresh = (bj.book||[]).filter(b => !isBook2024(b) && !loaded.has(String(b.name||b.id||"").toLowerCase())).sort((a,b) => (a.name||"").localeCompare(b.name||""));
-      sel.innerHTML = (fresh.length ? '<option value="">Pick a book…</option>' : '<option value="">All available books already loaded</option>') + fresh.map(opt).join("");
-      sel.disabled = !fresh.length;
+      const avail = list => list.filter(b => !isBook2024(b) && !loaded.has(String(b.name||b.id||"").toLowerCase())).sort((a,b) => (a.name||"").localeCompare(b.name||""));
+      const books = avail(cat.books), advs = avail(cat.adventures);
+      let html = "";
+      if(books.length) html += '<optgroup label="Sourcebooks">' + books.map(opt).join("") + '</optgroup>';
+      if(advs.length)  html += '<optgroup label="Adventures (player content)">' + advs.map(opt).join("") + '</optgroup>';   // e.g. Wild Beyond the Witchlight, Rime of the Frostmaiden
+      sel.innerHTML = (html ? '<option value="">Pick a book…</option>' + html : '<option value="">All available books already loaded</option>');
+      sel.disabled = !(books.length || advs.length);
     }catch(e){ sel.innerHTML = '<option value="">Start your 5etools server, then reopen Settings</option>'; sel.disabled = true; }
   }
   function finalizeSourceLoad(){ _spellIndex = null; bakeSourceData(); const ok = persistSources(); refreshAfterData(); return ok; }   // bake + persist + re-render once after a load
@@ -5368,8 +5386,8 @@
     const btn = $("btn-reload-all"), orig = btn ? btn.textContent : "";
     if(btn){ btn.disabled = true; btn.textContent = "Reloading…"; }
     try{
-      const bj = await fetch(base.replace(/\/+$/,"")+"/data/books.json").then(r => { if(!r.ok) throw 0; return r.json(); });
-      const codeOf = {}; (bj.book||[]).forEach(b => { codeOf[String(b.name||b.id||"").toLowerCase()] = b.id||b.source; });
+      const cat = await fetchBookCatalog(base);   // both sourcebooks and adventures, so a loaded adventure (WBtW/IDRotF) reloads too
+      const codeOf = {}; [...cat.books, ...cat.adventures].forEach(b => { codeOf[String(b.name||b.id||"").toLowerCase()] = b.id||b.source; });
       DATA._meta.raw = DATA._meta.raw || {};
       let n = 0, missed = 0;
       for(const nm of names){ const code = codeOf[String(nm).toLowerCase()];
@@ -5384,7 +5402,7 @@
     }catch(e){ flashStatus("Reload failed — is your 5etools server running at "+base+"?"); return false; }
     finally{ if(btn){ btn.disabled = false; btn.textContent = orig || "Reload all loaded sources"; } }
   }
-  async function loadAllBooks(){   // one click: import every available 2014 book not already loaded
+  async function loadAllBooks(){   // one click: import every available 2014 SOURCEBOOK not already loaded (adventures are opt-in per-item from the picker, not bulk-loaded — most carry little/no player content)
     const base = serverBase();
     const btn = $("btn-loadall"), orig = btn ? btn.textContent : "";
     if(btn){ btn.disabled = true; btn.textContent = "Loading…"; }
