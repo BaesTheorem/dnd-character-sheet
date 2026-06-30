@@ -338,7 +338,8 @@
   .hp-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
   /* Compact HP widget — Heal/Damage on the left, Current / Max + Temp readout on the right (arithmetic-free) */
   .hpbox{display:flex; align-items:stretch; gap:14px; margin-top:12px; padding:10px 12px;
-    background:var(--field); border:1px solid var(--line); border-radius:10px}
+    background:var(--field); border:1px solid var(--line); border-radius:10px;
+    max-width:460px}   /* it's a compact card — don't let it stretch to the full combat-card width in the landscape layout */
   .hp-adjust{display:flex; flex-direction:column; justify-content:center; gap:5px; width:94px; flex:0 0 94px}
   .hp-btn{font:inherit; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
     border:1px solid var(--line); border-radius:7px; background:var(--card); padding:5px 4px; cursor:pointer; line-height:1.1}
@@ -2735,11 +2736,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v359 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v360 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.42.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.42.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
