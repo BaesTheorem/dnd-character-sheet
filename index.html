@@ -2856,11 +2856,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v383 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v384 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.54.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.54.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2868,6 +2868,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v384", semver:"2.54.1", items:[
+      "The Attacks / Action box now counts Monk's Extra Attack (a Monk 5+ shows 2 attacks per action, not 1), alongside the Fighter (2/3/4 at levels 5/11/20) and Barbarian/Paladin/Ranger cases it already handled. It also picks up Extra Attack granted by a subclass, such as an Artificer Battle Smith or Armorer.",
+      "Extra Attack is no longer listed in the Action Economy summary — it's already represented by the Attacks / Action box, so listing it there too was redundant."
+    ]},
     {v:"v383", semver:"2.54.0", items:[
       "Building a Monk with the Way of Shadow subclass now automatically sets up your spell sheet for Shadow Arts — the spellcasting class is selected for you and the always-known spells appear: the Minor Illusion cantrip plus Darkness, Darkvision, Pass Without Trace, and Silence (cast with ki, no spell slots). Previously you had to go to the spell sheet and pick the class by hand. (This also fixes the same gap for any other subclass that grants a fixed spell list rather than spell slots.)"
     ]},
@@ -9144,10 +9148,13 @@
       const cls = m[1].toLowerCase(), lv = parseInt(m[2],10);
       let n = 1;
       if(/fighter/.test(cls)) n = lv>=20 ? 4 : lv>=11 ? 3 : lv>=5 ? 2 : 1;
-      else if(/barbarian|paladin|ranger/.test(cls)) n = lv>=5 ? 2 : 1;
+      else if(/barbarian|paladin|ranger|monk/.test(cls)) n = lv>=5 ? 2 : 1;   // Monk also gains Extra Attack at 5
       if((/wizard/.test(cls) && /bladesinger/.test(sub)) || (/bard/.test(cls) && /(valor|swords)/.test(sub))){ if(lv>=6) n = Math.max(n,2); }
       best = Math.max(best, n);
     }
+    // A granted "Extra Attack" feature in the Features box → at least 2 (catches subclass sources the class+level table
+    // doesn't enumerate, e.g. Artificer Battle Smith / Armorer). Fighter's 2/3/4 tiers are already handled above.
+    if(featureBlocks().some(b => /^extra attack$/i.test(b.name))) best = Math.max(best, 2);
     return best;
   }
   function isMonkWeapon(w){                   // shortsword, or any simple melee weapon without two-handed/heavy
@@ -10384,6 +10391,7 @@
     const buckets = {action:[], bonus:[], reaction:[]};
     const seen = {action:new Set(), bonus:new Set(), reaction:new Set()};
     featureCards().forEach(c => {
+      if(/^extra attack\b/i.test(c.title)) return;   // Extra Attack is already captured by the Attacks/Action box; don't also list it as a separate Action
       const t = (c.title + " " + (c.body||"")).toLowerCase();
       const isBonus = /\bbonus action\b/.test(t);
       const isReaction = /\breaction\b/.test(t);
