@@ -358,13 +358,20 @@
   .hp-lbl{font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
   .hp-big{text-align:center; font-size:30px; font-weight:800; line-height:1.05; background:transparent !important;
     border:none !important; padding:0; width:3.6ch; box-sizing:content-box; color:var(--ink)}
-  .hp-tempin{color:var(--muted)}
-  .hp-tempcol{margin-left:auto}
+  /* Temp HP: reads as a plain number, but tap/hover reveals a boxed editable field + stepper (no cap) */
+  .hpbox .hp-tempin{color:var(--muted); border:1px solid transparent !important; border-radius:7px;
+    appearance:auto; -moz-appearance:textfield}
+  .hp-tempin::-webkit-inner-spin-button, .hp-tempin::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:0}
+  .hpbox .hp-tempin:hover, .hpbox .hp-tempin:focus{border-color:var(--line) !important; background:var(--field) !important; color:var(--ink)}
+  .hp-tempin:hover::-webkit-inner-spin-button, .hp-tempin:focus::-webkit-inner-spin-button,
+  .hp-tempin:hover::-webkit-outer-spin-button, .hp-tempin:focus::-webkit-outer-spin-button{opacity:1}
+  .hp-tempcol{margin-left:6px}
   .hp-slash{font-size:26px; font-weight:300; line-height:1; color:var(--muted); padding-bottom:2px}
   .hp-foot{font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
   body.dark .hp-delta{background:var(--field) !important}
   body.dark .hp-btn{background:var(--field) !important}
   body.dark .hp-big{background:transparent !important; border:none !important}   /* out-specify body.dark input so the readout digits stay box-free */
+  body.dark .hp-tempin{border:1px solid transparent !important}   /* keep Temp's reserved (invisible) border in dark so revealing it doesn't shift layout */
   .otherspeeds{margin-top:8px; font-size:12px; line-height:1.4; color:var(--ink)}
   .otherspeeds .k{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-right:6px}
   .otherspeeds .sp{font-weight:700; margin-right:8px; white-space:nowrap}
@@ -2092,7 +2099,7 @@
                     <div class="hp-col"><div class="hp-lbl">Current</div><input data-save="" type="number" id="hpcur" class="hp-big" title="Current hit points"></div>
                     <div class="hp-slash">/</div>
                     <div class="hp-col"><div class="hp-lbl">Max</div><input data-save="" type="number" id="hpmax" class="hp-big" title="Maximum hit points"></div>
-                    <div class="hp-col hp-tempcol"><div class="hp-lbl">Temp</div><input data-save="" type="number" id="hptmp" class="hp-big hp-tempin" placeholder="--" title="Temporary hit points"></div>
+                    <div class="hp-col hp-tempcol"><div class="hp-lbl">Temp</div><input data-save="" type="number" min="0" id="hptmp" class="hp-big hp-tempin" placeholder="--" title="Temporary hit points — tap to add"></div>
                   </div>
                   <div class="hp-foot">Hit Points</div>
                 </div>
@@ -2728,11 +2735,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v358 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v359 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.41.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.42.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
