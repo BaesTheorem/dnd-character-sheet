@@ -2894,11 +2894,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v397 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v398 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.58.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.58.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -5584,6 +5584,18 @@
     return {magicBonus, ac, spellAtk, riders, slots, senses, speed, fly, profs, resists, points,
             rarity:awRarity(points), spent:awSpent(build.upgrades), attune:true};
   }
+  function awEquippedEffects(){   // aggregate character-wide effects (speed/fly/darkvision/slots/resist/prof) from ATTUNED Ancestral Weapons (an AW's powers require attunement, RAW)
+    const out = {speed:0, fly:false, darkvision:0, slots:[], resists:[], profs:0, names:[]};
+    if(typeof attunedNames !== 'function') return out;
+    attunedNames().forEach(lc => {
+      const it = hbEnabledItem(lc); if(!(it && it.aw)) return;
+      const d = awDerive({upgrades:(it.aw.upgrades||[]), points:it.aw.points||0});
+      out.speed += d.speed; if(d.fly) out.fly = true;
+      d.senses.forEach(sv => { const m = String(sv).match(/darkvision (\d+)/); if(m) out.darkvision = Math.max(out.darkvision, +m[1]); });
+      out.slots.push(...d.slots); out.resists.push(...d.resists); out.profs += d.profs; out.names.push(it.name);
+    });
+    return out;
+  }
   let _awBuild = null;   // current build: {name, baseWeapon, points, upgrades:[], lore, physical, sourceIdx, editKey}
   function awCharLevel(){ const n = parseClassLevels($("classlevel").value).reduce((a,c)=>a+(c.level||0),0); return n>0 ? n : null; }   // null = no class set → don't tier-gate
   function buildAwBuilder(){
@@ -7187,6 +7199,7 @@
     }
     // Monk Unarmored Movement: +10 ft at L2, scaling to +30, while unarmored and not using a shield
     let speedBonus = 0;
+    const awEff = awEquippedEffects();   // equipped+attuned Ancestral Weapon character-wide effects
     const clsLow = ($("classlevel").value || "").toLowerCase();
     const armorSel = $("armorsel") ? $("armorsel").value : "";
     const hasShield = hasEquippedShield();
@@ -7194,6 +7207,7 @@
       const mm = clsLow.match(/monk[^\d]*(\d+)/), mlvl = mm ? parseInt(mm[1],10) : (charLevel() || 0);
       if(mlvl >= 2) speedBonus = Math.min(30, Math.floor((mlvl - 2) / 4) * 5 + 10);
     }
+    speedBonus += awEff.speed;   // Ancestral Weapon Mobile upgrade
     // Combat Speed (page 1): box shows base − encumbrance penalty + Unarmored Movement, then condition effects (not while editing)
     if(document.activeElement !== $("speed")){
       let effSpeed = (baseSpeed == null) ? null : Math.max(0, baseSpeed - speedPenalty + speedBonus);
@@ -7209,6 +7223,7 @@
           const eff = Math.max(0, parseInt(m[2],10) - speedPenalty);
           return `<span class="sp">${m[1][0].toUpperCase()+m[1].slice(1)} ${eff} ft.</span>`;
         }).filter(Boolean);
+        if(awEff.fly){ const walkEff = Math.max(0, (baseSpeed==null?30:baseSpeed) - speedPenalty + speedBonus); modes.unshift(`<span class="sp">Fly ${walkEff} ft.</span>`); }   // Ancestral Weapon Flying upgrade → fly = walking speed
         if(modes.length){ os.innerHTML = `<span class="k">Speeds</span>${modes.join("")}`; os.style.display = ""; }
         else { os.innerHTML = ""; os.style.display = "none"; }
       }
