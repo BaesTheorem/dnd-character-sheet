@@ -2925,11 +2925,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v403 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v404 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.62.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.63.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2937,6 +2937,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v404", semver:"2.63.0", items:[
+      "The Ancestral Weapons export is now a fully self-contained sourcebook file. It bundles the Ancestral Weapons rules content (the upgrade definitions and their descriptions) alongside your weapons, so the JSON carries everything it needs — import it into a sheet that's never seen the system and the weapons rebuild with their full rules intact, rather than relying on the rules already being present."
+    ]},
     {v:"v403", semver:"2.62.0", items:[
       "You can now export and import your Ancestral Weapons as a JSON sourcebook file. In Settings → Source books → Rules modules, the “Export…” button next to Ancestral Weapons downloads every weapon you've built (their full build: upgrades, added properties, lore, and art) as Ancestral Weapons.json. Bring it back with the normal “Import files…” button — into this sheet or anyone else's — and the weapons land in an “Ancestral Weapons” source, fully rebuilt (the upgrade rules are baked into every copy of the sheet, so they reconstitute anywhere)."
     ]},
@@ -5849,11 +5852,19 @@
     const items = {}; let n = 0;
     homebrewSources.forEach(s => { for(const k in (s.items||{})){ const it = s.items[k]; if(it && it.aw){ items[String(it.name||k).toLowerCase()] = it; n++; } } });
     if(!n){ flashStatus("No Ancestral Weapons to export yet — build one first"); return; }
-    const out = { _meta:{ awExport:true, name:"Ancestral Weapons", dataVersion:(typeof DATA_VERSION!=="undefined"?DATA_VERSION:0), source:"Exported from the D&D Character Sheet — Ancestral Weapons content (Dungeon Rollers framework), personal use" }, items };
+    // Silo the third-party Ancestral Weapons book content (Dungeon Rollers IP) INTO the file as data, so the file is
+    // self-contained and the rules travel with it rather than being assumed baked into the recipient's app.
+    const awUpgrades = {}; AW_UPGRADES.forEach(u => { awUpgrades[u.n] = Object.assign({}, u, { text: AW_TEXT[u.n] || "" }); });
+    const out = { _meta:{ awExport:true, name:"Ancestral Weapons", dataVersion:(typeof DATA_VERSION!=="undefined"?DATA_VERSION:0), source:"Ancestral Weapons framework \u00a9 Matt Vaughan / Dungeon Rollers, bundled for personal use" }, awUpgrades, items };
     download(JSON.stringify(out, null, 1), "Ancestral Weapons.json", "application/json");
-    flashStatus("Exported " + n + " Ancestral Weapon" + (n===1?"":"s") + " as JSON — re-import via Import files\u2026");
+    flashStatus("Exported the Ancestral Weapons book + " + n + " weapon" + (n===1?"":"s") + " as JSON — re-import via Import files\u2026");
   }
-  function importAwContent(d){   // merge an Ancestral Weapons export into a dedicated "Ancestral Weapons" homebrew source
+  function importAwContent(d){   // merge an Ancestral Weapons sourcebook export: book content (upgrades + text) then the weapons
+    const up = (d && d.awUpgrades) || {};   // bundle any upgrade definitions/text this file carries that we don't already have
+    for(const name in up){ const e = up[name] || {}, lc = String(name).toLowerCase();
+      if(!AW_UP_BY[lc]){ const mech = {n:e.n||name, t:e.t, c:e.c, lim:!!e.lim, req:e.req||null, rc:e.rc||[], rcast:!!e.rcast, rw:e.rw||null}; if(e.fx) mech.fx = e.fx; AW_UPGRADES.push(mech); AW_UP_BY[lc] = mech; }
+      if(e.text && !AW_TEXT[name]) AW_TEXT[name] = e.text;
+    }
     const items = (d && d.items) || {};
     let src = homebrewSources.find(s => String(s.name).toLowerCase() === "ancestral weapons");
     if(!src){ src = { name:(typeof hbUniqueName==="function"?hbUniqueName("Ancestral Weapons"):"Ancestral Weapons"), enabled:true, spells:{}, items:{} }; homebrewSources.push(src); }
