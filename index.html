@@ -2934,11 +2934,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v421 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v422 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.77.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.78.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2946,6 +2946,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v422", semver:"2.78.0", items:[
+      "Mobile view overhaul. On a phone, the sheet now uses a layout built for a narrow screen instead of squeezing the wide desktop dashboard into a tall column. The Core page shows full-width ability rows, a readable Hit Points and Combat card, and collapsible sections (Saving Throws, Skills, Attacks, Senses, and more) you can tap to open and close, with Abilities and Combat open by default. Toggling the Mobile button on a desktop switches to this layout too.",
+      "Fixed Search on the default layout. Searching your character now finds everything on the Core page (name, class, abilities, saving throws, skills, attacks, hit points, senses, proficiencies), which the search box was missing before. Works in both the desktop and mobile layouts."
+    ]},
     {v:"v421", semver:"2.77.0", items:[
       "Homebrew items can now give precise Action Economy entries. A new “Actions” field in the item form (one per line, “Label | cost”, where cost is action / bonus / reaction) lists each ability by its own name in the Action Economy section instead of just the item name. The Eye of Dendallen now shows “See through magical darkness” under Bonus Action and “Command the Dendallen familiar” under Action. Items without this field still fall back to scanning their description."
     ]},
@@ -9506,12 +9510,23 @@
     const lab = el.closest("label"); if(lab) return lab.textContent.trim().slice(0,42);
     return "";
   }
+  // The Universal landscape layout RELOCATES the core-page cards out of #page-core into the
+  // #ucs-* scaffold (siblings of .sheet, not inside any .page), so a search that only scanned
+  // .page[data-page] missed everything on Core — name, class, abilities, saves, skills, attacks,
+  // HP, senses, proficiencies. Resolve a field's owning page by climbing to its .page, or map any
+  // relocated scaffold field back to "core". Returns null for chrome (toolbar, modals) so it's skipped.
+  function _fieldPageKey(el){
+    const pg = el.closest(".page[data-page]"); if(pg) return pg.dataset.page;
+    if(el.closest("#ucs-topbar,#ucs-rail,#ucs-skills,#ucs-main")) return "core";
+    return null;
+  }
   function _searchItems(){
-    const items = [], pageName = k => (PAGES.find(p=>p[0]===k)||[k,k])[1];
-    document.querySelectorAll(".page[data-page]").forEach(page => {
-      const pk = page.dataset.page;
-      page.querySelectorAll("input[type=text], input:not([type]), textarea, select").forEach(el => {
+    const items = [], pageName = k => k==="core" ? "Core" : (PAGES.find(p=>p[0]===k)||[k,k])[1];
+    const root = document.querySelector(".sheet") || document;
+    root.querySelectorAll("input[type=text], input:not([type]), textarea, select").forEach(el => {
         if(el.type === "hidden") return;
+        if(el.closest(".search-panel")) return;        // never index the search box itself
+        const pk = _fieldPageKey(el); if(!pk) return;   // skip toolbar / modal / unowned chrome
         let val = "";
         if(el.tagName === "SELECT"){ if(!el.value) return; const o = el.options[el.selectedIndex]; val = o ? o.textContent.trim() : ""; }
         else val = (el.value||"").trim();
@@ -9520,7 +9535,6 @@
         if(el.tagName === "TEXTAREA" && val.length > 60){
           val.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach(line => items.push({text:line, page:pk, pageName:pageName(pk), ctx, el}));
         } else items.push({text:val, page:pk, pageName:pageName(pk), ctx, el});
-      });
     });
     // a few by-name stats so "strength", "armor class", etc. land somewhere useful
     const STAT_HINTS = [["abilities","Strength Dexterity Constitution Intelligence Wisdom Charisma ability scores","core","Abilities"],
@@ -13599,7 +13613,7 @@
 
     if(typeof window.applyThemeSetting==='function'){
       var oa=window.applyThemeSetting;
-      window.applyThemeSetting=function(){ var r=oa.apply(this,arguments); try{ if(isUcs()) activate(); else deactivate(); }catch(e){} return r; };
+      window.applyThemeSetting=function(){ var r=oa.apply(this,arguments); try{ if(wantUcs()) activate(); else deactivate(); }catch(e){} return r; };
     }
     if(typeof window.showPage==='function'){
       var osp=window.showPage;
@@ -13614,7 +13628,14 @@
 
     document.body.classList.remove('ucs-layout');           // a file saved WHILE the layout was active carries the class; clear it before self-healing so boot()'s activate() actually rebuilds the scaffold (else active() short-circuits and the cards stay stranded in the now-hidden page-core → blank sheet)
     restoreCanonical();                                     // self-heal a file saved while the layout was active
-    function boot(){ try{ if(isUcs()) activate(); }catch(e){} }
+    // On a phone (html.mobile), the Universal landscape dashboard is the wrong tool — its
+    // cramped strips just stack vertically and bypass the purpose-built mobile core layout
+    // (collapsible/reorderable #page-core sections). So gate activation on NOT-mobile: phones
+    // keep the canonical pages, which the html.mobile CSS is designed to drive. The mobile
+    // toggle calls window._ucsSync() so flipping mobile re-activates/deactivates live.
+    function wantUcs(){ return isUcs() && !document.documentElement.classList.contains('mobile'); }
+    window._ucsSync = function(){ try{ if(wantUcs()) activate(); else deactivate(); }catch(e){} };
+    function boot(){ try{ if(wantUcs()) activate(); }catch(e){} }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
   })();
   </script>
@@ -13647,6 +13668,7 @@
       if(btn){ btn.setAttribute("aria-pressed", on ? "true" : "false"); btn.classList.toggle("primary", on);
         btn.style.display = phoneWidth() ? "none" : "";   // the toggle is a no-op on a phone (mobile is forced) — hide it
       }
+      if(typeof window._ucsSync === "function") window._ucsSync();   // mobile uses the canonical layout; flip the Universal landscape scaffold on/off to match
     }
     var btn = document.getElementById("btn-mobile");
     if(btn) btn.addEventListener("click", function(){
