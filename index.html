@@ -2925,11 +2925,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v400 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v401 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.60.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.60.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2937,6 +2937,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v401", semver:"2.60.1", items:[
+      "Fixed: homebrew items you build in the Homebrew Studio now show up in the inventory item search (the “Search items… to add” box on the Inventory page), not just the per-row autocomplete. Previously that search only looked at loaded sourcebooks, so items like a custom wondrous item couldn't be found there."
+    ]},
     {v:"v400", semver:"2.60.0", items:[
       "Ancestral Weapons are now fully gated behind attunement, and you can add other magic-weapon properties to them. An unattuned Ancestral Weapon acts as a plain weapon of its type (no bonuses) — attune it and all of its powers switch on, including the magic +X to attack and damage, which previously applied without attunement. The “Ancestral Weapons” tab now appears when a weapon is attuned (not merely built), and an Ancestral Weapon can be attuned just by carrying it in your inventory (it doesn't need to be in your Attacks list first). In the builder there's a new “Additional properties” section: add things like Vorpal or Flame Tongue (or anything custom) with rules text, plus an optional magic bonus and extra-damage rider that fold into the weapon and auto-apply when attuned. A freshly built Ancestral Weapon is also dropped into your inventory automatically so it's ready to wield and attune."
     ]},
@@ -4187,10 +4190,15 @@
     if(!showModern) ((DATA && DATA.modern) || []).forEach(n => s.add(n));
     return s;
   }
-  function availableItemNames(){                // item-autocomplete source, futuristic/modern gear filtered out unless enabled
-    const names = (DATA && DATA.itemNames) || [];
+  function availableItemNames(){                // item-autocomplete + search source, futuristic/modern gear filtered out unless enabled
+    const base = (DATA && DATA.itemNames) || [];
     const hide = hiddenItemNames();
-    return hide.size ? names.filter(n => !hide.has(n)) : names;
+    const names = (hide.size ? base.filter(n => !hide.has(n)) : base).slice();
+    if(typeof hbActiveItems === "function"){      // homebrew items (Homebrew Studio) are addable too
+      const hi = hbActiveItems(), seen = new Set(names.map(n => n.toLowerCase()));
+      for(const lc in hi){ if(!seen.has(lc)){ names.push(hi[lc].name); seen.add(lc); } }
+    }
+    return names;
   }
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
