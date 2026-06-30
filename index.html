@@ -2550,8 +2550,9 @@
             <input id="server-url" value="http://localhost:5050" spellcheck="false">
             <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
             <button class="btn" id="btn-import" title="Add one or more saved source-data.json files as sourcebooks — merged into what's already loaded, never replacing it">Import files…</button>
+            <button class="btn" id="btn-export-books" title="Download every loaded sourcebook as its own source-data.json file, bundled together in a .zip">Export books as JSON…</button>
             <button class="btn" id="btn-clearbooks" title="Forget books loaded in this browser and revert to the data baked into this file">Clear loaded books</button>
-            <p class="wiz-hint"><strong>Import files…</strong> adds one or more <code>source-data.json</code> files as extra sourcebooks, merged into whatever's already loaded (it never replaces what you have — same as loading a book from the server). A browser can't overwrite the open file, so loaded books live in this browser until you bake them into a file. <strong>Save</strong> (top bar) bakes them in alongside your character; <strong>Export a blank sheet</strong> (Settings → General) bakes them into a blank copy with no character. Keep either to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
+            <p class="wiz-hint"><strong>Import files…</strong> adds one or more <code>source-data.json</code> files as extra sourcebooks, merged into whatever's already loaded (it never replaces what you have — same as loading a book from the server). <strong>Export books as JSON…</strong> does the reverse: it splits every loaded book back into its own <code>source-data.json</code>, bundled in a <code>.zip</code>, so you can back them up or share a single book (each re-imports as one book). A browser can't overwrite the open file, so loaded books live in this browser until you bake them into a file. <strong>Save</strong> (top bar) bakes them in alongside your character; <strong>Export a blank sheet</strong> (Settings → General) bakes them into a blank copy with no character. Keep either to make the books permanent. <strong>Clear loaded books</strong> forgets everything loaded in this browser and reverts to the data baked into this file.</p>
           </section>
         </div>
       </div>
@@ -2641,11 +2642,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v339 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v340 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.35.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.36.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2653,6 +2654,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v340", semver:"2.36.0", items:[
+      "New “Export books as JSON…” button (Settings → Source books) downloads every loaded sourcebook as its own source-data.json file, bundled in a single .zip. It's the mirror of Import: handy for backing up your books or sharing just one, and each file re-imports as a single book."
+    ]},
     {v:"v339", semver:"2.35.1", items:[
       "Imported sourcebooks can now be unchecked in the filter list right away — no “reload all sources” needed. Each file you import is kept as its own source, so hiding or showing it just rebuilds from what's loaded, same as the books that ship with the sheet."
     ]},
@@ -6876,6 +6880,64 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 1000);
   }
+  // ---- Minimal store-only ZIP writer (no dependencies) — bundles the per-book source-data exports into one file ----
+  function crc32(bytes){
+    let t = crc32._t;
+    if(!t){ t = crc32._t = new Int32Array(256);
+      for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); t[n]=c; } }
+    let crc = -1;
+    for(let i=0;i<bytes.length;i++) crc = (crc>>>8) ^ t[(crc ^ bytes[i]) & 0xFF];
+    return (crc ^ -1) >>> 0;
+  }
+  function zipStore(files){   // files: [{name, bytes:Uint8Array}] → Uint8Array of a store-only (uncompressed) .zip
+    const enc = new TextEncoder();
+    const u16 = n => [n & 0xFF, (n>>>8) & 0xFF];
+    const u32 = n => [n & 0xFF, (n>>>8) & 0xFF, (n>>>16) & 0xFF, (n>>>24) & 0xFF];
+    const parts = [], central = [];
+    let offset = 0;
+    files.forEach(f => {
+      const name = enc.encode(f.name), data = f.bytes, crc = crc32(data);
+      // bit 11 (0x0800) flags UTF-8 filenames; method 0 = stored (no compression, so no deflate dependency)
+      const local = u32(0x04034b50).concat(u16(20), u16(0x0800), u16(0), u16(0), u16(0),
+        u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
+      parts.push(new Uint8Array(local), name, data);
+      central.push(new Uint8Array(u32(0x02014b50).concat(u16(20), u16(20), u16(0x0800), u16(0), u16(0), u16(0),
+        u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset))), name);
+      offset += local.length + name.length + data.length;
+    });
+    let cdSize = 0; central.forEach(c => cdSize += c.length);
+    const end = new Uint8Array(u32(0x06054b50).concat(u16(0), u16(0), u16(files.length), u16(files.length), u32(cdSize), u32(offset), u16(0)));
+    const all = parts.concat(central, [end]);
+    let total = 0; all.forEach(a => total += a.length);
+    const out = new Uint8Array(total); let p = 0;
+    all.forEach(a => { out.set(a, p); p += a.length; });
+    return out;
+  }
+  function safeBookFileName(s){   // readable but safe to unzip on Windows/macOS/Linux (strip path/reserved chars)
+    return String(s).replace(/[\/\\:*?"<>|]+/g, " - ").replace(/\s+/g, " ").trim().replace(/\.+$/,"") || "book";
+  }
+  // Export every loaded sourcebook as its OWN source-data.json (the per-book data the filter list already keeps in
+  // _meta.raw), bundled into one .zip. Each file re-imports cleanly via "Import files…" as a single book. Books with
+  // no per-book data (an old saved sheet that never kept raw) are skipped with a note to reload them from the server.
+  function exportBooksAsJson(){
+    if(!DATA || !DATA._meta){ flashStatus("No sourcebooks loaded to export"); return; }
+    const raw = DATA._meta.raw || {}, ver = DATA._meta.dataVersion || DATA_VERSION;
+    const enc = new TextEncoder(), files = [], used = new Set(); let missing = 0;
+    loadedBooks().forEach(nm => {
+      const book = raw[nm];
+      if(!book){ missing++; return; }
+      const out = Object.assign({}, book, {_meta:{book:nm, dataVersion:ver,
+        source:"Exported from the D&D Character Sheet — 5e content via 5etools, personal use, do not redistribute"}});
+      let fname = safeBookFileName(nm) + ".json", base = fname, i = 2;
+      while(used.has(fname.toLowerCase())){ fname = base.replace(/\.json$/i,"") + " ("+(i++)+").json"; }   // de-collide after sanitizing
+      used.add(fname.toLowerCase());
+      files.push({name:fname, bytes:enc.encode(JSON.stringify(out))});
+    });
+    if(!files.length){ flashStatus("No per-book data to export" + (missing ? " — reload your books from the server first, then try again" : "")); return; }
+    download(zipStore(files), "Sourcebooks ("+files.length+" book"+(files.length===1?"":"s")+").zip", "application/zip");
+    flashStatus("Exported "+files.length+" book"+(files.length===1?"":"s")+" as individual JSON files" +
+      (missing ? " ("+missing+" skipped — no per-book data; reload from your server to include)" : "") + ".");
+  }
   function versionFromHtml(html){   // pull "v193 (2026-06-11)" out of another build's source (its baked APP_VERSION)
     const m = String(html||"").match(/APP_VERSION\s*=\s*"([^"]+)"/);
     return m ? m[1] : null;
@@ -10403,6 +10465,7 @@
 
     $("btn-export-blank").addEventListener("click", shareBlankSheet);
     $("btn-import").addEventListener("click", ()=> $("file-input").click());
+    { const eb = $("btn-export-books"); if(eb) eb.addEventListener("click", exportBooksAsJson); }
     $("btn-clearbooks").addEventListener("click", clearLoadedBooks);
     // Import one or more source-data.json files as ADDITIONAL sourcebooks: each is merged into the
     // already-loaded DATA (like loading a book from the server), never replacing it. Reads run in
