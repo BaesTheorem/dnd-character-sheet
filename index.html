@@ -2641,11 +2641,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v338 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v339 (2026-06-29)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.35.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.35.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2653,8 +2653,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v339", semver:"2.35.1", items:[
+      "Imported sourcebooks can now be unchecked in the filter list right away — no “reload all sources” needed. Each file you import is kept as its own source, so hiding or showing it just rebuilds from what's loaded, same as the books that ship with the sheet."
+    ]},
     {v:"v338", semver:"2.35.0", items:[
-      "Importing a source-data.json file now ADDS its books to what you already have instead of replacing everything. Settings → Source books → Import files… also takes more than one file at once, and each one merges in just like loading a book from your 5etools server. (Books brought in by an import can't be individually unchecked until you reload from the server, but your already-loaded books keep that.)"
+      "Importing a source-data.json file now ADDS its books to what you already have instead of replacing everything. Settings → Source books → Import files… also takes more than one file at once, and each one merges in just like loading a book from your 5etools server."
     ]},
     {v:"v337", semver:"2.34.2", items:[
       "Fixed a blank sheet when opening a downloaded copy. If you saved the file while the landscape (Universal) layout was on — which is the default — reopening it could show just the toolbar with an empty body. The layout now rebuilds itself correctly on open. (You'll need to download a fresh copy once to get the fix into your offline file.)"
@@ -4827,19 +4830,24 @@
     resolveSubraces(into);   // backfill cross-book subraces now that this book's parent races may be present (idempotent; load-order-safe)
   }
   // Fold a fully-merged source-data.json (build-data.py output, or another sheet's baked sources) into the
-  // live DATA as ADDITIONAL sourcebooks — same additive semantics as loading a book from the server, never a
-  // replace. Reuses mergeBook for the category merge, then records the imported book name(s) so they appear in
-  // the loaded-books list. An imported file is merged-only (carries no per-book raw), so the books it brings
-  // can't be individually filtered until a server reload — but everything already loaded keeps its raw/filtering.
+  // live DATA as an ADDITIONAL sourcebook — same additive semantics as loading a book from the server, never a
+  // replace. Reuses mergeBook for the category merge. Each imported FILE registers as ONE filterable source and
+  // the whole file is kept as that source's per-book "raw", so it can be unchecked from the filter list WITHOUT
+  // a server reload (rebuildFromRaw re-merges only the enabled sources' raw). A single-book file (build-data.py
+  // output) takes its book's name; a multi-book bundle can't be split back into per-book pieces (merged items
+  // carry no source tag), so it registers under the file name and filters as one unit.
   function mergeImportedFile(d, fileName){
     if(!DATA) DATA = {_meta:{books:[]}};
     DATA._meta = DATA._meta || {};
     DATA._meta.books = DATA._meta.books || (DATA._meta.book ? [DATA._meta.book] : []);   // normalize singular → plural
-    const m = d._meta || {};   // names the file declares: a plural list, else its singular book, else the file name
-    let names = (Array.isArray(m.books) && m.books.length) ? m.books.slice() : (m.book ? [m.book] : []);
-    if(!names.length) names = [ (fileName || "Imported sourcebook").replace(/\.json$/i, "") ];
-    mergeBook(DATA, d, null);   // merge every category; pass no single name (the file may carry many books)
-    names.forEach(nm => { if(nm && !DATA._meta.books.includes(nm)) DATA._meta.books.push(nm); });
+    const m = d._meta || {};
+    const declared = (Array.isArray(m.books) && m.books.length) ? m.books.slice() : (m.book ? [m.book] : []);
+    const name = (declared.length === 1 ? declared[0] : (fileName || "Imported sourcebook").replace(/\.json$/i, ""));
+    mergeBook(DATA, d, null);   // merge every category; the source name is tracked below
+    if(name && !DATA._meta.books.includes(name)) DATA._meta.books.push(name);
+    DATA._meta.raw = DATA._meta.raw || {};
+    DATA._meta.raw[name] = d;   // the file IS this source's per-book data → toggling it off rebuilds without it, no server needed
+    if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== name);   // a freshly imported source starts shown
   }
   const RULESET_2024 = new Set(["XPHB","XDMG","XMM"]);   // 2024 ("One D&D") core books
   function isBook2024(b){                                 // which ruleset a 5etools book belongs to
