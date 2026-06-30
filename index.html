@@ -2922,11 +2922,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v410 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v411 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.68.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.69.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2934,6 +2934,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v411", semver:"2.69.0", items:[
+      "Settings → Source books is now two clean sections. “5etools sources” lists all official content — books AND adventure modules — whether baked in or loaded from your 5etools server (an adventure you load now files here, where it belongs, instead of under a separate list). Everything else (your homebrew sources, imported files, and rules modules like Ancestral Weapons) is gathered under one “Other loaded sources” section. The old “Your loaded sources”, “Homebrew”, and “Rules modules” headers are gone.",
+      "Hardened the 2024-edition blocklist: this is a 2014-rules sheet, so all 2024 (“One D&D”) books and adventures stay out of the loadable list. Verified against the full 5etools catalog — every 2024 hardcover and adventure is blocked, while 2014-rules books published in 2024 (e.g. Vecna: Eve of Ruin, Quests from the Infinite Staircase) remain available."
+    ]},
     {v:"v410", semver:"2.68.0", items:[
       "Homebrew Studio now creates feats, races (and subraces), backgrounds, and subclasses, not just spells and items. Each has its own tab with a form, and everything you make is fully first-class: a homebrew race shows in the race picker and applies its ability scores, size, speed, traits, resistances and darkvision; a feat shows in the feat/ASI picker and applies its ability bonus and proficiencies; a background applies its skills, tools, languages and feature; a subclass attaches to its parent class (load that class first) and grants its features by level. All of it toggles on/off, imports/exports as JSON, and travels with shared sheets, same as your homebrew spells and items. (Full classes and monsters are still to come.)"
     ]},
@@ -4258,6 +4262,7 @@
     fresh._meta.raw = m.raw;
     if(m.dataVersion != null) fresh._meta.dataVersion = m.dataVersion;
     if(m.bakedBooks) fresh._meta.bakedBooks = m.bakedBooks;   // preserve the "5etools sources" (built-in) marker so the two-section UI + update merge stay correct
+    if(m.fiveE) fresh._meta.fiveE = m.fiveE;   // preserve the "loaded from 5etools" marker (server-loaded books/adventures) so they stay under "5etools sources" after a rebuild
     if(DATA.awText) fresh.awText = DATA.awText;   // carry the AW rules text across a sources rebuild
     if(DATA.homebrew) fresh.homebrew = DATA.homebrew;   // carry homebrew across a sources rebuild
     DATA = fresh; _spellIndex = null;
@@ -4298,22 +4303,26 @@
     const names = loadedBooks(); const off = disabledBooks();
     // (always render — the Ancestral Weapons module toggle below shows even with no books/homebrew loaded)
     const baked = new Set(((DATA && DATA._meta && DATA._meta.bakedBooks) || []).map(String));
+    const fiveELoaded = new Set(((DATA && DATA._meta && DATA._meta.fiveE) || []).map(String));   // books/adventures loaded from the 5etools server (tagged in doLoadBook)
     const sorted = names.slice().sort((a,b)=>String(a).localeCompare(String(b)));
     const row = nm => `<div class="book-row"><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label><button type="button" class="book-del" data-book="${esc(nm)}" title="Delete this sourcebook entirely" aria-label="Delete ${esc(nm)}">✕</button></div>`;
     const hdr = (t,h) => `<label class="lbl" style="display:block; margin:14px 0 4px">${t} <span class="wiz-hint" style="font-weight:400; display:inline">— ${h}</span></label>`;
-    // Sections: built-in 5etools books, books you loaded yourself, and your homebrew sources. With no bakedBooks marker
-    // (old data), the 5etools/loaded split collapses to one list; homebrew is always its own section.
-    const fiveE = baked.size ? sorted.filter(nm => baked.has(String(nm))) : sorted;
-    const mine  = baked.size ? sorted.filter(nm => !baked.has(String(nm))) : [];
+    // Two sections: official 5etools content (baked in OR loaded from the 5etools server — sourcebooks AND adventure
+    // modules, since adventures are 5etools content too) and "Other loaded sources" (everything else, together:
+    // imported files, homebrew, and rules modules like Ancestral Weapons). With no markers at all (old data), treat
+    // every loaded book as 5etools so nothing wrongly lands under "Other".
+    const haveMarkers = baked.size || fiveELoaded.size;
+    const isFiveE = nm => haveMarkers ? (baked.has(String(nm)) || fiveELoaded.has(String(nm))) : true;
+    const fiveE = sorted.filter(isFiveE);
+    const other = sorted.filter(nm => !isFiveE(nm));   // imported source-data files (not from the 5etools server)
     let html = "";
-    if(fiveE.length) html += hdr("5etools sources", "built in, refreshed when you update. Uncheck to hide a book's content, ✕ to delete it") + fiveE.map(row).join("");
-    if(mine.length)  html += hdr("Your loaded sources", "books you loaded yourself, kept across updates. Uncheck to hide, ✕ to delete") + mine.map(row).join("");
-    if(homebrewSources.length){
-      const hbrow = src => { const parts = HB_BAGS.map(k => { const n = Object.keys(src[k]||{}).length; return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean); const cnt = parts.join(", ") || "empty";
-        return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(${cnt})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
-      html += hdr("Homebrew", "your own sources, authored in the Homebrew Studio. Uncheck to hide across all characters, ✕ to delete") + homebrewSources.map(hbrow).join("");
-    }
-    html += hdr("Rules modules", "optional add-on systems") + `<div class="book-row"><label class="lay-row"><input type="checkbox" class="aw-module-toggle" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(Spirit-Points heirloom weapon builder)</span></label><button type="button" class="btn aw-export-btn" title="Export all your Ancestral Weapons as a JSON file — re-importable into this or another sheet via Import files…">Export…</button></div>`;
+    if(fiveE.length) html += hdr("5etools sources", "official 5etools books and adventures — built in or loaded from your 5etools server. Uncheck to hide a book's content, ✕ to delete it") + fiveE.map(row).join("");
+    // Other loaded sources: imported files + homebrew sources + rules modules, all in one list.
+    const hbrow = src => { const parts = HB_BAGS.map(k => { const n = Object.keys(src[k]||{}).length; return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean); const cnt = parts.join(", ") || "empty";
+      return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(homebrew · ${cnt})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
+    const awRow = `<div class="book-row"><label class="lay-row"><input type="checkbox" class="aw-module-toggle" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(rules module · Spirit-Points heirloom weapons)</span></label><button type="button" class="btn aw-export-btn" title="Export all your Ancestral Weapons as a JSON file — re-importable via Import files…">Export…</button></div>`;
+    const otherHtml = other.map(row).join("") + homebrewSources.map(hbrow).join("") + awRow;
+    html += hdr("Other loaded sources", "your homebrew, imported files, and rules modules. Uncheck to hide, ✕ to delete") + otherHtml;
     el.innerHTML = html;
   }
   function renderHomebrewList(){   // Settings: summary + entry to the Homebrew Studio (the sources themselves toggle/delete in the loaded-sources list above)
@@ -5326,13 +5335,19 @@
     DATA._meta.raw[name] = d;   // the file IS this source's per-book data → toggling it off rebuilds without it, no server needed
     if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== name);   // a freshly imported source starts shown
   }
-  const RULESET_2024 = new Set(["XPHB","XDMG","XMM"]);   // 2024 ("One D&D") core books
-  function isBook2024(b){                                 // which ruleset a 5etools book belongs to
+  // Known 2024 ("One D&D") edition source codes — UPPERCASED for case-insensitive matching. This sheet is 2014-ruleset
+  // only, so all of these are blocklisted from the loadable sources. The `published >= 2024-09-01` date rule below is
+  // the GENERAL catch-all (it auto-covers future 2024 releases + every 2024 adventure); this explicit set is
+  // belt-and-suspenders so the crunch-bearing 2024 hardcovers stay blocked even if a book's date data is missing/odd.
+  // (Verified against the full 5etools catalog: these + the date rule block all 2024-edition books & adventures, and
+  // no 2014 content — incl. 2024-published 2014-ruleset adventures like Vecna/Quests from the Infinite Staircase.)
+  const RULESET_2024 = new Set(["XPHB","XDMG","XMM","XSCREEN","XSAC","ABH","FRAIF","FRHOF","NF","LFL","EFA"]);
+  function isBook2024(b){                                 // which ruleset a 5etools book/adventure belongs to
     const ed = (b.edition || "").toLowerCase();
-    if(ed) return ed === "one" || ed.includes("2024");   // explicit edition tag wins, when present
+    if(ed) return ed === "one" || ed.includes("2024");   // explicit edition tag wins, when 5etools data provides it
     const code = (b.id || b.source || "").toUpperCase();
     if(RULESET_2024.has(code)) return true;
-    // The 2024 PHB launched 2024-09-17; every WotC 5e book released since is 2024-ruleset.
+    // The 2024 PHB launched 2024-09-17; every WotC 5e book/adventure released since is 2024-ruleset.
     return (b.published || "") >= "2024-09-01";
   }
   // The 5etools catalog is split into sourcebooks (books.json) and adventure modules (adventures.json). Both load
@@ -5376,6 +5391,7 @@
       if(!DATA) DATA = {_meta:{books:[]}};
       DATA._meta.raw = DATA._meta.raw || {}; DATA._meta.raw[bookName] = data;   // keep per-book copy so it can be filtered out later
       if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== bookName);   // an explicit load (re)enables the book
+      DATA._meta.fiveE = DATA._meta.fiveE || []; if(!DATA._meta.fiveE.includes(bookName)) DATA._meta.fiveE.push(bookName);   // it came from the 5etools server (sourcebook OR adventure) → list it under "5etools sources", not "Other"
       mergeBook(DATA, data, bookName);
       if(defer) return;   // batch loader finalizes once at the end
       if(finalizeSourceLoad() === false) flashStatus(bookName+" loaded (too large to save — stays this session)");
