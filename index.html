@@ -2834,11 +2834,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v366 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v367 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.46.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.47.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6442,12 +6442,47 @@
     document.querySelectorAll('.exh-pip').forEach(p => p.classList.toggle('on', +p.dataset.exh <= ex));
     document.querySelectorAll('.exh-stages .st').forEach(s => s.classList.toggle('cur', +s.dataset.lv <= ex));
   }
-  function renderConditionMarks(){   // green-A / red-D markers next to affected rolls (run LAST in compute, after values are written)
+  // Class features / feats / race traits that grant advantage (or disadvantage) on specific rolls. Detected from the
+  // character's race / class+level / Features text / equipped armor (the signals the sheet actually has). Targets use the
+  // same tag space as conditions plus per-skill `skill:<key>`. Each carries a note (often a condition) for the tooltip,
+  // since most of these apply only in a situation — the marker is a reminder, the note says when. Rules verified from 5etools.
+  function featureAdvEntries(){
+    const out = [];
+    const race = (($("race")||{}).value || "").toLowerCase();
+    const cls = (($("classlevel")||{}).value || "").toLowerCase();
+    const feats = (($("features")||{}).value || "").toLowerCase();
+    const has = re => re.test(feats);
+    if(/barbarian/.test(cls)) out.push({kind:'adv', targets:['skill:athletics','save:str'], note:'while raging (not in heavy armor)'});   // Rage
+    if(/gnome/.test(race) || /gnome cunning/.test(feats)) out.push({kind:'adv', targets:['save:int','save:wis','save:cha'], note:'vs magic (Gnome Cunning)'});
+    if(has(/\bactor\b/)) out.push({kind:'adv', targets:['skill:deception','skill:performance'], note:'to pass as someone else (Actor)'});
+    if(has(/dungeon delver/)) out.push({kind:'adv', targets:['skill:perception','skill:investigation'], note:'to detect secret doors (Dungeon Delver)'});
+    if(has(/one with the word/)) out.push({kind:'adv', targets:['skill:arcana'], note:'Awakened Spellbook on your person (One with the Word)'});
+    // Equipped armor whose Stealth penalty applies → disadvantage on Stealth (mithral removes it)
+    try{ const sel = armorByName((($("armorsel")||{}).value) || ""); const mith = $("armormod") && $("armormod").value === "mithral";
+      if(sel && sel.stealth && !mith) out.push({kind:'disadv', targets:['skill:stealth'], note:sel.name + ' imposes it'}); }catch(e){}
+    return out;
+  }
+  function gatherAdvSources(){   // target tag -> [{kind, note}] from conditions/exhaustion + features
+    const map = {};
+    const add = (t, kind, note) => { (map[t] = map[t] || []).push({kind, note}); };
     const eff = condEffects();
-    SKILLS.forEach(([k]) => { const tot = $("sktot-"+k), row = tot && tot.closest('.row'); setAdvMark(row ? row.querySelector('.rname') : null, advFor(eff,['check']), 'ability checks'); });
-    setAdvMark($("init"), advFor(eff,['check']), 'initiative (Dex check)');
-    ABILITIES.forEach(([k]) => setAdvMark($("savetot-"+k), advFor(eff,['save','save:'+k]), 'saving throws'));
-    setAdvMark(document.querySelector('[data-csec="attacks"] .atk-top h2'), advFor(eff,['attack']), 'attack rolls');
+    eff.adv.forEach(t => add(t, 'adv', null));
+    eff.disadv.forEach(t => add(t, 'disadv', null));
+    featureAdvEntries().forEach(e => e.targets.forEach(t => add(t, e.kind, e.note)));
+    return map;
+  }
+  function resolveAdv(map, keys){   // combine all sources for a roll; advantage & disadvantage cancel to a straight roll
+    let a = false, d = false; const notes = [];
+    keys.forEach(k => (map[k] || []).forEach(s => { if(s.kind === 'adv') a = true; else d = true; if(s.note) notes.push(s.note); }));
+    if((a && d) || (!a && !d)) return null;
+    return { kind: a ? 'adv' : 'disadv', note: notes.join('; ') };
+  }
+  function renderConditionMarks(){   // green-A / red-D markers next to affected rolls (run LAST in compute, after values are written)
+    const map = gatherAdvSources();
+    SKILLS.forEach(([k]) => { const tot = $("sktot-"+k), row = tot && tot.closest('.row'); const r = resolveAdv(map, ['check','skill:'+k]); setAdvMark(row ? row.querySelector('.rname') : null, r && r.kind, r && r.note); });
+    { const r = resolveAdv(map, ['check']); setAdvMark($("init"), r && r.kind, r && r.note); }
+    ABILITIES.forEach(([k]) => { const r = resolveAdv(map, ['save','save:'+k]); setAdvMark($("savetot-"+k), r && r.kind, r && r.note); });
+    { const r = resolveAdv(map, ['attack']); setAdvMark(document.querySelector('[data-csec="attacks"] .atk-top h2'), r && r.kind, r && r.note); }
   }
   function compute(){
     // Everything is BLANK until its inputs are filled — so an untouched sheet prints empty.
@@ -10766,6 +10801,11 @@
             + ' Reset Max HP changes to baseline'
             + (_maxChange ? ' <span class="wiz-hint" style="margin:0">(back to ' + esc((_bEl && _bEl.value) || "baseline") + ')</span>' : '')
             + '</label>';
+          const _ex = (typeof exhaustionLevel === "function") ? exhaustionLevel() : 0;
+          if(_ex > 0){
+            h += '<label class="lbl" style="display:block; margin:16px 0 6px">Exhaustion</label>';
+            h += '<p class="wiz-hint" style="margin-top:0">Reduced by one level: ' + _ex + ' → ' + (_ex - 1) + (_ex - 1 === 0 ? ' (cleared)' : '') + '. (RAW assumes you ate and drank.)</p>';
+          }
         }
 
         body.innerHTML = h + logHtml;
@@ -10833,13 +10873,19 @@
 
     function takeLongRest(){
       const feats = restGatherFeatures("long"), hd = restHdInfo();
-      // Optionally clear any Max HP modifier/override back to baseline FIRST, so "restore to full" heals to the baseline max.
+      // Reduce exhaustion by one level (RAW: a long rest with food/drink). Done FIRST so dropping below level 4 un-halves
+      // Max HP before the heal-to-full reads it.
+      let exhReducedTo = null;
+      { const ex = (typeof exhaustionLevel === "function") ? exhaustionLevel() : 0;
+        if(ex > 0 && $("exhaustion")){ $("exhaustion").value = String(ex - 1); exhReducedTo = ex - 1; } }
+      // Optionally clear any Max HP modifier/override back to baseline, so "restore to full" heals to the baseline max.
       let maxResetTo = null;
       if(restState.resetMaxHp){
         const modEl = $("hpmax-mod"), ovEl = $("hpmax-override");
         const had = (modEl && modEl.value !== "" && num(modEl.value, 0) !== 0) || (ovEl && ovEl.value !== "");
-        if(had){ if(modEl) modEl.value = ""; if(ovEl) ovEl.value = ""; recalcMaxHp(); maxResetTo = ($("hpmax-base") || {}).value || ""; }
+        if(had){ if(modEl) modEl.value = ""; if(ovEl) ovEl.value = ""; maxResetTo = ($("hpmax-base") || {}).value || ""; }
       }
+      recalcMaxHp();   // reflect the exhaustion drop + any mod/override clear before reading the max to heal to
       const hp = restHp();
       feats.reset.forEach(f => { const el = $("lfused-" + f.i); if(el) el.value = ""; });
       const slotsCleared = restClearAllSlots();   // every spell slot returns on a long rest
@@ -10852,6 +10898,7 @@
         ? "Recovered " + feats.reset.length + " feature(s): " + feats.reset.map(f => f.name).join(", ") + "."
         : "No features needed resetting.");
       if(slotsCleared) log.push("All spell slots restored.");
+      if(exhReducedTo != null) log.push("Exhaustion reduced to " + exhReducedTo + (exhReducedTo === 0 ? " (cleared)" : "") + ".");
       if(maxResetTo != null) log.push("Max HP changes cleared — back to baseline" + (maxResetTo ? " (" + maxResetTo + ")" : "") + ".");
       if(hp.max != null) log.push("Hit points restored to full (" + hp.max + "). Temporary HP cleared.");
       log.push(regain > 0
