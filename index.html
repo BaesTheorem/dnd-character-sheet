@@ -2958,11 +2958,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v438 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v439 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.85.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.85.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -4398,6 +4398,37 @@
     if(DATA.awText) fresh.awText = DATA.awText;   // carry the AW rules text across a sources rebuild
     if(DATA.homebrew) fresh.homebrew = DATA.homebrew;   // carry homebrew across a sources rebuild
     DATA = fresh; _spellIndex = null;
+  }
+
+  // ===== Unified source store (DATA.sources) ==========================================================================
+  // Every loaded source — 5etools book, imported file, or homebrew — becomes ONE equal entry {id,name,kind,enabled,priority,data}.
+  // `data` is a sheet-schema object (same shape as a _meta.raw book). This is the single container all three input paths
+  // will write to and that bakes into #source-data. Stage 1: build it (migrate) + a merge that COEXISTS same-name entities
+  // from different sources, each stamped _src/_srcName so selectors can disambiguate. Not yet the live path.
+  const SRC_KINDS = { FIVEE:"5etools", FILE:"file", HB:"homebrew" };
+  function srcId(kind, name){ return kind + "::" + String(name||"").trim().toLowerCase(); }
+  // A homebrew source's lc-keyed bags → a book-shaped `data` object (arrays / class-keyed maps like mergeBook expects).
+  function hbBagsToData(hb){
+    const data = {};
+    ["spells","feats","races","backgrounds"].forEach(bag => { const mp = hb[bag] || {}; const arr = Object.keys(mp).map(k => mp[k]).filter(Boolean); if(arr.length) data[bag] = arr; });
+    const subs = hb.subclasses || {}, byCls = {};   // {lc->obj(.className)} → mergeBook's {className:[obj]} shape
+    Object.keys(subs).forEach(k => { const o = subs[k], cn = o && o.className; if(cn){ (byCls[cn] = byCls[cn] || []).push(o); } });
+    if(Object.keys(byCls).length) data.subclasses = byCls;
+    if(hb.items && Object.keys(hb.items).length) data._hbItems = hb.items;   // items fold into the item lookups in Stage 4; carried verbatim for now
+    return data;
+  }
+  // Build DATA.sources from the legacy stores (_meta.raw books + homebrewSources/DATA.homebrew). Idempotent.
+  function migrateToSources(D){
+    if(!D || !D._meta || Array.isArray(D.sources)) return;
+    const m = D._meta, raw = m.raw || {}, order = (m.books || []).slice(), off = new Set(m.disabled || []);
+    const fiveE = new Set([].concat(m.bakedBooks || [], m.fiveE || []));
+    const sources = [];
+    order.forEach(name => { const kind = fiveE.has(name) ? SRC_KINDS.FIVEE : SRC_KINDS.FILE;
+      sources.push({ id: srcId(kind, name), name, kind, enabled: !off.has(name), priority: (kind === SRC_KINDS.FIVEE ? 0 : 10), data: raw[name] || null }); });
+    const hbArr = (typeof homebrewSources !== "undefined" && homebrewSources && homebrewSources.length) ? homebrewSources
+                : (Array.isArray(D.homebrew) ? D.homebrew : (D.homebrew && D.homebrew.sources) || []);
+    hbArr.forEach(hb => sources.push({ id: srcId(SRC_KINDS.HB, hb.name), name: hb.name, kind: SRC_KINDS.HB, enabled: hb.enabled !== false, priority: 100, data: hbBagsToData(hb) }));
+    D.sources = sources;
   }
   function persistSources(){                      // save merged DATA (lean) + per-book raw, separately so quota issues can't lose both
     if(!DATA){ try{ localStorage.removeItem(SOURCES_KEY); localStorage.removeItem(SOURCES_RAW_KEY); }catch(e){} return; }
@@ -12061,6 +12092,7 @@
     loadAwEnabled();   // Ancestral Weapons module on/off (browser-wide)
     loadHomebrew();   // source-material homebrew (browser-wide) — load before rendering spell sheets so its spells resolve
     hbApplyToData();   // merge structured homebrew (feats/races/backgrounds/subclasses) into DATA before the builder pickers populate
+    migrateToSources(DATA);   // build the unified DATA.sources store (non-destructive; nothing reads it as authoritative yet)
     populateWizard();
     populateArmor(); populateItemList();
     populateMonsterList();
