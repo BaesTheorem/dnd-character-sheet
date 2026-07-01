@@ -2958,11 +2958,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v437 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v438 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.85.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.85.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2970,6 +2970,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v438", semver:"2.85.1", items:[
+      "Homebrew Studio now stops you from creating two things with the same name in the same source. Saving a spell, item, feat, race, background, or subclass whose name already exists in that source is blocked with a heads-up, instead of silently overwriting the existing one. This keeps every homebrew entry uniquely identifiable by its source and name."
+    ]},
     {v:"v437", semver:"2.85.0", items:[
       "The Wayfinder's Guide to Eberron (UA) Warforged is now baked into the sheet's data, so it's always available and can't get dropped by a sources reload. You get the base \"Warforged (UA)\" plus the Envoy, Juggernaut, and Skirmisher subraces, each with the mode-based Integrated Protection (Darkwood Core / Composite Plating / Heavy Plating, choose one per long rest) and no flat +1 to AC. The base is labeled \"(UA)\" so it's distinct from the official Eberron: Rising from the Last War Warforged (which keeps its flat +1 and normal armor)."
     ]},
@@ -6353,6 +6356,7 @@
     const name = (v.name||"").trim(); if(!name){ flashStatus("Name the "+spec.label+" first"); const n=$("hbg-name"); if(n) n.focus(); return; }
     if(spec.bag === "subclasses" && !(v.className||"").trim()){ flashStatus("A subclass needs a parent class (e.g. Barbarian)"); const c=$("hbg-className"); if(c) c.focus(); return; }
     const obj = spec.toObj(v); const lc = name.toLowerCase();
+    if((cur[spec.bag]||{})[lc] && _hbGenEditKey !== lc){ flashStatus(`“${name}” already exists in ${cur.name}`); const n=$("hbg-name"); if(n) n.focus(); return; }   // one name per source → (source,name) stays a unique identity
     if(_hbImg.gen) obj.img = _hbImg.gen;
     cur[spec.bag] = cur[spec.bag] || {};
     if(_hbGenEditKey && _hbGenEditKey !== lc) delete cur[spec.bag][_hbGenEditKey];   // renamed → drop old key
@@ -6567,6 +6571,7 @@
     const name = ($("hbi-name").value||"").trim();
     if(!name){ flashStatus("Name the item first"); $("hbi-name").focus(); return; }
     const lc = name.toLowerCase();
+    if((cur.items||{})[lc] && _hbEditItemKey !== lc){ flashStatus(`“${name}” already exists in ${cur.name}`); $("hbi-name").focus(); return; }   // one name per source → (source,name) stays a unique identity
     const obj = { name, type:$("hbi-type").value||"Wondrous Item", rarity:$("hbi-rarity").value||"Common",
       attune:$("hbi-attune").checked, acBonus:parseInt($("hbi-ac").value,10)||0,
       spellAtk:parseInt($("hbi-spatk").value,10)||0, spellDc:parseInt($("hbi-spdc").value,10)||0,
@@ -6633,6 +6638,7 @@
     const level = Math.max(0, Math.min(9, parseInt($("hbf-level").value, 10) || 0));
     const comp = ($("hbf-v").checked?"V":"") + ($("hbf-s").checked?"S":"") + ($("hbf-m").checked?"M":"");
     const lc = name.toLowerCase();
+    if(cur.spells[lc] && _hbEditKey !== lc){ flashStatus(`“${name}” already exists in ${cur.name}`); $("hbf-name").focus(); return; }   // one name per source → (source,name) stays a unique identity
     const obj = { name, level, school:$("hbf-school").value||"", time:$("hbf-time").value.trim(),
       range:$("hbf-range").value.trim(), components:comp, duration:$("hbf-duration").value.trim(),
       material:$("hbf-material").value.trim(), conc:$("hbf-conc").checked, ritual:$("hbf-ritual").checked,
