@@ -2957,11 +2957,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v428 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v429 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.82.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.83.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2969,6 +2969,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v429", semver:"2.83.0", items:[
+      "Sheets repair themselves. If a copy of the sheet ever opens with its spell data gutted (far below the full set, with nothing intentionally turned off — the old partial-reload corruption), it now detects that on open and pulls the complete official data back down from the web, keeping your homebrew and any extra loaded books, and never touching your characters. Because this runs when the file is OPENED, it fixes a copy even if the damage was baked in by an older version: update once, open the new file, and it heals itself. Offline, it tells you to reconnect and reopen."
+    ]},
     {v:"v428", semver:"2.82.0", items:[
       "Fixed a bug where a partial sourcebook load could permanently gut your spell data. If “Reload all loaded sources” ran against a 5etools server that was missing data files, it could quietly rebuild your sources with most spells dropped — and because every Save/Update baked that starved data forward, spells showed up blank with only a “Set spell properties” link. Two guards now: reloading sources is cancelled (with a heads-up) if it would drop most of your spells, and updating to a new version can no longer let a starved dataset overwrite the fresh build's full data — so an update now self-heals a gutted sheet back to complete. Your characters are never affected either way."
     ]},
@@ -8333,6 +8336,10 @@
   // and download a fresh copy with the current character + sourcebooks baked in — the user replaces their old file.
   const APP_SRC = "https://baestheorem.github.io/dnd-character-sheet/index.html";                       // canonical hosted build (sends ACAO:* so a file:// page can fetch it)
   const APP_SRC_FALLBACK = "https://raw.githubusercontent.com/BaesTheorem/dnd-character-sheet/main/index.html";   // same content, also ACAO:*
+  // The shipped baseline carries ~505 spells (every 2014 book). Well below this, with nothing intentionally
+  // disabled, means the official data was GUTTED (the partial-reload corruption), not a user choice — the
+  // self-heal-on-open trigger. Kept conservative so a legit reduced set never trips it.
+  const HEALTHY_SPELL_FLOOR = 300;
   // → newest index.html text, or null if unreachable / not the sheet. onProgress(receivedBytes, totalBytes) is
   // called as the body streams in (the file is ~13MB, so this drives the progress bar). cache:"reload" already
   // bypasses the browser cache for a fresh copy; we deliberately DON'T add a unique cache-busting query param —
@@ -8355,6 +8362,40 @@
       }catch(e){}
     }
     return null;
+  }
+  // Is this file's official data gutted? (Far below the shipped spell baseline with NOTHING intentionally
+  // disabled → the partial-reload corruption, not a deliberately trimmed set.) Deliberate reductions set
+  // _meta.disabled, so requiring it empty keeps a book-disabler from tripping this.
+  function dataLooksStarved(){
+    const sp = DATA && DATA.spells;
+    if(!Array.isArray(sp)) return false;
+    const disabled = (DATA._meta && DATA._meta.disabled) || [];
+    return sp.length < HEALTHY_SPELL_FLOOR && disabled.length === 0;
+  }
+  // SELF-HEAL ON OPEN: if this build's data is starved, pull the full official baseline from the web and
+  // repair in place — keeping the user's homebrew + any extra loaded books, never touching their characters.
+  // This lives in the OPENED build and runs on load, so it fixes a file even when an OLDER, buggy build did
+  // the bake that starved it (the old build's code can't stop the new build's loader). Runs once per session.
+  let _healTried = false;
+  async function maybeHealStarvedData(){
+    if(_healTried || !dataLooksStarved()) return;
+    _healTried = true;
+    if(!navigator.onLine){ flashStatus("This sheet's spell data looks incomplete. Reconnect to the internet and reopen — it repairs itself automatically."); return; }
+    flashStatus("Your spell data looks incomplete — repairing it from the web…");
+    const html = await fetchLatestApp();
+    if(!html){ _healTried = false; flashStatus("Couldn't reach the web to repair the data — check your connection and reopen to try again."); return; }
+    let fresh = null;
+    try{ const doc = new DOMParser().parseFromString(html, "text/html"); fresh = JSON.parse(doc.querySelector("#source-data").textContent); }catch(e){}
+    if(!fresh || !Array.isArray(fresh.spells) || fresh.spells.length < HEALTHY_SPELL_FLOOR || fresh.spells.length <= (DATA.spells||[]).length){
+      _healTried = false; flashStatus("Repair data wasn't available right now — reopen later to try again."); return;
+    }
+    const merged = mergeUpdatedSources(fresh, DATA);   // fixed merge: full baseline + the user's homebrew/extra books
+    if(!merged){ _healTried = false; return; }
+    DATA = merged; _spellIndex = null;
+    if(DATA) DATA.homebrew = homebrewSources;           // keep the homebrew mirror in sync with the adopted DATA
+    try{ resolveSubraces(DATA); }catch(e){}
+    bakeSourceData(); persistSources(); refreshAfterData();   // persist so future opens use the repaired data straight away
+    flashStatus("Repaired your sourcebook data — " + (DATA.spells||[]).length + " spells restored. Your characters were untouched.");
   }
   // ---- update progress bar (local-file download) ----
   const UPD_PROG_WIDGETS = [["update-progress","update-progress-fill","update-progress-label","update-progress-pct"],   // in Settings
@@ -11976,6 +12017,7 @@
     renderLoadedBookList();
     renderHomebrewList();
     if(sourcesAreStale()) flashStatus("Loaded sourcebooks are out of date — open Settings → Source books → “Reload all loaded sources” to enable new features (e.g. subclass choices).");
+    maybeHealStarvedData();   // if this file's official data was gutted (partial-reload corruption), repair it from the web on open — fire-and-forget so it never blocks the initial render
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
