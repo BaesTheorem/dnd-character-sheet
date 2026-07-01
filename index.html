@@ -2958,11 +2958,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v434 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v435 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.84.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.84.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2970,6 +2970,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v435", semver:"2.84.3", items:[
+      "Warforged AC fix: the flat +1 to AC from Integrated Protection now applies only to the Eberron: Rising from the Last War Warforged, whose trait literally grants \"+1 bonus to Armor Class.\" A UA / Wayfinder's Guide Warforged (Envoy, Juggernaut, or Skirmisher) no longer gets that +1, because its Integrated Protection is itself an AC calculation — choosing a different one (like a Monk's Unarmored Defense) replaces it entirely. Example: a Way of Shadow Monk / WGtE Skirmisher now reads 10 + Dex + Wis, with no stray +1 on top."
+    ]},
     {v:"v434", semver:"2.84.2", items:[
       "Ancestral Weapon builder: the Base weapon list now respects your gear-age toggles. With futuristic or modern gear turned off in Settings, it no longer offers weapons like the Antimatter Rifle or a Revolver as a base — same filtering the Inventory search uses."
     ]},
@@ -3537,6 +3540,19 @@
     const traitText = r ? (r.traits||[]).map(t => (t.name||"")+" "+(t.text||"")).join(" ") : "";
     const hay = (traitText + " " + ($("features").value||"")).toLowerCase();
     return /\b(darkwood core|composite plating|heavy plating)\b/.test(hay) ? INTEGRATED_PROTECTION_MODES : null;
+  }
+  // The FLAT +1 AC belongs ONLY to the ERLW Warforged, whose Integrated Protection trait literally reads "+1 bonus to Armor Class"
+  // as a standalone bonus. The UA/WGtE Warforged (Envoy/Juggernaut/Skirmisher) grants no such flat +1 — its Integrated Protection IS
+  // the AC calculation, so choosing an alternative calc (e.g. Monk Unarmored Defense) replaces it entirely with no leftover bonus.
+  function warforgedFlatAcBonus(){
+    const rc = ($("race").value||"").toLowerCase();
+    if(!/warforged/.test(rc)) return 0;
+    if(integratedProtectionModes()) return 0;                        // WGtE plating mode already carries its own AC formula
+    if(/\b(envoy|juggernaut|skirmisher)\b/.test(rc)) return 0;       // UA/WGtE Warforged subraces: no flat +1
+    const r = DATA && findBy(DATA.races, ($("race").value)||"");     // exact race loaded → trust its Integrated Protection text
+    const ip = r && (r.traits||[]).find(t => /integrated protection/i.test(t.name||""));
+    if(ip) return /\+\s*1\b[^.]*\barmor class\b/i.test(ip.text||"") ? 1 : 0;
+    return 1;                                                        // unresolved plain "Warforged" → assume ERLW (flat +1 is its only AC effect)
   }
 
   const $ = id => document.getElementById(id);
@@ -7805,7 +7821,7 @@
         if(modVal === "adamantine"){ armNote.textContent = (armNote.textContent ? armNote.textContent + " " : "") + "Any critical hit against you becomes a normal hit (while worn)."; armNote.style.display = ""; }
         else if(modVal === "mithral" && !armNote.textContent){ armNote.textContent = "Mithral: no Stealth disadvantage or Strength requirement."; armNote.style.display = ""; }
       }
-      const warforged = (/warforged/.test(($("race").value || "").toLowerCase()) && !integratedProtectionModes()) ? 1 : 0;   // ERLW Integrated Protection: flat +1 AC in any configuration — applies ONLY to an ERLW Warforged. A WGtE Warforged (mode system) never gets it, whether they picked a mode OR Unarmored: its AC is purely the mode formula or its class/race unarmored-defense calc.
+      const warforged = warforgedFlatAcBonus();   // ERLW Integrated Protection: flat +1 AC in any configuration — applies ONLY to an ERLW Warforged. A WGtE Warforged (mode system) never gets it, whether they picked a mode OR Unarmored: its AC is purely the mode formula or its class/race unarmored-defense calc.
       const armorWorn = sel && sel !== "Unarmored" && sel !== "Mage Armor";       // Defense fighting style: +1 AC only while wearing actual armor
       const fsDefense = (armorWorn && hasFightingStyle("Defense")) ? 1 : 0;
       const infDef = (armorWorn || bonus > 0) ? infusionEnhancedDefenseBonus() : 0;   // Artificer Enhanced Defense infusion (needs worn armor or a shield)
