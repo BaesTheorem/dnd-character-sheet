@@ -953,8 +953,8 @@
   #granted-table .gs-src{display:block; font-size:9.5px; color:var(--muted); font-weight:400; margin-top:1px}
   #granted-table .gs-dc{color:var(--accent); font-weight:700}
   #granted-table .gs-locked{color:#b42318; font-weight:700}   /* scroll spell not on the character's class list */
-  .sp-cast.sp-cast-locked{opacity:.3}                          /* dimmed ⚡: castable scroll, but blocked (shows an explainer dialog on click) */
-  .sp-cast.sp-cast-locked:hover{opacity:.55}
+  .sp-cast.sp-cast-locked{opacity:.4; border-style:dashed}     /* castable scroll, but blocked (shows an explainer dialog on click) */
+  .sp-cast.sp-cast-locked:hover{opacity:.7; background:transparent; color:var(--accent)}
   /* Per-weapon fire/throw button (lives in the Attacks-row Name cell, ranged/thrown weapons only) */
   .attacks td.has-fire{position:relative}
   .attacks td.has-fire input{padding-right:52px}        /* keep the weapon name clear of the button */
@@ -965,9 +965,11 @@
   .atk-fire svg{width:14px; height:14px; display:block; flex:none}
   .atk-fire .atk-fire-badge{font-size:11px; font-weight:700; min-width:8px; text-align:center}
   /* Spell "Cast" button + upcast-level popover */
-  .sp-cast{border:none; background:transparent; cursor:pointer; font-size:12px; padding:0 2px; opacity:.55; line-height:1}
-  .sp-cast:hover{opacity:1}
-  tr.has-spell .sp-cast, #granted-table .sp-cast{opacity:.7}
+  .sp-cast{display:inline-flex; align-items:center; gap:3px; vertical-align:middle; margin-left:6px; height:19px; padding:0 6px;
+    border:1px solid var(--accent); background:transparent; color:var(--accent); cursor:pointer; border-radius:0; line-height:1;
+    font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase}
+  .sp-cast:hover{background:var(--accent); color:var(--paper, #fff)}
+  .sp-cast svg{width:12px; height:12px; display:block; flex:none}
   .cast-pop{position:absolute; z-index:1000; background:var(--paper, #fff); border:1px solid var(--ink); padding:4px; display:flex; flex-direction:column; gap:2px; box-shadow:0 2px 8px rgba(0,0,0,.18)}
   .cast-pop-h{font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:1px 4px}
   .cast-pop-lvl{font-size:12px; text-align:left; padding:3px 8px; border:none; background:transparent; cursor:pointer; white-space:nowrap}
@@ -2948,11 +2950,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v423 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v424 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.78.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.78.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2960,6 +2962,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v424", semver:"2.78.2", items:[
+      "The Cast buttons beside spells are now much more prominent: a bordered gold Cast pill with a sparkle icon, replacing the small faint lightning bolt. Applies to both spell-slot spells and spell scrolls (the scroll-locked state shows the same pill dashed and dimmed)."
+    ]},
     {v:"v423", semver:"2.78.1", items:[
       "Mobile: the Hit Points box now fits properly on a narrow screen. It stacks instead of squeezing side by side, so the big Current / Max / Temp numbers sit full-width across the top (3-digit hit points no longer clip into each other) with Heal, the amount field, and Damage in a row beneath."
     ]},
@@ -7300,9 +7305,9 @@
         sub.push(`<label class="gs-up">cast at <select class="gs-upcast" data-key="${esc(key)}">${opts}</select></label>`);
         dmg = `<td class="col-dmg sp-dmg" data-cast="${cast}">${esc(spellDamage(d, cast))}</td>`;
       }
-      // Scroll rows get a ⚡ cast button. It sits AFTER the spell-name text node so refreshSpellDamageCells() still
+      // Scroll rows get a Cast button. It sits AFTER the spell-name text node so refreshSpellDamageCells() still
       // reads the name from firstChild; clicking it depletes one from inventory (handled in the global click delegate).
-      const castBtn = isScroll ? ` <button type="button" class="sp-cast noprint${scrollOk ? "" : " sp-cast-locked"}" data-scroll="${esc(r.item)}" tabindex="-1" title="${scrollOk ? "Cast this scroll; uses one from your inventory" : "Not on your class spell list; click to see why"}">⚡</button>` : "";
+      const castBtn = isScroll ? ` <button type="button" class="sp-cast noprint${scrollOk ? "" : " sp-cast-locked"}" data-scroll="${esc(r.item)}" tabindex="-1" title="${scrollOk ? "Cast this scroll; uses one from your inventory" : "Not on your class spell list; click to see why"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.4 3.7 2.3 5.6 6 6-3.7.4-5.6 2.3-6 6-.4-3.7-2.3-5.6-6-6 3.7-.4 5.6-2.3 6-6z"/></svg>Cast</button>` : "";
       body += `<tr${d?' class="has-spell"':''}><td class="col-name"${titleAttr}>${esc(r.spell)}${castBtn}<span class="gs-src">${sub.filter(Boolean).join(" · ")}</span></td>${dmg}${propCellsRest(d)}</tr>`;
     });
     tbody.innerHTML = body;
@@ -10473,7 +10478,7 @@
       if(thrown ? (lc === nm) : lc.includes(kind)){ $("invqty-"+i).value = Math.max(0, rowQty(i) - 1); refreshRowWeight(i); save(); compute(); return; } }
   }
   // ===== Cast: spend a spell slot from a spell row, prompting for the upcast level when higher slots are open =====
-  function castBtnHTML(l){ return l > 0 ? `<button type="button" class="sp-cast noprint" data-castlvl="${l}" tabindex="-1" title="Cast — expend a spell slot (asks which level if you can upcast)">⚡</button>` : ""; }
+  function castBtnHTML(l){ return l > 0 ? `<button type="button" class="sp-cast noprint" data-castlvl="${l}" tabindex="-1" title="Cast: expend a spell slot (asks which level if you can upcast)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.4 3.7 2.3 5.6 6 6-3.7.4-5.6 2.3-6 6-.4-3.7-2.3-5.6-6-6 3.7-.4 5.6-2.3 6-6z"/></svg>Cast</button>` : ""; }
   function slotRemaining(L){ const tot = num(($("slot"+L)||{}).value, 0), used = num(($("slot"+L+"u")||{}).value, 0); return Math.max(0, tot - used); }
   function expendSlot(L){ const tu = $("slot"+L+"u"), tot = num(($("slot"+L)||{}).value, 0); if(!tu) return;
     const used = num(tu.value, 0); if(used >= tot){ flashStatus(`No level ${L} spell slots left`); return; }
