@@ -2957,11 +2957,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v430 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v431 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.83.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.83.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2969,6 +2969,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v431", semver:"2.83.2", items:[
+      "The self-repair now keys on the real symptom instead of guessing from metadata: if your open character's spellbook is full of spells that don't resolve (a sourcebook it needs, usually the Player's Handbook, simply isn't loaded), the sheet says so plainly — naming a few of the missing spells — and loads that book back from the web. This catches the actual failure (a needed book not loaded) that a book-count guess could miss, and it never touches a blank sheet, a deliberately minimal one, or a character whose spells all resolve."
+    ]},
     {v:"v430", semver:"2.83.1", items:[
       "Made the self-repair strictly safe for intentionally blank or minimal sheets. It now only triggers when a file has lots of books loaded but the spell content is gutted — the exact fingerprint of the corruption. A blank sheet (no spells), a copyright-clean stripped sheet, a deliberately small set (only a couple of books), or one where you've turned books off is never touched."
     ]},
@@ -8366,20 +8369,25 @@
     }
     return null;
   }
-  // Is this file's official data GUTTED (the partial-reload corruption) vs. legitimately blank/minimal?
-  // The tell is a MISMATCH: the file claims a broad slate of books loaded but carries far fewer spells than
-  // even a couple of them provide. An INTENTIONALLY blank sheet (copyright-clean strip, or a "load a book"
-  // prompt) has no spells; an intentionally MINIMAL sheet has only a few books loaded; a deliberately trimmed
-  // set marks books in _meta.disabled. All three are excluded, so this only fires on genuine corruption.
-  // (Detection is count+books-based, NOT source-tag-based: healthy baked spells carry NO source field, so a
-  // source-tag test would false-positive on every good file; the old corruption's source:'?' was an artifact
-  // of the build that made it, not something current code emits.)
+  // Is this file's data broken FOR THE OPEN CHARACTER? Metadata alone CAN'T tell a "core book isn't loaded"
+  // file from a deliberately minimal load — they look identical (few books, few spells, the file's own
+  // bakedBooks baseline reduced too). The unambiguous signal is the character's OWN spellbook: if it's full of
+  // spells that don't resolve in the loaded data, the data is missing a book it needs (the real 2026-07 case
+  // was the Player's Handbook simply not being loaded, and nearly every spell on the sheet was a PHB spell). A
+  // blank sheet, a minimal-but-consistent sheet, or one whose spells all resolve is never touched. Requires
+  // DATA to already carry SOME official spells, so a deliberately copyright-clean (nulled) sheet is left alone.
+  function unresolvedCharSpells(){
+    const byInst = (typeof spellEntriesByInst !== "undefined" && spellEntriesByInst) || [];
+    let named = 0, missing = 0; const sample = [];
+    for(const inst in byInst){ const lv = byInst[inst] || {};
+      for(const l in lv){ (lv[l] || []).forEach(r => { const nm = (r && r.name || "").trim(); if(!nm) return; named++; if(!spellData(nm)){ missing++; if(sample.length < 4) sample.push(nm); } }); } }
+    return { named, missing, sample };
+  }
   function dataLooksStarved(){
     const sp = DATA && DATA.spells;
-    if(!Array.isArray(sp) || !sp.length) return false;             // no spells → intentionally blank / copyright-clean, never "starved"
-    const meta = DATA._meta || {};
-    if((meta.disabled || []).length) return false;                 // books deliberately turned off → the low count is a choice
-    return (meta.books || []).length >= 10 && sp.length < HEALTHY_SPELL_FLOOR;   // many books loaded but the spell content is gutted
+    if(!Array.isArray(sp) || !sp.length) return false;
+    const u = unresolvedCharSpells();
+    return u.named >= 4 && u.missing >= u.named * 0.5;   // a real caster whose spellbook mostly doesn't resolve → the loaded data is missing books it needs
   }
   // SELF-HEAL ON OPEN: if this build's data is starved, pull the full official baseline from the web and
   // repair in place — keeping the user's homebrew + any extra loaded books, never touching their characters.
@@ -8389,8 +8397,11 @@
   async function maybeHealStarvedData(){
     if(_healTried || !dataLooksStarved()) return;
     _healTried = true;
-    if(!navigator.onLine){ flashStatus("This sheet's spell data looks incomplete. Reconnect to the internet and reopen — it repairs itself automatically."); return; }
-    flashStatus("Your spell data looks incomplete — repairing it from the web…");
+    const u = unresolvedCharSpells();
+    const eg = u.sample.length ? " (e.g. " + u.sample.slice(0,3).join(", ") + ")" : "";
+    const why = u.missing + " of your spells aren't in your loaded books" + eg + " — a sourcebook (likely the Player's Handbook) isn't loaded. ";
+    if(!navigator.onLine){ flashStatus(why + "Reconnect to the internet and reopen — the sheet loads the missing book automatically."); return; }
+    flashStatus(why + "Loading it from the web…");
     const html = await fetchLatestApp();
     if(!html){ _healTried = false; flashStatus("Couldn't reach the web to repair the data — check your connection and reopen to try again."); return; }
     let fresh = null;
