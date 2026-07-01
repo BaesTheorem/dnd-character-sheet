@@ -2958,11 +2958,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v433 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v434 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.84.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.84.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2970,6 +2970,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v434", semver:"2.84.2", items:[
+      "Ancestral Weapon builder: the Base weapon list now respects your gear-age toggles. With futuristic or modern gear turned off in Settings, it no longer offers weapons like the Antimatter Rifle or a Revolver as a base — same filtering the Inventory search uses."
+    ]},
     {v:"v432", semver:"2.84.0", items:[
       "Loading a missing sourcebook is now your call, not automatic. When your character has spells that don't resolve because a book (usually the Player's Handbook) isn't loaded, a banner tells you plainly, names a few of the missing spells, and offers a \"Load the missing book\" button. Nothing downloads until you press it. It merges the book in, keeps your homebrew and other loaded books, and never touches your characters."
     ]},
@@ -5968,7 +5971,8 @@
     _awBuild = existing
       ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), extras:(existing.extras||[]).map(x=>Object.assign({},x)), lore:existing.lore||"", physical:existing.physical||"", editKey}
       : {name:"", baseWeapon:"", points:0, upgrades:[], extras:[], lore:"", physical:"", editKey:null};
-    $("aw-base-list").innerHTML = ((DATA&&DATA.weapons)||[]).map(w=>w.name).sort().map(n=>`<option value="${esc(n)}"></option>`).join("");
+    const awHide = hiddenItemNames();   // respect the futuristic/modern age toggles — don't offer e.g. the Antimatter Rifle when futuristic gear is off
+    $("aw-base-list").innerHTML = ((DATA&&DATA.weapons)||[]).map(w=>w.name).filter(n=>n && !awHide.has(n)).sort().map(n=>`<option value="${esc(n)}"></option>`).join("");
     $("aw-src").innerHTML = homebrewSources.map((s,i)=>`<option value="${i}" ${i===idx?"selected":""}>${esc(s.name)}</option>`).join("");
     $("aw-name").value = _awBuild.name; $("aw-base").value = _awBuild.baseWeapon;
     $("aw-points").value = String(_awBuild.points); $("aw-lore").value = _awBuild.lore; $("aw-physical").value = _awBuild.physical;
