@@ -2957,11 +2957,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v427 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v428 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.81.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.82.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2969,6 +2969,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v428", semver:"2.82.0", items:[
+      "Fixed a bug where a partial sourcebook load could permanently gut your spell data. If “Reload all loaded sources” ran against a 5etools server that was missing data files, it could quietly rebuild your sources with most spells dropped — and because every Save/Update baked that starved data forward, spells showed up blank with only a “Set spell properties” link. Two guards now: reloading sources is cancelled (with a heads-up) if it would drop most of your spells, and updating to a new version can no longer let a starved dataset overwrite the fresh build's full data — so an update now self-heals a gutted sheet back to complete. Your characters are never affected either way."
+    ]},
     {v:"v427", semver:"2.81.0", items:[
       "New “Reload a fresh copy (fix a stuck app)” button in Settings → General. If the app ever looks broken, stuck on an old version, or your spells or data show up blank, one tap clears the app's cached files and reloads the newest version from the web. Your characters and loaded sourcebooks are safe — they're stored separately in your browser and aren't touched. (The self-healing updater should keep this from ever being needed, but now there's always a one-tap fix.)"
     ]},
@@ -5499,6 +5502,10 @@
     try{
       const cat = await fetchBookCatalog(base);   // both sourcebooks and adventures, so a loaded adventure (WBtW/IDRotF) reloads too
       const codeOf = {}; [...cat.books, ...cat.adventures].forEach(b => { codeOf[String(b.name||b.id||"").toLowerCase()] = b.id||b.source; });
+      // Snapshot the pre-reload data so a server that answers with INCOMPLETE files can't silently starve DATA
+      // (the origin of the "all my spells lost their properties" corruption): if the rebuild drops most of the
+      // content, we revert to what we had instead of committing (and baking) a gutted dataset.
+      const prevDATA = DATA, prevRaw = Object.assign({}, DATA._meta.raw || {}), beforeSpells = (DATA.spells || []).length;
       DATA._meta.raw = DATA._meta.raw || {};
       let n = 0, missed = 0;
       for(const nm of names){ const code = codeOf[String(nm).toLowerCase()];
@@ -5506,6 +5513,12 @@
         DATA._meta.raw[nm] = await fetch5etoolsBook(base, code); n++;
       }
       rebuildFromRaw();
+      const afterSpells = (DATA.spells || []).length;
+      if(beforeSpells >= 50 && afterSpells < beforeSpells * 0.6){        // catastrophic drop → the server returned partial data; don't commit it
+        prevDATA._meta.raw = prevRaw; DATA = prevDATA; _spellIndex = null;   // revert to the pre-reload dataset
+        if(!silent) flashStatus("Reload cancelled — the server returned incomplete data (spells would drop from "+beforeSpells+" to "+afterSpells+"). Your existing sources were kept. Check that your 5etools server has all its data files.");
+        return false;
+      }
       if(missed === 0) DATA._meta.dataVersion = DATA_VERSION;   // every book was re-extracted with the current code → no longer stale (clears the reload banner)
       bakeSourceData(); persistSources(); refreshAfterData();
       if(!silent) flashStatus("Reloaded " + n + " source" + (n===1?"":"s") + (missed?" ("+missed+" not on server)":"") + " — data refreshed");
@@ -12950,9 +12963,16 @@
   // Homebrew rides DATA.homebrew (in #source-data) and is preserved here too. Returns the data to bake.
   function mergeUpdatedSources(shipped, user){
     const _ver = d => (d && d._meta && d._meta.dataVersion) || 0;
+    const _size = d => ((d && d.spells && d.spells.length) || 0) + ((d && d.classes && d.classes.length) || 0) + ((d && d.races && d.races.length) || 0);
     if(!shipped) return user || null;
     if(!user) return shipped;
-    if(_ver(user) >= _ver(shipped)) return user;     // our data is current/newer → keep it whole (its loaded books included)
+    // Keep the user's data whole ONLY when it's genuinely at least as complete as the fetched build:
+    // a strictly newer data version, OR the same version without being STARVED of official content. A
+    // starved same-version dataset (e.g. a partial "Reload all sources" that dropped most spells) must
+    // never overwrite the fresh build's full baseline — otherwise that loss propagates into every future
+    // update. When starved, fall through to rebuild from the shipped baseline + re-merge the user's extras.
+    if(_ver(user) > _ver(shipped)) return user;                                  // user strictly newer → keep whole
+    if(_ver(user) === _ver(shipped) && _size(user) >= _size(shipped)) return user;   // same version AND not starved → keep the user's book choices
     // The fetched build is newer: take its complete 5etools data as the refreshed base, then RE-MERGE the
     // user's own loaded books that the new build doesn't ship, so user-loaded source material survives the update.
     const shippedVer = _ver(shipped);
