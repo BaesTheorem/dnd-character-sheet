@@ -948,6 +948,7 @@
   .col-prep .sp-rit-slot{display:inline-block; width:15px; text-align:center; vertical-align:middle}   /* fixed slot reserves space so checkboxes + names stay aligned whether or not the spell is a ritual */
   .spelltable .col-name[title]{cursor:help}
   .spelltable td.col-name-edit{display:flex; align-items:center; gap:2px}   /* write-in rows: name field + delete ✕ */
+  .spelltable .sp-mmeta{display:none}   /* compact "Level 3 Evocation · Cast: 1 action · …" line under the spell name — SHOWN ONLY on mobile, where the property columns are hidden (see the html.mobile spell-table rule) */
   /* Granted Spells: the source/uses sub-line under each spell name, and the DC chip */
   #granted-table td.col-name{line-height:1.25}
   #granted-table .gs-src{display:block; font-size:9.5px; color:var(--muted); font-weight:400; margin-top:1px}
@@ -1313,6 +1314,8 @@
   html.mobile .spelltable td.col-time, html.mobile .spelltable td.col-range,
   html.mobile .spelltable td.col-dur, html.mobile .spelltable td.col-school,
   html.mobile .spelltable td.col-comp:not(.prop-setbtn){ display:none; }
+  html.mobile .spelltable .sp-mmeta{ display:block; width:100%; flex-basis:100%; font-size:10px; color:var(--muted); line-height:1.25; margin-top:1px; white-space:normal; font-weight:400 }   /* the hidden columns fold into this stacked line so the properties still show */
+  html.mobile .spelltable td.col-name-edit{ flex-wrap:wrap }   /* let the meta line drop below the name field on write-in rows */
   html.mobile .spelltable td.col-name{ font-size:14px; }   /* a touch larger now that there's room */
   html.mobile body{ padding-bottom:calc(16px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar so it doesn't cover the last card */
 
@@ -2950,11 +2953,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v424 (2026-06-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v425 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.78.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.79.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2962,6 +2965,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v425", semver:"2.79.0", items:[
+      "Mobile: spells in the spellbook show their properties again. On a phone the cramped property columns are hidden to give the name room, but they now fold into a compact line right under each spell name (e.g. \"Level 3 Evocation · Cast: 1 action · Range: 150 feet · V,S,M · instant\"), so you can read level, school, casting time, range, components, and duration at a glance without long-pressing each one. Desktop is unchanged."
+    ]},
     {v:"v424", semver:"2.78.2", items:[
       "The Cast buttons beside spells are now much more prominent: a bordered gold Cast pill with a sparkle icon, replacing the small faint lightning bolt. Applies to both spell-slot spells and spell scrolls (the scroll-locked state shows the same pill dashed and dimmed)."
     ]},
@@ -6875,6 +6881,9 @@
   function propCells(d){                         // Damage / Comp / Cast Time / Range / Duration / School
     return dmgCell(d) + propCellsRest(d);
   }
+  // Compact one-line spell meta folded UNDER the name on mobile (where the property columns are hidden). Empty
+  // without spell data — a write-in row with no data shows the "Set spell properties" affordance instead.
+  function spMobileMeta(d){ return d ? `<div class="sp-mmeta">${esc(spellMetaLine(d))}</div>` : ""; }
   // Render a Prep-column cell. Left → fixed-width ritual slot (only for ritual casters; keeps checkboxes + names aligned).
   // Right → the prep control: a gold ★ when granted/always-prepared, else a checkbox + hover ☆ to grant. The control is
   // omitted for casters that don't prepare (e.g. a ritual-casting Bard shows just the ritual R).
@@ -6919,7 +6928,7 @@
         fbody += `<tr class="sp-section"><td colspan="8">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
         info.fixed[l].slice().sort((a,b)=>a.localeCompare(b)).forEach(name => {
           const d = spellData(name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
-          fbody += `<tr><td class="col-prep"></td><td class="col-name"${titleAttr}>${esc(name)}</td>`+ propCells(d) +`</tr>`;
+          fbody += `<tr><td class="col-prep"></td><td class="col-name"${titleAttr}>${esc(name)}${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;
         });
       });
       sEl(inst,"spells").innerHTML = fbody;
@@ -6944,7 +6953,7 @@
           const hide = isPrepCaster && !prepared;        // unprepared → behind the collapsible
           const row = `<tr${hide ? ` class="sp-unprep${open?"":" is-hidden"}" data-unprep="${inst}:${l}"` : ""}>`+
             prepCellHTML({inst, sp:sp.n, prepared, free, locked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)})+
-            `<td class="col-name"${titleAttr}>${esc(sp.n)}${castable ? castBtnHTML(l) : ""}</td>`+ propCells(d) +`</tr>`;
+            `<td class="col-name"${titleAttr}>${esc(sp.n)}${castable ? castBtnHTML(l) : ""}${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;
           if(hide){ unprep += row; nUnprep++; } else prep += row;
         });
         body += prep + unprepToggle(inst, l, nUnprep, open) + unprep;
@@ -6970,7 +6979,7 @@
           const hide = isPrepCaster && l>0 && named && !(!!m.prep || mFree);   // named spellbook spell, not prepared → collapsible
           const cls = [named ? "has-spell" : "", hide ? ("sp-unprep" + (open ? "" : " is-hidden")) : ""].filter(Boolean).join(" ");
           const castBtn = (named && l>0) ? castBtnHTML(l) : "";   // known/write-in spell → Cast button
-          const row = `<tr${cls ? ` class="${cls}"` : ""}${hide ? ` data-unprep="${inst}:${l}"` : ""}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}${castBtn}</td>${propArea}</tr>`;
+          const row = `<tr${cls ? ` class="${cls}"` : ""}${hide ? ` data-unprep="${inst}:${l}"` : ""}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}${castBtn}${spMobileMeta(d)}</td>${propArea}</tr>`;
           if(hide){ unprep += row; nUnprep++; } else prep += row;
         });
         body += prep + unprepToggle(inst, l, nUnprep, open) + unprep;
