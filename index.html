@@ -2953,11 +2953,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v425 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v426 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.79.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.80.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2965,6 +2965,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v426", semver:"2.80.0", items:[
+      "The offline updater is now self-healing: a stale or broken cached copy can never strand you, and you never have to reload by hand or clear anything. When you're online the app loads the main page network-first (always the freshest build; still fully offline from cache when you have no connection), always re-checks for a newer version, and if one lands on an already-open tab it refreshes itself once. Your saved characters are never touched by any of this."
+    ]},
     {v:"v425", semver:"2.79.0", items:[
       "Mobile: spells in the spellbook show their properties again. On a phone the cramped property columns are hidden to give the name room, but they now fold into a compact line right under each spell name (e.g. \"Level 3 Evocation · Cast: 1 action · Range: 150 feet · V,S,M · instant\"), so you can read level, school, casting time, range, components, and duration at a glance without long-pressing each one. Desktop is unchanged."
     ]},
@@ -11870,7 +11873,25 @@
     if(hosted && "serviceWorker" in navigator){   // PWA wiring matters only when served; a locally-opened file stays fully self-contained (no external refs)
       const mani = document.createElement("link"); mani.rel = "manifest"; mani.href = "manifest.webmanifest"; document.head.appendChild(mani);
       const icon = document.createElement("link"); icon.rel = "apple-touch-icon"; icon.href = "icon-180.png"; document.head.appendChild(icon);
-      navigator.serviceWorker.register("sw.js").catch(()=>{});   // offline cache; harmless if sw.js isn't deployed alongside
+      // Register the offline cache, and make it self-healing so a stale/broken cached build can NEVER
+      // strand a user (no manual reload, no console commands, ever):
+      //  • updateViaCache:"none" — the browser always revalidates sw.js itself, so a new worker is
+      //    always noticed (the SW script can never be served from a stale cache).
+      //  • reg.update() on load / return-to-tab / hourly — proactively pull a newer worker.
+      //  • controllerchange → one reload, but ONLY for a page that was already controlled (a real
+      //    update landing on an open tab). A first-ever visit has no controller, so it never reloads.
+      // The new worker serves the document network-first (see sw.js), so the post-reload load is fresh.
+      const wasControlled = !!navigator.serviceWorker.controller;
+      let swReloaded = false;
+      if(wasControlled) navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if(swReloaded) return; swReloaded = true; location.reload();
+      });
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => {
+        const poke = () => { try{ reg.update(); }catch(e){} };
+        poke();
+        setInterval(poke, 60 * 60 * 1000);   // hourly, for long-lived tabs
+        document.addEventListener("visibilitychange", () => { if(!document.hidden) poke(); });
+      }).catch(()=>{});
     }
     if(isStandalone) return;   // already added to the Home Screen — nothing to nag
     try{ if(localStorage.getItem("installHintDismissed") === "1") return; }catch(e){}
