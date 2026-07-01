@@ -2794,6 +2794,10 @@
               </div>
               <p class="wiz-hint" id="update-note">Fetches the newest version of the whole app from the web and reloads. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.</p>
             </div>
+            <div id="repair-block" style="margin-top:14px">
+              <button class="btn" id="btn-repair" type="button" title="Clear the app's cached files and reload the newest version from the web. Your characters are not affected.">Reload a fresh copy (fix a stuck app)</button>
+              <p class="wiz-hint">If the app ever looks broken, stuck on an old version, or your spells or other data show up blank, tap this. It clears the app's stored cache and reloads the newest version from the web. <strong>Your characters and loaded sourcebooks are safe</strong> — they're saved separately in your browser and aren't touched.</p>
+            </div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Appearance</label>
             <label class="lay-row"><input type="checkbox" id="set-dark"> Dark mode</label>
             <p class="wiz-hint">A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.</p>
@@ -2953,11 +2957,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v426 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v427 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.80.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.81.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2965,6 +2969,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v427", semver:"2.81.0", items:[
+      "New “Reload a fresh copy (fix a stuck app)” button in Settings → General. If the app ever looks broken, stuck on an old version, or your spells or data show up blank, one tap clears the app's cached files and reloads the newest version from the web. Your characters and loaded sourcebooks are safe — they're stored separately in your browser and aren't touched. (The self-healing updater should keep this from ever being needed, but now there's always a one-tap fix.)"
+    ]},
     {v:"v426", semver:"2.80.0", items:[
       "The offline updater is now self-healing: a stale or broken cached copy can never strand you, and you never have to reload by hand or clear anything. When you're online the app loads the main page network-first (always the freshest build; still fully offline from cache when you have no connection), always re-checks for a newer version, and if one lands on an already-open tab it refreshes itself once. Your saved characters are never touched by any of this."
     ]},
@@ -8357,6 +8364,17 @@
       ? 'Fetches the newest version of the whole app from the web and reloads in place. Your loaded character and sourcebooks are kept (they live in your browser, not in the file). <strong>Save a copy first</strong> (the Save button in the toolbar) in case a new version misbehaves.<br>You are on version '+appLabel()+'.'
       : 'Downloads the newest version of the app from the web with your <strong>current character baked in</strong> (your sourcebooks come too), so it still works fully offline. Replace your old file with the download. <strong>Save a copy first</strong> in case a new version misbehaves.<br>You are on version '+appLabel()+'.';
   }
+  // User-tappable "unwedge" for a stale/broken cache (Settings → General → Reload a fresh copy). Unregisters the
+  // service worker and clears every Cache Storage entry, then reloads so the browser fetches the newest build from
+  // the network. Deliberately does NOT touch IndexedDB (the `dnd-sheet` db holds characters/portraits) or the
+  // localStorage settings/sources — only the SW asset cache — so nothing the user made is lost. Self-healing SW
+  // (2.80.0) should prevent wedges in the first place; this is the always-available manual escape hatch.
+  async function repairApp(){
+    const btn = $("btn-repair"); if(btn){ btn.disabled = true; btn.textContent = "Reloading a fresh copy…"; }
+    try{ if("serviceWorker" in navigator){ const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r => r.unregister())); } }catch(e){}
+    try{ if("caches" in window){ const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } }catch(e){}
+    try{ location.reload(); }catch(e){ location.href = location.pathname + location.search; }
+  }
   async function updateApp(){
     const hosted = /^https?:$/.test(location.protocol);
     const sBtn = $("btn-update"), bBtn = $("ub-update");
@@ -12656,6 +12674,7 @@
     }
     $("btn-showguide").addEventListener("click", ()=>{ $("settings").classList.remove("open"); showIntro(); });   // close Settings, re-run the welcome guide
     $("btn-update").addEventListener("click", updateApp);
+    { const rb = $("btn-repair"); if(rb) rb.addEventListener("click", repairApp); }
     // "Update available" banner controls
     $("ub-save").addEventListener("click", ()=> $("btn-savecopy").click());   // reuse the toolbar's self-contained Save
     $("ub-update").addEventListener("click", updateApp);
