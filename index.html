@@ -2461,6 +2461,7 @@
           <input id="item-search" placeholder="Search items from your loaded sourcebooks to add…" autocomplete="off" spellcheck="false">
           <div id="item-results" class="item-results" hidden=""></div>
         </div>
+        <input type="hidden" data-save="" id="inv-prefer-official"><!-- lc names (one per line) where the player chose the OFFICIAL item over a same-name homebrew one -->
         <div class="inv-cols">
           <table class="invtable">
             <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
@@ -2958,11 +2959,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v443 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v444 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.86.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.87.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2970,6 +2971,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v444", semver:"2.87.0", items:[
+      "You can now choose between a homebrew item and an official item that share a name. When you search the Inventory for such a name, both show up labeled by source (e.g. \"Cloak of Protection · Official\" and \"Cloak of Protection · My Homebrew\"), and whichever you pick is the one the sheet uses for that item everywhere (AC, attunement, spell bonuses, text). Switch any time by re-adding from the other source. Non-colliding items are unaffected."
+    ]},
     {v:"v442", semver:"2.86.0", items:[
       "Selectors now show where each option comes from. The race and background pickers label every entry with its source (e.g. \"Elf · Player's Handbook\", \"Elf · My Homebrew\"), so when a homebrew thing and an official thing share a name you can see both and pick the exact one you want. Your race choice remembers its source, so the sheet always applies the right version, and existing characters are unaffected."
     ]},
@@ -4362,6 +4366,20 @@
       for(const lc in hi){ if(!seen.has(lc)){ names.push(hi[lc].name); seen.add(lc); } }
     }
     return names;
+  }
+  // Source-annotated item options for the search picker: every official item (src "") plus every homebrew item labeled
+  // with its source. A name that exists in BOTH appears TWICE (official + homebrew, kind flags a collision) so the player
+  // can pick which one to use — picking the official one records the preference; picking the homebrew clears it.
+  function availableItemOptions(){
+    const base = (DATA && DATA.itemNames) || [], hide = hiddenItemNames();
+    const official = (hide.size ? base.filter(n => !hide.has(n)) : base);
+    const officialLc = new Set(official.map(n => n.toLowerCase()));
+    const opts = official.map(n => ({name:n, lc:n.toLowerCase(), src:"", kind:"official", collides:false}));
+    if(typeof hbPickerItems === "function"){ const hp = hbPickerItems();
+      for(const lc in hp){ const collides = officialLc.has(lc); opts.push({name:hp[lc].name, lc, src:hp[lc].src, kind:"homebrew", collides});
+        if(collides){ const o = opts.find(x => x.lc === lc && x.kind === "official"); if(o) o.collides = true; } }
+    }
+    return opts;
   }
   function renderLayoutToggles(){
     $("layout-toggles").innerHTML = PAGES.map(([key,label]) =>
@@ -6856,8 +6874,18 @@
   function hbSpellCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.spells||{}).length, 0); }
   function hbHasContent(){ return homebrewSources.some(s => Object.keys(s.spells||{}).length || Object.keys(s.items||{}).length); }
   function hbItemCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.items||{}).length, 0); }
-  function hbActiveItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})){ const it = s.items[k]; if(it.aw && !awEnabled) continue; if(!(k in out)) out[k] = it; } }); return out; }   // enabled-source homebrew items, keyed lc (AW items drop out when the Ancestral Weapons module is off)
-  function hbEnabledItem(lc){ for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]){ const it = s.items[lc]; if(it.aw && !awEnabled) return null; return it; } } return null; }
+  // When a homebrew item and an official item share a name, the player can choose the OFFICIAL one; those lc names are
+  // stored (one per line) in #inv-prefer-official and gate the two homebrew-item entry points below — so EVERY item
+  // resolver (they all read hbActiveItems/hbEnabledItem) honors the choice without re-keying the name-keyed item maps.
+  let _prefOffRaw = null, _prefOffSet = new Set();
+  function preferOfficialSet(){ const el = $("inv-prefer-official"); const raw = el ? (el.value||"") : ""; if(raw !== _prefOffRaw){ _prefOffRaw = raw; _prefOffSet = new Set(raw.split("\n").map(s => s.trim().toLowerCase()).filter(Boolean)); } return _prefOffSet; }
+  function setPreferOfficial(lc, on){ const el = $("inv-prefer-official"); if(!el) return; lc = String(lc||"").toLowerCase(); const s = new Set(preferOfficialSet()); if(on) s.add(lc); else s.delete(lc); el.value = [...s].join("\n"); _prefOffRaw = null;
+    if(typeof save === "function") save(); if(typeof refreshHbItems === "function") refreshHbItems(); if(typeof compute === "function") compute(); }
+  function hbActiveItems(){ const out = {}; const pref = preferOfficialSet(); homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})){ if(pref.has(k)) continue; const it = s.items[k]; if(it.aw && !awEnabled) continue; if(!(k in out)) out[k] = it; } }); return out; }   // enabled-source homebrew items, keyed lc (AW items drop out when the Ancestral Weapons module is off; a name the player set to official is skipped)
+  function hbEnabledItem(lc){ if(preferOfficialSet().has(String(lc||"").toLowerCase())) return null; for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]){ const it = s.items[lc]; if(it.aw && !awEnabled) return null; return it; } } return null; }
+  // Every homebrew item across enabled sources (NOT gated by preferOfficial) with its source name — feeds the item picker,
+  // which must show the homebrew alternate even for a name currently resolved to official, so you can switch back.
+  function hbPickerItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})){ const it = s.items[k]; if(it.aw && !awEnabled) continue; if(!(k in out)) out[k] = {name:it.name, src:s.name}; } }); return out; }
   function hbAwMagicWeapon(lc){ const it = hbEnabledItem(lc); if(!(it && it.aw && it.aw.baseWeapon)) return null;
     const attuned = (typeof attunedNames === "function") && attunedNames().has(String(lc).toLowerCase());
     if(!attuned) return {base:it.aw.baseWeapon, bonus:0, rider:""};   // un-attuned Ancestral Weapon acts as a mundane weapon of its type (RAW)
@@ -10320,17 +10348,20 @@
     function render(){
       const q = inp.value.trim().toLowerCase();
       if(!q){ res.hidden = true; res.innerHTML = ""; matches = []; sel = -1; return; }
-      const names = availableItemNames();
+      const opts = availableItemOptions();
       const starts = [], contains = [];   // rank name-starts-with-query above contains, so relevant items aren't cut off
-      for(const n of names){ const i = n.toLowerCase().indexOf(q); if(i === 0) starts.push(n); else if(i > 0) contains.push(n); }
+      for(const o of opts){ const i = o.name.toLowerCase().indexOf(q); if(i === 0) starts.push(o); else if(i > 0) contains.push(o); }
       matches = starts.concat(contains).slice(0, 200);   // list scrolls (max-height); no alphabetical truncation
       sel = matches.length ? 0 : -1;
       res.innerHTML = matches.length
-        ? matches.map((n,i) => { const w = itemWeight(n); return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(n)}${w!=null?`<span class="w">${w} lb</span>`:''}</div>`; }).join("")
+        ? matches.map((o,i) => { const w = itemWeight(o.name);   // show the source when it disambiguates: homebrew items always, and the official side of a collision
+            const tag = o.kind === "homebrew" ? (o.src ? srcShort(o.src) : "Homebrew") : (o.collides ? "Official" : "");
+            return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(tag ? o.name+" · "+tag : o.name)}${w!=null?`<span class="w">${w} lb</span>`:''}</div>`; }).join("")
         : '<div class="opt none">No matching items (load the right sourcebook?)</div>';
       res.hidden = false;
     }
-    function add(name){ if(!name) return; addInvItem(name, 1); inp.value = ""; res.hidden = true; res.innerHTML = ""; matches = []; sel = -1; save(); compute(); inp.focus(); }
+    function add(o){ if(!o) return; if(o.collides) setPreferOfficial(o.lc, o.kind === "official");   // record which side of a same-name clash was chosen
+      addInvItem(o.name, 1); inp.value = ""; res.hidden = true; res.innerHTML = ""; matches = []; sel = -1; save(); compute(); inp.focus(); }
     inp.addEventListener("input", render);
     inp.addEventListener("focus", () => { if(inp.value.trim()) render(); });
     inp.addEventListener("keydown", e => {
