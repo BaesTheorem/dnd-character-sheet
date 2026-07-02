@@ -266,6 +266,7 @@
   .pc-name{font-weight:700; font-size:14px; line-height:1.2}
   .pc-meta{font-size:11px; color:var(--muted); margin:2px 0 6px}
   .pc-body{font-size:12px; line-height:1.4; white-space:pre-wrap; max-height:320px; overflow:auto}
+  .pc-flavor{font-size:12px; line-height:1.4; white-space:pre-wrap; font-style:italic; color:var(--muted); margin-top:6px; padding-top:6px; border-top:1px solid var(--line)}
   [data-card]{cursor:help}
 
   /* ASI / Feat attention flag (pulses until every improvement is chosen) */
@@ -1058,6 +1059,7 @@
   .aw-stats{display:flex; flex-wrap:wrap; gap:6px 10px; margin-bottom:8px}
   .aw-stat{font-size:12px; padding:2px 8px; border:1px solid var(--line); background:var(--field)}
   .aw-stat b{color:var(--accent)}
+  .aw-flavor{font-size:12px; margin:4px 0; line-height:1.5; font-style:italic; color:var(--muted)}
   .aw-lore{font-size:12px; margin:4px 0; line-height:1.5}
   .aw-lore .k{font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-right:4px}
   .aw-abilities{margin-top:8px}
@@ -1065,7 +1067,6 @@
   .aw-ability-name{font-weight:600; font-size:12px}
   .aw-ability-cost{font-size:10px; color:var(--accent); text-transform:uppercase; letter-spacing:.04em; margin-left:6px}
   .aw-ability-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:1px}
-  .aw-ability-flavor{font-size:11px; color:var(--muted); font-style:italic; line-height:1.4; margin-top:3px}
   .aw-extra{border-top:1px solid var(--line); padding:6px 0}
   .aw-extra-top{display:flex; gap:6px; align-items:center}
   .aw-extra input, .aw-extra textarea{padding:5px 7px; border:1px solid var(--line); background:var(--field); font:inherit; font-size:12px; width:100%}
@@ -2971,11 +2972,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v451 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v452 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.90.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.91.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6014,15 +6015,15 @@
   }
   function previewCardHtml(name){
     const hit = previewCardLookup(name); if(!hit) return null;
-    const o = hit.obj, t = hit.type; let meta = "", body = "";
+    const o = hit.obj, t = hit.type; let meta = "", body = "", flav = "";
     if(t==="spells"){ meta = [((o.level||0)===0?"Cantrip":"Level "+o.level), o.school].filter(Boolean).join(" · "); body = (o.text||"") + (o.higher?"\n\nAt Higher Levels. "+o.higher:""); }
-    else if(t==="items"){ meta = [o.type, o.rarity, o.attune?"requires attunement":""].filter(Boolean).join(" · "); body = o.text||""; }
+    else if(t==="items"){ meta = [o.type, o.rarity, o.attune?"requires attunement":""].filter(Boolean).join(" · "); body = o.text||""; flav = o.flavor||""; }
     else if(t==="feats"){ meta = o.prerequisite ? ("Prerequisite: "+o.prerequisite) : "Feat"; body = o.text||""; }
     else if(t==="races"){ meta = [o.subraceOf?("Subrace of "+o.subraceOf):(o.size||""), o.speed?(o.speed+" ft"):""].filter(Boolean).join(" · "); body = (o.traits||[]).map(tr => (tr.name?tr.name+". ":"")+(tr.text||"")).join("\n\n") || (Array.isArray(o.flavor)?o.flavor.join("\n\n"):""); }
     else if(t==="backgrounds"){ meta = "Background"; body = (o.feature && ((o.feature.name?o.feature.name+". ":"")+(o.feature.text||""))) || ""; }
     else if(t==="subclasses"){ meta = (o.className||"") + " subclass"; body = (o.features||[]).map(ff => (ff.name||"")+(ff.level?" (lvl "+ff.level+")":"")+". "+(ff.text||"")).join("\n\n"); }
     const img = o.img ? `<img class="pc-img" src="${o.img}" alt="">` : "";
-    return `<div class="pc-card">${img}<div class="pc-name">${esc(o.name||name)}</div>${meta?`<div class="pc-meta">${esc(meta)}</div>`:""}${body?`<div class="pc-body">${esc(body)}</div>`:""}</div>`;
+    return `<div class="pc-card">${img}<div class="pc-name">${esc(o.name||name)}</div>${meta?`<div class="pc-meta">${esc(meta)}</div>`:""}${body?`<div class="pc-body">${esc(body)}</div>`:""}${flav?`<div class="pc-flavor">${esc(flav)}</div>`:""}</div>`;
   }
   let _pcFor = null;   // the element the card is currently shown for (tap toggle)
   function showPreviewCard(name, anchor){
@@ -6072,7 +6073,7 @@
       if(d.profs) stat.push(`${d.profs} proficiency choice${d.profs>1?"s":""}`);
       stat.push("requires attunement");
       const abilities=(a.upgrades||[]).map(nm=>{ const u=awUp(nm); return `<div class="aw-ability"><span class="aw-ability-name">${esc(nm)}</span><span class="aw-ability-cost">${u?u.c:"?"} SP${u&&u.lim?" · limited":""}</span><div class="aw-ability-text">${esc(awText(nm))}</div></div>`; }).join("");
-      const extraAb=(a.extras||[]).map(x=>`<div class="aw-ability"><span class="aw-ability-name">${esc(x.name||"Property")}</span>${x.bonus?`<span class="aw-ability-cost">+${esc(String(x.bonus))}</span>`:""}${x.extraDamage?`<span class="aw-ability-cost">${esc(x.extraDamage)} dmg</span>`:""}<div class="aw-ability-text">${esc(x.text||"")}</div>${x.flavor?`<div class="aw-ability-flavor">${esc(x.flavor)}</div>`:""}</div>`).join("");
+      const extraAb=(a.extras||[]).map(x=>`<div class="aw-ability"><span class="aw-ability-name">${esc(x.name||"Property")}</span>${x.bonus?`<span class="aw-ability-cost">+${esc(String(x.bonus))}</span>`:""}${x.extraDamage?`<span class="aw-ability-cost">${esc(x.extraDamage)} dmg</span>`:""}<div class="aw-ability-text">${esc(x.text||"")}</div></div>`).join("");
       const art = a.art
         ? `<img class="aw-art" src="${a.art}" alt=""><label class="btn" style="margin-top:6px; display:block; text-align:center">Change art<input type="file" accept="image/*" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`
         : `<label class="aw-art aw-art-empty">+ Add art<input type="file" accept="image/*" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`;
@@ -6080,6 +6081,7 @@
         `<div class="aw-card-head"><h2 style="margin:0">${esc(it.name)}</h2><span class="aw-rarity">${esc(d.rarity)} · ${esc(a.baseWeapon)} · ${a.points} SP</span>${attuned?'<span class="aw-attuned">● Attuned</span>':'<span class="aw-mundane">Not attuned — mundane until attuned</span>'}<span style="margin-left:auto"><button class="btn aw-edit" data-si="${si}" data-key="${esc(key)}" type="button">Edit in builder</button></span></div>`+
         `<div class="aw-card-body"><div class="aw-art-col">${art}</div><div class="aw-stat-col">`+
         `<div class="aw-stats">${stat.map(x=>`<span class="aw-stat">${x}</span>`).join("")}</div>`+
+        (it.flavor?`<div class="aw-flavor">${esc(it.flavor)}</div>`:"")+
         (a.lore?`<div class="aw-lore"><span class="k">History</span>${esc(a.lore)}</div>`:"")+
         (a.physical?`<div class="aw-lore"><span class="k">Physical</span>${esc(a.physical)}</div>`:"")+
         `<div class="aw-abilities">${(abilities+extraAb)||'<span class="wiz-hint">No upgrades or properties yet.</span>'}</div>`+
@@ -6105,7 +6107,8 @@
         `<div id="aw-upgrades" class="aw-uplist"></div>`+
         `<div class="hb-section-h"><span>Additional properties</span><button class="btn" id="aw-add-extra" type="button">+ Property</button></div>`+
         `<div id="aw-extras"></div><datalist id="aw-prop-list"></datalist>`+
-        `<label class="cspell-f cspell-full" style="margin-top:12px"><span>History / lore</span><textarea id="aw-lore" rows="3" placeholder="Who forged it, who carried it, what it has slain…"></textarea></label>`+
+        `<label class="cspell-f cspell-full" style="margin-top:12px"><span>Flavor text</span><textarea id="aw-flavor" rows="3" placeholder="Evocative, non-mechanical prose — the item as a whole (a quote, the vibe, what it feels like to wield)."></textarea></label>`+
+        `<label class="cspell-f cspell-full"><span>History / lore</span><textarea id="aw-lore" rows="3" placeholder="Who forged it, who carried it, what it has slain…"></textarea></label>`+
         `<label class="cspell-f cspell-full"><span>Physical properties</span><textarea id="aw-physical" rows="2" placeholder="Appearance, materials, markings…"></textarea></label>`+
       `</div>`+
       `<div class="modal-foot"><label class="cspell-f" style="flex:0 1 230px"><span>Save into source</span><select id="aw-src"></select></label>`+
@@ -6123,9 +6126,9 @@
     });
     $("aw-expand-all").addEventListener("click", () => { AW_UPGRADES.forEach(u=>_awUpOpen.add(u.n.toLowerCase())); awRenderUpgrades(); });
     $("aw-collapse-all").addEventListener("click", () => { _awUpOpen.clear(); awRenderUpgrades(); });
-    $("aw-add-extra").addEventListener("click", () => { (_awBuild.extras = _awBuild.extras || []).push({name:"", text:"", bonus:"", extraDamage:"", flavor:""}); awRenderExtras(); awRenderState(); });
+    $("aw-add-extra").addEventListener("click", () => { (_awBuild.extras = _awBuild.extras || []).push({name:"", text:"", bonus:"", extraDamage:""}); awRenderExtras(); awRenderState(); });
     $("aw-extras").addEventListener("input", e => { const t = e.target, i = +t.dataset.i; if(isNaN(i) || !(_awBuild.extras||[])[i]) return; const x = _awBuild.extras[i];
-      if(t.classList.contains("aw-x-name")) x.name = t.value; else if(t.classList.contains("aw-x-bonus")) x.bonus = t.value; else if(t.classList.contains("aw-x-dmg")) x.extraDamage = t.value; else if(t.classList.contains("aw-x-text")) x.text = t.value; else if(t.classList.contains("aw-x-flavor")) x.flavor = t.value;
+      if(t.classList.contains("aw-x-name")) x.name = t.value; else if(t.classList.contains("aw-x-bonus")) x.bonus = t.value; else if(t.classList.contains("aw-x-dmg")) x.extraDamage = t.value; else if(t.classList.contains("aw-x-text")) x.text = t.value;
       awRenderState(); });
     // Autofill a known property's rules text (+ its magic bonus) when the name matches — on "change" (commit/blur or
     // datalist pick), never mid-typing, and never over text/bonus the user already entered.
@@ -6146,14 +6149,14 @@
     const idx = (sourceIdx != null) ? sourceIdx : _hbCurId;
     const existing = (editKey && homebrewSources[idx] && homebrewSources[idx].items[editKey] && homebrewSources[idx].items[editKey].aw) || null;
     _awBuild = existing
-      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), extras:(existing.extras||[]).map(x=>Object.assign({},x)), lore:existing.lore||"", physical:existing.physical||"", editKey}
-      : {name:"", baseWeapon:"", points:0, upgrades:[], extras:[], lore:"", physical:"", editKey:null};
+      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), extras:(existing.extras||[]).map(x=>Object.assign({},x)), lore:existing.lore||"", physical:existing.physical||"", flavor:(homebrewSources[idx].items[editKey].flavor)||"", editKey}
+      : {name:"", baseWeapon:"", points:0, upgrades:[], extras:[], lore:"", physical:"", flavor:"", editKey:null};
     const awHide = hiddenItemNames();   // respect the futuristic/modern age toggles — don't offer e.g. the Antimatter Rifle when futuristic gear is off
     $("aw-base-list").innerHTML = ((DATA&&DATA.weapons)||[]).map(w=>w.name).filter(n=>n && !awHide.has(n)).sort().map(n=>`<option value="${esc(n)}"></option>`).join("");
     { const pl = $("aw-prop-list"); if(pl) pl.innerHTML = AW_PROPS.map(p=>`<option value="${esc(p.n)}"></option>`).join(""); }   // known-property autofill suggestions
     $("aw-src").innerHTML = homebrewSources.map((s,i)=>`<option value="${i}" ${i===idx?"selected":""}>${esc(s.name)}</option>`).join("");
     $("aw-name").value = _awBuild.name; $("aw-base").value = _awBuild.baseWeapon;
-    $("aw-points").value = String(_awBuild.points); $("aw-lore").value = _awBuild.lore; $("aw-physical").value = _awBuild.physical;
+    $("aw-points").value = String(_awBuild.points); $("aw-lore").value = _awBuild.lore; $("aw-physical").value = _awBuild.physical; $("aw-flavor").value = _awBuild.flavor;
     _awUpOpen.clear();   // start with every description collapsed
     awRenderUpgrades(); awRenderExtras(); awRenderState();
     $("aw-builder").classList.add("open");
@@ -6212,8 +6215,7 @@
         `<input type="number" class="aw-x-bonus" data-i="${i}" placeholder="+N" value="${(x.bonus!=null&&x.bonus!=="")?esc(String(x.bonus)):""}" title="Magic bonus to attack &amp; damage (optional)">`+
         `<input class="aw-x-dmg" data-i="${i}" placeholder="extra dmg (e.g. 2d6 force)" value="${esc(x.extraDamage||"")}" title="Extra-damage rider (optional)">`+
         `<button type="button" class="aw-x-del" data-i="${i}" title="Remove">\u2715</button></div>`+
-        `<textarea class="aw-x-text" data-i="${i}" rows="2" placeholder="Rules text\u2026 (autofills for a known property)">${esc(x.text||"")}</textarea>`+
-        `<textarea class="aw-x-flavor" data-i="${i}" rows="2" placeholder="Flavor text\u2026 (appearance, a quote, the vibe \u2014 non-mechanical)">${esc(x.flavor||"")}</textarea></div>`
+        `<textarea class="aw-x-text" data-i="${i}" rows="2" placeholder="Rules text\u2026 (autofills for a known property)">${esc(x.text||"")}</textarea></div>`
     ).join("") : `<div class="wiz-hint" style="padding:4px 2px">None. Add magic-weapon properties like <b>Vorpal</b> or Flame Tongue (type the name to autofill its rules text), or any custom feature \u2014 an optional +N bonus and extra-damage rider auto-apply when the weapon is attuned.</div>`;
   }
   function awDescribe(b,d){
@@ -6228,7 +6230,7 @@
     if(d.profs) auto.push(`${d.profs} proficiency choice(s)`); if(d.resists.length) auto.push("resistance: "+d.resists.join(", "));
     if(auto.length) L.push("Applied: "+auto.join("; ")+".");
     b.upgrades.forEach(nm=>{ const u=awUp(nm); L.push(`• ${nm} (${u?u.c:"?"} SP${u&&u.lim?", limited":""}): ${awText(nm)}`); });
-    (b.extras||[]).forEach(x=>{ if(x.name||x.text||x.flavor) L.push(`• ${x.name||"Property"}${x.bonus?` (+${x.bonus})`:""}${x.extraDamage?` (+${x.extraDamage} dmg)`:""}: ${x.text||""}${x.flavor?` — ${x.flavor}`:""}`); });
+    (b.extras||[]).forEach(x=>{ if(x.name||x.text) L.push(`• ${x.name||"Property"}${x.bonus?` (+${x.bonus})`:""}${x.extraDamage?` (+${x.extraDamage} dmg)`:""}: ${x.text||""}`); });
     if(b.lore) L.push("History: "+b.lore);
     if(b.physical) L.push("Physical: "+b.physical);
     return L.join("\n");
@@ -6238,10 +6240,10 @@
     if(!name){ flashStatus("Name the weapon first"); $("aw-name").focus(); return; }
     if(!($("aw-base").value||"").trim()){ flashStatus("Pick a base weapon"); $("aw-base").focus(); return; }
     b.name=name; b.baseWeapon=$("aw-base").value.trim(); b.points=parseInt($("aw-points").value,10)||0;
-    b.lore=$("aw-lore").value.trim(); b.physical=$("aw-physical").value.trim();
+    b.lore=$("aw-lore").value.trim(); b.physical=$("aw-physical").value.trim(); b.flavor=$("aw-flavor").value.trim();
     const d=awDerive(b), lc=name.toLowerCase();
     const item={name, type:"Weapon", rarity:d.rarity, attune:true, acBonus:d.ac, spellAtk:d.spellAtk, spellDc:0,
-      text:awDescribe(b,d),
+      text:awDescribe(b,d), flavor:b.flavor,
       aw:{baseWeapon:b.baseWeapon, points:b.points, upgrades:b.upgrades.slice(), extras:(b.extras||[]).map(x=>Object.assign({},x)), lore:b.lore, physical:b.physical, magicBonus:d.magicBonus, rider:d.riders.join(", ")}};
     const srcIdx=parseInt($("aw-src").value,10)||0;
     const src=hbEnsureSourceAt(srcIdx); src.items=src.items||{};
@@ -6333,7 +6335,7 @@
     const name = String(it.name||"").trim(); if(!name) return null;
     const o = { name, type:String(it.type||"Wondrous Item"), rarity:String(it.rarity||"Common"),
       attune:!!it.attune, acBonus:parseInt(it.acBonus,10)||0, spellAtk:parseInt(it.spellAtk,10)||0,
-      spellDc:parseInt(it.spellDc,10)||0, unarmedBonus:parseInt(it.unarmedBonus,10)||0, text:String(it.text||"") };
+      spellDc:parseInt(it.spellDc,10)||0, unarmedBonus:parseInt(it.unarmedBonus,10)||0, text:String(it.text||""), flavor:String(it.flavor||"") };
     const gr = hbNormGrants(it.grantSpells); if(gr.length) o.grantSpells = gr;   // item-granted spells (at-will / X-per-rest)
     const lim = hbNormLimited(it.limited); if(lim.length) o.limited = lim;        // limited-use abilities → Limited Features rows
     if(Array.isArray(it.senses)){ const ss = it.senses.map(s => String(s||"").trim()).filter(Boolean); if(ss.length) o.senses = ss; }   // sense lines → the Senses box (like race/feat darkvision)
@@ -6587,7 +6589,8 @@
             `<label class="cspell-f cspell-full"><span>Limited uses</span><textarea id="hbi-limited" rows="2" placeholder="One per line — Label | max | recharge  (e.g. See through magical darkness | 1 | Dusk; max defaults 1, recharge defaults LR)" title="Limited-use abilities. Each becomes a row in the Limited Features section when equipped (and attuned, if required). Recharge is free text: LR, SR, Dawn, Dusk, 1/Day, etc."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Senses</span><textarea id="hbi-senses" rows="2" placeholder="One per line — e.g. Darkvision 60 ft." title="Sense lines added to your Senses box when this item is equipped (and attuned, if required), the same way race/feat darkvision is written."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Actions</span><textarea id="hbi-actions" rows="2" placeholder="One per line — Label | cost  (cost = action / bonus / reaction, defaults action). e.g. See through magical darkness | bonus" title="Action-economy abilities. Each shows as a precisely-labeled entry in the Action Economy section when the item is equipped (and attuned, if required). If left blank, the sheet falls back to scanning the item description."></textarea></label>`+
-            `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5"></textarea></label>`+
+            `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5" placeholder="Mechanical rules text — what the item does."></textarea></label>`+
+            `<label class="cspell-f cspell-full"><span>Flavor text</span><textarea id="hbi-flavor" rows="3" placeholder="Evocative, non-mechanical prose — appearance, history, a quote, the vibe."></textarea></label>`+
             hbImgFieldHtml("item")+
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
         `</div>`+
@@ -6719,6 +6722,7 @@
     $("hbi-senses").value = (base.senses||[]).join("\n");
     $("hbi-actions").value = hbActionsToText(base.actions);
     $("hbi-text").value = base.text || "";
+    $("hbi-flavor").value = base.flavor || "";
     _hbImg.item = base.img || ""; hbImgSyncPreview("item");
     $("hb-item-list").style.display = "none";
     $("hb-item-form").style.display = "";
@@ -6735,7 +6739,7 @@
     const obj = { name, type:$("hbi-type").value||"Wondrous Item", rarity:$("hbi-rarity").value||"Common",
       attune:$("hbi-attune").checked, acBonus:parseInt($("hbi-ac").value,10)||0,
       spellAtk:parseInt($("hbi-spatk").value,10)||0, spellDc:parseInt($("hbi-spdc").value,10)||0,
-      unarmedBonus:parseInt($("hbi-unarmed").value,10)||0, text:$("hbi-text").value.trim() };
+      unarmedBonus:parseInt($("hbi-unarmed").value,10)||0, text:$("hbi-text").value.trim(), flavor:$("hbi-flavor").value.trim() };
     const gs = hbGrantFromText($("hbi-grant").value); if(gs.length) obj.grantSpells = gs;
     const lim = hbLimitedFromText($("hbi-limited").value); if(lim.length) obj.limited = lim;
     const ss = $("hbi-senses").value.split(/\n+/).map(s => s.trim()).filter(Boolean); if(ss.length) obj.senses = ss;
