@@ -2972,11 +2972,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v452 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v453 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.91.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.91.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6128,7 +6128,16 @@
     $("aw-collapse-all").addEventListener("click", () => { _awUpOpen.clear(); awRenderUpgrades(); });
     $("aw-add-extra").addEventListener("click", () => { (_awBuild.extras = _awBuild.extras || []).push({name:"", text:"", bonus:"", extraDamage:""}); awRenderExtras(); awRenderState(); });
     $("aw-extras").addEventListener("input", e => { const t = e.target, i = +t.dataset.i; if(isNaN(i) || !(_awBuild.extras||[])[i]) return; const x = _awBuild.extras[i];
-      if(t.classList.contains("aw-x-name")) x.name = t.value; else if(t.classList.contains("aw-x-bonus")) x.bonus = t.value; else if(t.classList.contains("aw-x-dmg")) x.extraDamage = t.value; else if(t.classList.contains("aw-x-text")) x.text = t.value;
+      if(t.classList.contains("aw-x-name")){ x.name = t.value;
+        // Autofill the instant the name is an EXACT known-property match (a datalist pick OR the fully-typed name).
+        // Fire on "input" (not just "change") so it works even where a datalist selection doesn't emit "change"
+        // (e.g. Safari), and update the sibling fields' DOM directly (no full re-render) so focus/caret aren't lost.
+        const prop = AW_PROP_BY[(t.value||"").trim().toLowerCase()];
+        if(prop){ const txt = awText(prop.n);
+          if(txt && !(x.text||"").trim()){ x.text = txt; const ta = e.currentTarget.querySelector('.aw-x-text[data-i="'+i+'"]'); if(ta) ta.value = txt; }
+          if((x.bonus === "" || x.bonus == null) && prop.b){ x.bonus = prop.b; const bi = e.currentTarget.querySelector('.aw-x-bonus[data-i="'+i+'"]'); if(bi) bi.value = String(prop.b); }
+        }
+      } else if(t.classList.contains("aw-x-bonus")) x.bonus = t.value; else if(t.classList.contains("aw-x-dmg")) x.extraDamage = t.value; else if(t.classList.contains("aw-x-text")) x.text = t.value;
       awRenderState(); });
     // Autofill a known property's rules text (+ its magic bonus) when the name matches — on "change" (commit/blur or
     // datalist pick), never mid-typing, and never over text/bonus the user already entered.
@@ -8642,7 +8651,8 @@
   // descriptions and the per-key baked-blob fallback has nothing to read. The fix can't live in the file's data (it's
   // gone), so the OPENED (new) build re-fetches the rules text from the canonical web copy once and persists it. This
   // is the escape from the self-perpetuating clobber: the CODE rides fresh on every update even when the DATA didn't.
-  // Automatic + unambiguous: only fires when the sheet has real content (not a nulled clean-strip) yet zero awText.
+  // Automatic + unambiguous: only fires when the sheet has real content (not a nulled clean-strip) yet is MISSING
+  // some known AW rules text — empty OR partial (e.g. healed before the property texts existed).
   let _awHealDone = false;
   async function maybeHealStarvedAwText(){
     if(_awHealDone) return;
@@ -8650,9 +8660,11 @@
     if(typeof AW_UPGRADES === "undefined" || !AW_UPGRADES.length) return;      // no upgrade catalog → nothing to heal
     const spells = (DATA && DATA.spells) || [];
     if(!Array.isArray(spells) || !spells.length) return;                       // nulled / deliberately clean-strip sheet → leave alone
-    const runtimeAw = (DATA && DATA.awText) ? Object.keys(DATA.awText).length : 0;
-    const bakedAw   = Object.keys(awBakedText()).length;
-    if(runtimeAw > 0 || bakedAw > 0) return;                                   // the text is present somewhere → healthy, do nothing
+    // Heal when the awText is empty OR PARTIAL: a file healed before newer entries existed (e.g. it has the 134
+    // upgrade texts but not the property texts added later) has a non-empty-but-incomplete awText and would never
+    // re-fetch under an "empty-only" check. Fire whenever ANY known upgrade/property name has no resolvable text.
+    const known = AW_UPGRADES.map(u => u.n).concat((typeof AW_PROPS !== "undefined" ? AW_PROPS : []).map(pp => pp.n));
+    if(!known.some(nm => !awText(nm))) return;                                  // every known upgrade + property already has text → healthy, do nothing
     _awHealDone = true;
     if(!navigator.onLine) return;                                              // can't fetch now — will retry on the next online open
     try{
