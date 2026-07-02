@@ -1058,7 +1058,7 @@
   .aw-rarity{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent)}
   .aw-card-body{display:flex; gap:14px; flex-wrap:wrap}
   .aw-art-col{flex:0 0 160px}
-  .aw-art{display:block; width:160px; height:160px; object-fit:cover; border:1px solid var(--line); background:var(--field)}
+  .aw-art{display:block; width:160px; height:160px; object-fit:contain; border:1px solid var(--line); background:var(--field)}   /* contain: show the whole image resized to fit, never crop it */
   .aw-art-empty{display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; cursor:pointer}
   .aw-stat-col{flex:1 1 280px; min-width:240px}
   .aw-stats{display:flex; flex-wrap:wrap; gap:6px 10px; margin-bottom:8px}
@@ -1415,6 +1415,27 @@
   html.mobile .modal-body{ padding:14px; overscroll-behavior:contain; }
   html.mobile .modal-head{ position:sticky; top:0; z-index:2; background:var(--card); }
   html.mobile .modal-foot{ position:sticky; bottom:0; z-index:2; background:var(--card); }
+
+  /* --- Character Manager: the card grid uses minmax(200px,1fr), which on a phone
+     collapses to ONE giant card per row with a 120px portrait. Shrink to a 2-up
+     grid of compact cards: smaller portrait, tighter type, and let a parent+Simulacrum
+     group stack vertically inside its narrow cell instead of the desktop side-by-side. --- */
+  html.mobile #charmgr .cm-grid:not(.list-view){ grid-template-columns:repeat(2,1fr); gap:8px; }
+  html.mobile #charmgr .cm-port{ height:74px; }
+  html.mobile #charmgr .cm-port .cm-init{ font-size:24px; }
+  html.mobile #charmgr .cm-meta{ padding:6px 8px; }
+  html.mobile #charmgr .cm-name{ font-size:12px; }
+  html.mobile #charmgr .cm-sub,
+  html.mobile #charmgr .cm-camp,
+  html.mobile #charmgr .cm-when{ font-size:10px; }
+  html.mobile #charmgr .cm-acts button{ font-size:11px; padding:5px 3px; }
+  /* a group with a Simulacrum: stack parent over child so both fit the ~½-width cell.
+     grid-column:auto !important overrides the inline "span N" the renderer sets to widen
+     the group on desktop (side-by-side sims); on a phone the group is one narrow column. */
+  html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim{ flex-direction:column; grid-column:auto !important; }
+  html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card:first-child,
+  html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child{ flex:1 1 auto; }
+  html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child .cm-port{ height:74px; }
 
   /* --- Settings: keep its section nav as a scrollable row --- */
   html.mobile .settings-wrap{ flex-direction:column; }
@@ -2998,11 +3019,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v460 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v461 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.93.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.94.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3010,6 +3031,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v461", semver:"2.94.0", items:[
+      "Ancestral Weapon art now resizes to fit its frame instead of being cropped, so the whole image shows.",
+      "The Character Manager card view is far more usable on a phone: cards are a compact two-up grid with smaller portraits and type, instead of one oversized card per row.",
+    ]},
     {v:"v460", semver:"2.93.3", items:[
       "Editing an Ancestral Weapon in the regular homebrew item form no longer strips its Ancestral Weapon build (the form has no AW fields, so saving there silently turned the weapon into a plain item and emptied the Ancestral Weapons page). Existing weapons that lost their build this way are repaired automatically on open, keeping any image or text added meanwhile.",
     ]},
