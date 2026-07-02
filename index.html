@@ -1850,6 +1850,7 @@
     }
     body.ucs-layout #ucs-tabbar .ucs-tab:hover{ color:var(--ink); }
     body.ucs-layout #ucs-tabbar .ucs-tab.active{ color:var(--ucs-gold); border-bottom-color:var(--ucs-gold); }
+    body.ucs-layout #ucs-tabbar .ucs-tab.muted{ opacity:.45; }
 
     body.ucs-layout #ucs-main{ grid-area:main; display:flex; flex-direction:column; gap:14px; }
     body.ucs-layout #ucs-main > .card{ margin:0; }
@@ -2997,11 +2998,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v458 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v459 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.93.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.93.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3009,6 +3010,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v459", semver:"2.93.2", items:[
+      "The Ancestral Weapons page is now reachable from the default desktop layout: its tab was missing from the Universal Character Sheet tab bar entirely, so the page could not be opened there no matter what you built or attuned. The UCS tab bar also now mirrors page visibility (hidden pages hide, empty-until-present pages dim) instead of being frozen at load.",
+    ]},
     {v:"v458", semver:"2.93.1", items:[
       "Fixed a saved copy shipping a dead Homebrew Studio: if the Studio (or another lazily-built dialog) had been opened before pressing Save, its markup rode into the downloaded file without any of its button wiring, leaving an unresponsive modal you couldn't close. Saved copies now strip runtime-built dialogs, and opening an older file with one baked in rebuilds it cleanly.",
     ]},
@@ -5834,6 +5838,7 @@
       if(pg) pg.classList.toggle("excluded", !used);
       if(tab) tab.classList.toggle("muted", !used);
     }
+    if(typeof window._ucsTabsSync === "function") window._ucsTabsSync();   // mirror the result into the UCS tab bar
     const active = document.querySelector(".page.active");          // active page hidden → jump to first visible
     if(active && active.classList.contains("excluded")){
       const firstKey = PAGES.map(p=>p[0]).find(k => { const pg=$("page-"+k); return pg && !pg.classList.contains("excluded"); });
@@ -14074,6 +14079,7 @@
       ['actions','Actions','core'], ['spells','Spells','spells'], ['inv','Inventory','inv'],
       ['feat','Features & Traits','feat'], ['bg','Background','bg'], ['notes','Notes','notes'],
       ['story','Backstory','story'], ['extras','Extras','companion'], ['mini','Mini','mini'],
+      ['aw','Ancestral Weapons','aw'],
     ];
     function el(id){ return document.getElementById(id); }
     function sheet(){ return document.querySelector('.sheet'); }
@@ -14121,6 +14127,19 @@
         bar.appendChild(b);
       });
     }
+    // Mirror each UCS tab's hidden/muted state from its canonical .ptab twin. applyLayout() owns page
+    // visibility (user-hidden pages, excluded-until-present pages like Companions/Mini/AW); the UCS bar
+    // must reflect it or a page can become unreachable in the default desktop layout (the AW tab was
+    // missing here entirely, so Ancestral Weapons could never be opened from a UCS sheet).
+    function syncTabs(){
+      var bar=el('ucs-tabbar'); if(!bar) return;
+      TABS.forEach(function(t){
+        var b=bar.querySelector('.ucs-tab[data-tab="'+t[0]+'"]'); if(!b) return;
+        var pt=document.querySelector('.ptab[data-page="'+t[2]+'"]'); if(!pt) return;   // 'actions'→core has no gating
+        b.style.display = (pt.style.display==='none') ? 'none' : '';
+        b.classList.toggle('muted', pt.classList.contains('muted'));
+      });
+    }
     // reflect the current .page.active in the tab bar + Actions-host visibility
     function syncFromActive(){
       if(!active()) return;
@@ -14152,6 +14171,7 @@
       relocate(findCard('limited'), sc['ucs-main'], 'limited');
       buildTabbar(sc['ucs-tabbar']);
       document.body.classList.add('ucs-layout');
+      syncTabs();
       syncFromActive();
     }
     function deactivate(){
@@ -14185,6 +14205,7 @@
     // toggle calls window._ucsSync() so flipping mobile re-activates/deactivates live.
     function wantUcs(){ return isUcs() && !document.documentElement.classList.contains('mobile'); }
     window._ucsSync = function(){ try{ if(wantUcs()) activate(); else deactivate(); }catch(e){} };
+    window._ucsTabsSync = syncTabs;
     function boot(){ try{ if(wantUcs()) activate(); }catch(e){} }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
   })();
