@@ -1376,6 +1376,12 @@
   html.mobile .portrait{ width:96px; height:122px; }
   html.mobile .header-main{ flex:1 1 0; min-width:0; }
   html.mobile .charname input{ font-size:21px; }
+  /* one identity field per row beside the portrait: two-up gave ~108px cells that clipped both the
+     labels and the values ("Lawful Neut…", "+ gaine"). One column keeps everything readable.
+     The Experience cell carries grid-column:span 2 (its double-wide desktop cell); reset it to auto
+     here or it forces an implicit second column and the row overflows the one-column grid. */
+  html.mobile .meta-grid{ grid-template-columns:1fr; gap:10px; margin-top:10px; }
+  html.mobile .meta-grid > div:last-child{ grid-column:auto; }
 
   /* --- Stack the big two-column regions --- */
   html.mobile .columns, html.mobile .topblock{ grid-template-columns:1fr; }
@@ -3025,11 +3031,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v463 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v464 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.94.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.95.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3037,6 +3043,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v464", semver:"2.95.0", items:[
+      "The character header no longer squashes on a phone: the identity fields (Class & Level, Background, Race, Alignment, Player, Campaign, Experience) each get a full-width row beside the portrait instead of clipping in cramped two-up columns.",
+    ]},
     {v:"v463", semver:"2.94.2", items:[
       "Fixed the Character Manager's top controls (New / Import / Sort / the card-vs-list toggle) spilling off a narrow phone screen and letting the panel scroll sideways. The row now wraps.",
     ]},
