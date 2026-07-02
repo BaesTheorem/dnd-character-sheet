@@ -2997,11 +2997,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v457 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v458 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.93.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.93.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3009,6 +3009,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v458", semver:"2.93.1", items:[
+      "Fixed a saved copy shipping a dead Homebrew Studio: if the Studio (or another lazily-built dialog) had been opened before pressing Save, its markup rode into the downloaded file without any of its button wiring, leaving an unresponsive modal you couldn't close. Saved copies now strip runtime-built dialogs, and opening an older file with one baked in rebuilds it cleanly.",
+    ]},
     {v:"v457", semver:"2.93.0", items:[
       "Homebrew images now follow the character portrait conventions everywhere: any image file type is accepted (HEIC/WebP/AVIF/SVG included), a bad file gets a clear message instead of silently doing nothing, and transparent formats keep their transparency.",
       "The Ancestral Weapon builder has an Image field, so art can be added while building instead of only from the weapon's page afterward.",
@@ -5776,9 +5779,16 @@
     // awText:0 and blank builder descriptions). Base = whatever awText is currently baked here, user/imported entries on top.
     const bakedAw = awBakedText(); if(bakedAw && Object.keys(bakedAw).length) c.awText = Object.assign({}, bakedAw, c.awText || {});
     pd.textContent = JSON.stringify(c); }
+  // Lazily-built UI (modals, popovers, hint bars) must never ride into a saved copy: serialized DOM keeps
+  // the markup but loses every addEventListener, so a build guard like if($("hb-studio"))return sees the
+  // corpse on next open and never wires the buttons (a Studio that had been opened before saving shipped
+  // as a dead, uncloseable modal). Runtime-appended chrome tags itself data-transient; strip it from any
+  // clone we serialize.
+  function stripTransientChrome(root){ root.querySelectorAll("[data-transient]").forEach(el => el.remove()); }
   function shareBlankSheet(){            // download a blank, ready-to-use copy: no character, default settings, every loaded book baked in
     bakeSourceData();
     const clone = document.documentElement.cloneNode(true);
+    stripTransientChrome(clone);
     const ed = clone.querySelector("#embedded-data"); if(ed) ed.textContent = "null";   // a clean data template, no specific character
     const er = clone.querySelector("#embedded-roster"); if(er) er.textContent = "null";   // and no character library
     const ep = clone.querySelector("#embedded-prefs"); if(ep) ep.textContent = "null";   // and no baked appearance prefs → defaults on open
@@ -6127,7 +6137,7 @@
   let _pcFor = null;   // the element the card is currently shown for (tap toggle)
   function showPreviewCard(name, anchor){
     const html = previewCardHtml(name); if(!html){ hidePreviewCard(); return; }
-    let p = $("preview-card-pop"); if(!p){ p = document.createElement("div"); p.id = "preview-card-pop"; p.className = "pc-pop"; document.body.appendChild(p); }
+    let p = $("preview-card-pop"); if(!p){ p = document.createElement("div"); p.id = "preview-card-pop"; p.className = "pc-pop"; p.dataset.transient = "1"; document.body.appendChild(p); }
     p.innerHTML = html; p.style.visibility = "hidden"; p.style.display = "block";
     const r = anchor.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight;
     let left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
@@ -6192,8 +6202,8 @@
   let _awUpOpen = new Set();   // lc names of upgrades whose description is expanded (collapsed by default)
   function awCharLevel(){ const n = parseClassLevels($("classlevel").value).reduce((a,c)=>a+(c.level||0),0); return n>0 ? n : null; }   // null = no class set → don't tier-gate
   function buildAwBuilder(){
-    if($("aw-builder")) return;
-    const m = document.createElement("div"); m.id = "aw-builder"; m.className = "modal noprint";
+    { const ex = $("aw-builder"); if(ex){ if(ex._live) return; ex.remove(); } }   // a serialized corpse (saved-while-built, pre-strip) has no listeners: rebuild it
+    const m = document.createElement("div"); m.id = "aw-builder"; m.className = "modal noprint"; m.dataset.transient = "1"; m._live = true;
     m.innerHTML =
       `<div class="modal-panel"><div class="modal-head"><h2>Ancestral Weapon</h2><button class="btn ghost" id="aw-x" type="button">✕</button></div>`+
       `<div class="modal-body">`+
@@ -6642,12 +6652,12 @@
     refreshHomebrew();
   }
   function buildHbStudio(){
-    if($("hb-studio")) return;
+    { const ex = $("hb-studio"); if(ex){ if(ex._live) return; ex.remove(); } }   // a serialized corpse (saved-while-built, pre-strip) has no listeners: rebuild it
     const lvlOpts = ['<option value="0">Cantrip</option>'].concat([1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}">Level ${n}</option>`)).join("");
     const schoolOpts = '<option value=""></option>' + SPELL_SCHOOLS.map(s => `<option value="${s}">${s}</option>`).join("");
     const typeOpts = HB_ITEM_TYPES.map(t => `<option value="${t}">${t}</option>`).join("");
     const rarityOpts = HB_RARITIES.map(r => `<option value="${r}">${r}</option>`).join("");
-    const m = document.createElement("div"); m.id = "hb-studio"; m.className = "modal noprint";
+    const m = document.createElement("div"); m.id = "hb-studio"; m.className = "modal noprint"; m.dataset.transient = "1"; m._live = true;
     m.innerHTML =
       `<div class="modal-panel"><div class="modal-head"><h2>Homebrew Studio</h2><button class="btn ghost" id="hb-x" type="button">✕</button></div>`+
       `<div class="modal-body">`+
@@ -7522,7 +7532,7 @@
   function closeNotice(){ const m = $("notice-modal"); if(!m) return; if(m._esc) document.removeEventListener("keydown", m._esc); m.remove(); if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock(); }
   function showNotice(title, bodyHTML){
     closeNotice();
-    const m = document.createElement("div"); m.className = "modal open noprint"; m.id = "notice-modal";
+    const m = document.createElement("div"); m.className = "modal open noprint"; m.id = "notice-modal"; m.dataset.transient = "1";
     m.innerHTML = `<div class="modal-panel" role="dialog" aria-modal="true" style="max-width:440px">`
       + `<div class="modal-head"><h2>${esc(title)}</h2></div>`
       + `<div class="modal-body">${bodyHTML}</div>`
@@ -7538,7 +7548,7 @@
   // Yes/No confirm dialog (reuses the .modal framework + closeNotice). onYes runs after the dialog closes.
   function showConfirm(title, bodyHTML, onYes, yesLabel, noLabel){
     closeNotice();
-    const m = document.createElement("div"); m.className = "modal open noprint"; m.id = "notice-modal";
+    const m = document.createElement("div"); m.className = "modal open noprint"; m.id = "notice-modal"; m.dataset.transient = "1";
     m.innerHTML = `<div class="modal-panel" role="dialog" aria-modal="true" style="max-width:440px">`
       + `<div class="modal-head"><h2>${esc(title)}</h2></div>`
       + `<div class="modal-body">${bodyHTML}</div>`
@@ -7580,7 +7590,7 @@
     const sb = sEl(inst,"spellbody"); if(!sb){ openNextPrep(); return; }
     let ov = $("prep-overlay");
     if(!ov){
-      ov = document.createElement("div"); ov.id = "prep-overlay"; ov.className = "modal noprint";
+      ov = document.createElement("div"); ov.id = "prep-overlay"; ov.className = "modal noprint"; ov.dataset.transient = "1";
       ov.innerHTML = `<div class="modal-panel prep-ov-panel"><div class="modal-head"><h2 id="prep-ov-title">Prepare spells</h2>`
         + `<button class="btn ghost" id="prep-ov-x" type="button" title="Done">✕</button></div>`
         + `<div class="modal-body" id="prep-ov-body"></div>`
@@ -8425,7 +8435,7 @@
     else if(fallback) body = `<div class="fd-text">${esc(fallback)}</div>`;
     else return;
     closeFeatureDetail();
-    const m = document.createElement("div"); m.id = "feat-detail"; m.className = "feat-detail noprint";
+    const m = document.createElement("div"); m.id = "feat-detail"; m.className = "feat-detail noprint"; m.dataset.transient = "1";
     m.innerHTML = `<div class="fd-card"><div class="fd-head"><span>${esc(name)}</span><button type="button" class="fd-x" aria-label="Close">✕</button></div><div class="fd-scroll">${body}</div></div>`;
     document.body.appendChild(m);
     m.addEventListener("click", ev => { if(ev.target === m || ev.target.closest(".fd-x")) closeFeatureDetail(); });
@@ -10726,7 +10736,7 @@
   function closeCtxMenu(){ const m=$("ctx-menu"); if(m) m.remove(); }
   function openCtxMenu(x, y, items){
     closeCtxMenu();
-    const m = document.createElement("div"); m.id="ctx-menu"; m.className="ctx-menu noprint";
+    const m = document.createElement("div"); m.id="ctx-menu"; m.className="ctx-menu noprint"; m.dataset.transient = "1";
     items.forEach(it => { const btn=document.createElement("button"); btn.type="button"; btn.className="ctx-item"; btn.textContent=it.label;
       btn.addEventListener("click", ev => { ev.preventDefault(); closeCtxMenu(); it.fn(); }); m.appendChild(btn); });
     document.body.appendChild(m);
@@ -10962,7 +10972,7 @@
   function closeCastPop(){ const p = $("cast-pop"); if(p) p.remove(); }
   function openCastPop(btn, avail){
     closeCastPop();
-    const pop = document.createElement("div"); pop.id = "cast-pop"; pop.className = "cast-pop noprint";
+    const pop = document.createElement("div"); pop.id = "cast-pop"; pop.className = "cast-pop noprint"; pop.dataset.transient = "1";
     pop.innerHTML = `<div class="cast-pop-h">Cast at level</div>` + avail.map(L =>
       `<button type="button" class="cast-pop-lvl" data-lvl="${L}">Lv ${L} <span>${slotRemaining(L)} left</span></button>`).join("");
     document.body.appendChild(pop);
@@ -12359,7 +12369,7 @@
     if(isIOS) msg = "To use this offline, add it to your Home Screen: tap Share, then “Add to Home Screen.”";
     else if(hosted){ msg = "Tip: press Save to download your own copy of this sheet, so you can open it offline anytime."; action = ()=> $("btn-savecopy").click(); }
     else return;   // opened as a local file already — they have their copy
-    const bar = document.createElement("div"); bar.className = "install-hint noprint";
+    const bar = document.createElement("div"); bar.className = "install-hint noprint"; bar.dataset.transient = "1";
     const span = document.createElement("span"); span.className = "install-hint-msg"; span.textContent = msg; bar.appendChild(span);
     if(action){ const b = document.createElement("button"); b.className = "btn primary"; b.type = "button"; b.textContent = "Save copy"; b.addEventListener("click", action); bar.appendChild(b); }
     const x = document.createElement("button"); x.className = "install-hint-x"; x.type = "button"; x.setAttribute("aria-label","Dismiss"); x.textContent = "✕";
@@ -12796,7 +12806,7 @@
     setupSpellSearch(0);
     setupInvAutocomplete();
     (function setupPrepFloat(){   // left-margin "Can Prepare" readout that follows the spell-list scroll
-      const pf = document.createElement("div"); pf.id = "prep-float"; pf.className = "prep-float noprint"; pf.hidden = true;
+      const pf = document.createElement("div"); pf.id = "prep-float"; pf.className = "prep-float noprint"; pf.dataset.transient = "1"; pf.hidden = true;
       pf.innerHTML = `<span class="pf-label">Can Prepare</span><span class="pf-val" id="prep-float-val"></span>`;
       document.body.appendChild(pf);
       window.addEventListener("scroll", updatePrepFloat, {passive:true});
@@ -13078,6 +13088,7 @@
     $("btn-savecopy").addEventListener("click", async ()=>{
       flushSave();                                                                      // capture any pending edit to the active character first
       const clone = document.documentElement.cloneNode(true);
+      stripTransientChrome(clone);
       const n = await bakeAllInto(clone);                                               // ALL characters, not just the active one — the file is your whole library
       download("<!DOCTYPE html>\n" + clone.outerHTML, versionedFileName(), "text/html");   // not tied to one character → generic name
       const books = (DATA && DATA._meta && (DATA._meta.books||[]).length) ? " and "+DATA._meta.books.length+" sourcebook"+(DATA._meta.books.length===1?"":"s") : "";
