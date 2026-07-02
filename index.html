@@ -1324,6 +1324,11 @@
   html.mobile .spelltable td.col-name-edit{ flex-wrap:wrap }   /* let the meta line drop below the name field on write-in rows */
   html.mobile .spelltable td.col-name{ font-size:14px; }   /* a touch larger now that there's room */
   html.mobile body{ padding-bottom:calc(16px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar so it doesn't cover the last card */
+  /* iOS Safari: the sticky .pagetabs is an overflow-x scroller with a margin:0 -10px edge-bleed; on a real
+     device that lets you rubber-band/overscroll the document sideways into the empty -10px region (blank space +
+     sticky-repaint glitches). Clip horizontal overflow so the page can never scroll left/right. overflow-x:clip
+     (not hidden) does NOT create a scroll container, so it leaves position:sticky and vertical scrolling intact. */
+  html.mobile, html.mobile body{ overflow-x:clip; }
 
   /* kill the legacy ~300ms double-tap delay on tap targets (keeps pinch-zoom + scroll) */
   html.mobile *, html.mobile *::before, html.mobile *::after{ touch-action:manipulation; }
@@ -2965,11 +2970,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v446 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v447 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.88.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.88.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
