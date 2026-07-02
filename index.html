@@ -3019,11 +3019,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v461 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v462 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.94.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.94.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3031,6 +3031,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v462", semver:"2.94.1", items:[
+      "Removed the Rename button from the Character Manager cards (it made Delete overflow on a phone). Rename a character by editing its name at the top of the sheet.",
+    ]},
     {v:"v461", semver:"2.94.0", items:[
       "Ancestral Weapon art now resizes to fit its frame instead of being cropped, so the whole image shows.",
       "The Character Manager card view is far more usable on a phone: cards are a compact two-up grid with smaller portraits and type, instead of one oversized card per row.",
@@ -13656,7 +13659,6 @@
           (c.campaign ? `<div class="cm-camp">⚔ ${esc(c.campaign)}</div>` : ``) +
           `<div class="cm-when">${c.unsaved ? "unsaved" : "edited " + esc(relTime(c.savedAt))}</div></div>` +
         `<div class="cm-acts">` +
-          `<button type="button" class="cm-rename">Rename</button>` +
           `<button type="button" class="cm-dupe">Duplicate</button>` +
           `<button type="button" class="cm-del">Delete</button>` +
         `</div>`;
@@ -13675,7 +13677,6 @@
       const open = ()=>{ if(c.slot === SLOT){ closeCharMgr(); return; } gotoSlot(c.slot); };   // tapping the card opens it (no separate Open button)
       portEl.addEventListener("click", open);
       card.querySelector(".cm-meta").addEventListener("click", open);
-      card.querySelector(".cm-rename").addEventListener("click", e=>{ e.stopPropagation(); renameSlot(c); });
       card.querySelector(".cm-dupe").addEventListener("click", e=>{ e.stopPropagation(); duplicateSlot(c); });
       card.querySelector(".cm-del").addEventListener("click", e=>{ e.stopPropagation(); deleteSlot(c); });
       return card;
@@ -13705,14 +13706,6 @@
         const qs = q > 1024 ? (q/1024).toFixed(1)+" GB" : Math.round(q)+" MB";
         $("cm-storage").textContent = "Browser storage (IndexedDB): " + us + " of " + qs + " used"; }).catch(()=>{});
     }
-  }
-  function renameSlot(c){
-    const nm = prompt("Character name:", c.name || "");
-    if(nm == null) return;
-    const name = nm.trim();
-    if(c.slot === SLOT){ $("charname").value = name; save(); renderCharMgr(); return; }   // live character → go through the normal save path
-    try{ const d = JSON.parse(csGet(c.key)) || {}; d.charname = name; d.savedAt = Date.now(); csSet(c.key, JSON.stringify(d)); }catch(e){}
-    renderCharMgr();
   }
   function duplicateSlot(c){
     if(c.slot === SLOT) flushSave();   // make sure we copy the latest
