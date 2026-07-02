@@ -1420,7 +1420,13 @@
      collapses to ONE giant card per row with a 120px portrait. Shrink to a 2-up
      grid of compact cards: smaller portrait, tighter type, and let a parent+Simulacrum
      group stack vertically inside its narrow cell instead of the desktop side-by-side. --- */
-  html.mobile #charmgr .cm-grid:not(.list-view){ grid-template-columns:repeat(2,1fr); gap:8px; }
+  html.mobile #charmgr .cm-grid:not(.list-view){ grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }   /* minmax(0,…) not 1fr: 1fr's implicit auto-min lets a card's content push the track wider than half, overflowing by a couple px */
+  /* the top control row (New / Import / count / Sort + view toggle) doesn't wrap, so on a
+     narrow phone its fixed-width buttons push the view toggle off the right edge and let the
+     modal scroll sideways. Wrap it, and let the New/Import buttons flex down to share a row. */
+  html.mobile #charmgr .cm-top{ flex-wrap:wrap; row-gap:8px; }
+  html.mobile #charmgr .cm-top > .btn{ flex:1 1 auto; min-width:0; }
+  html.mobile #charmgr .cm-controls{ flex:1 1 100%; justify-content:flex-end; }
   html.mobile #charmgr .cm-port{ height:74px; }
   html.mobile #charmgr .cm-port .cm-init{ font-size:24px; }
   html.mobile #charmgr .cm-meta{ padding:6px 8px; }
@@ -1432,7 +1438,7 @@
   /* a group with a Simulacrum: stack parent over child so both fit the ~½-width cell.
      grid-column:auto !important overrides the inline "span N" the renderer sets to widen
      the group on desktop (side-by-side sims); on a phone the group is one narrow column. */
-  html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim{ flex-direction:column; grid-column:auto !important; }
+  html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim{ flex-direction:column; flex-wrap:nowrap; align-items:stretch; grid-column:auto !important; }   /* override the desktop row rule's align-items:flex-start (which sizes the stacked cards to content and overflows the cell) + flex-wrap */
   html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card:first-child,
   html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child{ flex:1 1 auto; }
   html.mobile #charmgr .cm-grid:not(.list-view) .cm-group.has-sim > .cm-card.cm-child .cm-port{ height:74px; }
@@ -3019,11 +3025,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v462 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v463 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.94.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.94.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3031,6 +3037,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v463", semver:"2.94.2", items:[
+      "Fixed the Character Manager's top controls (New / Import / Sort / the card-vs-list toggle) spilling off a narrow phone screen and letting the panel scroll sideways. The row now wraps.",
+    ]},
     {v:"v462", semver:"2.94.1", items:[
       "Removed the Rename button from the Character Manager cards (it made Delete overflow on a phone). Rename a character by editing its name at the top of the sheet.",
     ]},
