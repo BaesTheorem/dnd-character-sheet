@@ -1041,7 +1041,13 @@
   .aw-up-tag{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-left:6px}
   .aw-up-tag.lim{color:#b4690e}
   .aw-up-why{font-size:10px; color:#b42318; margin-left:6px}
-  .aw-up-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:2px}
+  .aw-up-toggle{background:none; border:none; padding:0; margin:0; font:inherit; color:inherit; cursor:pointer; display:inline-flex; align-items:baseline; gap:5px; text-align:left}
+  .aw-chev{display:inline-block; font-size:9px; color:var(--muted); transition:transform .12s; transform:translateY(-1px)}
+  .aw-up.open .aw-chev{transform:translateY(-1px) rotate(90deg)}
+  .aw-up-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:2px; display:none}
+  .aw-up.open .aw-up-text{display:block}
+  .aw-up-tools{display:inline-flex; gap:8px; margin-left:auto}
+  .aw-up-all{background:none; border:none; padding:0; font-size:11px; letter-spacing:normal; text-transform:none; color:var(--accent); cursor:pointer; text-decoration:underline}
   .aw-card-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:6px; margin-bottom:8px}
   .aw-rarity{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--accent)}
   .aw-card-body{display:flex; gap:14px; flex-wrap:wrap}
@@ -2959,11 +2965,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v445 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v446 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.87.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.88.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6058,6 +6064,7 @@
     }).join("") + `<div style="margin-top:10px">${newBtn}</div>`;
   }
   let _awBuild = null;   // current build: {name, baseWeapon, points, upgrades:[], lore, physical, sourceIdx, editKey}
+  let _awUpOpen = new Set();   // lc names of upgrades whose description is expanded (collapsed by default)
   function awCharLevel(){ const n = parseClassLevels($("classlevel").value).reduce((a,c)=>a+(c.level||0),0); return n>0 ? n : null; }   // null = no class set → don't tier-gate
   function buildAwBuilder(){
     if($("aw-builder")) return;
@@ -6071,7 +6078,7 @@
           `<label class="cspell-f" style="flex:0 0 92px"><span>Spirit Points</span><input type="number" id="aw-points" min="0" max="25" step="1" value="0"></label>`+
         `</div>`+
         `<div class="aw-summary" id="aw-summary"></div>`+
-        `<div class="hb-section-h"><span>Upgrades</span><span class="aw-budget" id="aw-budget"></span></div>`+
+        `<div class="hb-section-h"><span>Upgrades</span><span class="aw-up-tools"><button type="button" class="aw-up-all" id="aw-expand-all">Expand all</button><button type="button" class="aw-up-all" id="aw-collapse-all">Collapse all</button></span><span class="aw-budget" id="aw-budget"></span></div>`+
         `<div id="aw-upgrades" class="aw-uplist"></div>`+
         `<div class="hb-section-h"><span>Additional properties</span><button class="btn" id="aw-add-extra" type="button">+ Property</button></div>`+
         `<div id="aw-extras"></div>`+
@@ -6087,7 +6094,12 @@
     $("aw-points").addEventListener("input", () => { _awBuild.points = parseInt($("aw-points").value,10)||0; awRenderState(); });
     $("aw-base").addEventListener("change", () => { _awBuild.baseWeapon = $("aw-base").value.trim(); awRenderUpgrades(); awRenderState(); });
     $("aw-save").addEventListener("click", awSaveBuild);
-    $("aw-upgrades").addEventListener("click", e => { const b = e.target.closest(".aw-buy"); if(b) awToggleUpgrade(b.dataset.up); });
+    $("aw-upgrades").addEventListener("click", e => {
+      const b = e.target.closest(".aw-buy"); if(b){ awToggleUpgrade(b.dataset.up); return; }
+      const t = e.target.closest(".aw-up-toggle"); if(t){ const lc=t.dataset.toggle.toLowerCase(); if(_awUpOpen.has(lc)) _awUpOpen.delete(lc); else _awUpOpen.add(lc); const row=t.closest(".aw-up"); if(row) row.classList.toggle("open"); }
+    });
+    $("aw-expand-all").addEventListener("click", () => { AW_UPGRADES.forEach(u=>_awUpOpen.add(u.n.toLowerCase())); awRenderUpgrades(); });
+    $("aw-collapse-all").addEventListener("click", () => { _awUpOpen.clear(); awRenderUpgrades(); });
     $("aw-add-extra").addEventListener("click", () => { (_awBuild.extras = _awBuild.extras || []).push({name:"", text:"", bonus:"", extraDamage:""}); awRenderExtras(); awRenderState(); });
     $("aw-extras").addEventListener("input", e => { const t = e.target, i = +t.dataset.i; if(isNaN(i) || !(_awBuild.extras||[])[i]) return; const x = _awBuild.extras[i];
       if(t.classList.contains("aw-x-name")) x.name = t.value; else if(t.classList.contains("aw-x-bonus")) x.bonus = t.value; else if(t.classList.contains("aw-x-dmg")) x.extraDamage = t.value; else if(t.classList.contains("aw-x-text")) x.text = t.value;
@@ -6107,6 +6119,7 @@
     $("aw-src").innerHTML = homebrewSources.map((s,i)=>`<option value="${i}" ${i===idx?"selected":""}>${esc(s.name)}</option>`).join("");
     $("aw-name").value = _awBuild.name; $("aw-base").value = _awBuild.baseWeapon;
     $("aw-points").value = String(_awBuild.points); $("aw-lore").value = _awBuild.lore; $("aw-physical").value = _awBuild.physical;
+    _awUpOpen.clear();   // start with every description collapsed
     awRenderUpgrades(); awRenderExtras(); awRenderState();
     $("aw-builder").classList.add("open");
     setTimeout(()=>$("aw-name").focus(),0);
@@ -6147,9 +6160,10 @@
         const v=isCh?{ok:true}:awCanAdd(u.n,b,cl);
         const tags=[u.lim?`<span class="aw-up-tag lim">limited</span>`:"", u.req?`<span class="aw-up-tag">${esc(u.req)}</span>`:""].join("");
         const why=(!isCh && !v.ok)?`<span class="aw-up-why">${esc(v.reason)}</span>`:"";
-        html += `<div class="aw-up ${isCh?"chosen":""} ${(!isCh&&!v.ok)?"locked":""}">`+
+        const open=_awUpOpen.has(u.n.toLowerCase());
+        html += `<div class="aw-up ${isCh?"chosen":""} ${(!isCh&&!v.ok)?"locked":""} ${open?"open":""}">`+
           `<button type="button" class="aw-buy" data-up="${esc(u.n)}" title="${isCh?"Remove":"Add"}">${isCh?"✓":"+"}</button>`+
-          `<div class="aw-up-main"><span class="aw-up-name">${esc(u.n)}</span><span class="aw-up-cost">${u.c} SP</span>${tags}${why}`+
+          `<div class="aw-up-main"><button type="button" class="aw-up-toggle" data-toggle="${esc(u.n)}" title="Show description"><span class="aw-chev">▸</span><span class="aw-up-name">${esc(u.n)}</span></button><span class="aw-up-cost">${u.c} SP</span>${tags}${why}`+
           `<div class="aw-up-text">${esc(awText(u.n))}</div></div></div>`;
       });
     });
