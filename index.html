@@ -2972,11 +2972,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v453 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v454 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.91.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.91.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2984,6 +2984,33 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v454", semver:"2.91.2", items:[
+      "Housekeeping: release notes were backfilled for 2.88.0 through 2.91.1 (they were missing from this guide), and an unused internal export helper was removed. No gameplay changes."
+    ]},
+    {v:"v453", semver:"2.91.1", items:[
+      "Ancestral Weapon property autofill now fires the instant you pick a known enchantment from the suggestion list (on some browsers a pick could leave the rules text blank until you clicked away). And the self-heal for missing Ancestral Weapon rules text now also repairs a file that is only partially missing it, e.g. one that has the upgrade descriptions but not the newer property descriptions."
+    ]},
+    {v:"v452", semver:"2.91.0", items:[
+      "Flavor text is now a field on every homebrew item, not just Ancestral Weapons: a dedicated \"Flavor text\" box in the Homebrew Studio item form, shown in italics in the item's hover/tap preview card. The Ancestral Weapon builder keeps its own Flavor field for the weapon as a whole, alongside History and Physical description. (This replaces the per-property flavor field from 2.90.0, which was the wrong scope.)"
+    ]},
+    {v:"v451", semver:"2.90.0", items:[
+      "Ancestral Weapon builder: the \"Additional properties\" name field now knows the classic magic-weapon enchantments (Vorpal, Flame Tongue, Frost Brand, Defender, Holy Avenger, Sun Blade, Luck Blade, and more). Pick one from the suggestions and its rules text and flat bonus fill in automatically; your own typed text is never overwritten. Conditional extra damage (vs a creature type, on a crit, while lit) is intentionally left to the text rather than auto-applied as an always-on rider."
+    ]},
+    {v:"v450", semver:"2.89.0", items:[
+      "The sheet now fully repairs itself when a downloaded copy lost its Ancestral Weapon upgrade descriptions to an earlier update bug: on open it detects the missing text, re-fetches it from the published copy in the background, and bakes the repair in, no manual fix needed. Updates produced by this build can no longer strip that text in the first place."
+    ]},
+    {v:"v449", semver:"2.88.3", items:[
+      "Updating the sheet can no longer lose the Ancestral Weapon upgrade descriptions: the update process now preserves the text already baked into your file instead of trusting the running copy, which could be empty."
+    ]},
+    {v:"v448", semver:"2.88.2", items:[
+      "Ancestral Weapon upgrade descriptions now display even when your stored data lost them (for example after an old sources reload): the sheet falls back to the text baked into the file itself."
+    ]},
+    {v:"v447", semver:"2.88.1", items:[
+      "Mobile fix: the page can no longer be dragged sideways into blank space on iPhone. Horizontal overflow is clipped at the page level; the page-tab strip still swipes side to side and stays pinned while you scroll."
+    ]},
+    {v:"v446", semver:"2.88.0", items:[
+      "Ancestral Weapon builder: upgrade descriptions are now collapsed by default so the full 134-upgrade list is scannable. Click an upgrade's name to expand its rules text, or use the new Expand all / Collapse all buttons in the Upgrades header."
+    ]},
     {v:"v445", semver:"2.87.1", items:[
       "A chosen homebrew item now applies its own AC and spell-DC bonuses even when an official item shares its name. Previously the official item's numbers won that tie; now the version you picked in the Inventory search is fully authoritative, and choosing the official one still gives the official numbers."
     ]},
@@ -6264,17 +6291,6 @@
     flashStatus(`Saved Ancestral Weapon “${name}” (${d.rarity}) to ${src.name}`);
   }
   function hbEnsureSourceAt(i){ if(!homebrewSources[i]) homebrewSources[i]={name:"My Homebrew",enabled:true}; const c=homebrewSources[i]; HB_BAGS.forEach(k => { c[k]=c[k]||{}; }); return c; }
-  function exportAwContent(){   // write ALL Ancestral Weapons (across every homebrew source) to a re-importable JSON file
-    const items = {}; let n = 0;
-    homebrewSources.forEach(s => { for(const k in (s.items||{})){ const it = s.items[k]; if(it && it.aw){ items[String(it.name||k).toLowerCase()] = it; n++; } } });
-    if(!n){ flashStatus("No Ancestral Weapons to export yet — build one first"); return; }
-    // Silo the third-party Ancestral Weapons book content (Dungeon Rollers IP) INTO the file as data, so the file is
-    // self-contained and the rules travel with it rather than being assumed baked into the recipient's app.
-    const awUpgrades = {}; AW_UPGRADES.forEach(u => { awUpgrades[u.n] = Object.assign({}, u, { text: awText(u.n) }); });
-    const out = { _meta:{ awExport:true, name:"Ancestral Weapons", dataVersion:(typeof DATA_VERSION!=="undefined"?DATA_VERSION:0), source:"Ancestral Weapons framework \u00a9 Matt Vaughan / Dungeon Rollers, bundled for personal use" }, awUpgrades, items };
-    download(JSON.stringify(out, null, 1), "Ancestral Weapons.json", "application/json");
-    flashStatus("Exported the Ancestral Weapons book + " + n + " weapon" + (n===1?"":"s") + " as JSON — re-import via Import files\u2026");
-  }
   function importAwContent(d){   // merge an Ancestral Weapons sourcebook export: book content (upgrades + text) then the weapons
     hbAwBundleInto(d);   // bundle any upgrade definitions/text this file carries that we don't already have
     const items = (d && d.items) || {};
