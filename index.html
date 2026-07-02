@@ -1067,6 +1067,13 @@
   .aw-flavor{font-size:12px; margin:4px 0; line-height:1.5; font-style:italic; color:var(--muted)}
   .aw-lore{font-size:12px; margin:4px 0; line-height:1.5}
   .aw-lore .k{font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-right:4px}
+  .aw-manage{margin-top:10px; border-top:1px solid var(--line); padding-top:8px}
+  .aw-sp-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .aw-sp-lbl{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted)}
+  .aw-sp-sub{font-weight:400; text-transform:none; letter-spacing:normal}
+  .aw-manage .aw-pts{width:64px}
+  .aw-manage-toggle{margin-top:8px; font-size:12px}
+  .aw-card-ups{margin-top:8px; max-height:340px; overflow:auto; border:1px solid var(--line); padding:2px 8px}
   .aw-abilities{margin-top:8px}
   .aw-ability{border-top:1px solid var(--line); padding:5px 0}
   .aw-ability-name{font-weight:600; font-size:12px}
@@ -3031,11 +3038,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v464 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v465 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.95.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.96.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3043,6 +3050,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v465", semver:"2.96.0", items:[
+      "You can now set Spirit Points and buy/refund upgrades for an Ancestral Weapon right on its tab, with a live SP budget. These changes apply only to your character's copy of the weapon, never to the shared source material, so the same weapon can be tuned differently on different sheets.",
+    ]},
     {v:"v464", semver:"2.95.0", items:[
       "The character header no longer squashes on a phone: the identity fields (Class & Level, Background, Race, Alignment, Player, Campaign, Experience) each get a full-width row beside the portrait instead of clipping in cramped two-up columns.",
     ]},
@@ -6211,17 +6221,61 @@
     document.addEventListener("click", e => { const dc = e.target.closest && e.target.closest("[data-card]"); if(dc){ if(_pcFor === dc){ hidePreviewCard(); } else { showPreviewCard(dc.getAttribute("data-card"), dc); } } });   // mobile tap-toggle on list rows
     window.addEventListener("scroll", hidePreviewCard, true);
   }
+  // ---- Per-CHARACTER Ancestral Weapon tuning ------------------------------------------------------------------
+  // Spirit Points + spent upgrades set on the AW tab are stored PER CHARACTER (awOverrides, keyed by lc weapon
+  // name) and overlaid onto the shared homebrew source item at resolve time, so tuning a weapon on one sheet
+  // never edits the source material or any other character's copy. Only points + upgrades are character-local;
+  // base weapon / extras / lore / art stay authored on the source (via the builder). Persisted in save().
+  let awOverrides = {};
+  function awDeriveInto(item){   // recompute an AW item's derived fields from its .aw build (mirrors awSaveBuild's emit)
+    const b=item.aw, d=awDerive(b);
+    item.rarity=d.rarity; item.acBonus=d.ac; item.spellAtk=d.spellAtk; item.text=awDescribe(b,d);
+    b.magicBonus=d.magicBonus; b.rider=d.riders.join(", ");
+    return d;
+  }
+  function awCharItem(it){   // apply this character's local override (if any) to a source AW item, returning a CLONE (source untouched)
+    if(!it || !it.aw) return it;
+    const ov = awOverrides[String(it.name||"").toLowerCase()];
+    if(!ov) return it;
+    const clone = JSON.parse(JSON.stringify(it));
+    if(ov.points != null) clone.aw.points = +ov.points || 0;
+    if(ov.upgrades) clone.aw.upgrades = ov.upgrades.slice();
+    awDeriveInto(clone);
+    return clone;
+  }
+  function awEnsureOverride(it){   // seed this character's override from the source build the first time they tune it
+    const lc = String(it.name||"").toLowerCase();
+    if(!awOverrides[lc]){ const b = it.aw||{}; awOverrides[lc] = {points:b.points||0, upgrades:(b.upgrades||[]).slice()}; }
+    return awOverrides[lc];
+  }
+  function awPageToggleUpgrade(si, key, name){   // buy/refund an upgrade on THIS character's copy from the AW tab
+    const src = homebrewSources[si] && homebrewSources[si].items[key]; if(!src || !src.aw) return;
+    const ov = awEnsureOverride(src);
+    const i = ov.upgrades.findIndex(x => x.toLowerCase() === name.toLowerCase());
+    if(i >= 0){ ov.upgrades.splice(i, 1); }
+    else { const v = awCanAdd(name, {upgrades:ov.upgrades, baseWeapon:src.aw.baseWeapon}, awCharLevel()); if(!v.ok){ flashStatus(v.reason); return; } ov.upgrades.push(name); }
+    save(); compute(); renderAwPage();
+  }
   function renderAwPage(){
     const host=$("aw-page-body"); if(!host) return;
     if(!host._wired){ host._wired=true;
-      host.addEventListener("click", e=>{ const ed=e.target.closest(".aw-edit"); if(ed){ openAwBuilder(+ed.dataset.si, ed.dataset.key); return; } if(e.target.closest(".awpage-new")){ openAwBuilder(_hbCurId||0); } });
-      host.addEventListener("change", e=>{ const inp=e.target.closest(".aw-art-in"); if(inp && inp.files && inp.files[0]){ const si=+inp.dataset.si, key=inp.dataset.key; awResizeImage(inp.files[0], url=>{ const it=homebrewSources[si]&&homebrewSources[si].items[key]; if(it){ it.img=url; if(it.aw) delete it.aw.art; saveHomebrew(); renderAwPage(); } }); } });
+      host.addEventListener("click", e=>{
+        const buy=e.target.closest(".aw-buy"); if(buy){ const w=buy.closest(".aw-manage"); if(w) awPageToggleUpgrade(+w.dataset.si, w.dataset.key, buy.dataset.up); return; }
+        const tg=e.target.closest(".aw-up-toggle"); if(tg && e.target.closest(".aw-card-ups")){ const lc=tg.dataset.toggle.toLowerCase(); if(_awUpOpen.has(lc)) _awUpOpen.delete(lc); else _awUpOpen.add(lc); renderAwPage(); return; }
+        const mt=e.target.closest(".aw-manage-toggle"); if(mt){ const pk=mt.dataset.pk; if(_awPanelOpen.has(pk)) _awPanelOpen.delete(pk); else _awPanelOpen.add(pk); renderAwPage(); return; }
+        const ed=e.target.closest(".aw-edit"); if(ed){ openAwBuilder(+ed.dataset.si, ed.dataset.key); return; }
+        if(e.target.closest(".awpage-new")){ openAwBuilder(_hbCurId||0); }
+      });
+      host.addEventListener("change", e=>{
+        const inp=e.target.closest(".aw-art-in"); if(inp && inp.files && inp.files[0]){ const si=+inp.dataset.si, key=inp.dataset.key; awResizeImage(inp.files[0], url=>{ const it=homebrewSources[si]&&homebrewSources[si].items[key]; if(it){ it.img=url; if(it.aw) delete it.aw.art; saveHomebrew(); renderAwPage(); } }); return; }
+        const pts=e.target.closest(".aw-pts"); if(pts){ const w=pts.closest(".aw-manage"); if(!w) return; const src=homebrewSources[+w.dataset.si]&&homebrewSources[+w.dataset.si].items[w.dataset.key]; if(!src||!src.aw) return; const ov=awEnsureOverride(src); ov.points=Math.max(0, parseInt(pts.value,10)||0); save(); compute(); renderAwPage(); }
+      });
     }
-    const aws=awAllItems();
+    const aws=awAllItems(), cl=awCharLevel();
     const newBtn=`<button class="btn primary awpage-new" type="button">+ New Ancestral Weapon</button>`;
     if(!aws.length){ host.innerHTML=`<div class="card"><p class="wiz-hint" style="margin:0 0 8px">No Ancestral Weapons yet.</p>${newBtn}</div>`; return; }
     host.innerHTML = aws.map(({it,si,key})=>{
-      const a=it.aw, d=awDerive(a), w=weaponByName(a.baseWeapon);
+      const cit=awCharItem(it), a=cit.aw, d=awDerive(a), w=weaponByName(a.baseWeapon);
       const attuned=(typeof attunedNames==="function") && attunedNames().has(String(key).toLowerCase());
       const dmg = w ? ((w.dmg||"")+(w.dmgType?" "+w.dmgType:"")) : "";
       const stat=[];
@@ -6241,6 +6295,15 @@
       const art = artUrl
         ? `<img class="aw-art" src="${artUrl}" alt=""><label class="btn" style="margin-top:6px; display:block; text-align:center">Change art<input type="file" accept="image/*,.heic,.heif" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`
         : `<label class="aw-art aw-art-empty">+ Add art<input type="file" accept="image/*,.heic,.heif" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`;
+      const pk=si+":"+key, panelOpen=_awPanelOpen.has(pk);
+      const spent=awSpent(a.upgrades), lim=awLimitedCount(a.upgrades), over=spent>(a.points||0);
+      const manage = `<div class="aw-manage" data-si="${si}" data-key="${esc(key)}">`+
+        `<div class="aw-sp-row"><label class="aw-sp-lbl">Spirit Points <span class="aw-sp-sub">(this character)</span></label>`+
+        `<input type="number" min="0" class="aw-pts" data-si="${si}" data-key="${esc(key)}" value="${a.points||0}">`+
+        `<span class="aw-budget ${over?"over":""}">${spent} / ${a.points||0} SP spent${over?" — over budget":""} · ${lim}/2 limited</span></div>`+
+        `<button type="button" class="btn aw-manage-toggle" data-pk="${esc(pk)}">${panelOpen?"Hide upgrades":"Spend points on upgrades"}</button>`+
+        (panelOpen?`<div class="aw-card-ups">${awUpgradeListHtml(a, cl)}</div>`:"")+
+        `</div>`;
       return `<div class="card aw-card">`+
         `<div class="aw-card-head"><h2 style="margin:0">${esc(it.name)}</h2><span class="aw-rarity">${esc(d.rarity)} · ${esc(a.baseWeapon)} · ${a.points} SP</span>${attuned?'<span class="aw-attuned">● Attuned</span>':'<span class="aw-mundane">Not attuned — mundane until attuned</span>'}<span style="margin-left:auto"><button class="btn aw-edit" data-si="${si}" data-key="${esc(key)}" type="button">Edit in builder</button></span></div>`+
         `<div class="aw-card-body"><div class="aw-art-col">${art}</div><div class="aw-stat-col">`+
@@ -6248,12 +6311,14 @@
         (it.flavor?`<div class="aw-flavor">${esc(it.flavor)}</div>`:"")+
         (a.lore?`<div class="aw-lore"><span class="k">History</span>${esc(a.lore)}</div>`:"")+
         (a.physical?`<div class="aw-lore"><span class="k">Physical</span>${esc(a.physical)}</div>`:"")+
+        manage+
         `<div class="aw-abilities">${(abilities+extraAb)||'<span class="wiz-hint">No upgrades or properties yet.</span>'}</div>`+
         `</div></div></div>`;
     }).join("") + `<div style="margin-top:10px">${newBtn}</div>`;
   }
   let _awBuild = null;   // current build: {name, baseWeapon, points, upgrades:[], lore, physical, sourceIdx, editKey}
   let _awUpOpen = new Set();   // lc names of upgrades whose description is expanded (collapsed by default)
+  let _awPanelOpen = new Set();   // "si:key" of AW cards whose on-tab upgrade picker is expanded
   function awCharLevel(){ const n = parseClassLevels($("classlevel").value).reduce((a,c)=>a+(c.level||0),0); return n>0 ? n : null; }   // null = no class set → don't tier-gate
   function buildAwBuilder(){
     { const ex = $("aw-builder"); if(ex){ if(ex._live) return; ex.remove(); } }   // a serialized corpse (saved-while-built, pre-strip) has no listeners: rebuild it
@@ -6369,15 +6434,15 @@
     const bud=$("aw-budget"); bud.textContent = `${d.spent} / ${b.points} SP spent${over?" — over budget":""} · ${awLimitedCount(b.upgrades)}/2 limited`;
     bud.classList.toggle("over", over);
   }
-  function awRenderUpgrades(){
-    const el=$("aw-upgrades"); if(!el) return;
-    const b=_awBuild, cl=awCharLevel(), chosen=new Set(b.upgrades.map(x=>x.toLowerCase()));
+  // Tiered upgrade picker markup for a build (shared by the builder modal and the on-tab per-character panel).
+  function awUpgradeListHtml(build, cl){
+    const chosen=new Set((build.upgrades||[]).map(x=>x.toLowerCase()));
     let html="";
     [1,2,3,4].forEach(t=>{
       html += `<div class="aw-tier">Tier ${t} — level ${AW_TIER_MIN[t]}+</div>`;
       AW_UPGRADES.filter(u=>u.t===t).sort((a,c)=>(c.lim?1:0)-(a.lim?1:0) || a.n.localeCompare(c.n)).forEach(u=>{
         const isCh=chosen.has(u.n.toLowerCase());
-        const v=isCh?{ok:true}:awCanAdd(u.n,b,cl);
+        const v=isCh?{ok:true}:awCanAdd(u.n,build,cl);
         const tags=[u.lim?`<span class="aw-up-tag lim">limited</span>`:"", u.req?`<span class="aw-up-tag">${esc(u.req)}</span>`:""].join("");
         const why=(!isCh && !v.ok)?`<span class="aw-up-why">${esc(v.reason)}</span>`:"";
         const open=_awUpOpen.has(u.n.toLowerCase());
@@ -6387,8 +6452,9 @@
           `<div class="aw-up-text">${esc(awText(u.n))}</div></div></div>`;
       });
     });
-    el.innerHTML=html;
+    return html;
   }
+  function awRenderUpgrades(){ const el=$("aw-upgrades"); if(!el) return; el.innerHTML=awUpgradeListHtml(_awBuild, awCharLevel()); }
   function awRenderExtras(){
     const el=$("aw-extras"); if(!el) return; const ex=_awBuild.extras||[];
     el.innerHTML = ex.length ? ex.map((x,i)=>
@@ -7111,8 +7177,8 @@
   function preferOfficialSet(){ const el = $("inv-prefer-official"); const raw = el ? (el.value||"") : ""; if(raw !== _prefOffRaw){ _prefOffRaw = raw; _prefOffSet = new Set(raw.split("\n").map(s => s.trim().toLowerCase()).filter(Boolean)); } return _prefOffSet; }
   function setPreferOfficial(lc, on){ const el = $("inv-prefer-official"); if(!el) return; lc = String(lc||"").toLowerCase(); const s = new Set(preferOfficialSet()); if(on) s.add(lc); else s.delete(lc); el.value = [...s].join("\n"); _prefOffRaw = null;
     if(typeof save === "function") save(); if(typeof refreshHbItems === "function") refreshHbItems(); if(typeof compute === "function") compute(); }
-  function hbActiveItems(){ const out = {}; const pref = preferOfficialSet(); homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})){ if(pref.has(k)) continue; const it = s.items[k]; if(it.aw && !awEnabled) continue; if(!(k in out)) out[k] = it; } }); return out; }   // enabled-source homebrew items, keyed lc (AW items drop out when the Ancestral Weapons module is off; a name the player set to official is skipped)
-  function hbEnabledItem(lc){ if(preferOfficialSet().has(String(lc||"").toLowerCase())) return null; for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]){ const it = s.items[lc]; if(it.aw && !awEnabled) return null; return it; } } return null; }
+  function hbActiveItems(){ const out = {}; const pref = preferOfficialSet(); homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})){ if(pref.has(k)) continue; const it = s.items[k]; if(it.aw && !awEnabled) continue; if(!(k in out)) out[k] = it.aw ? awCharItem(it) : it; } }); return out; }   // enabled-source homebrew items, keyed lc (AW items drop out when the Ancestral Weapons module is off; awCharItem overlays this character's local SP/upgrade tuning; a name the player set to official is skipped)
+  function hbEnabledItem(lc){ if(preferOfficialSet().has(String(lc||"").toLowerCase())) return null; for(const s of homebrewSources){ if(s.enabled !== false && (s.items||{})[lc]){ const it = s.items[lc]; if(it.aw && !awEnabled) return null; return it.aw ? awCharItem(it) : it; } } return null; }
   // Every homebrew item across enabled sources (NOT gated by preferOfficial) with its source name — feeds the item picker,
   // which must show the homebrew alternate even for a name currently resolved to official, so you can switch back.
   function hbPickerItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})){ const it = s.items[k]; if(it.aw && !awEnabled) continue; if(!(k in out)) out[k] = {name:it.name, src:s.name}; } }); return out; }
@@ -8574,6 +8640,7 @@
     data.invEquip = []; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i); data.invEquip.push(!!(cb && cb.checked)); }   // per-row equipped state
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     data.companions = companions;
+    data.awOverrides = awOverrides;   // per-character Ancestral Weapon SP/upgrade tuning (source item untouched)
     data.infusions = infusions;
     data.optFeats = optFeats;
     data.lfDesc = []; for(let i=0;i<NLIMITED;i++){ const el = $("lfname-"+i); data.lfDesc.push((el && el.title) || ""); }   // limited-feature tooltips
@@ -8704,6 +8771,7 @@
       ["0","1","2"].forEach(k => { const s = $("attune-"+k); if(s && (("attune-"+k) in data)) s.value = data["attune-"+k]||""; }); }
     companions = (data && Array.isArray(data.companions)) ? data.companions.map(c => Object.assign(blankCompanion(), c)) : [];
     renderCompanions();
+    awOverrides = (data && data.awOverrides && typeof data.awOverrides === "object") ? data.awOverrides : {};
     infusions = (data && Array.isArray(data.infusions)) ? data.infusions.map(x => Object.assign(blankInfusion(), x)) : [];
     renderInfusions();
     optFeats = (data && Array.isArray(data.optFeats)) ? data.optFeats.map(x => ({type:x.type, name:x.name||""})) : [];
