@@ -2035,7 +2035,7 @@
           <div class="meta-grid">
             <div><label class="lbl" for="classlevel">Class &amp; Level</label><input data-save="" id="classlevel"></div>
             <div><label class="lbl" for="background">Background</label><input data-save="" id="background"></div>
-            <div><label class="lbl" for="race">Race</label><input data-save="" id="race"></div>
+            <div><label class="lbl" for="race">Race</label><input data-save="" id="race"><input type="hidden" data-save="" id="race-src"></div>
             <div><label class="lbl" for="alignment">Alignment</label><input data-save="" id="alignment"></div>
             <div><label class="lbl" for="player">Player</label><input data-save="" id="player"></div>
             <div><label class="lbl" for="campaign">Campaign</label><input data-save="" id="campaign"></div>
@@ -2958,11 +2958,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v441 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v442 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.85.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.86.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2970,6 +2970,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v442", semver:"2.86.0", items:[
+      "Selectors now show where each option comes from. The race and background pickers label every entry with its source (e.g. \"Elf · Player's Handbook\", \"Elf · My Homebrew\"), so when a homebrew thing and an official thing share a name you can see both and pick the exact one you want. Your race choice remembers its source, so the sheet always applies the right version, and existing characters are unaffected."
+    ]},
     {v:"v438", semver:"2.85.1", items:[
       "Homebrew Studio now stops you from creating two things with the same name in the same source. Saving a spell, item, feat, race, background, or subclass whose name already exists in that source is blocked with a heads-up, instead of silently overwriting the existing one. This keeps every homebrew entry uniquely identifiable by its source and name."
     ]},
@@ -4429,6 +4432,18 @@
                 : (Array.isArray(D.homebrew) ? D.homebrew : (D.homebrew && D.homebrew.sources) || []);
     hbArr.forEach(hb => sources.push({ id: srcId(SRC_KINDS.HB, hb.name), name: hb.name, kind: SRC_KINDS.HB, enabled: hb.enabled !== false, priority: 100, data: hbBagsToData(hb) }));
     D.sources = sources;
+  }
+  // Annotate the baked-at-load DATA entities with their source (_src/_srcName) by looking each name up in _meta.raw, so
+  // the selectors can ALWAYS show the source even before any rebuild. Non-destructive (only stamps untagged entities; never
+  // changes counts). First 5etools/file source (priority order) that lists a name wins it.
+  function tagSourcesFromRaw(D){
+    if(!D || !D._meta || !D._meta.raw || !Array.isArray(D.sources)) return;
+    const raw = D._meta.raw, cats = ["races","backgrounds","feats","spells","weapons","armor","monsters"];
+    D.sources.slice().sort((a,b) => (a.priority||0) - (b.priority||0)).forEach(s => {
+      if(s.kind === SRC_KINDS.HB) return; const data = raw[s.name]; if(!data) return;
+      cats.forEach(cat => { const names = new Set((data[cat]||[]).map(e => e && e.name));
+        (D[cat]||[]).forEach(x => { if(x && !x._src && names.has(x.name)){ x._src = s.id; x._srcName = s.name; } }); });
+    });
   }
   // Rebuild the merged DATA from the unified store — the sources-driven successor to rebuildFromRaw. Merges each enabled
   // 5etools/file source (in priority order) via mergeBook with (name,src) coexist + _src tagging, so same-name entities
@@ -9079,6 +9094,16 @@
   const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
   const optTag = (v,label) => `<option value="${esc(v)}">${esc(label)}</option>`;
   const byName = arr => (arr||[]).slice().sort((a,b) => (a.name||"").localeCompare(b.name||""));   // alphabetize object lists
+  // ---- Unified selector labeling + source-aware resolution (Stage 4) ----
+  const srcShort = n => String(n||"").replace(/\s*\((?:20)?\d{2}\)\s*$/,"").trim();   // drop a trailing "(2014)" year for compactness
+  const optLabel = x => (x && x._srcName) ? (x.name + " · " + srcShort(x._srcName)) : (x ? (x.name||"") : "");   // ALWAYS show the source (Alex's call)
+  // Resolve a picked name (+ optional source id/name) to its specific entity. Exact (name,src) first; else first-by-name
+  // (legacy data / no collision). This is what keeps a same-name homebrew vs official pick unambiguous once tagged.
+  function resolveEnt(list, name, src){
+    list = list || [];
+    if(src){ const hit = list.find(x => x && x.name === name && (x._src === src || x._srcName === src)); if(hit) return hit; }
+    return list.find(x => x && x.name === name) || null;
+  }
   const alpha  = arr => (arr||[]).slice().sort((a,b) => String(a).localeCompare(String(b)));        // alphabetize string lists
   const findBy = (arr,n) => arr.find(x => x.name === n);
 
@@ -9086,9 +9111,9 @@
     const btn = $("btn-create");
     if(!DATA){ if(btn){ btn.disabled=true; btn.title="Import sourcebook data to enable character creation"; } return; }
     if(btn){ btn.disabled=false; btn.title=""; }
-    $("wiz-race").innerHTML  = `<option value="">—</option>` + byName(DATA.races).map(r=>optTag(r.name,r.name)).join("");
+    $("wiz-race").innerHTML  = `<option value="">—</option>` + byName(DATA.races).map(r=>optTag(r.name,optLabel(r))).join("");
     const bgList = byName(DATA.backgrounds), bgSorted = bgList.filter(b => b.name === "Custom Background").concat(bgList.filter(b => b.name !== "Custom Background"));   // Custom Background pinned to the top, the rest alphabetical
-    $("wiz-bg").innerHTML    = `<option value="">—</option>` + bgSorted.map(b=>optTag(b.name,b.name)).join("");
+    $("wiz-bg").innerHTML    = `<option value="">—</option>` + bgSorted.map(b=>optTag(b.name,optLabel(b))).join("");
     renderClassList();
   }
   function populateArmor(){
@@ -9548,7 +9573,7 @@
   // Set just the Racial ability column from a race's fixed bonuses — for the in-wizard "Under the Hood" preview.
   function applyRaceAbilityOnly(name){
     bonusVals.racial = zeroAb();
-    const r = DATA && findBy(DATA.races, name);
+    const r = DATA && resolveEnt(DATA.races, name, ($("wiz-race").dataset.src)||"");
     if(r && !tceOn("origin-asi")) (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{ if(ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v; }));   // Tasha's custom origin replaces the race's fixed boosts entirely with the picks below
     document.querySelectorAll(".rc-abil").forEach(sel => { const k = sel.value, amt = parseInt(sel.dataset.amt,10)||1; if(k && ABKEYS.includes(k)) bonusVals.racial[k] += amt; });   // + the Race step's "your choice" ability picks
   }
@@ -9571,9 +9596,10 @@
     opts = opts || null;
     const keepRacial = !!(opts && opts.keepRacial);   // wizard pre-applied the Racial column (incl. the player's "choose" picks) → don't overwrite it
     if(!keepRacial) bonusVals.racial = zeroAb();       // race owns the Racial bonus column
-    const r = DATA && findBy(DATA.races,name);
+    const r = DATA && resolveEnt(DATA.races, name, (opts && opts.src) || "");
     if(r){
       $("race").value = name;
+      $("race-src").value = (opts && opts.src) || r._src || "";   // remember which source this race came from (disambiguates a same-name homebrew vs official)
       let choose=null;
       (r.ability||[]).forEach(blk => Object.entries(blk).forEach(([k,v])=>{
         if(k==="choose") choose=v; else if(!keepRacial && ABKEYS.includes(k) && typeof v==="number") bonusVals.racial[k]+=v;
@@ -10923,7 +10949,7 @@
   }
   function raceFixedSkills(){   // skills the race grants outright (its fixed proficiencies, Tasha's-swapped if that rule is on)
     const s = new Set();
-    const r = DATA && findBy(DATA.races, $("wiz-race").value); if(!r) return s;
+    const r = DATA && wizRace(); if(!r) return s;
     const box = $("wiz-race-choices"), fixed = (r.prof && r.prof.skills) || [];
     if(tceOn("origin-prof") && fixed.length && box)            // Tasha's custom proficiencies → the rc-prof selects hold the (possibly swapped) skills
       box.querySelectorAll(".rc-prof").forEach(sel => { if(sel.value) s.add(SKILL_KEY[sel.value] || sel.value); });
@@ -10959,7 +10985,7 @@
     const pe = $("proficiencies");
     if(pe){ const line = pe.value.split("\n").find(l => /^\s*Languages:/i.test(l));
       if(line) line.replace(/^\s*Languages:\s*/i,"").split(",").forEach(x => { x = x.trim(); if(x && !/of your choice|choose/i.test(x)) known.add(x.toLowerCase()); }); }
-    const r = DATA && findBy(DATA.races, $("wiz-race").value);
+    const r = DATA && wizRace();
     if(r && r.prof && Array.isArray(r.prof.languages))
       r.prof.languages.forEach(l => { const v = String(l).toLowerCase(); if(LS.has(v)) known.add(v); });
     document.querySelectorAll(".rc-lang, .bg-lang, .cbg-tl").forEach(s => {   // a language already chosen in another slot
@@ -10993,7 +11019,7 @@
         if(/of your choice|choose/i.test(x)) return;                      // unresolved generic grant — not a concrete tool yet
         add(x.trim()); add(x.replace(/\s*\([^)]*\)\s*$/,"").trim());      // raw + "(Source)"-tag-stripped form
       }));
-    const r = DATA && findBy(DATA.races, $("wiz-race").value);            // race fixed tools (not in the box until create)
+    const r = DATA && wizRace();            // race fixed tools (not in the box until create)
     if(r && r.prof && Array.isArray(r.prof.tools)) r.prof.tools.forEach(add);
     (wizClasses||[]).forEach((w,i) => {                                   // class fixed tools + already-chosen class "of your choice" picks
       const c = DATA && findBy(DATA.classes, w.name); if(!c) return;
@@ -11119,6 +11145,7 @@
       wizOrigRace = ($("race").value || "");
       wizOrigBg = ($("background").value || "");
       $("wiz-race").value = wizOrigRace;        // selects only stick if the option exists (same DATA loaded); otherwise fall back to blank
+      $("wiz-race").dataset.src = ($("race-src") ? $("race-src").value : "") || "";   // restore which source the race came from so a same-name pick resolves + highlights right
       $("wiz-bg").value = wizOrigBg;
       $("wiz-name").value = ($("charname").value || "");
       wizCbgRestore = (wizOrigBg === "Custom Background" && !!charCustomBg);
@@ -11143,11 +11170,12 @@
     if(wizClasses.length) createCharacter();   // applies + saves + closes (and re-flags any decision still unmade)
     else closeWizard();
   }
+  const wizRace = () => DATA && resolveEnt(DATA.races, $("wiz-race").value, ($("wiz-race").dataset.src)||"");   // the wizard's current race, resolved by (name, source)
   function renderRaceList(){   // left-hand race picker (mirrors the class step's wiz-class-list)
     const box = $("wiz-race-list"); if(!box || !DATA) return;
-    const cur = $("wiz-race").value;
+    const cur = $("wiz-race").value, curSrc = ($("wiz-race").dataset.src)||"";
     box.innerHTML = byName(DATA.races).map(r =>
-      `<button type="button" class="wiz-rce${r.name===cur?" active":""}" data-race="${esc(r.name)}">${esc(r.name)}</button>`).join("");
+      `<button type="button" class="wiz-rce${(r.name===cur && (r._src||"")===curSrc)?" active":""}" data-race="${esc(r.name)}" data-src="${esc(r._src||"")}">${esc(optLabel(r))}</button>`).join("");
     scrollListToActive(box);
   }
   function raceHint(){   // refresh active highlight + run-down + choice pickers for the current selection
@@ -11160,7 +11188,7 @@
   // mechanical grants + every racial trait with its description.
   function renderRaceDetail(){
     const box = $("wiz-race-detail"); if(!box) return;
-    const r = DATA && findBy(DATA.races, $("wiz-race").value);
+    const r = DATA && wizRace();
     if(!r){ box.innerHTML = `<p class="wiz-hint">Pick a race on the left to see its traits and lore.</p>`; return; }
     const grants = [];
     const ab = [];
@@ -11220,7 +11248,7 @@
   }
   function renderRaceChoices(){   // skill-or-darkvision (Custom Lineage) + language-of-your-choice pickers on the Race step
     const box = $("wiz-race-choices"); if(!box) return;
-    const r = DATA && findBy(DATA.races, $("wiz-race").value);
+    const r = DATA && wizRace();
     if(!r){ box.innerHTML = ""; return; }
     let html = "";
     const customAsi = tceOn("origin-asi");   // Tasha's: assign your race's ability boosts to any scores
@@ -11364,7 +11392,7 @@
   // Mirror of updateWizSkillLimit/updateCustomBgLimit for the Race step's "choose N skills" checkbox picker:
   // disable a skill the race already grants outright, and once N are checked grey out the rest.
   function updateRaceSkillLimit(){
-    const r = DATA && findBy(DATA.races, $("wiz-race").value);
+    const r = DATA && wizRace();
     const rsc = (r && r.prof && r.prof.skillChoose) ? r.prof.skillChoose : null;
     const n = (rsc && rsc.count) ? rsc.count : 0;
     const taken = raceFixedSkills();   // a skill the race hands you outright can't also be one of your free picks
@@ -11888,8 +11916,9 @@
       const profSkills = [...document.querySelectorAll(".rc-prof")].map(s => s.value).filter(Boolean);   // Tasha's custom proficiencies
       const chosenSkills = [...new Set([...document.querySelectorAll(".rc-skill-cb:checked")].map(cb => cb.value))];   // race's own "choose N skills" (Half-Elf Skill Versatility)
       const ancestry = (document.querySelector(".rc-ancestry")||{}).value || "";   // Dragonborn draconic ancestry
-      const rObj = findBy(DATA.races, race), opts = {keepRacial:true, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean),
-        customLang:tceOn("origin-lang"), customProf:tceOn("origin-prof"), profSkills, chosenSkills, ancestry};   // keep the Racial column the wizard already set; pass the Tasha custom-origin picks
+      const raceSrc = ($("wiz-race").dataset.src)||"";
+      const rObj = resolveEnt(DATA.races, race, raceSrc), opts = {keepRacial:true, src:raceSrc, languages:[...document.querySelectorAll(".rc-lang")].map(s => s.value).filter(Boolean),
+        customLang:tceOn("origin-lang"), customProf:tceOn("origin-prof"), profSkills, chosenSkills, ancestry};   // keep the Racial column the wizard already set; pass the Tasha custom-origin picks + which source the race came from
       if(rObj && rObj.variableSkillDarkvision){
         const useDv = (document.querySelector('input[name="rc-skilldv"]:checked')||{}).value === "darkvision";
         if(useDv) opts.darkvision = rObj.darkvision || 60; else opts.skill = ($("rc-skill")||{}).value || "";
@@ -12135,7 +12164,8 @@
     loadAwEnabled();   // Ancestral Weapons module on/off (browser-wide)
     loadHomebrew();   // source-material homebrew (browser-wide) — load before rendering spell sheets so its spells resolve
     hbApplyToData();   // merge structured homebrew (feats/races/backgrounds/subclasses) into DATA before the builder pickers populate
-    migrateToSources(DATA);   // build the unified DATA.sources store (non-destructive; nothing reads it as authoritative yet)
+    migrateToSources(DATA);   // build the unified DATA.sources store
+    tagSourcesFromRaw(DATA);   // annotate baked entities with their source so selectors always show it (non-destructive)
     populateWizard();
     populateArmor(); populateItemList();
     populateMonsterList();
@@ -12894,7 +12924,7 @@
     });
     $("wiz-race").addEventListener("change", raceHint);
     // Multiclass builder (step 2): class list focus, add, level edit, remove, and inline pending-decision pickers
-    $("wiz-race-list").addEventListener("click", e => { const b = e.target.closest(".wiz-rce"); if(b){ $("wiz-race").value = b.dataset.race; $("wiz-race").dispatchEvent(new Event("change", {bubbles:true})); } });   // race buttons mirror the class list
+    $("wiz-race-list").addEventListener("click", e => { const b = e.target.closest(".wiz-rce"); if(b){ $("wiz-race").value = b.dataset.race; $("wiz-race").dataset.src = b.dataset.src||""; $("wiz-race").dispatchEvent(new Event("change", {bubbles:true})); } });   // race buttons mirror the class list; carry the source so a same-name pick is unambiguous
     $("wiz-race-choices").addEventListener("change", e => {
       const r = e.target.closest(".rc-feat-radio");
       if(r){   // race feat picked → open its description (close the rest) and show any half-feat ability + spell pickers, like the ASI wizard
