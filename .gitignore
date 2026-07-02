@@ -15,3 +15,6 @@ __pycache__/
 
 # Ancestral Weapons catalog — copyrighted upgrade descriptions (regenerate via ancestral-weapons/extract.py)
 ancestral-weapons/*.json
+
+# Session scratch (screenshots etc.) — never ship
+tmp/
