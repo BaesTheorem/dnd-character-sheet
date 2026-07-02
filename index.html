@@ -2958,11 +2958,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v440 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v441 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.85.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.85.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -6321,20 +6321,26 @@
   const HB_BAG_LABEL = { spells:"spell", items:"item", feats:"feat", races:"race", backgrounds:"background", subclasses:"subclass" };
   function hbActiveByType(key){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s[key]||{})) if(!(k in out)) out[k] = s[key][k]; }); return out; }
   function hbStripData(d){ if(!d) return; ["races","feats","backgrounds"].forEach(cat => { if(Array.isArray(d[cat])) d[cat] = d[cat].filter(x => !(x && x._hb)); }); (d.classes||[]).forEach(c => { if(Array.isArray(c.subclasses)) c.subclasses = c.subclasses.filter(s => !(s && s._hb)); }); }
+  // Merge homebrew structured types (races/feats/backgrounds/subclasses) into DATA as COEXISTING, source-tagged entities:
+  // a homebrew "X" now sits ALONGSIDE an official "X" (both selectable) rather than being dropped on collision. Each is
+  // stamped _hb (so hbStripClone keeps it out of the baked arrays — it persists via DATA.homebrew/sources) + _src/_srcName
+  // (which homebrew source) + _coex (identity is name+src). Idempotent: hbStripData clears prior _hb entities first.
   function hbApplyToData(){
     if(!DATA) return;
     hbStripData(DATA);
-    const mergeArr = cat => { DATA[cat] = DATA[cat] || []; const idx = new Map(DATA[cat].map((x,i) => [String(x.name).toLowerCase(), i]));
-      const hb = hbActiveByType(cat);
-      for(const lc in hb){ const o = Object.assign({}, hb[lc], {_hb:true});
-        if(idx.has(lc)){ const ex = DATA[cat][idx.get(lc)]; if(ex && ex._hb) DATA[cat][idx.get(lc)] = o; /* else: don't clobber a real sourcebook entry (it'd be lost on strip) */ }
-        else { idx.set(lc, DATA[cat].length); DATA[cat].push(o); } } };
-    mergeArr("races"); mergeArr("feats"); mergeArr("backgrounds");
-    const subs = hbActiveByType("subclasses");   // attach into the parent class's subclasses (the class must be loaded)
-    for(const lc in subs){ const sc = subs[lc]; const cls = (DATA.classes||[]).find(c => String(c.name).toLowerCase() === String(sc.className||"").toLowerCase()); if(!cls) continue;
-      cls.subclasses = cls.subclasses || []; const sObj = Object.assign({}, sc, {_hb:true}); if(typeof normalizeSubclass === "function") normalizeSubclass(sObj);
-      const j = cls.subclasses.findIndex(s => String(s.name).toLowerCase() === String(sc.name).toLowerCase());
-      if(j >= 0){ if(cls.subclasses[j] && cls.subclasses[j]._hb) cls.subclasses[j] = sObj; } else cls.subclasses.push(sObj); }
+    const bySrc = (typeof homebrewSources !== "undefined" ? homebrewSources : []).filter(s => s && s.enabled !== false);
+    const keyOf = x => (x && x._coex) ? (String(x.name).toLowerCase() + "\x00" + (x._src||"")) : String(x && x.name).toLowerCase();
+    ["races","feats","backgrounds"].forEach(cat => {
+      DATA[cat] = DATA[cat] || []; const idx = new Map(DATA[cat].map((x,i) => [keyOf(x), i]));
+      bySrc.forEach(s => { const bag = s[cat] || {}, sid = srcId(SRC_KINDS.HB, s.name);
+        for(const lc in bag){ const o = Object.assign({}, bag[lc], {_hb:true, _src:sid, _srcName:s.name, _coex:true}); const k = keyOf(o);
+          if(idx.has(k)) DATA[cat][idx.get(k)] = o; else { idx.set(k, DATA[cat].length); DATA[cat].push(o); } } });
+    });
+    bySrc.forEach(s => { const bag = s.subclasses || {}, sid = srcId(SRC_KINDS.HB, s.name);   // attach into the parent class's subclasses (the class must be loaded)
+      for(const lc in bag){ const sc = bag[lc]; const cls = (DATA.classes||[]).find(c => String(c.name).toLowerCase() === String(sc.className||"").toLowerCase()); if(!cls) continue;
+        cls.subclasses = cls.subclasses || []; const sObj = Object.assign({}, sc, {_hb:true, _src:sid, _srcName:s.name, _coex:true}); if(typeof normalizeSubclass === "function") normalizeSubclass(sObj);
+        const j = cls.subclasses.findIndex(x => String(x.name).toLowerCase() === String(sc.name).toLowerCase() && x._src === sid);
+        if(j >= 0) cls.subclasses[j] = sObj; else cls.subclasses.push(sObj); } });
     if(typeof resolveSubraces === "function") resolveSubraces(DATA);   // fold homebrew subraces (subraceOf) into their parents
     _spellIndex = null;
   }
