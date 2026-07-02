@@ -2959,11 +2959,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v444 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v445 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.87.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.87.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2971,6 +2971,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v445", semver:"2.87.1", items:[
+      "A chosen homebrew item now applies its own AC and spell-DC bonuses even when an official item shares its name. Previously the official item's numbers won that tie; now the version you picked in the Inventory search is fully authoritative, and choosing the official one still gives the official numbers."
+    ]},
     {v:"v444", semver:"2.87.0", items:[
       "You can now choose between a homebrew item and an official item that share a name. When you search the Inventory for such a name, both show up labeled by source (e.g. \"Cloak of Protection · Official\" and \"Cloak of Protection · My Homebrew\"), and whichever you pick is the one the sheet uses for that item everywhere (AC, attunement, spell bonuses, text). Switch any time by re-adding from the other source. Non-colliding items are unaffected."
     ]},
@@ -10282,7 +10285,7 @@
       s.innerHTML = `<option value=""></option>` + eqAtt.map(a => optTag(a.name, a.name)).join("");
       s.value = cur; });
   }
-  function acItemMap(){ const m = {}; ((DATA && DATA.acItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = it.b); const hi = hbActiveItems(); for(const lc in hi){ const b = +hi[lc].acBonus||0; if(b && !(lc in m)) m[lc] = b; } return m; }
+  function acItemMap(){ const m = {}; ((DATA && DATA.acItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = it.b); const hi = hbActiveItems(); for(const lc in hi){ const b = +hi[lc].acBonus||0; if(b) m[lc] = b; } return m; }   // hbActiveItems is already preferOfficial-gated, so a chosen homebrew item OVERRIDES the official AC on a name collision (consistent with hbEnabledItem)
   // Items whose save-DC bonus 5etools states only in the item's PROSE (no machine-readable bonusSpellSaveDc field), so
   // etSpellBonusItems can't extract them. Names + numeric bonus are non-copyrightable mechanics, hand-coded like the
   // other registries (survives a "Reload all sources"). The +N Dragonhide Belt (FTD, attune by a monk) grants "+N to the
@@ -10292,7 +10295,7 @@
   const EXTRA_SPELL_DC_ITEMS = { "+1 dragonhide belt":{atk:0,dc:1}, "+2 dragonhide belt":{atk:0,dc:2}, "+3 dragonhide belt":{atk:0,dc:3} };
   function spellBonusItemMap(){ const m = {}; ((DATA && DATA.spellBonusItems)||[]).forEach(it => m[String(it.n).toLowerCase()] = {atk:it.atk||0, dc:it.dc||0});
     for(const k in EXTRA_SPELL_DC_ITEMS) if(!(k in m)) m[k] = EXTRA_SPELL_DC_ITEMS[k];   // prose-only DC items 5etools doesn't tag structurally
-    const hi = hbActiveItems(); for(const lc in hi){ const a = +hi[lc].spellAtk||0, d = +hi[lc].spellDc||0; if((a||d) && !(lc in m)) m[lc] = {atk:a, dc:d}; }   // homebrew items granting spell atk/DC
+    const hi = hbActiveItems(); for(const lc in hi){ const a = +hi[lc].spellAtk||0, d = +hi[lc].spellDc||0; if(a||d) m[lc] = {atk:a, dc:d}; }   // homebrew items granting spell atk/DC — chosen homebrew (already preferOfficial-gated) OVERRIDES the official bonus on a name collision
     return m; }
   function spellItemBonus(){   // total spell-attack / spell-DC bonus from EQUIPPED (and, where required, ATTUNED) items — Robe of the Archmagi, etc.
     const map = spellBonusItemMap(), aset = attuneSet(), attuned = attunedNames(), seen = new Set(); let atk = 0, dc = 0; const from = [];
