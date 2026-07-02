@@ -2958,11 +2958,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v442 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v443 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.86.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.86.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -4077,7 +4077,7 @@
   function featOptions(sel){
     const feats = (DATA && DATA.feats) ? DATA.feats.slice().sort((a,b)=>a.name.localeCompare(b.name)) : [];
     return `<option value=""></option>` + feats.map(f =>
-      `<option value="${esc(f.name)}"${sel===f.name?" selected":""}>${esc(f.name)}</option>`).join("");
+      `<option value="${esc(f.name)}"${sel===f.name?" selected":""}>${esc(optLabel(f))}</option>`).join("");
   }
   function renderAsiList(){
     syncAsiSlots();
@@ -10361,7 +10361,7 @@
       matches = starts.concat(contains).slice(0, 200);
       sel = matches.length ? 0 : -1;
       res.innerHTML = matches.length
-        ? matches.map((n,i) => { const t = lvlTag(n); return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(n)}${t?`<span class="w">${t}</span>`:''}</div>`; }).join("")
+        ? matches.map((n,i) => { const t = lvlTag(n); const d = spellData(n); const src = (d && d._srcName) ? srcShort(d._srcName) : ""; return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(src ? n+" · "+src : n)}${t?`<span class="w">${t}</span>`:''}</div>`; }).join("")
         : '<div class="opt none">No matching spells (load the right sourcebook?)</div>';
       res.hidden = false;
     }
