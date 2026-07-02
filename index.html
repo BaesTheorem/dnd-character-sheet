@@ -276,6 +276,9 @@
   .asi-flag + .asi-flag{margin-top:-4px}   /* when both flags show, read as one stacked block */
   .asi-flag:hover{background:#ffedd5}
   .asi-flag .sub{display:block; font-weight:500; font-size:11px; color:#9a3412; margin-top:3px}
+  body.dark .asi-flag{ background:#33200f; border-color:#8a4a1b; color:#fdba74; }
+  body.dark .asi-flag:hover{ background:#41290f; }
+  body.dark .asi-flag .sub{ color:#e8956b; }
   /* ASI picker modal rows */
   .asi-slot{border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:10px}
   .asi-slot.done{border-color:#16a34a; background:#f0fdf4}
@@ -319,8 +322,8 @@
   .row:last-child{border-bottom:none}
   .row .total{width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
     font-weight:700; font-size:19px; background:var(--accent-soft); color:var(--accent); border-radius:8px}
-  .row .rname{flex:1; font-size:13px}
-  .row .rname .ab{color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em}
+  .row .rname{flex:1; font-size:13px; display:flex; align-items:baseline; gap:6px; min-width:0}
+  .row .rname .ab{color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; flex:none; margin-left:auto; padding-right:2px}
   .marks{display:flex; gap:6px; align-items:center}
   .marks label{display:flex; align-items:center; gap:3px; font-size:9px; color:var(--muted);
     font-weight:700; text-transform:uppercase; letter-spacing:.04em; cursor:pointer}
@@ -393,7 +396,8 @@
   /* AC / Initiative / Speed / HP: tighter, uniform-size boxes (values keep the standard .stat size) */
   .combat-top .stat, .hp-grid .stat{padding:5px 6px; min-height:52px; display:flex; flex-direction:column; justify-content:center}
   .combat-top .stat .k, .hp-grid .stat .k{margin-bottom:1px}
-  .combat-top .stat input, .hp-grid .stat input{padding:0}
+  .combat-top .stat input, .hp-grid .stat input{padding:0; border:none !important; background:transparent !important}
+  body.dark .combat-top .stat input, body.dark .hp-grid .stat input{border:none !important; background:transparent !important}
   .combat-top:not(.hd-grid) .stat{justify-content:flex-start}   /* labels (Armor Class/Initiative/Speed) pinned to the top of their boxes */
   .combat-top.hd-grid{grid-template-columns:repeat(4,1fr); gap:8px}   /* Hit Dice: all 4 boxes on one line */
   .stat.toggle-stat{cursor:pointer; user-select:none}
@@ -760,6 +764,7 @@
   .ptab:hover{color:var(--ink)}
   .ptab.active{background:#fff; color:var(--accent); border-bottom:1px solid #fff}
   .ptab.muted{opacity:.45}
+  .ptab.ov-tab.muted:not(.active){display:none}   /* an EMPTY Overflow page: reachable via the "+ Overflow page" buttons, not a permanent gray tab */
   .page{display:none}
   .page.active{display:block}
 
@@ -1135,6 +1140,9 @@
   .toolbar{backdrop-filter:none !important; background:#fff !important}
   input,select,textarea,.stat input,.charname input{background:#fff !important}
   input:focus,select:focus,textarea:focus{outline:none !important; border-color:var(--accent) !important}
+  button:focus-visible,.btn:focus-visible,.ptab:focus-visible,.ucs-tab:focus-visible,a:focus-visible,
+  input[type=checkbox]:focus-visible,input[type=radio]:focus-visible,select:focus-visible{
+    outline:2px solid var(--accent) !important; outline-offset:2px !important}
   /* badges drawn with hairlines instead of tinted fills */
   .ability .mod,.row .total,.passive,.chip,.stat,.gen-status .chip-val{
     background:#fff !important; border:1px solid var(--line2) !important;
@@ -1340,7 +1348,7 @@
   /* --- Toolbar: hand the pinned top spot to the page tabs --- */
   html.mobile .toolbar{ position:static; gap:6px; padding:8px 10px; }
   html.mobile .toolbar .brand{ width:100%; margin:0 0 4px; font-size:13px; }
-  html.mobile .toolbar .btn{ flex:1 1 auto; min-height:42px; padding:9px 10px; }
+  html.mobile .toolbar .btn{ flex:1 1 auto; min-height:44px; padding:9px 10px; }
   html.mobile .toolbar .status{ width:100%; order:5; min-width:0; text-align:center; }
 
   /* Save stays in the toolbar (same place as desktop) on mobile too — the
@@ -1358,14 +1366,15 @@
     background:var(--bg);
   }
   html.mobile .pagetabs::-webkit-scrollbar{ display:none; }
-  html.mobile .ptab{ flex:0 0 auto; min-height:42px; padding:9px 15px; }
+  html.mobile .ptab{ flex:0 0 auto; min-height:44px; padding:9px 15px; }
 
   /* --- Cards: a touch tighter on a narrow screen --- */
   html.mobile .card{ padding:13px; margin-bottom:13px; }
 
   /* --- Header: portrait centered above the identity fields --- */
-  html.mobile .header-grid{ flex-direction:column; align-items:center; gap:12px; }
-  html.mobile .header-main{ width:100%; }
+  html.mobile .header-grid{ gap:12px; }   /* keep the desktop row: small portrait + fields beside it */
+  html.mobile .portrait{ width:96px; height:122px; }
+  html.mobile .header-main{ flex:1 1 0; min-width:0; }
   html.mobile .charname input{ font-size:21px; }
 
   /* --- Stack the big two-column regions --- */
@@ -1387,7 +1396,8 @@
   html.mobile .hp-vals{ gap:10px; }
   html.mobile .hp-big{ width:4.3ch; }   /* room for a 3-digit value at the 30px readout size */
   html.mobile .hp-adjust{ order:1; flex:0 0 auto; flex-direction:row; align-items:center; gap:8px; width:100%; }
-  html.mobile .hp-adjust .hp-btn{ flex:0 0 auto; padding:9px 14px; font-size:11px; }
+  html.mobile .hp-adjust .hp-btn{ flex:0 0 auto; min-height:44px; padding:9px 14px; font-size:11px; }
+  html.mobile .btn{ min-height:44px; }   /* Apple's 44px touch guideline for the standard button class (Rest, Manage Conditions, Add XP, …) */
   html.mobile .hp-adjust .hp-delta{ flex:1 1 auto; min-width:0; }
 
   /* --- Modals: near full-screen, with their own internal scroll --- */
@@ -1426,6 +1436,12 @@
   html.mobile .invtable td:nth-child(3) input,
   html.mobile .invtable td:nth-child(4) input{ width:100%; padding-left:2px; padding-right:2px; }
 
+  /* --- Spells: same name-room trick. With the info columns hidden (above), shrink the Prep and
+     Damage columns so the spell name gets the freed width. (NOT table-layout:fixed — the full-width
+     section-header rows break fixed column distribution and crush the name column.) --- */
+  html.mobile .spelltable th.col-prep{ width:40px !important; }
+  html.mobile .spelltable th.col-dmg{ width:64px !important; }
+
   /* --- Mobile Core: collapsible sections + reorder ----------------------------
      The long-form Core page is a lot to scroll on a phone. Flatten the two
      desktop columns (display:contents drops the .stack/.topblock wrappers so
@@ -1442,6 +1458,15 @@
   html.mobile #page-core .columns .card{ order:50; margin-bottom:0; }   /* gap owns spacing; baseline order falls after the prioritized few */
   html.mobile #page-core .columns .card.grow{ flex:0 0 auto; }          /* don't let grow cards stretch in the new flex column */
   html.mobile #page-core .card[data-csec="abilities"]{ order:1; }
+  /* label the two per-ability boxes — the Score/Mod column header scrolls away on a phone */
+  html.mobile .ability{ padding-bottom:22px; }
+  html.mobile .ability .score-out, html.mobile .ability .mod{ position:relative; }
+  html.mobile .ability .score-out::after, html.mobile .ability .mod::after{
+    content:"Score"; position:absolute; top:100%; margin-top:3px; left:50%; transform:translateX(-50%);
+    font-size:7px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+    pointer-events:none; white-space:nowrap;
+  }
+  html.mobile .ability .mod::after{ content:"Mod"; }
   html.mobile #page-core .card[data-csec="combat"]{ order:2; }
   html.mobile #page-core .card[data-csec="topstats"]{ order:3; }
   html.mobile #page-core .card[data-csec="saves"]{ order:4; }
@@ -2972,11 +2997,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v454 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v456 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.91.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.92.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -2984,6 +3009,14 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v456", semver:"2.92.0", items:[
+      "A round of interface polish from a UI/UX audit, across all three surfaces.",
+      "Phone: the hot-path buttons (Heal/Damage, rests, page tabs, standard buttons) now meet the 44px touch-size guideline; spell name fields get the width freed by the hidden info columns; each ability's two boxes carry tiny Score/Mod labels; and the portrait now sits beside the name and class fields instead of stranding half the screen.",
+      "Dark mode: the Ability Score Improvement banner now uses a dark amber treatment instead of staying a bright cream block.",
+      "Desktop: the Speed box lost its inner bordered field and now reads like Armor Class and Initiative; skill rows show their ability tag in a clean right-aligned column instead of wrapping mid-name.",
+      "An empty Overflow page's tab is hidden instead of sitting grayed-out in the tab strip (create one any time with the + Overflow page buttons on the Inventory and Limited Features cards); it reappears whenever the page holds anything.",
+      "Keyboard focus is now visible on buttons, tabs, and checkboxes (a gold outline), matching the accent border text fields already had."
+    ]},
     {v:"v454", semver:"2.91.2", items:[
       "Housekeeping: release notes were backfilled for 2.88.0 through 2.91.1 (they were missing from this guide), and an unused internal export helper was removed. No gameplay changes."
     ]},
