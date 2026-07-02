@@ -2970,11 +2970,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v448 (2026-07-01)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v449 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.88.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.88.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -5704,6 +5704,10 @@
   }
   function bakeSourceData(){ const pd = $("source-data"); if(!pd) return; if(!DATA){ pd.textContent = "null"; return; }
     const c = hbStripClone(DATA); delete c.sources;   // strip _hb-injected homebrew (rides DATA.homebrew) + the derived DATA.sources index (rebuilt at load via migrateToSources; Stage 3 will make it the baked authority)
+    // Never bake away the AW rules text: a runtime DATA can carry an empty/partial awText, and stringifying it as-is
+    // would clobber the 134 descriptions already in this file's blob (that's how a "v2.88.2" download ended up with
+    // awText:0 and blank builder descriptions). Base = whatever awText is currently baked here, user/imported entries on top.
+    const bakedAw = awBakedText(); if(bakedAw && Object.keys(bakedAw).length) c.awText = Object.assign({}, bakedAw, c.awText || {});
     pd.textContent = JSON.stringify(c); }
   function shareBlankSheet(){            // download a blank, ready-to-use copy: no character, default settings, every loaded book baked in
     bakeSourceData();
