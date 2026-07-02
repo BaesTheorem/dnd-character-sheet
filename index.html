@@ -2997,11 +2997,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v456 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v457 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.92.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.93.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3009,6 +3009,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v457", semver:"2.93.0", items:[
+      "Homebrew images now follow the character portrait conventions everywhere: any image file type is accepted (HEIC/WebP/AVIF/SVG included), a bad file gets a clear message instead of silently doing nothing, and transparent formats keep their transparency.",
+      "The Ancestral Weapon builder has an Image field, so art can be added while building instead of only from the weapon's page afterward.",
+      "An Ancestral Weapon's image now lives on the item itself: it shows on the hover/tap item card, survives re-editing in the builder (re-saving used to wipe art added from the weapon page), and art uploaded from the weapon page appears everywhere too.",
+    ]},
     {v:"v456", semver:"2.92.0", items:[
       "A round of interface polish from a UI/UX audit, across all three surfaces.",
       "Phone: the hot-path buttons (Heal/Damage, rests, page tabs, standard buttons) now meet the 44px touch-size guideline; spell name fields get the width freed by the hidden info columns; each ability's two boxes carry tiny Score/Mod labels; and the portrait now sits beside the name and class fields instead of stranding half the screen.",
@@ -6045,13 +6050,47 @@
     return out;
   }
   function awAllItems(){ const out=[]; homebrewSources.forEach((s,si)=>{ if(s.enabled===false) return; const items=s.items||{}; Object.keys(items).forEach(k=>{ if(items[k].aw) out.push({it:items[k], si, key:k}); }); }); return out; }
-  function awResizeImage(file, cb){ const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=480, sc=Math.min(1, max/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*sc)||1; c.height=Math.round(img.height*sc)||1; c.getContext("2d").drawImage(img,0,0,c.width,c.height); cb(c.toDataURL("image/jpeg",0.85)); }; img.src=r.result; }; r.readAsDataURL(file); }
+  // Load a user-picked image for homebrew content (same conventions as the character portrait: any image
+  // file type, validated by MIME or extension, with feedback on failure, never a silent no-op). Decodable
+  // images are downscaled to <=480px (PNG when the source may carry transparency, else JPEG) so they stay
+  // small enough to bake into shares; a format the browser can't decode (e.g. HEIC on Chrome) falls back
+  // to the raw dataURL like the portrait does, size-capped so it can't blow the localStorage homebrew cache.
+  function awResizeImage(file, cb){
+    if(!file) return;
+    const isImg = /^image\//.test(file.type||"") || /\.(heic|heif|png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(file.name||"");
+    if(!isImg){ flashStatus("That doesn't look like an image file."); return; }
+    const r = new FileReader();
+    r.onerror = ()=> flashStatus("Couldn't read that file.");
+    r.onload = ()=>{
+      const raw = String(r.result||"");
+      const keepRaw = ()=>{   // undecodable here: store as-is (the portrait convention); previews show what they can
+        if(raw.length > 2*1024*1024){ flashStatus("This browser can't read that image format, and the file is too large to store as-is. Try a JPEG, PNG, or WebP."); return; }
+        flashStatus("Stored as-is. This browser may not be able to preview that image format.");
+        cb(raw);
+      };
+      const img = new Image();
+      img.onload = ()=>{
+        const w = img.naturalWidth||img.width, h = img.naturalHeight||img.height;
+        if(!w || !h){ keepRaw(); return; }
+        const max=480, sc=Math.min(1, max/Math.max(w,h));
+        const c=document.createElement("canvas"); c.width=Math.max(1,Math.round(w*sc)); c.height=Math.max(1,Math.round(h*sc));
+        try{
+          c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+          const alpha = /png|svg|gif|webp|avif/i.test((file.type||"")+" "+(file.name||""));   // keep transparency for icon-ish formats
+          cb(c.toDataURL(alpha?"image/png":"image/jpeg", 0.85));
+        }catch(e){ keepRaw(); }
+      };
+      img.onerror = keepRaw;
+      img.src = raw;
+    };
+    r.readAsDataURL(file);
+  }
   // ---- Shared homebrew image picker (spell / item / generic forms all use it via a data-scope) ----
   const _hbImg = { spell:"", item:"", gen:"" };   // staged image dataURL for whichever form is open
   function hbImgFieldHtml(scope){
     return `<label class="cspell-f cspell-full"><span>Image</span>`+
       `<div class="hb-img"><img class="hb-img-prev" data-scope="${scope}" alt="" style="display:none">`+
-      `<label class="btn hb-img-choose">Choose image…<input type="file" accept="image/*" class="hb-img-in" data-scope="${scope}" hidden></label>`+
+      `<label class="btn hb-img-choose">Choose image…<input type="file" accept="image/*,.heic,.heif" class="hb-img-in" data-scope="${scope}" hidden></label>`+
       `<button type="button" class="btn ghost hb-img-rm" data-scope="${scope}" style="display:none">Remove</button></div></label>`;
   }
   function hbImgSyncPreview(scope){   // reflect _hbImg[scope] into that scope's preview <img> + Remove button
@@ -6112,7 +6151,7 @@
     const host=$("aw-page-body"); if(!host) return;
     if(!host._wired){ host._wired=true;
       host.addEventListener("click", e=>{ const ed=e.target.closest(".aw-edit"); if(ed){ openAwBuilder(+ed.dataset.si, ed.dataset.key); return; } if(e.target.closest(".awpage-new")){ openAwBuilder(_hbCurId||0); } });
-      host.addEventListener("change", e=>{ const inp=e.target.closest(".aw-art-in"); if(inp && inp.files && inp.files[0]){ const si=+inp.dataset.si, key=inp.dataset.key; awResizeImage(inp.files[0], url=>{ const it=homebrewSources[si]&&homebrewSources[si].items[key]; if(it&&it.aw){ it.aw.art=url; saveHomebrew(); renderAwPage(); } }); } });
+      host.addEventListener("change", e=>{ const inp=e.target.closest(".aw-art-in"); if(inp && inp.files && inp.files[0]){ const si=+inp.dataset.si, key=inp.dataset.key; awResizeImage(inp.files[0], url=>{ const it=homebrewSources[si]&&homebrewSources[si].items[key]; if(it){ it.img=url; if(it.aw) delete it.aw.art; saveHomebrew(); renderAwPage(); } }); } });
     }
     const aws=awAllItems();
     const newBtn=`<button class="btn primary awpage-new" type="button">+ New Ancestral Weapon</button>`;
@@ -6134,9 +6173,10 @@
       stat.push("requires attunement");
       const abilities=(a.upgrades||[]).map(nm=>{ const u=awUp(nm); return `<div class="aw-ability"><span class="aw-ability-name">${esc(nm)}</span><span class="aw-ability-cost">${u?u.c:"?"} SP${u&&u.lim?" · limited":""}</span><div class="aw-ability-text">${esc(awText(nm))}</div></div>`; }).join("");
       const extraAb=(a.extras||[]).map(x=>`<div class="aw-ability"><span class="aw-ability-name">${esc(x.name||"Property")}</span>${x.bonus?`<span class="aw-ability-cost">+${esc(String(x.bonus))}</span>`:""}${x.extraDamage?`<span class="aw-ability-cost">${esc(x.extraDamage)} dmg</span>`:""}<div class="aw-ability-text">${esc(x.text||"")}</div></div>`).join("");
-      const art = a.art
-        ? `<img class="aw-art" src="${a.art}" alt=""><label class="btn" style="margin-top:6px; display:block; text-align:center">Change art<input type="file" accept="image/*" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`
-        : `<label class="aw-art aw-art-empty">+ Add art<input type="file" accept="image/*" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`;
+      const artUrl = it.img || a.art;   // item.img is the canonical homebrew image slot; a.art is the legacy AW-only slot
+      const art = artUrl
+        ? `<img class="aw-art" src="${artUrl}" alt=""><label class="btn" style="margin-top:6px; display:block; text-align:center">Change art<input type="file" accept="image/*,.heic,.heif" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`
+        : `<label class="aw-art aw-art-empty">+ Add art<input type="file" accept="image/*,.heic,.heif" class="aw-art-in" data-si="${si}" data-key="${esc(key)}" style="display:none"></label>`;
       return `<div class="card aw-card">`+
         `<div class="aw-card-head"><h2 style="margin:0">${esc(it.name)}</h2><span class="aw-rarity">${esc(d.rarity)} · ${esc(a.baseWeapon)} · ${a.points} SP</span>${attuned?'<span class="aw-attuned">● Attuned</span>':'<span class="aw-mundane">Not attuned — mundane until attuned</span>'}<span style="margin-left:auto"><button class="btn aw-edit" data-si="${si}" data-key="${esc(key)}" type="button">Edit in builder</button></span></div>`+
         `<div class="aw-card-body"><div class="aw-art-col">${art}</div><div class="aw-stat-col">`+
@@ -6170,6 +6210,7 @@
         `<label class="cspell-f cspell-full" style="margin-top:12px"><span>Flavor text</span><textarea id="aw-flavor" rows="3" placeholder="Evocative, non-mechanical prose — the item as a whole (a quote, the vibe, what it feels like to wield)."></textarea></label>`+
         `<label class="cspell-f cspell-full"><span>History / lore</span><textarea id="aw-lore" rows="3" placeholder="Who forged it, who carried it, what it has slain…"></textarea></label>`+
         `<label class="cspell-f cspell-full"><span>Physical properties</span><textarea id="aw-physical" rows="2" placeholder="Appearance, materials, markings…"></textarea></label>`+
+        `<label class="cspell-f cspell-full"><span>Image</span><div class="hb-img"><img id="aw-img-prev" class="hb-img-prev" alt="" style="display:none"><label class="btn hb-img-choose">Choose image…<input type="file" accept="image/*,.heic,.heif" id="aw-img-in" hidden></label><button type="button" class="btn ghost" id="aw-img-rm" style="display:none">Remove</button></div></label>`+
       `</div>`+
       `<div class="modal-foot"><label class="cspell-f" style="flex:0 1 230px"><span>Save into source</span><select id="aw-src"></select></label>`+
       `<span class="cspell-foot-btns"><button class="btn ghost" id="aw-cancel" type="button">Cancel</button><button class="btn primary" id="aw-save" type="button">Save weapon</button></span></div></div>`;
@@ -6180,6 +6221,8 @@
     $("aw-points").addEventListener("input", () => { _awBuild.points = parseInt($("aw-points").value,10)||0; awRenderState(); });
     $("aw-base").addEventListener("change", () => { _awBuild.baseWeapon = $("aw-base").value.trim(); awRenderUpgrades(); awRenderState(); });
     $("aw-save").addEventListener("click", awSaveBuild);
+    $("aw-img-in").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; if(f) awResizeImage(f, url => { _awBuild.img = url; awSyncImg(); }); e.target.value = ""; });
+    $("aw-img-rm").addEventListener("click", () => { _awBuild.img = ""; awSyncImg(); });
     $("aw-upgrades").addEventListener("click", e => {
       const b = e.target.closest(".aw-buy"); if(b){ awToggleUpgrade(b.dataset.up); return; }
       const t = e.target.closest(".aw-up-toggle"); if(t){ const lc=t.dataset.toggle.toLowerCase(); if(_awUpOpen.has(lc)) _awUpOpen.delete(lc); else _awUpOpen.add(lc); const row=t.closest(".aw-up"); if(row) row.classList.toggle("open"); }
@@ -6212,20 +6255,26 @@
       if(changed){ awRenderExtras(); awRenderState(); } });
     $("aw-extras").addEventListener("click", e => { const d = e.target.closest(".aw-x-del"); if(d){ _awBuild.extras.splice(+d.dataset.i, 1); awRenderExtras(); awRenderState(); } });
   }
+  function awSyncImg(){   // reflect the staged _awBuild.img into the builder preview + Remove button
+    const url = (_awBuild && _awBuild.img) || "", img = $("aw-img-prev"), rm = $("aw-img-rm");
+    if(img){ if(url){ img.src = url; img.style.display = ""; } else { img.removeAttribute("src"); img.style.display = "none"; } }
+    if(rm) rm.style.display = url ? "" : "none";
+  }
   function openAwBuilder(sourceIdx, editKey){
     buildAwBuilder();
     hbEnsureSource();
     const idx = (sourceIdx != null) ? sourceIdx : _hbCurId;
     const existing = (editKey && homebrewSources[idx] && homebrewSources[idx].items[editKey] && homebrewSources[idx].items[editKey].aw) || null;
     _awBuild = existing
-      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), extras:(existing.extras||[]).map(x=>Object.assign({},x)), lore:existing.lore||"", physical:existing.physical||"", flavor:(homebrewSources[idx].items[editKey].flavor)||"", editKey}
-      : {name:"", baseWeapon:"", points:0, upgrades:[], extras:[], lore:"", physical:"", flavor:"", editKey:null};
+      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), extras:(existing.extras||[]).map(x=>Object.assign({},x)), lore:existing.lore||"", physical:existing.physical||"", flavor:(homebrewSources[idx].items[editKey].flavor)||"", img:(homebrewSources[idx].items[editKey].img || existing.art || ""), editKey}
+      : {name:"", baseWeapon:"", points:0, upgrades:[], extras:[], lore:"", physical:"", flavor:"", img:"", editKey:null};
     const awHide = hiddenItemNames();   // respect the futuristic/modern age toggles — don't offer e.g. the Antimatter Rifle when futuristic gear is off
     $("aw-base-list").innerHTML = ((DATA&&DATA.weapons)||[]).map(w=>w.name).filter(n=>n && !awHide.has(n)).sort().map(n=>`<option value="${esc(n)}"></option>`).join("");
     { const pl = $("aw-prop-list"); if(pl) pl.innerHTML = AW_PROPS.map(p=>`<option value="${esc(p.n)}"></option>`).join(""); }   // known-property autofill suggestions
     $("aw-src").innerHTML = homebrewSources.map((s,i)=>`<option value="${i}" ${i===idx?"selected":""}>${esc(s.name)}</option>`).join("");
     $("aw-name").value = _awBuild.name; $("aw-base").value = _awBuild.baseWeapon;
     $("aw-points").value = String(_awBuild.points); $("aw-lore").value = _awBuild.lore; $("aw-physical").value = _awBuild.physical; $("aw-flavor").value = _awBuild.flavor;
+    awSyncImg();
     _awUpOpen.clear();   // start with every description collapsed
     awRenderUpgrades(); awRenderExtras(); awRenderState();
     $("aw-builder").classList.add("open");
@@ -6312,7 +6361,7 @@
     b.lore=$("aw-lore").value.trim(); b.physical=$("aw-physical").value.trim(); b.flavor=$("aw-flavor").value.trim();
     const d=awDerive(b), lc=name.toLowerCase();
     const item={name, type:"Weapon", rarity:d.rarity, attune:true, acBonus:d.ac, spellAtk:d.spellAtk, spellDc:0,
-      text:awDescribe(b,d), flavor:b.flavor,
+      text:awDescribe(b,d), flavor:b.flavor, img:(b.img||undefined),
       aw:{baseWeapon:b.baseWeapon, points:b.points, upgrades:b.upgrades.slice(), extras:(b.extras||[]).map(x=>Object.assign({},x)), lore:b.lore, physical:b.physical, magicBonus:d.magicBonus, rider:d.riders.join(", ")}};
     const srcIdx=parseInt($("aw-src").value,10)||0;
     const src=hbEnsureSourceAt(srcIdx); src.items=src.items||{};
