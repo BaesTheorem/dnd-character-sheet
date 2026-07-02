@@ -2970,11 +2970,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v449 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v450 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.88.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.89.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -8612,6 +8612,38 @@
     const bn = $("book-banner"); if(bn) bn.hidden = true;
     flashStatus("Loaded the missing sourcebook. " + (DATA.spells||[]).length + " spells now available. Your characters were untouched.");
   }
+  // AW-TEXT HEAL: a file produced by an OLDER build (before the bake stopped clobbering awText) can open with an
+  // empty awText in BOTH the runtime DATA and its own baked #source-data — so the AW builder shows blank upgrade
+  // descriptions and the per-key baked-blob fallback has nothing to read. The fix can't live in the file's data (it's
+  // gone), so the OPENED (new) build re-fetches the rules text from the canonical web copy once and persists it. This
+  // is the escape from the self-perpetuating clobber: the CODE rides fresh on every update even when the DATA didn't.
+  // Automatic + unambiguous: only fires when the sheet has real content (not a nulled clean-strip) yet zero awText.
+  let _awHealDone = false;
+  async function maybeHealStarvedAwText(){
+    if(_awHealDone) return;
+    if(typeof awEnabled !== "undefined" && !awEnabled) return;                 // AW module off → nothing to describe
+    if(typeof AW_UPGRADES === "undefined" || !AW_UPGRADES.length) return;      // no upgrade catalog → nothing to heal
+    const spells = (DATA && DATA.spells) || [];
+    if(!Array.isArray(spells) || !spells.length) return;                       // nulled / deliberately clean-strip sheet → leave alone
+    const runtimeAw = (DATA && DATA.awText) ? Object.keys(DATA.awText).length : 0;
+    const bakedAw   = Object.keys(awBakedText()).length;
+    if(runtimeAw > 0 || bakedAw > 0) return;                                   // the text is present somewhere → healthy, do nothing
+    _awHealDone = true;
+    if(!navigator.onLine) return;                                              // can't fetch now — will retry on the next online open
+    try{
+      const html = await fetchLatestApp();
+      if(!html) return;
+      let fresh = null; try{ const doc = new DOMParser().parseFromString(html, "text/html"); fresh = JSON.parse(doc.querySelector("#source-data").textContent); }catch(e){}
+      const freshAw = fresh && fresh.awText;
+      if(!freshAw || !Object.keys(freshAw).length || !DATA) return;
+      DATA.awText = Object.assign({}, freshAw, DATA.awText || {});             // adopt the fresh rules text (keep any local/imported additions)
+      _awBakedText = null;                                                     // invalidate the fallback cache so it re-reads the rebaked blob
+      bakeSourceData(); persistSources();                                      // persist so every future open already has it — no re-fetch
+      if(typeof refreshAfterData === "function") refreshAfterData();
+      if(typeof renderAwPage === "function") try{ renderAwPage(); }catch(e){}
+      flashStatus("Restored " + Object.keys(freshAw).length + " Ancestral Weapon descriptions from the web.");
+    }catch(e){}
+  }
   // ---- update progress bar (local-file download) ----
   const UPD_PROG_WIDGETS = [["update-progress","update-progress-fill","update-progress-label","update-progress-pct"],   // in Settings
                             ["ub-progress","ub-progress-fill","ub-progress-label","ub-progress-pct"]];                  // in the update banner
@@ -12241,6 +12273,7 @@
     renderHomebrewList();
     if(sourcesAreStale()) flashStatus("Loaded sourcebooks are out of date — open Settings → Source books → “Reload all loaded sources” to enable new features (e.g. subclass choices).");
     checkForMissingBooks();   // if the open character has spells that don't resolve (a needed sourcebook isn't loaded), show the "Load the missing book" banner — manual, user decides
+    maybeHealStarvedAwText();   // a file an OLDER build produced can have awText stripped (blank AW-builder descriptions) — re-fetch the rules text from the web once on open, since the file itself has lost it
 
     document.addEventListener("input", onChange);
     document.addEventListener("change", onChange);
@@ -13232,13 +13265,20 @@
     const _size = d => ((d && d.spells && d.spells.length) || 0) + ((d && d.classes && d.classes.length) || 0) + ((d && d.races && d.races.length) || 0);
     if(!shipped) return user || null;
     if(!user) return shipped;
+    // The fresh build's baked REFERENCE TEXT (AW upgrade rules text) is authoritative content the running file
+    // can be missing/empty (an old save, or a "Reload all sources" that dropped just awText — his runtime had 510
+    // spells but 0 awText). The _size starvation check below only weighs spells/classes/races, so an awText-starved
+    // but spell-fat runtime is kept "whole" and its EMPTY awText bakes into the download, wiping the fresh build's
+    // 134 descriptions (the blank-builder bug). So union awText from the fresh build into WHATEVER branch wins —
+    // base = the fresh build's, user/imported entries layered on top. This heals a starved file on every download.
+    const healAw = res => { if(res && shipped.awText && Object.keys(shipped.awText).length){ res.awText = Object.assign({}, shipped.awText, res.awText || {}); } return res; };
     // Keep the user's data whole ONLY when it's genuinely at least as complete as the fetched build:
     // a strictly newer data version, OR the same version without being STARVED of official content. A
     // starved same-version dataset (e.g. a partial "Reload all sources" that dropped most spells) must
     // never overwrite the fresh build's full baseline — otherwise that loss propagates into every future
     // update. When starved, fall through to rebuild from the shipped baseline + re-merge the user's extras.
-    if(_ver(user) > _ver(shipped)) return user;                                  // user strictly newer → keep whole
-    if(_ver(user) === _ver(shipped) && _size(user) >= _size(shipped)) return user;   // same version AND not starved → keep the user's book choices
+    if(_ver(user) > _ver(shipped)) return healAw(user);                                  // user strictly newer → keep whole (but heal awText)
+    if(_ver(user) === _ver(shipped) && _size(user) >= _size(shipped)) return healAw(user);   // same version AND not starved → keep the user's book choices (heal awText)
     // The fetched build is newer: take its complete 5etools data as the refreshed base, then RE-MERGE the
     // user's own loaded books that the new build doesn't ship, so user-loaded source material survives the update.
     const shippedVer = _ver(shipped);
@@ -13279,7 +13319,14 @@
       let shipped = null; try{ shipped = JSON.parse(sd.textContent); }catch(e){}
       // Refresh the 5etools "section" from the fetched build when it's newer, while preserving the user's own
       // loaded sources (and homebrew, baked separately above) — so an update never silently drops user content.
-      sd.textContent = JSON.stringify(mergeUpdatedSources(shipped, DATA) || null);
+      const freshAw = (shipped && shipped.awText && Object.keys(shipped.awText).length) ? shipped.awText : null;   // fresh build's AW rules text — authoritative
+      let merged = mergeUpdatedSources(shipped, DATA);
+      try{ merged = merged ? JSON.parse(JSON.stringify(merged)) : merged; }catch(e){}   // DATA is a live Proxy — flatten to a plain object so the awText repair below actually sticks
+      // Never bake a starved runtime's empty/partial awText over the fresh build's complete set: the download would
+      // ship blank AW-builder descriptions and, having lost the text, couldn't self-heal (that's exactly how a
+      // "v2.88.2" file ended up with awText:0). Base = the fresh build's awText, user/imported entries layered on top.
+      if(merged && freshAw) merged.awText = Object.assign({}, freshAw, merged.awText || {});
+      sd.textContent = JSON.stringify(merged || null);
     }
     const st = root.querySelector("#status"); if(st) st.textContent = "";
     return roster.chars.length;
