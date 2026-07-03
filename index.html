@@ -1266,12 +1266,12 @@
     tr.pf-hide{display:none !important}               /* rows past the first sheet print on the continuation sheets, not the primary page */
     #page-mini .mini-wrap{gap:12mm}
     /* keep the on-screen two-column grouping (left = abilities/saves/skills, right = combat/etc.) */
-    #page-core{display:flex !important; flex-direction:column; gap:7px; min-height:252mm}   /* fill the printed sheet; min-height stays under the natural content height so it never inflates Core past one page (was 261mm, which left only ~2mm of slack and spilled to a 2nd sheet in real browser print) */
+    #page-core:not(.excluded){display:flex !important; flex-direction:column; gap:7px; min-height:252mm}   /* fill the printed sheet; min-height stays under the natural content height so it never inflates Core past one page (was 261mm, which left only ~2mm of slack and spilled to a 2nd sheet in real browser print). :not(.excluded) so an ID rule can't override .page.excluded's display:none (that leaked hidden pages into print) */
     #page-core .columns{flex:1 1 auto; grid-template-rows:1fr}                     /* row fills the page; stacks stretch into it */
     .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:stretch}
     .stack{display:flex; flex-direction:column; gap:5px}   /* tighter inter-card gaps buy Core a few mm of headroom so a filled character still fits one page */
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
-    #page-inv{display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards */
+    #page-inv:not(.excluded){display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards. :not(.excluded) so a hidden page stays hidden (ID rule was overriding .page.excluded) */
     #page-spells:not(.excluded), .page.spell-extra:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), #page-aw:not(.excluded), .pf-cont:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
     .comp-portrait{display:flex !important; width:112px; height:140px}   /* companion art prints (was screen-only); fit-to-size */
     .comp-portrait:not(.has-img){display:none !important}               /* but don't print an empty placeholder box */
@@ -1282,7 +1282,7 @@
     #page-bg .card:not(:first-child){flex:1 1 0; display:flex; flex-direction:column}
     #page-bg .card:not(:first-child) .ta-print{flex:1 1 auto; min-height:34px}
     /* full-text pages: fill at least one sheet, then flow onto extra sheets if the content is long */
-    #page-feat{display:flex !important; flex-direction:column; gap:8px}   /* feat page = a stack of per-feature cards that flow across sheets */
+    #page-feat:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* feat page = a stack of per-feature cards that flow across sheets. :not(.excluded) so a hidden page stays hidden */
     #feat-cards{display:flex; flex-direction:column; gap:8px}
     #page-feat .feat-blank{display:block; min-height:247mm}   /* blank Features page prints one full-page write-in card */
     .feat-card{break-inside:avoid}                                        /* never split one feature across a page break */
@@ -1291,7 +1291,7 @@
     #action-econ-card{break-inside:avoid}
     .ae-col h3{font-size:8px; margin-bottom:2px}
     .ae-col li{font-size:8px; line-height:1.28; padding:1px 0}
-    #page-story,#page-notes{display:block !important}
+    #page-story:not(.excluded),#page-notes:not(.excluded){display:block !important}   /* :not(.excluded) so a hidden page stays hidden (ID rule was overriding .page.excluded) */
     #page-story .card.grow,#page-notes .card.grow{display:block; break-inside:auto}
     #page-story .ta-print,#page-notes .ta-print{min-height:247mm; break-inside:auto}
     .card{padding:4px 7px; margin:0; border-color:#999; break-inside:avoid}
@@ -1667,7 +1667,7 @@
     width:100%; height:100%; margin:0; box-sizing:border-box;
     border:none !important; outline:none !important; background:transparent !important;
     box-shadow:none !important; border-radius:0 !important; padding:0 2px;
-    font-family:Helvetica,"Helvetica Neue",Arial,sans-serif; color:#1a1a1a; font-weight:600;
+    font-family:var(--font); color:#1a1a1a; font-weight:600;   /* same font stack as the Universal (UCS) theme */
     -webkit-appearance:none; appearance:none;
   }
   .cl-slot input, .cl-slot span{ display:flex; align-items:center; line-height:1; }
@@ -1676,12 +1676,23 @@
   .cl-slot span{ pointer-events:none; }
   .cl-slot textarea{ resize:none; overflow:hidden; line-height:1.28; padding:2px 3px; font-weight:500;
     display:block; white-space:pre-wrap; }
+  /* Fillable fields get a faint blue wash ON SCREEN so it's obvious what you can type into (calc/read-only
+     values and checkboxes are left clear). Removed in print — the printed sheet must look like clean paper. */
+  body.classic-layout .cl-slot input:not([type=checkbox]),
+  body.classic-layout .cl-slot textarea{ background:rgba(64,120,220,.10) !important; }
+  body.classic-layout .cl-slot input:not([type=checkbox]):hover,
+  body.classic-layout .cl-slot textarea:hover{ background:rgba(64,120,220,.16) !important; }
   .cl-slot.k-check{ display:flex; align-items:center; justify-content:center; }
   .cl-slot.k-check input{ width:78%; height:78%; cursor:pointer; border-radius:50% !important;
     border:1.4px solid #1a1a1a !important; }
   .cl-slot.k-check input:checked{ background:#1a1a1a !important; }
-  .cl-slot > *:focus{ background:rgba(60,90,160,.12) !important; }
+  .cl-slot > *:focus{ background:rgba(60,90,160,.18) !important; }
   .cl-slot.k-toggle > *{ cursor:pointer; font-size:18px; justify-content:center; }
+  /* Portrait slot (page 2 "Character Appearance"): shows the uploaded portrait, click to upload/replace. */
+  .cl-slot.k-portrait > *{ cursor:pointer; background-size:contain; background-position:center; background-repeat:no-repeat; display:flex; align-items:center; justify-content:center; }
+  body.classic-layout .cl-slot.k-portrait > *{ background-color:rgba(64,120,220,.10) !important; }
+  .cl-slot.k-portrait .cl-port-hint{ font-size:11px; color:#6b6252; text-align:center; pointer-events:none; padding:4px; }
+  .cl-slot.k-portrait.has-img .cl-port-hint{ display:none; }
   /* Classic-ONLY page order: the official sheet is page 1 Core, page 2 Background, page 3 Spells, but the app's DOM
      puts Spells before Background. Reorder JUST for Classic with flex `order` (the .pagetabs is already flex; .sheet
      is made flex only in print below). Both are gated on body.classic-layout, so they revert the instant the theme
@@ -1700,6 +1711,29 @@
     body.classic-layout #page-bg{ order:2; }
     body.classic-layout #page-spells{ order:3; }
     body.classic-layout #page-mini{ order:4; }
+    /* The .cl-page is a fixed 850x1100px (~8.85x11.46in) — larger than a Letter sheet, so at 100% it spills onto
+       extra sheets. Scale it to fit ONE sheet: the wrap is given the SCALED size (731x946 = 850x1100 * 0.86) with an
+       explicit height so print fragmentation sees the reduced height (CSS `zoom` scales visually but Chrome still
+       paginates on the pre-zoom height — that was the bug), and the .cl-page is transform:scale()'d into it. margin
+       auto centers the wrap on the sheet. 731px≈7.6in wide, 946px≈9.85in tall — both inside the Letter margins. */
+    body.classic-layout .cl-canvas-wrap{ display:block !important; width:731px !important; height:946px !important;
+      overflow:hidden !important; margin:0 auto !important; }
+    body.classic-layout .cl-page{ transform:scale(0.86) !important; transform-origin:top left; break-inside:avoid; }
+    /* Classic pages carry the whole sheet in the .cl-page overlay, so the app's own min-height fillers aren't needed
+       (and would push a second blank sheet). Neutralize them for Classic print. */
+    body.classic-layout #page-core, body.classic-layout #page-bg, body.classic-layout #page-spells{ min-height:0 !important; display:block !important; }
+    /* Classic prints ONLY the canonical pages (core/bg/spells) + Mini. Force-hide every other page here with
+       ID-level specificity (1,1,1) placed LAST — this beats the flex/block ID rules above (and the mobile ones)
+       that were overriding .page.excluded and leaking Inventory/Features/etc. into the printout. Classic-scoped, so
+       no other theme is touched. Mini is intentionally NOT hidden — it prints when a portrait exists (else .excluded). */
+    body.classic-layout #page-inv, body.classic-layout #page-feat, body.classic-layout #page-companion,
+    body.classic-layout #page-aw, body.classic-layout #page-story, body.classic-layout #page-notes,
+    body.classic-layout .page.spell-extra{ display:none !important; }
+    /* fillable-field wash is screen-only — print clean paper */
+    body.classic-layout .cl-slot input:not([type=checkbox]),
+    body.classic-layout .cl-slot textarea,
+    body.classic-layout .cl-slot.k-portrait > *{ background:transparent !important; }
+    body.classic-layout .cl-slot.k-portrait .cl-port-hint{ display:none !important; }   /* no "click to upload" affordance on paper */
   }
 
   /* ============================================================================
@@ -3017,11 +3051,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v504 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v505 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.114.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.115.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3029,6 +3063,14 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v505", semver:"2.115.0", items:[
+      "Classic theme printing is fixed: it now prints exactly the three canonical pages (Core, Background, Spells) plus the Mini, each scaled to fit a single sheet — no more overflow onto a dozen pages, and none of the app's other tabs (Inventory, Features, etc.) leak into the printout.",
+      "Classic theme: fillable text fields now show a faint blue tint on screen so it's clear where you can type. The tint never prints — the paper sheet stays clean.",
+      "Classic theme: the character portrait now lives in the page-2 \"Character Appearance\" box — click it to upload or replace, and it prints there.",
+      "Classic theme: on-screen text uses the same font as the Universal theme, and any text that's too long for its field now shrinks to fit instead of clipping.",
+      "Classic theme: ritual spells show a \"(R)\" after the spell name (e.g. \"Detect Magic (R)\"). It's display-only — your saved spell name stays clean.",
+      "Classic theme: printing no longer pops the \"print in dark mode?\" prompt (Classic is always light, so there's nothing to ask).",
+    ]},
     {v:"v504", semver:"2.114.1", items:[
       "Classic theme now orders its tabs (and print) in the official sheet's own sequence: Core, Background, Spells, then Mini — instead of the app's internal order where Spells came before Background. This ordering applies to the Classic theme only; no other theme is affected.",
     ]},
@@ -13724,7 +13766,7 @@
     }
     // Print: if dark mode is on, ask first — printing dark eats ink. OK = print dark, Cancel = switch to light then print.
     $("btn-print").addEventListener("click", () => {
-      if(darkMode){
+      if(darkMode && theme !== "classic"){   // Classic is always light (dark is disabled there) — no dark-print prompt
         const keepDark = confirm("Dark mode is on. Print in dark mode?\n\nOK — print in dark mode (uses a lot of ink)\nCancel — switch to light mode, then print");
         if(keepDark){
           document.body.classList.add("print-dark");
@@ -14820,6 +14862,38 @@
     function tgt(el){ var sel=el.dataset.sel; if(sel) return document.querySelector(sel); var id=el.dataset.app; return id?document.getElementById(id):null; }
     function isDark(){ return document.body.classList.contains('dark'); }
 
+    // The official page-2 "Character Appearance" box is a drawing area (no AcroForm field), so it's absent from the
+    // extracted map. Inject a portrait slot there — same left column + width as the Backstory box below it, filling
+    // the space between the header row and the Backstory label. The portrait wiring (upload/display) hangs off it.
+    (function(){ var bg = PAGES.filter(function(p){ return p.host==='page-bg'; })[0];
+      if(bg && !bg.map.some(function(f){ return f.kind==='portrait'; }))
+        bg.map.push({ kind:'portrait', align:'center', r:[34.8, 120.0, 164.4, 248.0] });
+    })();
+
+    // Shrink-to-fit: measure the value with a canvas (no reflow) and scale the font down so it fits the slot width.
+    var _fitCanvas, _fitCtx, _fitFam='';
+    function fitFont(el, base){
+      if(base==null){ base = parseFloat(el.dataset.basefs) || parseFloat(el.style.fontSize) || 12; }
+      var val = (el.value!=null ? el.value : el.textContent) || '';
+      if(!val){ el.style.fontSize = base+'px'; return; }
+      // Slot width is fixed, so cache it on first read to avoid a layout flush on every subsequent sync.
+      var avail = parseFloat(el.dataset.availw);
+      if(!avail){ avail = el.clientWidth - 5; if(avail > 0) el.dataset.availw = avail; }
+      if(avail <= 0) return;   // slot not laid out yet
+      if(!_fitCtx){ _fitCanvas=document.createElement('canvas'); _fitCtx=_fitCanvas.getContext('2d');
+        _fitFam = getComputedStyle(el).fontFamily || 'sans-serif'; }
+      _fitCtx.font = (el.style.fontWeight||'600')+' '+base+'px '+_fitFam;
+      var w = _fitCtx.measureText(val).width;
+      var size = (w > avail) ? Math.max(5, base*avail/w) : base;
+      el.style.fontSize = size.toFixed(1)+'px';
+    }
+    // Ritual spells show a "(R)" appended to the name in Classic. Kept OUT of the underlying app field: appended on
+    // display, stripped on focus + before pushing back, so editing/saving never sees it.
+    var RSUF = ' (R)';
+    function isSpName(el){ var s=el.dataset.sel; return !!(s && s.indexOf('.sp-name')===0); }
+    function stripR(v){ return (v||'').replace(/ \(R\)$/, ''); }
+    function isRitual(name){ try{ if(name && window.spellData){ var d=window.spellData(name); return !!(d && d.ritual); } }catch(e){} return false; }
+
     function buildPage(def){
       var host=document.getElementById(def.host); if(!host) return;
       if(host.querySelector('.cl-canvas-wrap')) return;
@@ -14832,14 +14906,16 @@
         slot.style.left=px(x)+'px'; slot.style.top=px(y)+'px';
         slot.style.width=px(w)+'px'; slot.style.height=px(h)+'px';
         var fs=clamp(px(h)*0.78, 7, 17), el, custom=(f.id&&f.id.slice(0,2)==='__');
-        if(f.kind==='calc'){ el=document.createElement('span'); el.style.fontSize=fs+'px'; }
+        if(f.kind==='calc'){ el=document.createElement('span'); el.style.fontSize=fs+'px'; el.dataset.basefs=fs; el.dataset.availw=px(w)-5; }
         else if(f.kind==='check'){ el=document.createElement('input'); el.type='checkbox'; }
+        else if(f.kind==='portrait'){ el=document.createElement('div'); el.className='cl-port';
+          el.innerHTML='<span class="cl-port-hint">Character portrait<br>(click to upload)</span>'; }
         else if(f.kind==='area'){
           el=document.createElement('textarea'); el.style.fontSize='10px';
           if(custom){ el.id='classic-'+f.id.replace(/_/g,''); el.setAttribute('data-save',''); }
         }
         else if(f.kind==='toggle'){ el=document.createElement('div'); el.textContent='○'; }
-        else { el=document.createElement('input'); el.type='text'; el.style.fontSize=fs+'px';
+        else { el=document.createElement('input'); el.type='text'; el.style.fontSize=fs+'px'; el.dataset.basefs=fs; el.dataset.availw=px(w)-5;
           if(custom){ el.id='classic-'+f.id.replace(/_/g,''); el.setAttribute('data-save',''); }
           else if(f.kind==='num') el.inputMode='numeric'; }
         if(f.sel) el.dataset.sel=f.sel; else if(f.id && !custom) el.dataset.app=f.id;
@@ -14866,6 +14942,10 @@
       outer.querySelectorAll('.cl-slot').forEach(function(slot){
         var el=slot.firstChild; if(!el) return;
         var kind=(slot.className.match(/k-(\w+)/)||[])[1];
+        if(kind==='portrait'){   // click routes to the app's real portrait upload (input[type=file])
+          el.addEventListener('click', function(){ var inp=document.getElementById('portrait-input'); if(inp) inp.click(); });
+          return;
+        }
         if(kind==='calc') return;
         if(!el.dataset.sel && !el.dataset.app) return;   // custom saved fields handled by the app
         if(kind==='check'){
@@ -14873,8 +14953,12 @@
         } else if(kind==='toggle'){
           el.addEventListener('click', function(){ var t=tgt(el); if(t) t.click(); setTimeout(syncClassic,0); });
         } else {
-          var push=function(){ var t=tgt(el); if(!t) return; t.value=el.value; t.dispatchEvent(new Event('input',{bubbles:true})); t.dispatchEvent(new Event('change',{bubbles:true})); };
+          var push=function(){ var t=tgt(el); if(!t) return; t.value=isSpName(el)?stripR(el.value):el.value; t.dispatchEvent(new Event('input',{bubbles:true})); t.dispatchEvent(new Event('change',{bubbles:true})); };
           el.addEventListener('input', push); el.addEventListener('change', push);
+          if(isSpName(el)){   // edit the clean name (no "(R)"); re-decorate on blur
+            el.addEventListener('focus', function(){ el.value=stripR(el.value); });
+            el.addEventListener('blur', function(){ setTimeout(syncClassic,0); });
+          }
         }
       });
     }
@@ -14885,11 +14969,23 @@
         var el=slot.firstChild; if(!el) return;
         var kind=(slot.className.match(/k-(\w+)/)||[])[1];
         if(kind==='toggle'){ var ins=document.getElementById('insp-mark'); if(ins){ var v=(ins.textContent||'').trim(); el.textContent=v||'○'; } return; }
+        if(kind==='portrait'){   // mirror the app's uploaded portrait image
+          var pimg=document.getElementById('portrait-img');
+          var src=(pimg && !pimg.hidden) ? (pimg.getAttribute('src')||'') : '';
+          el.style.backgroundImage = src ? "url('"+src+"')" : '';
+          slot.classList.toggle('has-img', !!src);
+          return;
+        }
         if(!el.dataset.sel && !el.dataset.app) return;
         var t=tgt(el); if(!t) return;
-        if(kind==='calc'){ el.textContent=t.textContent; }
+        if(kind==='calc'){ el.textContent=t.textContent; fitFont(el); }
         else if(kind==='check'){ el.checked=!!t.checked; }
-        else { if(document.activeElement!==el){ var disp=(t.tagName==='SELECT'&&t.selectedOptions[0])?t.selectedOptions[0].text:t.value; el.value=disp; } }
+        else { if(document.activeElement!==el){
+            var disp=(t.tagName==='SELECT'&&t.selectedOptions[0])?t.selectedOptions[0].text:t.value;
+            if(isSpName(el) && disp && isRitual(disp)) disp += RSUF;   // ritual spells read "Name (R)" (display only)
+            el.value=disp;
+            if(kind==='text'||kind==='num') fitFont(el);
+          } }
       });
     }
 
