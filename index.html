@@ -3068,11 +3068,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v493 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v494 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.108.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.108.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3080,6 +3080,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v494", semver:"2.108.1", items:[
+      "Ancestral Weapons tab: expanding an upgrade's description no longer jumps you back to the top of the upgrades list. The description now opens in place without re-rendering the whole page.",
+    ]},
     {v:"v493", semver:"2.108.0", items:[
       "Reorganized the header into two clean rows: Class & Level · Background · Race on top, then Alignment · Player · Campaign · Experience (with the Level Up controls) below. The character portrait now grows taller to fill the freed-up vertical space.",
     ]},
@@ -6450,7 +6453,7 @@
     if(!host._wired){ host._wired=true;
       host.addEventListener("click", e=>{
         const buy=e.target.closest(".aw-buy"); if(buy){ const w=buy.closest(".aw-manage"); if(w) awPageToggleUpgrade(+w.dataset.si, w.dataset.key, buy.dataset.up); return; }
-        const tg=e.target.closest(".aw-up-toggle"); if(tg && e.target.closest(".aw-card-ups")){ const lc=tg.dataset.toggle.toLowerCase(); if(_awUpOpen.has(lc)) _awUpOpen.delete(lc); else _awUpOpen.add(lc); renderAwPage(); return; }
+        const tg=e.target.closest(".aw-up-toggle"); if(tg && e.target.closest(".aw-card-ups")){ const lc=tg.dataset.toggle.toLowerCase(); const up=tg.closest(".aw-up"); if(_awUpOpen.has(lc)){ _awUpOpen.delete(lc); if(up) up.classList.remove("open"); } else { _awUpOpen.add(lc); if(up) up.classList.add("open"); } return; }
         const mt=e.target.closest(".aw-manage-toggle"); if(mt){ const pk=mt.dataset.pk; if(_awPanelOpen.has(pk)) _awPanelOpen.delete(pk); else _awPanelOpen.add(pk); renderAwPage(); return; }
         const ed=e.target.closest(".aw-edit"); if(ed){ openAwBuilder(+ed.dataset.si, ed.dataset.key); return; }
         if(e.target.closest(".awpage-new")){ openAwBuilder(_hbCurId||0); }
