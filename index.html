@@ -3073,11 +3073,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v516 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v517 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.117.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.118.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3085,6 +3085,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v517", semver:"2.118.0", items:[
+      "Blinded now imposes disadvantage on Perception, which drops your passive Perception by 5 (with the red disadvantage marker on the Perception line).",
+      "Passive Perception now reflects advantage/disadvantage on the Perception check in general (±5): Blinded, Frightened, Poisoned, and exhaustion level 1+ all lower it by 5, matching the rules.",
+    ]},
     {v:"v516", semver:"2.117.0", items:[
       "Combat card (Universal landscape layout): the Defenses field now stretches down to the bottom of the card instead of leaving empty space below it.",
       "Conditions now sits in its own bordered card, matching the Hit Points and Defenses boxes, and stretches to the bottom the same way.",
@@ -8383,7 +8387,7 @@
   // initiative), 'save' (all saves), 'save:str'/'save:dex' (one ability). speed:0|'half'. autofail: saves that auto-fail
   // (shown with the disadvantage marker). incap: can't take actions/reactions (informational only).
   const CONDITIONS = [
-    {k:'blinded', name:'Blinded', eff:{disadv:['attack']}, text:"Can't see; auto-fail any ability check that needs sight. Attacks against you have advantage, and your attack rolls have disadvantage."},
+    {k:'blinded', name:'Blinded', eff:{disadv:['attack','skill:perception']}, text:"Can't see; auto-fail any ability check that needs sight. Disadvantage on Perception (so −5 passive Perception). Attacks against you have advantage, and your attack rolls have disadvantage."},
     {k:'charmed', name:'Charmed', eff:{}, text:"You can't attack the charmer or target it with harmful effects. The charmer has advantage on any check to interact with you socially."},
     {k:'deafened', name:'Deafened', eff:{}, text:"Can't hear; auto-fail any ability check that needs hearing."},
     {k:'frightened', name:'Frightened', eff:{disadv:['check','attack']}, text:"While the source of your fear is in line of sight: disadvantage on ability checks and attack rolls. You can't willingly move closer to it."},
@@ -8554,7 +8558,12 @@
     });
     if(typeof syncSkillTri === "function") syncSkillTri();   // repaint the tri-state controls (prof/exp can change via ASI, feats, race)
     const observant = asiChoices.some(s => (s.feat||"") === "Observant") || /observant/i.test($("senses").value||"");   // Observant: +5 passive Perception
-    $("passive").textContent = (perceptionTotal == null) ? "" : (10 + perceptionTotal + (observant ? 5 : 0));
+    // Advantage/disadvantage on the Perception check shifts passive Perception by ±5 (RAW). Blinded (skill:perception), Frightened/Poisoned, and exhaustion ≥1 (check) impose disadvantage → −5.
+    const _pcEff = condEffects();
+    const _pcAdv = _pcEff.adv.has('check') || _pcEff.adv.has('skill:perception');
+    const _pcDis = _pcEff.disadv.has('check') || _pcEff.disadv.has('skill:perception');
+    const passAdj = (_pcAdv && !_pcDis) ? 5 : (_pcDis && !_pcAdv) ? -5 : 0;
+    $("passive").textContent = (perceptionTotal == null) ? "" : (10 + perceptionTotal + (observant ? 5 : 0) + passAdj);
 
     $("init").textContent = (mods.dex == null) ? "" : sgn(mods.dex + featInitBonus());   // + Alert etc.
 
