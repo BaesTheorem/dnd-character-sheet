@@ -404,7 +404,7 @@
   .def-chip{display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 8px;
     border:1px solid var(--line2); border-radius:12px; background:var(--field); color:var(--ink)}
   .def-chip svg{display:block; flex:0 0 auto}
-  .def-chip-adv{border-color:#2e9e4f}
+  .def-chip-adv,.def-chip-res,.def-chip-imm{border-color:#2e9e4f}
   .def-chip-dis{border-color:#c0392b}
   .cond-open{font:inherit; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     border:1px solid var(--line); border-radius:7px; background:var(--card); color:var(--ink); padding:6px 10px; cursor:pointer; align-self:flex-start}
@@ -3087,11 +3087,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v526 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v527 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.124.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.125.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3099,7 +3099,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
-    {v:"v526", semver:"2.124.0", semver:"", items:[
+    {v:"v527", semver:"2.125.0", semver:"", items:[
+      "Resistance and Immunity defense chips now show a green shield badge (R / I) instead of the word, matching the advantage/disadvantage die icons.",
+      "Fixed a duplicated race resistance (e.g. a Dwarf showing \"Poison, Poison\") — some subraces baked the parent's resistance twice; it's now deduped at load.",
+    ]},
+    {v:"v526", semver:"2.124.0", items:[
       "Defenses now works like Senses: auto-computed chips above a free-form notes box. Resistances, immunities, and (dis)advantages from your race, class/subclass features, feats, and equipped magic items show as chips and update live as you equip/attune gear.",
       "Any advantage/disadvantage chip shows the green advantage die / red disadvantage die icon instead of the word.",
       "Cloak of Displacement now calculates in — while equipped and attuned it shows a chip for the disadvantage attackers have against you (until you take damage).",
@@ -4065,15 +4069,29 @@
   };
   // Auto-computed Defenses chips — the same treatment as Senses. Live from race resistances/traits, class/subclass features,
   // feats, and EQUIPPED (+ attuned) magic items, recomputed each compute so unequipping/removing a source drops its chip.
-  function _defParse(line){   // classify a scanDefenses-style line for chip rendering: adv/disadv → icon + trailing text; resist/immunity → plain
+  // Resistance/Immunity get their own green shield badges (R / I), the same flat design + color as the advantage d20 icon.
+  function defBadgeSvg(letter){   // green shield with a letter, matching advIconSvg's flat green/black look (used for Resistance "R" / Immunity "I")
+    return '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">'
+      + '<path d="M10 1.8 L17.2 4.4 V9.6 C17.2 14 13.9 16.8 10 18.4 C6.1 16.8 2.8 14 2.8 9.6 V4.4 Z" fill="#2e9e4f"/>'
+      + '<text x="10" y="12.7" text-anchor="middle" font-size="9.5" font-weight="900" fill="#000" font-family="system-ui,Arial,sans-serif">'+letter+'</text></svg>';
+  }
+  function _defIcon(kind){   // the badge for a chip kind: adv/dis → d20 (advIconSvg), res/imm → shield (defBadgeSvg)
+    if(kind==="adv"||kind==="dis") return advIconSvg(kind);
+    if(kind==="res") return defBadgeSvg("R");
+    if(kind==="imm") return defBadgeSvg("I");
+    return "";
+  }
+  function _defParse(line){   // classify a scanDefenses-style line for chip rendering: the leading word becomes an icon, the rest is the text
     const s = String(line||"").trim(); let m;
     if(m = s.match(/^Adv\.\s+on\s+(.+)$/i)) return {kind:"adv", text:"on " + m[1].trim(), raw:s};
     if(m = s.match(/^Disadv\.\s+on\s+(.+)$/i)) return {kind:"dis", text:"on " + m[1].trim(), raw:s};
+    if(m = s.match(/^Resistances?:\s*(.+)$/i)) return {kind:"res", text:m[1].trim(), raw:s};
+    if(m = s.match(/^(?:Immunity|Immunities|Immune):\s*(.+)$/i)) return {kind:"imm", text:m[1].trim(), raw:s};
     return {kind:null, text:s, raw:s};
   }
-  function _defNorm(line){   // canonical key so chip dedup + box-strip tolerate case / whitespace / reordered-or-duplicated resist lists (migrates old saved lines)
-    const s = String(line||"").trim(), m = s.match(/^(resistance|immunity|immune):\s*(.+)$/i);
-    if(m) return m[1].toLowerCase() + ":" + [...new Set(m[2].split(",").map(x=>x.trim().toLowerCase()).filter(Boolean))].sort().join(",");
+  function _defNorm(line){   // canonical key so chip dedup + box-strip tolerate case / whitespace / reordered-or-duplicated resist lists + Immune/Immunity/Immunities variants (migrates old saved lines)
+    const s = String(line||"").trim(), m = s.match(/^(resistances?|immunit(?:y|ies)|immune):\s*(.+)$/i);
+    if(m) return (/^r/i.test(m[1]) ? "resistance" : "immunity") + ":" + [...new Set(m[2].split(",").map(x=>x.trim().toLowerCase()).filter(Boolean))].sort().join(",");
     return s.toLowerCase().replace(/\s+/g, " ");
   }
   function defenseChips(){
@@ -4104,8 +4122,10 @@
   function renderDefenseChips(){
     const chips = defenseChips(), box = $("def-chips");
     if(box) box.innerHTML = chips.map(c => {
-      const ic = c.kind ? advIconSvg(c.kind) : "", cls = "def-chip" + (c.kind ? " def-chip-" + c.kind : "");
-      return `<span class="${cls}" title="${esc([...c.srcs].join(", "))}">${ic}<span>${esc(c.text)}</span></span>`;
+      const ic = _defIcon(c.kind), cls = "def-chip" + (c.kind ? " def-chip-" + c.kind : "");
+      const lab = ({adv:"Advantage", dis:"Disadvantage", res:"Resistance", imm:"Immunity"})[c.kind] || "";
+      const title = (lab ? lab + (c.srcs.size ? " — " : "") : "") + [...c.srcs].join(", ");
+      return `<span class="${cls}" title="${esc(title)}">${ic}<span>${esc(c.text)}</span></span>`;
     }).join("");
     const t = $("defnotes"); if(!t) return;                                     // strip any box line a chip now covers (de-dup + migrate the old in-box defenses)
     const raws = new Set(chips.map(c => _defNorm(c.raw)));
@@ -5323,6 +5343,7 @@
       if(!r.subraceOf) return;
       const p = byName.get(r.subraceOf); if(!p) return;
       if(!r.size && p.size) r.size = p.size;                        // every subrace shows the parent's size (the extractor left subrace size blank → it fell back to "Medium")
+      if(Array.isArray(r.resist)) r.resist = [...new Set(r.resist)];   // self-dedup even when the parent-merge below early-returns: some baked subraces carry the parent's resistance twice (Dwarf subraces bake resist:["Poison","Poison"])
       if(!(p.traits||[]).length) return;
       const have = new Set((r.traits||[]).map(tname));
       if((p.traits||[]).every(t => have.has(tname(t)))) return;     // parent traits already present → already merged (no-op)
