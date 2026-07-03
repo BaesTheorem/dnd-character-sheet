@@ -3090,11 +3090,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v534 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v535 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.127.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.127.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3102,6 +3102,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v535", semver:"2.127.3", items:[
+      "Fixed the Defenses box extending below the Armor Class / Initiative / Speed row (with empty space) when you have several defense chips that wrap to multiple rows — the box now shrinks to line up with that row as intended.",
+    ]},
     {v:"v534", semver:"2.127.2", items:[
       "The Defenses and Conditions boxes now both bottom-align with the Armor Class / Initiative / Speed row instead of stretching taller — even when you have extra movement speeds shown or a lot of content in the other box.",
     ]},
@@ -9905,6 +9908,7 @@
     const acBottom = (acRow && acRow.getBoundingClientRect().height) ? acRow.getBoundingClientRect().bottom : 0;   // 0 when the row wrapped (mobile/narrow) → fall back to content height + CSS min-height
     // Defenses textarea
     if(document.activeElement !== ta){ const t = ta.value.replace(/[ \t\r\n]+$/, ""); if(t !== ta.value) ta.value = t; }   // when not editing, drop trailing blank lines so the box can shrink past them
+    ta.style.minHeight = acBottom ? "0px" : "";   // desktop: let the acBottom floor own the minimum — the CSS min-height:100 otherwise forces the box PAST the AC/Init/Speed row when tall/wrapped chips push the textarea top down (leaving empty space below the row); mobile (no floor): keep the CSS min-height
     ta.style.height = "auto";
     const pad = ta.offsetHeight - ta.clientHeight, contentH = ta.scrollHeight + pad;
     const defMin = acBottom ? Math.max(0, Math.round(acBottom - ta.getBoundingClientRect().top)) : 0;
