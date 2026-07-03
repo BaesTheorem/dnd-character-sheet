@@ -3065,11 +3065,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v486 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v487 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.106.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.106.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3077,6 +3077,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v487", semver:"2.106.1", items:[
+      "Fixed homebrew spells all showing up under Level 1 no matter their real level. Their level is now read correctly everywhere (spellbook search, autocomplete, and the list), and any homebrew spell already stuck at the wrong level is moved to its correct one automatically.",
+    ]},
     {v:"v486", semver:"2.106.0", items:[
       "Removed the auto-appended blank row at the end of every list (Inventory, Extra Equipment, Attacks, Limited Features). Each list now shows exactly the rows you've filled — to add another, use its “+ Add row” button or press Enter in a row.",
       "Updating now also corrects the 2024-edition text that had slipped into some item descriptions, not just new content. When you update, any affected item on your local sheet is refreshed to its 2014 text and the 2024-only strays are removed, the same way the update already folds in new source data.",
@@ -7334,7 +7337,9 @@
   const HB_ITEM_TYPES = ["Wondrous Item","Weapon","Armor","Shield","Ring","Rod","Staff","Wand","Potion","Scroll","Other"];
   const HB_RARITIES = ["Common","Uncommon","Rare","Very Rare","Legendary","Artifact"];
   const HB_BAGS = ["spells","items","feats","races","backgrounds","subclasses"];   // every content type a homebrew source can hold
-  function hbNormSources(arr){ return (arr||[]).filter(s => s && typeof s === "object").map(s => { const o = { name:(s.name || "My Homebrew"), enabled: s.enabled !== false }; HB_BAGS.forEach(k => { o[k] = (s[k] && typeof s[k] === "object" && !Array.isArray(s[k])) ? s[k] : {}; }); return o; }); }
+  function hbNormSources(arr){ return (arr||[]).filter(s => s && typeof s === "object").map(s => { const o = { name:(s.name || "My Homebrew"), enabled: s.enabled !== false }; HB_BAGS.forEach(k => { o[k] = (s[k] && typeof s[k] === "object" && !Array.isArray(s[k])) ? s[k] : {}; });
+    for(const lc in o.spells){ const sp = o.spells[lc]; if(sp && typeof sp === "object" && typeof sp.level !== "number") sp.level = Math.max(0, Math.min(9, parseInt(sp.level, 10) || 0)); }   // coerce a legacy/imported STRING level → int so the spell files at its real level (else every one lands at Lv 1)
+    return o; }); }
   function hbSpellCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.spells||{}).length, 0); }
   function hbHasContent(){ return homebrewSources.some(s => Object.keys(s.spells||{}).length || Object.keys(s.items||{}).length); }
   function hbItemCount(){ return homebrewSources.reduce((n,s) => n + Object.keys(s.items||{}).length, 0); }
@@ -7385,7 +7390,7 @@
     return customSpells[lc] || hbEnabledSpell(lc) || spellIndex()[lc] || null; }
   function customSpellNamesAt(l){   // names to autocomplete in a write-in row's datalist: character customs + enabled source homebrew
     const out = [], seen = new Set();
-    [...Object.values(customSpells), ...Object.values(hbActiveSpells())].forEach(s => { if((s.level||0) === l){ const k = (s.name||"").toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(s.name); } } });
+    [...Object.values(customSpells), ...Object.values(hbActiveSpells())].forEach(s => { if((parseInt(s.level,10)||0) === l){ const k = (s.name||"").toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(s.name); } } });   // parseInt: tolerate a legacy string level
     return out;
   }
   // MPMB `spellChanges`: a feature/race/invocation that overrides how a specific known spell is cast.
@@ -7742,8 +7747,26 @@
     if(!(info && info.fixed)) resizeCantrips(cantripCount(cls, L), inst);      // cantrip rows = cantrips known at this class level
     const ssw = document.getElementById(sx(inst,"spell-search-wrap"));         // spellbook search box: Wizard only
     if(ssw) ssw.style.display = (cls === "Wizard") ? "" : "none";
+    relocateMisleveledSpells(inst);   // repair homebrew spells that a legacy string-level bug filed at the wrong level
     renderSpellTable(inst);
     applySlotFilter(inst);
+  }
+  function relocateMisleveledSpells(inst){   // one-shot repair: a homebrew spell whose level was stored as a string got filed at Lv 1; move each to its real level. In-memory only (no forced save); re-runs on every render until a later save persists it. Leveled slots only — cantrip (0) rows are count-managed.
+    const SE = spellEntriesOf(inst); if(!SE) return;
+    for(let l=1; l<=9; l++){
+      if(!Array.isArray(SE[l])) continue;
+      for(let i = SE[l].length-1; i >= 0; i--){
+        const row = SE[l][i], name = row && (row.name||"").trim(); if(!name) continue;
+        const lc = name.toLowerCase();
+        const isHb = (typeof hbEnabledSpell === "function" && hbEnabledSpell(lc)) || (customSpells && customSpells[lc]);
+        if(!isHb) continue;   // only the homebrew/custom spells this bug mislevels — never auto-move an official spell a user placed by hand
+        const d = spellData(name), tl = d ? parseInt(d.level, 10) : NaN;
+        if(Number.isFinite(tl) && tl >= 1 && tl <= 9 && tl !== l){
+          SE[l].splice(i, 1); SE[tl] = SE[tl] || [];
+          if(!SE[tl].some(r => (r.name||"").trim().toLowerCase() === lc)) SE[tl].push(row);
+        }
+      }
+    }
   }
   function renderAllSpellSheets(setAbility){ for(let i=0;i<spellSheets;i++) renderSpellStyle(setAbility, i); }
   // Every spell you can cast OUTSIDE the normal class list — equipped magic items (DATA.itemSpells, from 5etools
@@ -10924,7 +10947,7 @@
   function setupSpellSearch(inst=0){
     const inp = sEl(inst,"spell-search"), res = sEl(inst,"spell-results"); if(!inp || !res) return;
     let matches = [], sel = -1;
-    const lvlTag = name => { const d = spellData(name); const l = (d && typeof d.level === "number") ? d.level : null; return l == null ? "" : (l === 0 ? "Cantrip" : "Lv "+l); };
+    const lvlTag = name => { const d = spellData(name); const pl = d ? parseInt(d.level, 10) : NaN; const l = Number.isFinite(pl) ? pl : null; return l == null ? "" : (l === 0 ? "Cantrip" : "Lv "+l); };   // parseInt: tolerate a legacy string level
     function paint(){ [...res.querySelectorAll(".opt")].forEach((o,i) => o.classList.toggle("sel", i === sel)); const s = res.querySelector(".opt.sel"); if(s) s.scrollIntoView({block:"nearest"}); }
     function render(){
       const q = inp.value.trim().toLowerCase();
@@ -10941,7 +10964,7 @@
     }
     function add(name){
       if(!name) return;
-      const d = spellData(name), l = (d && typeof d.level === "number") ? d.level : 1;
+      const d = spellData(name), pl = d ? parseInt(d.level, 10) : NaN, l = Number.isFinite(pl) ? Math.max(0, Math.min(9, pl)) : 1;   // parseInt: a legacy string level must still file at its real level, not default to Lv 1
       const SE = spellEntriesOf(inst); SE[l] = SE[l] || [];
       if(!SE[l].some(r => (r.name||"").trim().toLowerCase() === name.toLowerCase())){   // skip if already in the book at this level
         const blank = SE[l].find(r => !(r.name||"").trim());
