@@ -1881,6 +1881,15 @@
     body.ucs-layout #ucs-rail > .card{ margin:0; }
     body.ucs-layout #ucs-skills{ grid-area:skills; min-width:0; }
     body.ucs-layout #ucs-skills > .card{ margin:0; }
+    /* The skills column is only 268px — the default 40px total box + full-gap Prof/Exp marks
+       leave the name too little room, so the long words ("Investigation") and the right-pinned
+       ability tag (Dex/Int/…) overflow and clip off the right edge. Reclaim width here. */
+    body.ucs-layout #ucs-skills .row{ gap:6px; }
+    body.ucs-layout #ucs-skills .row .total{ width:32px; height:32px; font-size:15px; }
+    body.ucs-layout #ucs-skills .marks{ gap:4px; }
+    body.ucs-layout #ucs-skills .marks label{ gap:2px; }
+    body.ucs-layout #ucs-skills .row .rname{ flex-wrap:wrap; }
+    body.ucs-layout #ucs-skills .row .rname .ab{ margin-left:auto; padding-right:0; }
 
     body.ucs-layout #ucs-tabbar{ grid-area:tabbar; display:flex; flex-wrap:wrap; gap:2px; border-bottom:1px solid var(--line2); padding-bottom:0; }
     body.ucs-layout #ucs-tabbar .ucs-tab{
@@ -3032,11 +3041,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v468 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v469 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.97.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.97.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3044,6 +3053,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v469", semver:"2.97.2", items:[
+      "Universal layout: fixed the Skills column overflowing off the right edge. In the narrow 268px column the ability tags (Dex/Int/…) and long skill names were clipping past the right side; reclaimed width (smaller total box, tighter Prof/Exp marks, wrapping ability tag) so every row fits.",
+    ]},
     {v:"v467", semver:"2.97.1", items:[
       "The printed Overflow continuation sheet is back to its original format: a Limited Features card and an Inventory card bundled together on each sheet (rather than one card type per sheet), with fixed slots and blank write-in lines. It stays print-only, built from the continuous on-screen lists.",
     ]},
