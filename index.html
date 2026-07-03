@@ -472,10 +472,12 @@
   .hp-big{text-align:center; font-size:30px; font-weight:800; line-height:1.05; background:transparent !important;
     border:none !important; padding:0; width:3.6ch; box-sizing:content-box; color:var(--ink)}
   /* Temp HP: reads as a plain number, but tap/hover reveals a boxed editable field + stepper (no cap) */
+  /* at rest: no spinner reserved (appearance:textfield) so the centered "--"/value sits centered under the TEMP label; the stepper returns on hover/focus */
   .hpbox .hp-tempin{color:var(--muted); border:1px solid transparent !important; border-radius:7px;
-    appearance:auto; -moz-appearance:textfield}
+    appearance:textfield; -webkit-appearance:textfield; -moz-appearance:textfield}
   .hp-tempin::-webkit-inner-spin-button, .hp-tempin::-webkit-outer-spin-button{-webkit-appearance:inner-spin-button; appearance:auto; opacity:0}
-  .hpbox .hp-tempin:hover, .hpbox .hp-tempin:focus{border-color:var(--line) !important; background:var(--field) !important; color:var(--ink)}
+  .hpbox .hp-tempin:hover, .hpbox .hp-tempin:focus{border-color:var(--line) !important; background:var(--field) !important; color:var(--ink);
+    appearance:auto; -webkit-appearance:auto}
   .hp-tempin:hover::-webkit-inner-spin-button, .hp-tempin:focus::-webkit-inner-spin-button,
   .hp-tempin:hover::-webkit-outer-spin-button, .hp-tempin:focus::-webkit-outer-spin-button{opacity:1}
   .hp-tempcol{margin-left:6px}
@@ -3063,11 +3065,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v514 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v515 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.116.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.116.5";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3075,6 +3077,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v515", semver:"2.116.5", items:[
+      "Temp HP box: the resting \"--\" (and the number) now sits centered directly under the TEMP label instead of nudged slightly left. The stepper arrows still appear when you hover or tap the box.",
+    ]},
     {v:"v514", semver:"2.116.4", items:[
       "Classic theme: the death-save bubbles now work — clicking a success/failure marker fills it and it stays filled (they no longer clear themselves the way they do on the Universal sheet, since the classic sheet is filled in by hand).",
       "Removed the \"Work in progress\" note from the Theme settings.",
