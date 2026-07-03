@@ -785,6 +785,7 @@
   .coins .coin input{text-align:center; font-size:18px; font-weight:700}
   .inv-cols{display:grid; grid-template-columns:1fr; gap:14px; align-items:start}
   .inv-cols .invtable{width:100%}
+  .xeq-cols .invtable{width:100%}   /* Extra Equipment shares the inventory container/drag engine */
   @media (max-width:560px){ .inv-cols{grid-template-columns:1fr} }
   .invtable input{background:var(--field); padding:6px 5px}
   .invtable td.invitem{display:flex; align-items:center; gap:1px}
@@ -795,8 +796,8 @@
   .xeq-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px}   /* delete ✕ on EVERY row */
   .xeq-del:hover{color:#b42318}
   .addrow-btn{margin-top:8px; font-size:12px; padding:5px 12px}   /* "+ Add row" under Inventory / Extra Equipment */
-  .xeqtable td:nth-child(2) input{text-align:center}                     /* Qty centered */
-  .xeqtable td:nth-child(3) input{text-align:left}                       /* Location left-aligned (free text) */
+  .xeqtable td:nth-child(3) input{text-align:center}                     /* Qty centered (col 1 = drag handle now) */
+  .invtable.xeqtable td:nth-child(4) input{text-align:left}              /* Location left-aligned (free text) — out-specify the generic invtable centering */
   .ctx-menu{position:fixed; z-index:60; background:#fff; border:1px solid var(--line2); min-width:150px; padding:2px}
   .ctx-item{display:block; width:100%; text-align:left; border:none; background:none; padding:7px 12px; font:inherit; font-size:13px; cursor:pointer; color:inherit}
   .ctx-item:hover{background:var(--accent-soft)}
@@ -2714,8 +2715,10 @@
     <!-- PAGE: NOTES -->
     <section class="page" id="page-notes" data-page="notes">
       <div class="card"><h2>Extra Equipment</h2>
-        <p class="help noprint">Gear that exists somewhere other than on your person — stored on a mount, in a stronghold, at a bank, etc. Separate from your Inventory: it doesn't count toward carry weight and has no Equip toggle.</p>
-        <table class="invtable xeqtable"><thead><tr><th>Item</th><th style="width:70px">Qty</th><th>Location</th></tr></thead><tbody id="xeq"></tbody></table>
+        <p class="help noprint">Gear that exists somewhere other than on your person — stored on a mount, in a stronghold, at a bank, etc. Separate from your Inventory: it doesn't count toward carry weight and has no Equip toggle. Drag the <strong>⠿</strong> handle to reorder; <strong>right-click</strong> an item to <strong>make it a container</strong>, then drag rows onto it to nest them.</p>
+        <div class="xeq-cols">
+          <table class="invtable xeqtable"><thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th>Location</th></tr></thead><tbody id="xeq"></tbody></table>
+        </div>
         <button type="button" id="xeq-addrow" class="btn ghost addrow-btn noprint">+ Add row</button>
       </div>
       <div class="card grow"><h2>Notes</h2><textarea data-save="" id="notes" style="height: 0px;"></textarea><div class="ta-print"></div></div>
@@ -3059,11 +3062,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v477 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v478 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.101.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.102.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3071,6 +3074,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v478", semver:"2.102.0", items:[
+      "Extra Equipment (Notes tab) now has the full inventory toolkit: drag the ⠿ handle to reorder rows, and right-click an item to make it a container, then drag rows onto it to nest them (with a collapse chevron), exactly like your main Inventory.",
+    ]},
     {v:"v477", semver:"2.101.0", items:[
       "Inventory: the delete ✕ now shows on every row (not just filled ones), pressing Enter in a row creates a new one right below it (and if that row is inside a container, the new row goes in the same container), and there's a “+ Add row” button under the list.",
       "Extra Equipment (Notes tab) works the same way now — ✕ on every row, Enter makes a new row, a “+ Add row” button — and it starts as a single blank row instead of 24 empty ones.",
@@ -3683,7 +3689,8 @@
   const XEQ_MAIN = 1, XEQ_GROW = 6;   // "Extra Equipment" (Notes tab) — ONE continuous list; starts at a single blank row, grows as it fills. Gear stored elsewhere (mount/HQ/bank); no weight, no equip.
   let NXEQ = XEQ_MAIN;
   const xeqRowHTML = i =>
-    `<tr><td class="invitem"><button class="xeq-del noprint" data-x="${i}" type="button" tabindex="-1" title="Delete">✕</button><input data-save id="xeqname-${i}" autocomplete="off"></td>`+
+    `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
+    `<td class="invitem"><button class="xeq-del noprint" data-x="${i}" type="button" tabindex="-1" title="Delete">✕</button><span class="cont-caret" id="xeqcaret-${i}" data-r="${i}"></span><input data-save id="xeqname-${i}" autocomplete="off"></td>`+
     `<td><input data-save type="number" id="xeqqty-${i}" min="0"></td>`+
     `<td><input data-save id="xeqloc-${i}" placeholder="mount / HQ / bank…"></td></tr>`;
   const limitedRowHTML = i =>
@@ -8731,6 +8738,9 @@
     data.invConts = []; for(let i=0;i<NINV;i++) data.invConts.push(rowCont(i));   // per-row container assignment
     data.collapsed = [...collapsedContainers];   // collapsed container groups
     data.userContainers = [...userContainers];   // items the user turned into containers
+    data.xeqConts = []; for(let i=0;i<NXEQ;i++) data.xeqConts.push(xeqRowCont(i));   // Extra Equipment: per-row container assignment
+    data.xeqCollapsed = [...xeqCollapsed];        // Extra Equipment collapsed groups
+    data.xeqUserContainers = [...xeqUserContainers];   // Extra Equipment items turned into containers
     data.invEquip = []; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i); data.invEquip.push(!!(cb && cb.checked)); }   // per-row equipped state
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     data.companions = companions;
@@ -8857,6 +8867,10 @@
     collapsedContainers = new Set((data && Array.isArray(data.collapsed)) ? data.collapsed : []);
     userContainers = new Set((data && Array.isArray(data.userContainers) ? data.userContainers : []).map(n => String(n).toLowerCase()));
     renderContainers();
+    for(let i=0;i<NXEQ;i++) setXeqRowCont(i, (data && Array.isArray(data.xeqConts)) ? (data.xeqConts[i]||"") : "");   // Extra Equipment container state
+    xeqCollapsed = new Set((data && Array.isArray(data.xeqCollapsed)) ? data.xeqCollapsed : []);
+    xeqUserContainers = new Set((data && Array.isArray(data.xeqUserContainers) ? data.xeqUserContainers : []).map(n => String(n).toLowerCase()));
+    renderXeqContainers();
     for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); if(!el) continue;   // restore active-weapon links on the Attacks rows
       const lk = (data && Array.isArray(data.atkLinks)) ? data.atkLinks[i] : "";
       if(lk) el.dataset.weapon = lk; else delete el.dataset.weapon;
@@ -10958,6 +10972,39 @@
   function getInvData(){ const a = []; for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i); a.push({name:$("invname-"+i).value, qty:$("invqty-"+i).value, unit:($("invwt-"+i).dataset.unit||""), cont:rowCont(i), equip:!!(cb&&cb.checked)}); } return a; }
   function setInvData(a){ for(let i=0;i<NINV;i++){ $("invname-"+i).value = a[i].name||""; $("invqty-"+i).value = a[i].qty||""; setRowUnit(i, (a[i].unit===""||a[i].unit==null)?null:parseFloat(a[i].unit)); setRowCont(i, a[i].cont||""); const cb=$("invequip-"+i); if(cb) cb.checked = !!a[i].equip; refreshRowWeight(i); } renderContainers(); }
   function moveInvRow(from, to){ if(from === to || from == null || to == null) return; const a = getInvData(); const [row] = a.splice(from,1); a.splice(to,0,row); setInvData(a); save(); compute(); }
+  // ---- Extra Equipment: its own copy of the inventory container + drag engine (user-made containers only; no weight/equip/magical containers, so no compute) ----
+  let xeqUserContainers = new Set();   // xeq item names (lowercased) the user turned into containers via right-click
+  let xeqCollapsed = new Set();        // xeq container names whose contents are collapsed
+  function xeqRowCont(i){ const el = $("xeqname-"+i); return (el && el.dataset.cont) || ""; }
+  function setXeqRowCont(i, v){ const el = $("xeqname-"+i); if(el){ if(v) el.dataset.cont = v; else delete el.dataset.cont; } }
+  function isXeqContainerRow(i){ const nm = ($("xeqname-"+i).value||"").trim(); return !!nm && xeqUserContainers.has(nm.toLowerCase()); }
+  function toggleXeqContainer(i){ const nm = ($("xeqname-"+i).value||"").trim(); if(!nm) return; const lc = nm.toLowerCase(); if(xeqUserContainers.has(lc)) xeqUserContainers.delete(lc); else xeqUserContainers.add(lc); renderXeqContainers(); save(); }
+  function presentXeqContainers(){ const seen = new Set(), out = []; for(let i=0;i<NXEQ;i++){ const nm = ($("xeqname-"+i).value||"").trim(); if(nm && xeqUserContainers.has(nm.toLowerCase()) && !seen.has(nm)){ seen.add(nm); out.push(nm); } } return out; }
+  function renderXeqContainers(){
+    const have = new Set(presentXeqContainers()), counts = {};
+    for(let i=0;i<NXEQ;i++){ let c = xeqRowCont(i); if(c && !have.has(c)){ setXeqRowCont(i, ""); c = ""; } if(c) counts[c] = (counts[c]||0)+1; }
+    for(let i=0;i<NXEQ;i++){
+      const nm = $("xeqname-"+i), caret = $("xeqcaret-"+i), tr = nm && nm.closest("tr"); if(!nm || !caret || !tr) continue;
+      const name = (nm.value||"").trim(), cont = xeqRowCont(i), isCont = !!(name && have.has(name) && counts[name]);
+      caret.className = "cont-caret"; caret.textContent = ""; caret.title = ""; delete caret.dataset.cont;
+      tr.style.display = ""; tr.classList.toggle("in-container", !!cont); tr.classList.toggle("has-item", !!name); tr.classList.toggle("is-container", isCont);
+      if(isCont){ const open = !xeqCollapsed.has(name); caret.className = "cont-caret show cont-toggle"; caret.textContent = open ? "▾" : "▸"; caret.dataset.cont = name; caret.title = (open ? "Collapse" : "Expand") + " contents"; }
+      else if(cont){ caret.className = "cont-caret show"; caret.textContent = "↳"; }
+      if(cont && xeqCollapsed.has(cont)) tr.style.display = "none";
+    }
+  }
+  function getXeqData(){ const a = []; for(let i=0;i<NXEQ;i++) a.push({name:$("xeqname-"+i).value, qty:$("xeqqty-"+i).value, loc:$("xeqloc-"+i).value, cont:xeqRowCont(i)}); return a; }
+  function setXeqData(a){ for(let i=0;i<NXEQ;i++){ $("xeqname-"+i).value = a[i].name||""; $("xeqqty-"+i).value = a[i].qty||""; $("xeqloc-"+i).value = a[i].loc||""; setXeqRowCont(i, a[i].cont||""); } renderXeqContainers(); }
+  function moveXeqRow(from, to){ if(from === to || from == null || to == null) return; const a = getXeqData(); const [row] = a.splice(from,1); a.splice(to,0,row); setXeqData(a); save(); }
+  function moveXeqBlock(contIdx, to){   // move a container together with its contents
+    const a = getXeqData(); const name = (a[contIdx].name||"").trim();
+    if(!name){ moveXeqRow(contIdx, to); return; }
+    const lc = name.toLowerCase(), inBlock = i => i === contIdx || (a[i].cont && a[i].cont.toLowerCase() === lc);
+    if(inBlock(to)) return;
+    const target = a[to], block = a.filter((_,i) => inBlock(i)), rest = a.filter((_,i) => !inBlock(i));
+    let at = rest.indexOf(target); if(at < 0) at = rest.length; else if(contIdx < to) at += 1;
+    rest.splice(at, 0, ...block); setXeqData(rest); save();
+  }
   function closeCtxMenu(){ const m=$("ctx-menu"); if(m) m.remove(); }
   function openCtxMenu(x, y, items){
     closeCtxMenu();
@@ -10991,15 +11038,25 @@
     setInvData(a); save(); compute();
     const el = $("invname-"+dest); if(el){ el.focus(); }
   }
-  function deleteXeqRow(i){   // remove an Extra Equipment row: shift the rows below up one so the list stays compact, keep one trailing blank
+  function deleteXeqRow(i){   // clear a row fully and push the empty box to the bottom (un-nests its container refs via renderXeqContainers)
     i = +i;
-    for(let j=i; j<NXEQ-1; j++){ ["xeqname","xeqqty","xeqloc"].forEach(p => { const a=$(p+"-"+j), b=$(p+"-"+(j+1)); if(a&&b) a.value = b.value; }); }
-    ["xeqname","xeqqty","xeqloc"].forEach(p => { const el=$(p+"-"+(NXEQ-1)); if(el) el.value=""; });
-    save(); ensureXeqTrailing();
+    $("xeqname-"+i).value = ""; const q = $("xeqqty-"+i); if(q) q.value = ""; const l = $("xeqloc-"+i); if(l) l.value = "";
+    setXeqRowCont(i, "");
+    if(i < NXEQ-1) moveXeqRow(i, NXEQ-1);      // moveXeqRow saves + re-renders containers
+    else { renderXeqContainers(); save(); }
   }
-  function xeqEnterNewRow(i){   // Enter inside an Extra Equipment row → move to the next row, creating one if needed
-    i = +i; let n = i+1; if(n >= NXEQ) growXeqTo(NXEQ+XEQ_GROW);
-    const el = $("xeqname-"+n); if(el) el.focus(); ensureXeqTrailing();
+  function xeqEnterNewRow(i){   // Enter inside an Extra Equipment row → insert a fresh blank directly below it, inheriting the same container
+    i = +i;
+    let cont = xeqRowCont(i);
+    if(!cont && isXeqContainerRow(i)) cont = ($("xeqname-"+i).value||"").trim();
+    const a = getXeqData();
+    let rm = -1; for(let j=a.length-1;j>=0;j--){ if(j!==i && !(a[j].name||"").trim()){ rm=j; break; } }
+    if(rm < 0){ growXeqTo(NXEQ+XEQ_GROW); return xeqEnterNewRow(i); }
+    a.splice(rm,1);
+    const dest = ((rm < i) ? i-1 : i) + 1;
+    a.splice(dest, 0, {name:"", qty:"", loc:"", cont:cont||""});
+    setXeqData(a); save();
+    const el = $("xeqname-"+dest); if(el){ el.focus(); }
   }
   // ---- "Active" weapons → Attacks table (toggled per inventory row; bonus & damage auto-computed) ----
   function _baseWeapon(n){ return ((DATA && DATA.weapons) || []).find(w => (w.name||"").toLowerCase() === n) || null; }
@@ -13109,6 +13166,51 @@
       clearDrop(); invDrag = null;
     });
     invCols.addEventListener("dragend", () => { clearDrop(); document.querySelectorAll(".invtable tr.dragging").forEach(r => r.classList.remove("dragging")); invDrag = null; });
+    });
+
+    // --- Extra Equipment drag-to-reorder + container nesting (parallel to inventory, scoped to .xeq-cols) ---
+    let xeqDrag = null;
+    const clearXeqDrop = () => document.querySelectorAll(".xeq-cols tr.drop-target, .xeq-cols tr.drop-into").forEach(r => r.classList.remove("drop-target","drop-into"));
+    document.querySelectorAll(".xeq-cols").forEach(cols => {
+      cols.addEventListener("click", e => {   // collapse/expand a container's contents
+        const c = e.target.closest(".cont-caret.cont-toggle"); if(!c) return;
+        const nm = c.dataset.cont; if(!nm) return;
+        if(xeqCollapsed.has(nm)) xeqCollapsed.delete(nm); else xeqCollapsed.add(nm);
+        save(); renderXeqContainers();
+      });
+      cols.addEventListener("dragstart", e => {
+        const h = e.target.closest(".invdrag"); if(!h){ e.preventDefault(); return; }
+        const tr = h.closest("tr"); xeqDrag = +tr.dataset.r; e.dataTransfer.effectAllowed = "move"; try{ e.dataTransfer.setData("text/plain", String(xeqDrag)); }catch(_){}
+        requestAnimationFrame(() => tr.classList.add("dragging"));
+      });
+      cols.addEventListener("dragover", e => {
+        if(xeqDrag == null) return; e.preventDefault(); e.dataTransfer.dropEffect = "move";
+        const tr = e.target.closest("tr"); clearXeqDrop();
+        if(tr){ const to = +tr.dataset.r; tr.classList.add((to !== xeqDrag && isXeqContainerRow(to)) ? "drop-into" : "drop-target"); }
+      });
+      cols.addEventListener("drop", e => {
+        if(xeqDrag == null) return; e.preventDefault();
+        const tr = e.target.closest("tr");
+        if(tr){ const to = +tr.dataset.r;
+          if(isXeqContainerRow(xeqDrag)){
+            setXeqRowCont(xeqDrag, (to !== xeqDrag && isXeqContainerRow(to)) ? ($("xeqname-"+to).value||"").trim() : "");
+            moveXeqBlock(xeqDrag, to);
+          } else if(to !== xeqDrag && isXeqContainerRow(to)){
+            setXeqRowCont(xeqDrag, ($("xeqname-"+to).value||"").trim());
+            moveXeqRow(xeqDrag, xeqDrag < to ? to : to+1);
+          } else { setXeqRowCont(xeqDrag, ""); moveXeqRow(xeqDrag, to); }
+          save();
+        }
+        clearXeqDrop(); xeqDrag = null;
+      });
+      cols.addEventListener("dragend", () => { clearXeqDrop(); document.querySelectorAll(".invtable tr.dragging").forEach(r => r.classList.remove("dragging")); xeqDrag = null; });
+    });
+    document.addEventListener("contextmenu", e => {   // right-click an Extra Equipment item -> make/unmake a container
+      const el = e.target.closest('input[id^="xeqname-"]');
+      if(!el || !(el.value||"").trim()) return;
+      const i = +el.id.split("-").pop(), lc = (el.value||"").trim().toLowerCase();
+      e.preventDefault();
+      openCtxMenu(e.clientX, e.clientY, [{ label: xeqUserContainers.has(lc) ? "No longer a container" : "Make a container", fn: () => toggleXeqContainer(i) }]);
     });
 
     $("speed").addEventListener("focus", ()=>{ $("speed").value = (speedBase != null ? speedBase : ""); });   // show base for editing
