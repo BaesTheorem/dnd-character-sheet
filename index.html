@@ -3041,11 +3041,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v471 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v472 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.99.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.99.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3053,6 +3053,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v472", semver:"2.99.1", items:[
+      "Fixed the Core sheet printing as a blank page (the other pages were fine). A stray focus event during the print preview was re-activating the landscape dashboard mid-print, which pulled the Core cards back out of the printable page. Printing now keeps the Core page intact until printing actually finishes.",
+      "The Ancestral Weapons tab now hides entirely when you aren't carrying an Ancestral Weapon. It appears as soon as an AW is in your inventory (building one via the Homebrew Studio adds it automatically) and hides again if you remove it — the tab and dedicated sheet are now scoped to what you're actually carrying.",
+    ]},
     {v:"v471", semver:"2.99.0", items:[
       "Updates now refresh your SOURCE DATA additively, not just the app code. When you update (or download a new file), any content the new build has that your sheet is missing is added, and changed official entries are refreshed to the latest version — including new entries added within a sourcebook you already have (detected by a content hash, so nothing is missed just because you have more total content than the shipped build). Your loaded adventures, imported books, homebrew, and characters are all kept exactly as they are; nothing is ever removed.",
     ]},
@@ -5897,12 +5901,13 @@
   function applyLayout(){
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
     const hasCompanion = (companions||[]).length > 0;
-    const hasAw = awEnabled && (typeof awAllItems === "function") && awAllItems().length > 0;   // the AW tab/sheet shows whenever you've built an Ancestral Weapon in an enabled source (each card shows its own attuned-vs-mundane state; mechanics still gate on attunement). Was gated on live attunement-change detection, which was fragile and hid the dedicated sheet for built-but-unattuned heirlooms.
+    const hasAw = awEnabled && (typeof awInvItems === "function") && awInvItems().length > 0;   // the AW tab/sheet shows only when an Ancestral Weapon is actually IN THE INVENTORY (awSaveBuild auto-adds new ones; a built-but-not-carried AW lives in the Homebrew Studio, not on the sheet). Mechanics still gate on attunement; each card shows its own attuned-vs-mundane state.
     PAGES.forEach(([key]) => {
       const userHidden = !!hiddenPages[key];
       const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "companion" && !hasCompanion) || (key === "aw" && !hasAw);
       const tab = document.querySelector('.ptab[data-page="'+key+'"]');
-      if(tab){ tab.style.display = userHidden ? "none" : ""; tab.classList.toggle("muted", excluded && !userHidden); }
+      const hideTab = userHidden || (key === "aw" && excluded);   // the AW tab HIDES entirely when no Ancestral Weapon is carried (you build one via the Homebrew Studio, which auto-adds it to inventory) — Companions/Mini instead stay muted-but-clickable as their discovery path
+      if(tab){ tab.style.display = hideTab ? "none" : ""; tab.classList.toggle("muted", excluded && !hideTab); }
       const page = $("page-"+key);
       if(page) page.classList.toggle("excluded", excluded);
     });
@@ -6138,6 +6143,13 @@
     return out;
   }
   function awAllItems(){ const out=[]; homebrewSources.forEach((s,si)=>{ if(s.enabled===false) return; const items=s.items||{}; Object.keys(items).forEach(k=>{ if(items[k].aw) out.push({it:items[k], si, key:k}); }); }); return out; }
+  // The AW tab + dedicated sheet are inventory-scoped: only Ancestral Weapons the character is actually CARRYING
+  // (a matching inventory row name) count. Built-but-not-carried AWs still live in the Homebrew Studio.
+  function awInvItems(){
+    const inv = new Set();
+    for(let i=0;i<NINV;i++){ const el=$("invname-"+i); if(el){ const v=(el.value||"").trim().toLowerCase(); if(v) inv.add(v); } }
+    return awAllItems().filter(o => inv.has(String(o.key).toLowerCase()) || inv.has(String((o.it && o.it.name) || "").toLowerCase()));
+  }
   // Load a user-picked image for homebrew content (same conventions as the character portrait: any image
   // file type, validated by MIME or extension, with feedback on failure, never a silent no-op). Decodable
   // images are downscaled to <=480px (PNG when the source may carry transparency, else JPEG) so they stay
@@ -6285,7 +6297,7 @@
         const pts=e.target.closest(".aw-pts"); if(pts){ const w=pts.closest(".aw-manage"); if(!w) return; const src=homebrewSources[+w.dataset.si]&&homebrewSources[+w.dataset.si].items[w.dataset.key]; if(!src||!src.aw) return; const ov=awEnsureOverride(src); ov.points=Math.max(0, parseInt(pts.value,10)||0); save(); compute(); renderAwPage(); }
       });
     }
-    const aws=awAllItems(), cl=awCharLevel();
+    const aws=awInvItems(), cl=awCharLevel();
     const newBtn=`<button class="btn primary awpage-new" type="button">+ New Ancestral Weapon</button>`;
     if(!aws.length){ host.innerHTML=`<div class="card"><p class="wiz-hint" style="margin:0 0 8px">No Ancestral Weapons yet.</p>${newBtn}</div>`; return; }
     host.innerHTML = aws.map(({it,si,key})=>{
@@ -9173,9 +9185,10 @@
     const im = t.id && t.id.match(/^invname-(\d+)$/);                   // inventory item name changed
     if(im){ const i = im[1];
       if(!t.value.trim()){ const q = $("invqty-"+i); if(q) q.value = ""; setRowUnit(i, null); const w = $("invwt-"+i); if(w) w.value = "";   // cleared → clear qty + weight
-        if(e.type === "change"){ deleteInvRow(i); return; }            // committed deletion → strip references + push the empty row to the bottom
+        if(e.type === "change"){ deleteInvRow(i); if(typeof awEnabled !== "undefined" && awEnabled && typeof applyLayout === "function") applyLayout(); return; }   // committed deletion → strip references + push the empty row to the bottom (+ refresh the AW tab: the deleted item may have been an Ancestral Weapon)
       }
       else if(rowUnit(i) == null){ const w = itemWeight(t.value); if(w != null){ setRowUnit(i, w); refreshRowWeight(i); } }                    // auto-fill per-item weight → total
+      if(typeof awEnabled !== "undefined" && awEnabled && typeof applyLayout === "function") applyLayout();   // an AW may have entered/left the inventory → update the Ancestral Weapons tab visibility live
     }
     const qm = t.id && t.id.match(/^invqty-(\d+)$/);                    // quantity changed → rescale the line total
     if(qm) refreshRowWeight(qm[1]);
@@ -14347,7 +14360,15 @@
     }
     // "Universal Character Sheet" prints as the portrait sheet: drop the landscape DOM (deactivate restores the canonical
     // pages) AND swap the dashboard palette out for the clean default one, then restore the dashboard once printing ends.
-    function _ucsAfterPrint(){ if(window.__ucsPrint){ window.__ucsPrint=false; document.body.dataset.theme='ucs'; if(isUcs()) activate(); } }
+    function _ucsAfterPrint(){
+      if(!window.__ucsPrint) return;
+      // A `focus` event can fire DURING an interactive print preview (opening it, changing print settings). If we
+      // re-activate the landscape layout then, it yanks the just-restored Core cards back into the hidden scaffold
+      // → the Core page prints BLANK (the rest print fine). So only restore once printing has actually ended, i.e.
+      // print media no longer matches. `afterprint` fires with media already back to screen, so it still restores.
+      if(window.matchMedia && window.matchMedia('print').matches) return;
+      window.__ucsPrint=false; document.body.dataset.theme='ucs'; if(isUcs()) activate();
+    }
     window.addEventListener('beforeprint', function(){ if(active()){ window.__ucsPrint=true; deactivate(); document.body.dataset.theme='universal'; } });
     window.addEventListener('afterprint', _ucsAfterPrint);
     window.addEventListener('focus', _ucsAfterPrint);   // some Safari/mobile skip afterprint — restore on refocus too
