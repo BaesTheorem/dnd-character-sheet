@@ -3084,11 +3084,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v524 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v525 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.123.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.123.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3096,6 +3096,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v525", semver:"2.123.2", items:[
+      "Auto-repair now also fixes the Monk composite tool proficiency after its tools were picked — e.g. “Any One Type Of Woodcarver's Tools Or Any One Flute” is cleaned to “Woodcarver's Tools, Flute” (the earlier repair only caught the un-picked “…Of Your Choice” form). Open the character and it fixes itself.",
+    ]},
     {v:"v524", semver:"2.123.1", items:[
       "Existing characters now auto-repair the garbled class tool proficiencies from the last fix. If your Proficiencies box already read something like “Any One Type Of Woodcarver’s Tools” or “Any One Flute,” it’s cleaned up automatically when you open the sheet (kept your picked tools, dropped the leftover words). A tool you hadn’t chosen yet becomes a normal “artisan’s tools of your choice” you can pick.",
     ]},
@@ -10584,8 +10587,10 @@
   }
   function _cleanStaleToolProse(text){
     return String(text)
-      // Monk composite: "Any One Type Of X Or Any One Y Of Your Choice"  (X/Y = a kind or a picked tool)
-      .replace(/\bany one type of (.+?) or any one (.+?) of your choice/gi, (m,a,b) => _staleToolTok(a) + ", " + _staleToolTok(b))
+      // Monk composite: "Any One Type Of X Or Any One Y [Of Your Choice]"  (X/Y = a kind or an already-picked
+      // tool; the "of your choice" tail is OPTIONAL — once the picker substituted the choices it was dropped, e.g.
+      // "Any One Type Of Woodcarver's Tools Or Any One Flute" — so bound the match on the trailing "(source)"/comma/EOL)
+      .replace(/\bany one type of (.+?) or any one (.+?)(?: of your choice)?(?=\s*(?:\(|,|\n|$))/gi, (m,a,b) => _staleToolTok(a) + ", " + _staleToolTok(b))
       // Artificer / single: "(Any )One Type Of X Of Your Choice"
       .replace(/\b(?:any )?one type of (.+?) of your choice/gi, (m,a) => _staleToolTok(a))
       // Bard: "Three Musical Instruments Of Your Choice" → clean 3-pick loader phrasing
