@@ -810,7 +810,7 @@
   .invtable tr.in-weightless input{color:var(--muted)}                  /* item in a weightless container (Bag of Holding): weight not counted */
   .invtable tr.is-container .invname-ac{font-weight:600}                 /* a container's name reads a little heavier */
   .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px; touch-action:none}
-  .invtable tbody tr{transition:opacity .12s ease}
+  .invtable tbody tr{transition:opacity .12s ease; position:relative}
   .invtable tbody tr.dragging{opacity:.4}   /* row being dragged fades so the drop line reads clearly */
   .ac-items-auto{display:flex; flex-direction:column; gap:4px; margin-top:4px}
   .ac-items-auto .aci{display:flex; justify-content:space-between; align-items:center; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:13px}
@@ -819,7 +819,7 @@
   .ac-items-auto .none{color:var(--muted); font-size:12px}
   .ac-items-write{display:none}   /* print-only blank write-in box (see @media print) */
   .invdrag:active{cursor:grabbing}
-  .invtable tr.drop-target td{border-top:2px solid var(--accent)}   /* flat drop line (survives the global box-shadow:none) */
+  .invtable tr.drop-target::after{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:var(--accent);pointer-events:none;z-index:2}   /* ONE continuous drop line drawn on the row, not per-cell — a per-td border-top steps/breaks at the display:flex .invitem cell (it drops out of border-collapse) */
   .invtable tr.drop-into td{outline:2px solid var(--accent); outline-offset:-2px; background:var(--accent-soft)}   /* dropping onto a container */
   /* Features page: a collapsible raw-text editor + one independent card per feature */
   .feat-editor{margin-bottom:12px}
@@ -3060,11 +3060,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v479 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v480 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.102.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.102.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3072,6 +3072,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v480", semver:"2.102.2", items:[
+      "The gold line that shows where a dragged item will drop is now one clean line across the row, instead of stepping/breaking at the item column.",
+    ]},
     {v:"v479", semver:"2.102.1", items:[
       "Fixed a stray broken line that appeared between inventory and Extra Equipment rows.",
       "Deleting a row (the ✕) now actually removes it and shifts the rows below up, instead of just blanking it — so you can clear out blank rows, and it sticks.",
