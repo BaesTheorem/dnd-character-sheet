@@ -1158,9 +1158,9 @@
   .prep-cur.over{color:#b42318}                                           /* over the cap (e.g. after a level/Int drop) */
   .prep-sep{color:var(--muted); font-weight:400}
   .prep-free-note{color:#d4a017; font-size:11px; font-weight:600; white-space:nowrap}
-  /* The header "Can Prepare" box (#prep-stat) itself detaches into the upper-right corner when it scrolls off the top, then re-attaches into the spell-header grid on the way back up */
-  .stat.prep-detached{position:fixed; right:14px; top:14px; z-index:40; margin:0}
-  .stat.prep-detached.over{z-index:60}                                    /* float above the prepare-spells overlay (modal is z-50) */
+  /* The header "Can Prepare" box (#prep-stat) itself detaches into the top-right — tucked UNDER the sticky toolbar (top set in JS from the toolbar height) — when it scrolls off the top, then re-attaches into the spell-header grid on the way back up. Solid card background; z-index sits BELOW the toolbar (20) so the top bar / Manage Characters button stay uncovered and clickable. */
+  .stat.prep-detached{position:fixed; right:14px; top:14px; z-index:15; margin:0; background:var(--card)}
+  .stat.prep-detached.over{z-index:60}                                    /* during the prepare-spells overlay, float above the modal (z-50) */
   @media print{ .stat.prep-detached{position:static !important; right:auto; top:auto} }   /* never print it stuck in a corner */
   /* Post-long-rest "prepare spells" overlay: a wide, scrollable modal that hosts the real spell sheet */
   #prep-overlay .prep-ov-panel{max-width:920px; width:100%; max-height:88vh; display:flex; flex-direction:column}
@@ -3061,11 +3061,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v490 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v491 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.107.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.107.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3073,6 +3073,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v491", semver:"2.107.2", items:[
+      "The detached \"Can Prepare\" box now sits as a solid card tucked just under the top toolbar, so it no longer looks see-through or covers the top bar and the Manage Characters button.",
+    ]},
     {v:"v490", semver:"2.107.1", items:[
       "The \"Can Prepare\" box now lives only in the spell sheet header. When you scroll down past it, the box itself un-pins and floats in the upper-right corner of the screen so you can still see your count; scroll back up and it drops back into place. (No separate chip, and the old left-margin floating box is gone.)",
     ]},
@@ -7713,6 +7716,7 @@
     if(!_prepDetached) return;
     _prepDetached.classList.remove("prep-detached", "over");
     _prepDetached.style.width = "";
+    _prepDetached.style.top = "";
     _prepDetached = null;
   }
   function updatePrepFloat(){
@@ -7733,6 +7737,10 @@
       _prepDetached = ps;
     }
     ps.classList.toggle("over", !!over);
+    // Sit just below the sticky toolbar so the detached box never covers the top bar / Manage Characters button.
+    const tb = document.querySelector(".toolbar");
+    const tbBottom = (tb && getComputedStyle(tb).display !== "none") ? tb.getBoundingClientRect().bottom : 0;
+    ps.style.top = (Math.max(0, tbBottom) + 10) + "px";
   }
   // Cantrips the class knows: the exact count at the given level, or — class chosen but no level — the class's MAXIMUM.
   function cantripCount(cls, lvl){
