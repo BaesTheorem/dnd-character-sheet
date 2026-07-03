@@ -398,6 +398,14 @@
   .sense-chips:empty{display:none}
   .sense-chip{display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:3px 8px;
     border:1px solid var(--line2); border-radius:12px; background:var(--field); color:var(--ink)}
+  /* Defenses chips — auto resistances/immunities + (dis)advantages (race/feat/class/equipped items), recomputed each compute (removal is automatic); adv/disadv chips show the d20 icon instead of the word */
+  .def-chips{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px}
+  .def-chips:empty{display:none}
+  .def-chip{display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 8px;
+    border:1px solid var(--line2); border-radius:12px; background:var(--field); color:var(--ink)}
+  .def-chip svg{display:block; flex:0 0 auto}
+  .def-chip-adv{border-color:#2e9e4f}
+  .def-chip-dis{border-color:#c0392b}
   .cond-open{font:inherit; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     border:1px solid var(--line); border-radius:7px; background:var(--card); color:var(--ink); padding:6px 10px; cursor:pointer; align-self:flex-start}
   .cond-open:hover{border-color:var(--accent)}
@@ -1094,13 +1102,8 @@
   .arc-step:disabled{opacity:.35; cursor:default}
   .arc-row .arc-n{min-width:14px; text-align:center; font-weight:700}
   .cast-pop-lvl:hover span{color:inherit}
-  .def-items{margin-top:6px}
-  .def-items:empty{display:none}
   /* Hit Dice are auto-filled from class/level and spent via Short/Long Rest — retire the standalone card (its inputs stay in the DOM for the rest machinery). */
   .card[data-csec="hitdice"]{display:none}
-  .def-items-h{font-size:9px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px}
-  .def-item-line{font-size:11px; line-height:1.35}
-  .def-item-line .def-item-src{color:var(--muted); font-size:9.5px}
   #granted-table .gs-up{font-size:9.5px; color:var(--muted); white-space:nowrap}
   #granted-table .gs-up select{width:auto; min-width:0; display:inline-block; font-size:9.5px; padding:0 1px; margin-left:2px; height:auto; border:1px solid var(--hair, #ccc); background:transparent; color:var(--ink); vertical-align:baseline}
   @media print{ #granted-table .gs-up select{border:none; -webkit-appearance:none; appearance:none} }
@@ -2456,8 +2459,8 @@
               </div>
               <div class="combat-sub defenses-sub" data-csec="defenses">
                 <h3>Defenses</h3>
-                <textarea data-save="" id="defnotes" placeholder="Damage resistances/immunities/vulnerabilities, condition immunities, and other defenses…" style="height: 120px;"></textarea><div class="ta-print"></div>
-                <div class="def-items" id="defenses-items"></div>
+                <div class="def-chips" id="def-chips"></div>
+                <textarea data-save="" id="defnotes" placeholder="Notes — auto defenses (resistances, immunities, item effects) show as chips above" style="height: 120px;"></textarea><div class="ta-print"></div>
               </div>
               <div class="combat-sub conditions-sub">
                 <h3>Conditions</h3>
@@ -3084,11 +3087,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v525 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v526 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.123.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.124.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3096,6 +3099,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v526", semver:"2.124.0", semver:"", items:[
+      "Defenses now works like Senses: auto-computed chips above a free-form notes box. Resistances, immunities, and (dis)advantages from your race, class/subclass features, feats, and equipped magic items show as chips and update live as you equip/attune gear.",
+      "Any advantage/disadvantage chip shows the green advantage die / red disadvantage die icon instead of the word.",
+      "Cloak of Displacement now calculates in — while equipped and attuned it shows a chip for the disadvantage attackers have against you (until you take damage).",
+    ]},
     {v:"v525", semver:"2.123.2", items:[
       "Auto-repair now also fixes the Monk composite tool proficiency after its tools were picked — e.g. “Any One Type Of Woodcarver's Tools Or Any One Flute” is cleaned to “Woodcarver's Tools, Flute” (the earlier repair only caught the un-picked “…Of Your Choice” form). Open the character and it fixes itself.",
     ]},
@@ -4049,19 +4057,60 @@
     });
     return [...new Set(out)];
   }
-  // Live read-out of (dis)advantages granted by EQUIPPED magic items (DATA.itemAdvText, baked from item entries) — these are
-  // dynamic with equip state, so they live below the Defenses notes rather than being spliced into that editable box.
-  function renderItemDefenses(){
-    const el = $("defenses-items"); if(!el) return;
-    const txt = (DATA && DATA.itemAdvText) || {}, seen = new Set(), out = [];
-    for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim();
-      if(!cb || !cb.checked || !nm) continue;
-      const d = txt[nm]; if(!d) continue;
-      scanDefenses(d).forEach(l => { const k = l.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push({nm, l}); } });
+  // Enemy-facing / non-standard defensive items scanDefenses() can't parse (it only surfaces "you have advantage…", not
+  // "creatures have disadvantage against you"). Names + mechanics are non-copyrightable, so they live here (survive a rebake).
+  // Phrasing is "Disadv. on attacks against you" so the chip reads as the ATTACKER rolling with disadvantage (good for you).
+  const DEF_ITEM_SPECIAL = {
+    "cloak of displacement": "Disadv. on attacks against you (until you take damage)"
+  };
+  // Auto-computed Defenses chips — the same treatment as Senses. Live from race resistances/traits, class/subclass features,
+  // feats, and EQUIPPED (+ attuned) magic items, recomputed each compute so unequipping/removing a source drops its chip.
+  function _defParse(line){   // classify a scanDefenses-style line for chip rendering: adv/disadv → icon + trailing text; resist/immunity → plain
+    const s = String(line||"").trim(); let m;
+    if(m = s.match(/^Adv\.\s+on\s+(.+)$/i)) return {kind:"adv", text:"on " + m[1].trim(), raw:s};
+    if(m = s.match(/^Disadv\.\s+on\s+(.+)$/i)) return {kind:"dis", text:"on " + m[1].trim(), raw:s};
+    return {kind:null, text:s, raw:s};
+  }
+  function _defNorm(line){   // canonical key so chip dedup + box-strip tolerate case / whitespace / reordered-or-duplicated resist lists (migrates old saved lines)
+    const s = String(line||"").trim(), m = s.match(/^(resistance|immunity|immune):\s*(.+)$/i);
+    if(m) return m[1].toLowerCase() + ":" + [...new Set(m[2].split(",").map(x=>x.trim().toLowerCase()).filter(Boolean))].sort().join(",");
+    return s.toLowerCase().replace(/\s+/g, " ");
+  }
+  function defenseChips(){
+    const by = new Map();   // key = normalized line → {kind, text, raw, srcs:Set}
+    const add = (line, src) => { line = String(line||"").trim(); if(!line) return;
+      const p = _defParse(line), k = _defNorm(p.raw), ex = by.get(k);
+      if(ex){ ex.srcs.add(src); return; }
+      by.set(k, {kind:p.kind, text:p.text, raw:p.raw, srcs:new Set([src])}); };
+    const rn = ($("race").value||"").trim(), ro = rn && DATA && DATA.races && findBy(DATA.races, rn);
+    if(ro){                                                                     // race damage resistances (chosen draconic ancestry wins) + save/adv traits
+      const anc = (typeof breathAncestry === "function") && breathAncestry();
+      if(anc && anc.dmgType) add("Resistance: " + anc.dmgType, rn);
+      else if(ro.resist && ro.resist.length) add("Resistance: " + [...new Set(ro.resist)].join(", "), rn);
+      const traitsForScan = (ro.traits||[]).filter(t => !/^integrated protection\b/i.test((t.name||"").trim()));
+      scanDefenses(traitsForScan.map(t=>`${t.name}. ${t.text||""}`).join("\n\n")).forEach(l => { if(/draconic ancestry|damage type associated/i.test(l)) return; add(l, rn); });
     }
-    if(!out.length){ el.style.display = "none"; el.innerHTML = ""; return; }
-    el.style.display = "";
-    el.innerHTML = `<div class="def-items-h">From equipped items</div>` + out.map(x => `<div class="def-item-line">${esc(x.l)} <span class="def-item-src">${esc(x.nm)}</span></div>`).join("");
+    featureBlocks().forEach(b => { if(/^integrated protection\b/i.test((b.name||"").trim())) return;   // its Stealth disadv is a mode option, applied live via featureAdvEntries
+      scanDefenses(`${b.name}. ${b.text||""}`).forEach(l => add(l, b.name)); });
+    const txt = (DATA && DATA.itemAdvText) || {}, aset = attuneSet(), attd = attunedNames();
+    for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim();
+      if(!cb || !cb.checked || !nm) continue; const lc = nm.toLowerCase();
+      if(aset.has(lc) && !attd.has(lc)) continue;                               // requires attunement but isn't attuned → grants nothing yet
+      if(txt[nm]) scanDefenses(txt[nm]).forEach(l => add(l, nm));
+      if(DEF_ITEM_SPECIAL[lc]) add(DEF_ITEM_SPECIAL[lc], nm);
+    }
+    return [...by.values()].sort((a,b) => a.raw.localeCompare(b.raw));
+  }
+  function renderDefenseChips(){
+    const chips = defenseChips(), box = $("def-chips");
+    if(box) box.innerHTML = chips.map(c => {
+      const ic = c.kind ? advIconSvg(c.kind) : "", cls = "def-chip" + (c.kind ? " def-chip-" + c.kind : "");
+      return `<span class="${cls}" title="${esc([...c.srcs].join(", "))}">${ic}<span>${esc(c.text)}</span></span>`;
+    }).join("");
+    const t = $("defnotes"); if(!t) return;                                     // strip any box line a chip now covers (de-dup + migrate the old in-box defenses)
+    const raws = new Set(chips.map(c => _defNorm(c.raw)));
+    const kept = t.value.split("\n").filter(line => { const s = line.trim(); return s && !raws.has(_defNorm(s)); });
+    const nv = kept.join("\n"); if(nv !== t.value){ t.value = nv; autoGrow(t); }
   }
   function _splitBlocks(t){ return String(t||"").split(/\n\n+/).map(b => b.trim()).filter(Boolean); }
   function _removeBlocks(id, blocks){ const el = $(id); if(!el || !blocks || !blocks.length) return; const drop = new Set(blocks);
@@ -8983,7 +9032,7 @@
         + "" + scrollSig()   // spell scrolls in inventory surface as one-time-use casts in the granted table
         + "" + ["0","1","2"].map(k => ($("attune-"+k)||{}).value||"").join(",")   // attunement drives attune-gated granted spells + item Limited Features rows
         + "" + [...characterCasterKeys()].sort().join(",");   // caster classes drive which scrolls are castable (multiclassing opens up more lists)
-      if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); renderItemDefenses(); renderActionEconomy(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
+      if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); renderActionEconomy(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { let esp = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(cb && cb.checked && ELSEWHERE_ITEMS[nm]) esp += nm + "|"; }   // equipping a spellbook item changes the class spell list → re-render the spell sheets
       if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed (action economy is rebuilt in the lim-sig block, which also fires on equip/attune)
@@ -8996,6 +9045,7 @@
     refreshSpellDamageCells();   // keep the per-spell Damage column live as level/scores change (in place, no re-render)
     renderConditions();          // active-condition chips + panel state
     renderSenseChips();          // auto senses (race/feat/class/equipped items) as chips — recomputed so unequip removes them
+    renderDefenseChips();        // auto defenses (resistances/immunities/adv-disadv from race/feat/class/equipped items) as chips
     renderConditionMarks();      // advantage/disadvantage d20 markers (must run last, after all roll values are written)
   }
 
