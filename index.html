@@ -812,8 +812,6 @@
   .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px; touch-action:none}
   .invtable tbody tr{transition:opacity .12s ease}
   .invtable tbody tr.dragging{opacity:.4}   /* row being dragged fades so the drop line reads clearly */
-  .invtable tbody tr td{border-top:2px solid transparent}   /* reserve the drop-line space so a drop-target never reflows the rows below */
-  @media print{ .invtable tbody tr td{border-top-width:0} }   /* screen-only reservation — don't perturb print row-height / pagination */
   .ac-items-auto{display:flex; flex-direction:column; gap:4px; margin-top:4px}
   .ac-items-auto .aci{display:flex; justify-content:space-between; align-items:center; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:13px}
   .ac-items-auto .aci .b{font-weight:700; color:var(--accent)}
@@ -821,7 +819,7 @@
   .ac-items-auto .none{color:var(--muted); font-size:12px}
   .ac-items-write{display:none}   /* print-only blank write-in box (see @media print) */
   .invdrag:active{cursor:grabbing}
-  .invtable tr.drop-target td{border-top-color:var(--accent)}   /* colour the reserved 2px line (no reflow); survives the global box-shadow:none */
+  .invtable tr.drop-target td{border-top:2px solid var(--accent)}   /* flat drop line (survives the global box-shadow:none) */
   .invtable tr.drop-into td{outline:2px solid var(--accent); outline-offset:-2px; background:var(--accent-soft)}   /* dropping onto a container */
   /* Features page: a collapsible raw-text editor + one independent card per feature */
   .feat-editor{margin-bottom:12px}
@@ -3062,11 +3060,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v478 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v479 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.102.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.102.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3074,6 +3072,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v479", semver:"2.102.1", items:[
+      "Fixed a stray broken line that appeared between inventory and Extra Equipment rows.",
+      "Deleting a row (the ✕) now actually removes it and shifts the rows below up, instead of just blanking it — so you can clear out blank rows, and it sticks.",
+      "Inventory and Extra Equipment now grow one row at a time: they start as a single blank row, add exactly one row when you fill the last one or press “+ Add row,” and no longer spawn a handful of empty rows at once.",
+    ]},
     {v:"v478", semver:"2.102.0", items:[
       "Extra Equipment (Notes tab) now has the full inventory toolkit: drag the ⠿ handle to reorder rows, and right-click an item to make it a container, then drag rows onto it to nest them (with a collapse chevron), exactly like your main Inventory.",
     ]},
@@ -3674,7 +3677,7 @@
   ];
   const ABBR = {str:"Str",dex:"Dex",con:"Con",int:"Int",wis:"Wis",cha:"Cha"};
   const NATTACKS = 5;
-  const INV_MAIN = 34, INV_GROW = 10;   // Inventory is ONE continuous list: starts at 34 rows, grows in chunks as it fills
+  const INV_MAIN = 1, INV_GROW = 1;   // Inventory is ONE continuous list: starts at a single blank row, grows ONE row at a time as it fills (keeps exactly one trailing blank); print pads independently
   const NSPELLROWS = 24;    // spell list rows
   const LIM_MAIN = 8, LIM_GROW = 4;     // Limited Features: ONE continuous list, starts at 8, grows as it fills
   // print-only pagination — rows past the first sheet flow onto continuation sheets at print time (buildPrintFlow); nothing to manage on screen
@@ -3686,7 +3689,7 @@
     `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
     `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
     `<td class="noprint" style="text-align:center"><input type="checkbox" class="invequip" id="invequip-${i}" data-r="${i}" title="Equipped — weapons are added to Attacks; equipped armor & attunement items become selectable in their pickers" style="display:none"></td></tr>`;
-  const XEQ_MAIN = 1, XEQ_GROW = 6;   // "Extra Equipment" (Notes tab) — ONE continuous list; starts at a single blank row, grows as it fills. Gear stored elsewhere (mount/HQ/bank); no weight, no equip.
+  const XEQ_MAIN = 1, XEQ_GROW = 1;   // "Extra Equipment" (Notes tab) — ONE continuous list; starts at a single blank row, grows ONE row at a time. Gear stored elsewhere (mount/HQ/bank); no weight, no equip.
   let NXEQ = XEQ_MAIN;
   const xeqRowHTML = i =>
     `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
@@ -11015,14 +11018,15 @@
     m.style.left = Math.max(4, Math.min(x, window.innerWidth - m.offsetWidth - 6)) + "px";
     m.style.top  = Math.max(4, Math.min(y, window.innerHeight - m.offsetHeight - 6)) + "px";
   }
-  function deleteInvRow(i){   // clear a row fully and push the empty box to the bottom; equip/Attacks/AC/container references drop via compute
+  function deleteInvRow(i){   // remove the row entirely (rows below shift up) so blank rows actually disappear; equip/Attacks/AC/container references drop via compute
     i = +i;
-    const cb = $("invequip-"+i); if(cb) cb.checked = false;
-    $("invname-"+i).value = ""; const q = $("invqty-"+i); if(q) q.value = "";
-    setRowUnit(i, null); const w = $("invwt-"+i); if(w) w.value = "";
-    setRowCont(i, "");
-    if(i < NINV-1) moveInvRow(i, NINV-1);      // moveInvRow saves + computes (prunes Attacks, un-nests container contents, refreshes AC pickers)
-    else { renderContainers(); save(); compute(); }
+    const a = getInvData(); if(i < 0 || i >= a.length) return;
+    a.splice(i, 1);
+    if(!a.length) a.push({name:"", qty:"", unit:"", cont:"", equip:false});   // never zero rows
+    while(NINV > a.length){ const tr = $("invname-"+(NINV-1)).closest("tr"); if(tr) tr.remove(); NINV--; }   // shrink the DOM to match
+    setInvData(a);              // rewrite the surviving rows (renderContainers inside)
+    ensureInvTrailing();        // keep exactly one trailing blank
+    save(); compute();          // prune Attacks, refresh AC pickers, un-nest orphaned containers
     if(typeof awEnabled !== "undefined" && awEnabled && typeof applyLayout === "function") applyLayout();   // a deleted item may have been an Ancestral Weapon → hot-reload the layout so the AW tab disappears immediately (this fires for the ✕ button too, which calls deleteInvRow directly)
   }
   function invEnterNewRow(i){   // Enter inside an inventory row → insert a fresh blank row directly below it (inheriting the same container, so entering items inside a container keeps them there)
@@ -11038,12 +11042,15 @@
     setInvData(a); save(); compute();
     const el = $("invname-"+dest); if(el){ el.focus(); }
   }
-  function deleteXeqRow(i){   // clear a row fully and push the empty box to the bottom (un-nests its container refs via renderXeqContainers)
+  function deleteXeqRow(i){   // remove the row entirely (rows below shift up) so blank rows actually disappear
     i = +i;
-    $("xeqname-"+i).value = ""; const q = $("xeqqty-"+i); if(q) q.value = ""; const l = $("xeqloc-"+i); if(l) l.value = "";
-    setXeqRowCont(i, "");
-    if(i < NXEQ-1) moveXeqRow(i, NXEQ-1);      // moveXeqRow saves + re-renders containers
-    else { renderXeqContainers(); save(); }
+    const a = getXeqData(); if(i < 0 || i >= a.length) return;
+    a.splice(i, 1);
+    if(!a.length) a.push({name:"", qty:"", loc:"", cont:""});   // never zero rows
+    while(NXEQ > a.length){ const tr = $("xeqname-"+(NXEQ-1)).closest("tr"); if(tr) tr.remove(); NXEQ--; }
+    setXeqData(a);              // rewrite surviving rows (renderXeqContainers inside)
+    ensureXeqTrailing();        // keep exactly one trailing blank
+    save();
   }
   function xeqEnterNewRow(i){   // Enter inside an Extra Equipment row → insert a fresh blank directly below it, inheriting the same container
     i = +i;
@@ -13073,8 +13080,8 @@
     document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
     document.addEventListener("click", e => { const b = e.target.closest(".inv-del"); if(b) deleteInvRow(b.dataset.r); });   // ✕ delete an inventory item
     document.addEventListener("click", e => { const b = e.target.closest(".xeq-del"); if(b) deleteXeqRow(b.dataset.x); });   // ✕ delete an Extra Equipment row
-    { const ia = $("inv-addrow"); if(ia) ia.addEventListener("click", () => { const i = ensureInvSlot(); const el = $("invname-"+i); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Inventory)
-    { const xa = $("xeq-addrow"); if(xa) xa.addEventListener("click", () => { const i = ensureXeqSlot(); const el = $("xeqname-"+i); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Extra Equipment)
+    { const ia = $("inv-addrow"); if(ia) ia.addEventListener("click", () => { growInvTo(NINV+1); const el = $("invname-"+(NINV-1)); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Inventory) — always exactly one
+    { const xa = $("xeq-addrow"); if(xa) xa.addEventListener("click", () => { growXeqTo(NXEQ+1); const el = $("xeqname-"+(NXEQ-1)); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Extra Equipment) — always exactly one
     document.addEventListener("keydown", e => {   // Enter in an Inventory / Extra Equipment row → create a new row (Inventory inherits the current row's container)
       if(e.key !== "Enter" || e.isComposing) return;
       const id = e.target && e.target.id; if(!id) return;
