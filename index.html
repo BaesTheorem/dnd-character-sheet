@@ -3073,11 +3073,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v518 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v519 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.119.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.120.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3085,6 +3085,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v519", semver:"2.120.0", items:[
+      "Homebrew Studio → Import JSON now handles EVERY content type, including creature stat blocks (monsters) and whole classes — so one JSON file can drop an item, its creature, spells, feats, races, subclasses, and classes all into a single existing homebrew source at once.",
+      "Imported homebrew creatures appear in the Companions “Pick a stat block…” picker (with their embedded art), and imported homebrew classes show up in the character builder.",
+    ]},
     {v:"v518", semver:"2.119.0", items:[
       "Companions can now auto-load an embedded (data URL) portrait from a homebrew monster's art — pick a homebrew stat block in the Companions picker and its image fills in, no 5etools server needed.",
       "A homebrew JSON file flagged “homebrew” now imports through the Homebrew Studio even if it also carries a bundled monster for Settings → Import files… — so one file can hold both an item and its creature stat block.",
@@ -4930,7 +4934,7 @@
       `<p class="wiz-hint" style="margin:0 0 8px">${summary}</p>`+
       `<button class="btn primary" id="btn-hb-studio" type="button">Open Homebrew Studio…</button>`;
   }
-  function refreshHomebrew(){ saveHomebrew(); if(typeof hbApplyToData === "function") hbApplyToData(); renderHomebrewList(); renderLoadedBookList(); if($("hb-studio")) renderHbStudio(); if(typeof populateWizard === "function") populateWizard(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-inject structured homebrew into DATA + re-render everything that reads homebrew (incl. the builder pickers)
+  function refreshHomebrew(){ saveHomebrew(); if(typeof hbApplyToData === "function") hbApplyToData(); renderHomebrewList(); renderLoadedBookList(); if($("hb-studio")) renderHbStudio(); if(typeof populateWizard === "function") populateWizard(); if(typeof populateMonsterList === "function") populateMonsterList(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-inject structured homebrew into DATA + re-render everything that reads homebrew (incl. the builder pickers + Companions monster list)
   function hbToggleSource(name, enabled){ const i = hbFindIdx(name); if(i < 0) return; homebrewSources[i].enabled = enabled; refreshHomebrew(); flashStatus((homebrewSources[i].name) + (enabled ? " shown" : " hidden")); }
   function hbDeleteSource(name){
     const i = hbFindIdx(name); if(i < 0) return;
@@ -6895,6 +6899,8 @@
     { key:"races",  label:"race",  norm:hbPass },
     { key:"backgrounds", label:"background", norm:hbPass },
     { key:"subclasses",  label:"subclass",   norm:hbPass },
+    { key:"classes",     label:"class",       norm:hbPass },   // whole homebrew classes → merged into DATA.classes (builder picker), like the structured types
+    { key:"monsters",    label:"monster",     norm:hbPass },   // creature stat blocks → surfaced in the Companions "Pick a stat block" picker (lookup-overlay, like items)
   ];
   function hbAwBundleInto(d){   // fold any Ancestral Weapons book content (upgrade defs + text) a file carries; shared by AW + homebrew import
     const up = (d && d.awUpgrades) || {};
@@ -6950,7 +6956,7 @@
   // Idempotent: hbApplyToData strips its own prior injections first, then re-injects from the enabled sources.
   const HB_BAG_LABEL = { spells:"spell", items:"item", feats:"feat", races:"race", backgrounds:"background", subclasses:"subclass" };
   function hbActiveByType(key){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s[key]||{})) if(!(k in out)) out[k] = s[key][k]; }); return out; }
-  function hbStripData(d){ if(!d) return; ["races","feats","backgrounds"].forEach(cat => { if(Array.isArray(d[cat])) d[cat] = d[cat].filter(x => !(x && x._hb)); }); (d.classes||[]).forEach(c => { if(Array.isArray(c.subclasses)) c.subclasses = c.subclasses.filter(s => !(s && s._hb)); }); }
+  function hbStripData(d){ if(!d) return; ["races","feats","backgrounds","classes"].forEach(cat => { if(Array.isArray(d[cat])) d[cat] = d[cat].filter(x => !(x && x._hb)); }); (d.classes||[]).forEach(c => { if(Array.isArray(c.subclasses)) c.subclasses = c.subclasses.filter(s => !(s && s._hb)); }); }
   // Merge homebrew structured types (races/feats/backgrounds/subclasses) into DATA as COEXISTING, source-tagged entities:
   // a homebrew "X" now sits ALONGSIDE an official "X" (both selectable) rather than being dropped on collision. Each is
   // stamped _hb (so hbStripClone keeps it out of the baked arrays — it persists via DATA.homebrew/sources) + _src/_srcName
@@ -6966,6 +6972,13 @@
         for(const lc in bag){ const o = Object.assign({}, bag[lc], {_hb:true, _src:sid, _srcName:s.name, _coex:true}); const k = keyOf(o);
           if(idx.has(k)) DATA[cat][idx.get(k)] = o; else { idx.set(k, DATA[cat].length); DATA[cat].push(o); } } });
     });
+    bySrc.forEach(s => { const bag = s.classes || {}, sid = srcId(SRC_KINDS.HB, s.name);   // whole homebrew CLASSES → new top-level classes; don't clobber an official same-name class
+      DATA.classes = DATA.classes || [];
+      for(const lc in bag){ const cl = bag[lc]; if(!cl || !cl.name) continue;
+        if(DATA.classes.some(c => String(c.name).toLowerCase() === String(cl.name).toLowerCase())) continue;   // an official/loaded class of that name wins
+        const o = Object.assign({}, cl, {_hb:true, _src:sid, _srcName:s.name});
+        if(typeof normalizeSubclass === "function") (o.subclasses = (o.subclasses||[]).map(sc => { const x = Object.assign({}, sc); normalizeSubclass(x); return x; }));
+        DATA.classes.push(o); } });
     bySrc.forEach(s => { const bag = s.subclasses || {}, sid = srcId(SRC_KINDS.HB, s.name);   // attach into the parent class's subclasses (the class must be loaded)
       for(const lc in bag){ const sc = bag[lc]; const cls = (DATA.classes||[]).find(c => String(c.name).toLowerCase() === String(sc.className||"").toLowerCase()); if(!cls) continue;
         cls.subclasses = cls.subclasses || []; const sObj = Object.assign({}, sc, {_hb:true, _src:sid, _srcName:s.name, _coex:true}); if(typeof normalizeSubclass === "function") normalizeSubclass(sObj);
@@ -6975,8 +6988,8 @@
     _spellIndex = null;
   }
   function hbStripClone(d){ if(!d) return d; const c = Object.assign({}, d);
-    ["races","feats","backgrounds"].forEach(cat => { if(Array.isArray(d[cat])) c[cat] = d[cat].filter(x => !(x && x._hb)); });
-    if(Array.isArray(d.classes)) c.classes = d.classes.map(cl => (Array.isArray(cl.subclasses) && cl.subclasses.some(s => s && s._hb)) ? Object.assign({}, cl, {subclasses:cl.subclasses.filter(s => !(s && s._hb))}) : cl);
+    ["races","feats","backgrounds","classes"].forEach(cat => { if(Array.isArray(d[cat])) c[cat] = d[cat].filter(x => !(x && x._hb)); });   // drop whole homebrew classes too (they persist via DATA.homebrew, re-inject on load)
+    if(Array.isArray(c.classes)) c.classes = c.classes.map(cl => (Array.isArray(cl.subclasses) && cl.subclasses.some(s => s && s._hb)) ? Object.assign({}, cl, {subclasses:cl.subclasses.filter(s => !(s && s._hb))}) : cl);
     return c; }
   // ---- Studio authoring for the structured types: a single field-spec-driven form, one pane reused per type --------
   const csv = s => String(s||"").split(",").map(x => x.trim()).filter(Boolean);
@@ -7470,7 +7483,7 @@
   let _hbEditItemKey = null;  // lc name of the item being edited in the item form (for rename), or null
   const HB_ITEM_TYPES = ["Wondrous Item","Weapon","Armor","Shield","Ring","Rod","Staff","Wand","Potion","Scroll","Other"];
   const HB_RARITIES = ["Common","Uncommon","Rare","Very Rare","Legendary","Artifact"];
-  const HB_BAGS = ["spells","items","feats","races","backgrounds","subclasses"];   // every content type a homebrew source can hold
+  const HB_BAGS = ["spells","items","feats","races","backgrounds","subclasses","classes","monsters"];   // every content type a homebrew source can hold
   function hbNormSources(arr){ return (arr||[]).filter(s => s && typeof s === "object").map(s => { const o = { name:(s.name || "My Homebrew"), enabled: s.enabled !== false }; HB_BAGS.forEach(k => { o[k] = (s[k] && typeof s[k] === "object" && !Array.isArray(s[k])) ? s[k] : {}; });
     for(const lc in o.spells){ const sp = o.spells[lc]; if(sp && typeof sp === "object" && typeof sp.level !== "number") sp.level = Math.max(0, Math.min(9, parseInt(sp.level, 10) || 0)); }   // coerce a legacy/imported STRING level → int so the spell files at its real level (else every one lands at Lv 1)
     return o; }); }
@@ -10879,10 +10892,14 @@
   function blankCompanion(){ return {name:"",monster:"",template:"",ac:"",hp:"",curhp:"",speed:"",str:"",dex:"",con:"",int:"",wis:"",cha:"",
     save:"",skill:"",senses:"",languages:"",resist:"",immune:"",vuln:"",condimmune:"",cr:"",pb:"",traits:"",actions:"",notes:"",portrait:null,autoPortrait:false}; }
   function compMod(v){ const n = parseInt(v,10); return isNaN(n) ? "" : sgn(Math.floor((n-10)/2)); }
-  function monsterByName(name){ const n = String(name||"").trim().toLowerCase(); return ((DATA&&DATA.monsters)||[]).find(m => (m.name||"").toLowerCase() === n) || null; }
+  function _hbMonsters(){ return (typeof hbActiveByType === "function" && typeof homebrewSources !== "undefined") ? hbActiveByType("monsters") : {}; }   // enabled homebrew creature stat blocks, keyed lc
+  function monsterByName(name){ const n = String(name||"").trim().toLowerCase(); const hb = _hbMonsters(); if(hb[n]) return hb[n]; return ((DATA&&DATA.monsters)||[]).find(m => (m.name||"").toLowerCase() === n) || null; }   // homebrew wins on a name collision
   function populateMonsterList(){
     const dl = $("monster-options"); if(!dl) return;
-    dl.innerHTML = ((DATA&&DATA.monsters)||[]).map(m => `<option value="${esc(m.name)}">${esc((m.cr?"CR "+m.cr:"")+(m.type?" "+m.type:""))}</option>`).join("");
+    const seen = new Set(), opts = [], hb = _hbMonsters();
+    Object.keys(hb).forEach(lc => { const m = hb[lc]; if(m && m.name && !seen.has(lc)){ seen.add(lc); opts.push(m); } });   // homebrew first (so they win the dedup)
+    ((DATA&&DATA.monsters)||[]).forEach(m => { const lc = (m.name||"").toLowerCase(); if(lc && !seen.has(lc)){ seen.add(lc); opts.push(m); } });
+    dl.innerHTML = opts.map(m => `<option value="${esc(m.name)}">${esc((m.cr?"CR "+m.cr:"")+(m.type?" "+m.type:""))}</option>`).join("");
   }
   function applyMonsterToCompanion(c, name){
     const m = monsterByName(name); if(!m) return;
