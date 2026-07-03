@@ -45,7 +45,7 @@
   /* the flat/sharp theme forces several surfaces to #fff !important — re-point them at dark vars under dark mode */
   body.dark .toolbar{background:var(--card) !important}
   body.dark input, body.dark select, body.dark textarea, body.dark .stat input, body.dark .charname input{background:var(--field) !important}
-  body.dark .modes, body.dark .prep-float, body.dark .modal-panel, body.dark .cm-warn, body.dark .wiz-leveltarget-banner{background:var(--card) !important}
+  body.dark .modes, body.dark .modal-panel, body.dark .cm-warn, body.dark .wiz-leveltarget-banner{background:var(--card) !important}
   /* value boxes (flat theme forces #fff !important) → inset dark field; popovers/cards → dark card */
   body.dark .ability .mod, body.dark .row .total, body.dark .passive, body.dark .chip, body.dark .stat, body.dark .gen-status .chip-val, body.dark .score-out{background:var(--field) !important}
   body.dark .ptab.active, body.dark .cm-card, body.dark .ctx-menu, body.dark .item-results, body.dark .fd-card, body.dark .comp-rm, body.dark .wiz-dot, body.dark .stepper .step{background:var(--card) !important}
@@ -1158,14 +1158,10 @@
   .prep-cur.over{color:#b42318}                                           /* over the cap (e.g. after a level/Int drop) */
   .prep-sep{color:var(--muted); font-weight:400}
   .prep-free-note{color:#d4a017; font-size:11px; font-weight:600; white-space:nowrap}
-  /* Detached "Can Prepare" readout — the header box "unpins" into the upper-right corner once it scrolls off the top, and re-anchors when it scrolls back into view */
-  .prep-float{position:fixed; right:14px; top:14px; z-index:40;
-    background:#fff; border:1px solid var(--line2); padding:8px 12px; text-align:center; min-width:72px}
-  .prep-float .pf-label{display:block; font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:4px}
-  .prep-float .pf-val{font-size:17px; font-weight:700; color:var(--accent)}
-  .prep-float .prep-free-note{display:block; margin-top:3px}
-  @media (max-width:880px){ .prep-float:not(.over){display:none} }        /* on a phone the sticky tab bar owns the top-right; keep it only during the prepare overlay */
-  .prep-float.over{z-index:60}                                            /* float above the prepare-spells overlay (modal is z-50) */
+  /* The header "Can Prepare" box (#prep-stat) itself detaches into the upper-right corner when it scrolls off the top, then re-attaches into the spell-header grid on the way back up */
+  .stat.prep-detached{position:fixed; right:14px; top:14px; z-index:40; margin:0}
+  .stat.prep-detached.over{z-index:60}                                    /* float above the prepare-spells overlay (modal is z-50) */
+  @media print{ .stat.prep-detached{position:static !important; right:auto; top:auto} }   /* never print it stuck in a corner */
   /* Post-long-rest "prepare spells" overlay: a wide, scrollable modal that hosts the real spell sheet */
   #prep-overlay .prep-ov-panel{max-width:920px; width:100%; max-height:88vh; display:flex; flex-direction:column}
   #prep-overlay .modal-body{overflow:auto; flex:1 1 auto}
@@ -3065,11 +3061,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v489 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v490 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.107.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.107.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3077,8 +3073,8 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
-    {v:"v489", semver:"2.107.0", items:[
-      "The \"Can Prepare\" box now lives only in the spell sheet header. When you scroll down past it, it un-pins and floats in the upper-right corner of the screen so you can still see your count; scroll back up and it re-anchors in place. Removed the separate left-margin floating box.",
+    {v:"v490", semver:"2.107.1", items:[
+      "The \"Can Prepare\" box now lives only in the spell sheet header. When you scroll down past it, the box itself un-pins and floats in the upper-right corner of the screen so you can still see your count; scroll back up and it drops back into place. (No separate chip, and the old left-margin floating box is gone.)",
     ]},
     {v:"v488", semver:"2.106.2", items:[
       "The floating \"Can Prepare\" chip now hugs the left edge of the actual spell sheet instead of floating way out in the window margin (and follows it in the post-rest prepare-spells overlay too).",
@@ -7710,26 +7706,33 @@
     const m = String(ap.dataset.page||"").match(/^spells(?:__(\d+))?$/);
     return m ? (m[1] ? +m[1] : 0) : -1;
   }
-  // Detached "Can Prepare" readout: the header prep-stat box "unpins" into the upper-right corner once it has
-  // scrolled off the top of the viewport, and re-anchors (this chip hides) when it scrolls back into view. It
-  // mirrors whatever the header box currently shows ("Can Prepare" for prepared casters, "Spells Known" for known).
+  // The header "Can Prepare" box (#prep-stat) itself detaches into the upper-right corner once it scrolls off the
+  // top of the viewport, and re-attaches into the spell-header grid when it scrolls back into view. No separate chip.
+  let _prepDetached = null;                                             // the #prep-stat element currently floating, or null
+  function reattachPrep(){
+    if(!_prepDetached) return;
+    _prepDetached.classList.remove("prep-detached", "over");
+    _prepDetached.style.width = "";
+    _prepDetached = null;
+  }
   function updatePrepFloat(){
-    const el = $("prep-float"); if(!el) return;
-    const over = prepOverlayInst >= 0;                                  // during the post-rest "prepare spells" overlay, always show + raise above the modal
+    const over = prepOverlayInst >= 0;                                  // during the post-rest prepare overlay, keep the box up (above the modal)
     const inst = over ? prepOverlayInst : activeSpellInst();
-    el.classList.toggle("over", over);
-    if(inst < 0){ el.hidden = true; return; }
-    if(!over){
-      const ps = sEl(inst,"prep-stat");                                 // the real header box for this spell sheet
-      const shown = ps && ps.style.display !== "none" && ps.offsetParent !== null;
-      if(!shown){ el.hidden = true; return; }                           // no header box on this sheet → nothing to detach
-      if(ps.getBoundingClientRect().bottom > 8){ el.hidden = true; return; }   // still on/entering screen → stay anchored in place
+    if(inst < 0){ reattachPrep(); return; }
+    const ps = sEl(inst,"prep-stat"), head = ps && ps.parentElement;   // #prep-stat lives in .spellhead
+    const shown = ps && ps.style.display !== "none" && ps.offsetParent !== null;
+    if(!shown){ reattachPrep(); return; }                              // box hidden on this sheet → nothing to float
+    if(!over && window.matchMedia("(max-width:880px)").matches){ reattachPrep(); return; }   // phone: the sticky tab bar owns the top-right
+    // Trigger off the header ROW's position (it stays in flow) so the check keeps working even while the box is detached.
+    const detach = over || (head && head.getBoundingClientRect().bottom <= 8);
+    if(!detach){ reattachPrep(); return; }                             // header still on/entering screen → stay anchored in place
+    if(_prepDetached && _prepDetached !== ps) reattachPrep();          // switched sheets → put the old one back first
+    if(!_prepDetached){
+      ps.style.width = ps.offsetWidth + "px";                          // freeze its current size before it goes position:fixed
+      ps.classList.add("prep-detached");
+      _prepDetached = ps;
     }
-    const lbl = sEl(inst,"prep-stat-label"), pc = sEl(inst,"prepcount");
-    const lblEl = $("prep-float-lbl"), val = $("prep-float-val");
-    if(lblEl) lblEl.textContent = (lbl && lbl.textContent) ? lbl.textContent : "Can Prepare";
-    if(val) val.innerHTML = pc ? pc.innerHTML : "";
-    el.hidden = false;
+    ps.classList.toggle("over", !!over);
   }
   // Cantrips the class knows: the exact count at the given level, or — class chosen but no level — the class's MAXIMUM.
   function cantripCount(cls, lvl){
@@ -13287,10 +13290,7 @@
     setupSearch();
     setupSpellSearch(0);
     setupInvAutocomplete();
-    (function setupPrepFloat(){   // upper-right detached readout: appears when the header prep-stat box scrolls off the top
-      const pf = document.createElement("div"); pf.id = "prep-float"; pf.className = "prep-float noprint"; pf.dataset.transient = "1"; pf.hidden = true;
-      pf.innerHTML = `<span class="pf-label" id="prep-float-lbl">Can Prepare</span><span class="pf-val" id="prep-float-val"></span>`;
-      document.body.appendChild(pf);
+    (function setupPrepFloat(){   // detach/re-attach the header "Can Prepare" box as the spell sheet scrolls
       window.addEventListener("scroll", updatePrepFloat, {passive:true});
       window.addEventListener("resize", updatePrepFloat);
     })();
