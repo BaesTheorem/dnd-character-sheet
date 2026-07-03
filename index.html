@@ -895,7 +895,28 @@
   .inf-sub{margin-top:4px}
   .inf-rm{color:var(--muted); cursor:pointer; background:none; border:none; font-size:14px}
   .inf-att-fixed{font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:var(--accent); cursor:help}
-  @media print{ #add-infusion, .inf-rm{display:none} .inf-table th, .inf-table td{border-color:#999} }
+  /* infusions-known picker (mirrors the Ancestral Weapons upgrade list) */
+  .inf-sec-head{font-weight:700; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:3px; margin:6px 0; display:flex; align-items:center}
+  .inf-picklist{margin-bottom:4px}
+  .inf-up{display:flex; gap:8px; align-items:flex-start; padding:5px 2px; border-bottom:1px solid var(--line)}
+  .inf-up.chosen{background:color-mix(in srgb, var(--accent) 8%, transparent)}
+  .inf-pick{flex:0 0 auto; width:24px; height:24px; border:1px solid var(--line); background:var(--card); cursor:pointer; font-size:13px; line-height:1}
+  .inf-up.chosen .inf-pick{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .inf-up.locked{opacity:.5}
+  .inf-up.locked .inf-pick{cursor:not-allowed; color:var(--muted)}
+  .inf-up-main{flex:1}
+  .inf-up-name{font-weight:600; font-size:13px}
+  .inf-up-cost{font-size:11px; color:var(--accent); margin-left:6px}
+  .inf-up-tag{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-left:6px}
+  .inf-up-why{font-size:10px; color:#b42318; margin-left:6px}
+  .inf-up-toggle{background:none; border:none; padding:0; margin:0; font:inherit; color:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:5px; text-align:left}
+  .inf-chev{display:inline-block; font-size:9px; color:var(--muted); transition:transform .12s; transform:translateY(-1px)}
+  .inf-up.open .inf-chev{transform:translateY(-1px) rotate(90deg)}
+  .inf-up-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:2px; display:none}
+  .inf-up.open .inf-up-text{display:block}
+  .inf-up-tools{display:inline-flex; gap:8px; margin-left:auto}
+  .inf-up-all{background:none; border:none; padding:0; font-size:11px; letter-spacing:normal; text-transform:none; color:var(--accent); cursor:pointer}
+  @media print{ #add-infusion, .inf-rm, #inf-pick-head, .inf-picklist{display:none} .inf-up.chosen{background:none} .inf-table th, .inf-table td{border-color:#999} }
 
   /* ---- spell sheet ---- */
   .incl{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600}
@@ -3068,11 +3089,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v494 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v495 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.108.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.109.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3080,6 +3101,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v495", semver:"2.109.0", items:[
+      "Artificer infusions are now an expandable pick-list (like the Ancestral Weapons upgrade list) instead of blank rows + a dropdown. Every infusion shows a + to learn it, a chevron to read its rules text in place, expand/collapse-all, level-locks with a reason, and a repeatable badge on Replicate Magic Item. Your Infusions-known limit is enforced.",
+      "The “On item” field now picks an eligible weapon/armor/shield straight from your inventory for slotted infusions (Enhanced Weapon, Radiant/Returning Weapon, Repeating Shot, Enhanced Defense, Resistant Armor, etc.), instead of free-typing a name.",
+      "Enhanced Weapon, Radiant Weapon, Returning Weapon, and Repeating Shot now auto-apply their +1 (Enhanced Weapon +2 at artificer 10) to the infused weapon's attack and damage, the same way Enhanced Defense and Enhanced Arcane Focus already feed AC and spell attack.",
+    ]},
     {v:"v494", semver:"2.108.1", items:[
       "Ancestral Weapons tab: expanding an upgrade's description no longer jumps you back to the top of the upgrades list. The description now opens in place without re-rendering the whole page.",
     ]},
@@ -10380,22 +10406,91 @@
   function activeInfusionNames(){ return infusions.filter(x => x.known && x.infused).map(x => x.known); }
   function infusionEnhancedDefenseBonus(){ return activeInfusionNames().includes("Enhanced Defense") ? ((artificerClassLevel() || 0) >= 10 ? 2 : 1) : 0; }
   function infusionArcaneFocusBonus(){ return activeInfusionNames().includes("Enhanced Arcane Focus") ? ((artificerClassLevel() || 0) >= 10 ? 2 : 1) : 0; }
-  function infRow(x, i){
-    const lvl = artificerClassLevel();
-    const inf = infusionByName(x.known);
-    const opts = ARTIFICER_INFUSIONS.filter(o => lvl == null || o.lvl <= lvl);
-    if(x.known && !opts.some(o => o.name === x.known) && inf) opts.push(inf);   // keep a now-too-high-level current pick visible
-    let sel = `<option value=""></option>` + opts.map(o => `<option value="${esc(o.name)}"${o.name === x.known ? " selected" : ""}>${esc(o.name)}${o.lvl > 1 ? ` (L${o.lvl})` : ""}</option>`).join("");
+  // Which item slot an infusion attaches to (drives the "On item" picker filtered to eligible inventory).
+  // Only slots with a reliable inventory lookup are listed; wondrous/clothing/ring/focus stay free-text.
+  const INF_SLOT = {
+    "Arcane Propulsion Armor":"armor", "Armor of Magical Strength":"armor", "Enhanced Defense":"armorshield",
+    "Enhanced Weapon":"weapon", "Radiant Weapon":"weapon", "Repeating Shot":"weapon", "Returning Weapon":"weapon",
+    "Repulsion Shield":"shield", "Resistant Armor":"armor"
+  };
+  // Weapon infusions that grant a flat magic bonus to the infused weapon (auto-applied to attack + damage when infused).
+  const INF_WEAPON_BONUS = {
+    "Enhanced Weapon": () => ((artificerClassLevel() || 0) >= 10 ? 2 : 1),
+    "Radiant Weapon": () => 1, "Returning Weapon": () => 1, "Repeating Shot": () => 1
+  };
+  let _infUpOpen = new Set();   // lc names of infusions whose description is expanded (collapsed by default)
+  function infSlot(name){ return INF_SLOT[name] || ""; }
+  // Inventory items eligible as the target of a slotted infusion.
+  function eligibleInfTargets(slot){
+    const out = [];
+    for(let i=0;i<NINV;i++){ const nm = ($("invname-"+i).value || "").trim(); if(!nm) continue;
+      let ok = false;
+      if(slot === "weapon") ok = !!weaponByName(nm);
+      else if(slot === "armor") ok = !!armorByName(nm);
+      else if(slot === "shield") ok = shieldBonus(nm) > 0;
+      else if(slot === "armorshield") ok = !!armorByName(nm) || shieldBonus(nm) > 0;
+      if(ok && !out.some(n => n.toLowerCase() === nm.toLowerCase())) out.push(nm);
+    }
+    return out;
+  }
+  function infTargetOptions(slot, cur){
+    const items = eligibleInfTargets(slot);
+    if(cur && !items.some(n => n.toLowerCase() === String(cur).toLowerCase())) items.push(cur);   // keep a stale/hand-typed pick
+    const label = slot === "weapon" ? "weapon" : slot === "shield" ? "shield" : slot === "armorshield" ? "armor/shield" : "armor";
+    let html = `<option value="">— choose ${label} —</option>`;
+    if(!items.length) html += `<option value="" disabled>(no eligible ${label} in inventory)</option>`;
+    html += items.map(n => `<option value="${esc(n)}"${String(cur||"") === n ? " selected" : ""}>${esc(n)}</option>`).join("");
+    return html;
+  }
+  // +X magic bonus an infused weapon infusion grants to a given (lowercased) weapon name.
+  function infusionWeaponBonus(lc){
+    if(!infusions.length) return 0;
+    let b = 0;
+    for(const x of infusions){
+      if(!x.known || !x.infused) continue;
+      const fn = INF_WEAPON_BONUS[x.known]; if(!fn) continue;
+      if(String(x.target || "").trim().toLowerCase() === lc) b = Math.max(b, fn());
+    }
+    return b;
+  }
+  // AW-style expandable list of every infusion — the pick list for what you know.
+  function infPickList(){
+    const lvl = artificerClassLevel(), caps = infCaps();
+    const knownCount = infusions.filter(x => x.known).length;
+    return ARTIFICER_INFUSIONS.slice().sort((a,b) => a.lvl - b.lvl || a.name.localeCompare(b.name)).map(o => {
+      const cnt = infusions.filter(x => x.known === o.name).length;
+      const isKnown = cnt > 0, locked = (lvl != null && o.lvl > lvl);
+      const atCap = !isKnown && !locked && caps.known > 0 && knownCount >= caps.known;
+      const open = _infUpOpen.has(o.name.toLowerCase());
+      const badge = o.lvl > 1 ? `<span class="inf-up-tag">L${o.lvl}</span>` : "";
+      const rep = o.replicate ? `<span class="inf-up-tag">repeatable</span>` : "";
+      const cntBadge = cnt > 1 ? `<span class="inf-up-cost">×${cnt}</span>` : "";
+      const why = locked ? `<span class="inf-up-why">artificer ${o.lvl}+</span>` : (atCap ? `<span class="inf-up-why">at known limit</span>` : "");
+      const disabled = locked || atCap;
+      const btn = `<button type="button" class="inf-pick" data-inf="${esc(o.name)}"${disabled ? " disabled" : ""} title="${isKnown ? (o.replicate ? "Learn another" : "Unlearn") : "Learn"}">${isKnown && !o.replicate ? "✓" : "+"}</button>`;
+      return `<div class="inf-up ${isKnown ? "chosen" : ""} ${locked ? "locked" : ""} ${open ? "open" : ""}">`+
+        btn+
+        `<div class="inf-up-main"><button type="button" class="inf-up-toggle" data-inf="${esc(o.name)}" title="Show description"><span class="inf-chev">▸</span><span class="inf-up-name">${esc(o.name)}</span></button>${badge}${rep}${cntBadge}${why}`+
+        `<div class="inf-up-text">${esc(o.text)}</div></div></div>`;
+    }).join("");
+  }
+  // One management row per KNOWN infusion: infuse toggle, target picker (eligible inventory for slotted infusions), attune.
+  function infManageRow(x, i){
+    const inf = infusionByName(x.known); if(!inf) return "";
+    const slot = infSlot(x.known);
+    const targetCell = slot
+      ? `<select class="inf-target" data-ii="${i}" data-f="target">${infTargetOptions(slot, x.target)}</select>`
+      : `<input class="inf-target" data-ii="${i}" data-f="target" value="${esc(x.target || "")}" placeholder="on item…">`;
     let sub = "";
-    if(inf && inf.replicate) sub = `<input class="inf-sub" data-ii="${i}" data-f="replicate" value="${esc(x.replicate || "")}" placeholder="which magic item…">`;
-    else if(inf && inf.resist) sub = `<select class="inf-sub" data-ii="${i}" data-f="resist"><option value=""></option>` + INF_RESIST_TYPES.map(t => `<option value="${t}"${x.resist === t ? " selected" : ""}>${t}</option>`).join("") + `</select>`;
-    const attuneCell = (inf && inf.attune)
+    if(inf.replicate) sub = `<input class="inf-sub" data-ii="${i}" data-f="replicate" value="${esc(x.replicate || "")}" placeholder="which magic item…">`;
+    else if(inf.resist) sub = `<select class="inf-sub" data-ii="${i}" data-f="resist"><option value=""></option>` + INF_RESIST_TYPES.map(t => `<option value="${t}"${x.resist === t ? " selected" : ""}>${t}</option>`).join("") + `</select>`;
+    const attuneCell = inf.attune
       ? `<span class="inf-att-fixed" title="This infusion requires attunement (counts against your 3-item limit).">req'd</span>`
       : `<input type="checkbox" class="inf-cb" data-ii="${i}" data-f="attuned"${x.attuned ? " checked" : ""} title="Mark if the item you replicate requires attunement.">`;
     return `<tr data-ii="${i}">`+
-      `<td class="inf-known-cell"${inf ? ` title="${esc(inf.text)}"` : ""}><select class="inf-known" data-ii="${i}" data-f="known">${sel}</select>${sub}</td>`+
+      `<td class="inf-known-cell" title="${esc(inf.text)}"><b>${esc(x.known)}</b>${sub}</td>`+
       `<td class="inf-ctr"><input type="checkbox" class="inf-cb" data-ii="${i}" data-f="infused"${x.infused ? " checked" : ""} title="Currently infused into an item (counts against Infused Items)."></td>`+
-      `<td><input class="inf-target" data-ii="${i}" data-f="target" value="${esc(x.target || "")}" placeholder="on item…"></td>`+
+      `<td>${targetCell}</td>`+
       `<td class="inf-ctr">${attuneCell}</td>`+
       `<td class="inf-ctr"><button type="button" class="inf-rm" data-ii="${i}" title="Remove">✕</button></td>`+
     `</tr>`;
@@ -10552,14 +10647,19 @@
   }
   function renderInfusions(){
     const card = $("infusions-inner"); if(!card) return;
-    const rows = infusions.map(infRow).join("");
+    const manageRows = infusions.map((x,i) => x.known ? infManageRow(x,i) : "").join("");
     card.innerHTML = `<h2>Infusions <span class="hood-btn-spacer"></span></h2>`+
       `<div class="inf-meta"><span>Infusions known <b id="inf-known">0/0</b></span><span>Items infused <b id="inf-active">0/0</b></span><span>Attunement used <b id="inf-attune">0</b></span></div>`+
       `<p class="inf-warn" id="inf-warn" style="display:none"></p>`+
-      `<table class="inf-table"><thead><tr><th>Infusion</th><th class="inf-ctr">Infused?</th><th>On item</th><th class="inf-ctr">Attune</th><th class="inf-ctr"></th></tr></thead>`+
-      `<tbody id="inf-rows">${rows}</tbody></table>`+
-      `<button type="button" class="btn" id="add-infusion" style="margin-top:8px">+ Add infusion</button>`+
-      `<p class="wiz-hint">You learn infusions from the Artificer Infusions list and can swap which ones you know after a long rest. At the end of a long rest you infuse known infusions into nonmagical items, up to your Items-infused limit. Tick <strong>Infused?</strong> for ones currently active — Enhanced Defense and Enhanced Arcane Focus then auto-apply to your AC and spell attack.</p>`;
+      `<div class="inf-sec-head" id="inf-pick-head">Infusions known`+
+        `<span class="inf-up-tools"><button type="button" class="inf-up-all" id="inf-expand-all">Expand all</button><button type="button" class="inf-up-all" id="inf-collapse-all">Collapse all</button></span></div>`+
+      `<div class="inf-picklist">${infPickList()}</div>`+
+      `<div class="inf-sec-head" style="margin-top:14px">Infuse into items</div>`+
+      (manageRows.trim()
+        ? `<table class="inf-table"><thead><tr><th>Infusion</th><th class="inf-ctr">Infused?</th><th>On item</th><th class="inf-ctr">Attune</th><th class="inf-ctr"></th></tr></thead>`+
+          `<tbody id="inf-rows">${manageRows}</tbody></table>`
+        : `<p class="wiz-hint" style="margin-top:4px">Learn an infusion above (tap <b>+</b>), then it appears here to infuse into a specific item.</p>`)+
+      `<p class="wiz-hint">Tap <b>+</b> to learn an infusion (swap them after a long rest). At the end of a long rest you infuse known infusions into nonmagical items, up to your Items-infused limit. Tick <strong>Infused?</strong> for ones currently active and pick the item they're on — <strong>Enhanced Weapon</strong>, Radiant/Returning Weapon, and Repeating Shot then add their +1/+2 to that weapon's attack &amp; damage, and Enhanced Defense / Enhanced Arcane Focus auto-apply to your AC and spell attack.</p>`;
     updateInfusionMeta();
   }
   function updateInfusionMeta(){
@@ -11250,7 +11350,7 @@
   function weaponByName(name){
     const n = String(name||"").trim().toLowerCase();
     const base = _baseWeapon(n);
-    if(base) return base;
+    if(base){ const ib = infusionWeaponBonus(n); return ib ? {...base, magicBonus:(base.magicBonus||0)+ib} : base; }
     // named magic weapon (Dagger of Venom, Mace of Disruption…): base weapon + magic bonus + any damage rider
     const mw = hbAwMagicWeapon(n) || (DATA && DATA.magicWeapons && DATA.magicWeapons[n]) || null;
     if(mw){ const b = _baseWeapon((mw.base||"").toLowerCase()); if(b) return {...b, name, magicBonus: mw.bonus||0, rider: mw.rider||""}; }
@@ -13631,7 +13731,23 @@
         compute(); save();   // infused/attuned/known affect AC, spell attack, and the attunement count
       });
       infCard.addEventListener("click", e => {
-        if(e.target.closest("#add-infusion")){ infusions.push(blankInfusion()); renderInfusions(); save(); return; }
+        const pk = e.target.closest(".inf-pick");
+        if(pk && !pk.disabled){
+          const name = pk.dataset.inf, inf = infusionByName(name);
+          const cnt = infusions.filter(x => x.known === name).length;
+          if(cnt > 0 && !(inf && inf.replicate)){                          // known + not repeatable → unlearn it
+            const idx = infusions.findIndex(x => x.known === name); if(idx >= 0) infusions.splice(idx, 1);
+          } else {                                                         // learn one (respect the known cap)
+            const caps = infCaps(), knownCount = infusions.filter(x => x.known).length;
+            if(!caps.known || knownCount < caps.known) infusions.push(Object.assign(blankInfusion(), {known:name}));
+          }
+          renderInfusions(); compute(); save(); return;
+        }
+        const tg = e.target.closest(".inf-up-toggle");                     // expand/collapse a description in place (no re-render)
+        if(tg){ const lc = tg.dataset.inf.toLowerCase(), up = tg.closest(".inf-up");
+          if(_infUpOpen.has(lc)){ _infUpOpen.delete(lc); up.classList.remove("open"); } else { _infUpOpen.add(lc); up.classList.add("open"); } return; }
+        if(e.target.closest("#inf-expand-all")){ ARTIFICER_INFUSIONS.forEach(o => _infUpOpen.add(o.name.toLowerCase())); renderInfusions(); return; }
+        if(e.target.closest("#inf-collapse-all")){ _infUpOpen.clear(); renderInfusions(); return; }
         const rm = e.target.closest(".inf-rm"); if(rm){ infusions.splice(+rm.dataset.ii, 1); renderInfusions(); compute(); save(); }
       });
     }
