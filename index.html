@@ -3054,11 +3054,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v473 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v474 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.100.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.100.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3066,6 +3066,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v474", semver:"2.100.1", items:[
+      "Deleting an Ancestral Weapon from your inventory now removes the Ancestral Weapons tab immediately, instead of only after a refresh.",
+    ]},
     {v:"v473", semver:"2.100.0", items:[
       "Skills now use a single proficiency control on screen instead of two checkboxes: click once for proficient, twice for expertise, a third time to clear. Proficient shows as a solid square and expertise as a solid square with a nested ring (a 'double' square), so they read differently at a glance. This reclaims the space the separate Expertise checkbox used to take. Printing is unchanged — the printed sheet still has both the Prof and Exp checkboxes.",
     ]},
@@ -10953,6 +10956,7 @@
     setRowCont(i, "");
     if(i < NINV-1) moveInvRow(i, NINV-1);      // moveInvRow saves + computes (prunes Attacks, un-nests container contents, refreshes AC pickers)
     else { renderContainers(); save(); compute(); }
+    if(typeof awEnabled !== "undefined" && awEnabled && typeof applyLayout === "function") applyLayout();   // a deleted item may have been an Ancestral Weapon → hot-reload the layout so the AW tab disappears immediately (this fires for the ✕ button too, which calls deleteInvRow directly)
   }
   // ---- "Active" weapons → Attacks table (toggled per inventory row; bonus & damage auto-computed) ----
   function _baseWeapon(n){ return ((DATA && DATA.weapons) || []).find(w => (w.name||"").toLowerCase() === n) || null; }
