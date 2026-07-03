@@ -188,7 +188,7 @@
   .portrait-menu{display:none; position:absolute; left:6px; right:6px; bottom:6px; flex-direction:column; gap:3px; z-index:6}
   .portrait.menu-open .portrait-menu{display:flex}
   .portrait-menu button{font:inherit; font-size:11px; font-weight:600; text-align:center; cursor:pointer;
-    border:1px solid var(--line2); background:#fff; color:var(--ink); padding:6px 8px}
+    border:1px solid var(--line2); background:var(--card); color:var(--ink); padding:6px 8px}   /* var(--card), not #fff, so the buttons go dark (with readable ink) in dark mode instead of white-on-washed-out */
   .portrait-menu button:hover{background:var(--accent-soft); border-color:var(--accent)}
   .meta-grid{display:flex; flex-direction:column; gap:12px; margin-top:16px}
   .meta-row{display:grid; gap:12px 16px}
@@ -1691,12 +1691,17 @@
   /* Portrait slot (page 2 "Character Appearance"): shows the uploaded portrait, click to upload/replace. The portrait
      is a real <img> (NOT a CSS background) because the base `.cl-slot > *{background:transparent !important}` rule
      overrides any inline background-image — an <img> also renders large portraits far better than a data-URI bg. */
-  .cl-slot.k-portrait > *{ cursor:pointer; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .cl-slot.k-portrait > *{ cursor:pointer; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; }
   body.classic-layout .cl-slot.k-portrait > *{ background-color:rgba(64,120,220,.10) !important; }
   .cl-slot.k-portrait .cl-port-img{ max-width:100%; max-height:100%; width:100%; height:100%; object-fit:contain; }
   .cl-slot.k-portrait .cl-port-img[hidden]{ display:none; }
   .cl-slot.k-portrait .cl-port-hint{ font-size:11px; color:#6b6252; text-align:center; pointer-events:none; padding:4px; }
   .cl-slot.k-portrait.has-img .cl-port-hint{ display:none; }
+  /* Replace / Download / Remove menu — same as the UCS portrait box, shown when a portrait is present and the box is clicked. */
+  .cl-slot.k-portrait .cl-port-menu{ display:none; position:absolute; left:6px; right:6px; bottom:6px; flex-direction:column; gap:3px; z-index:6; }
+  .cl-slot.k-portrait .cl-port.menu-open .cl-port-menu{ display:flex; }
+  .cl-slot.k-portrait .cl-port-menu button{ font:inherit; font-size:11px; font-weight:600; text-align:center; cursor:pointer; border:1px solid var(--line2); background:var(--card); color:var(--ink); padding:6px 8px; }
+  .cl-slot.k-portrait .cl-port-menu button:hover{ background:var(--accent-soft); border-color:var(--accent); }
   /* Classic-ONLY page order: the official sheet is page 1 Core, page 2 Background, page 3 Spells, but the app's DOM
      puts Spells before Background. Reorder JUST for Classic with flex `order` (the .pagetabs is already flex; .sheet
      is made flex only in print below). Both are gated on body.classic-layout, so they revert the instant the theme
@@ -3055,11 +3060,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v509 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v510 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.115.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.116.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3067,6 +3072,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v510", semver:"2.116.0", items:[
+      "Classic theme: the portrait now fits neatly inside the \"Character Appearance\" box (it slightly overhung the border and label before).",
+      "Classic theme: clicking the portrait now opens the same Replace image / Download original / Remove menu as the Universal sheet (when a portrait is set); an empty box still opens the upload picker.",
+      "Fixed the portrait's Replace / Download / Remove buttons being white with washed-out text in dark mode — they're now dark with readable text.",
+    ]},
     {v:"v509", semver:"2.115.3", items:[
       "Classic theme: the character portrait now actually appears in the page-2 \"Character Appearance\" box. It was being drawn as a background image, which the sheet's own styling was silently blanking out, so the box always looked empty even when a portrait was loaded. It's now a proper image element that shows on screen and prints.",
     ]},
@@ -14883,7 +14893,7 @@
     // the space between the header row and the Backstory label. The portrait wiring (upload/display) hangs off it.
     (function(){ var bg = PAGES.filter(function(p){ return p.host==='page-bg'; })[0];
       if(bg && !bg.map.some(function(f){ return f.kind==='portrait'; }))
-        bg.map.push({ kind:'portrait', align:'center', r:[34.8, 120.0, 164.4, 248.0] });
+        bg.map.push({ kind:'portrait', align:'center', r:[34.8, 124.0, 164.4, 232.0] });   // fits inside the box's inner rule, above the "CHARACTER APPEARANCE" label (measured from the sheet art)
     })();
 
     // Shrink-to-fit: measure the value with a canvas (no reflow) and scale the font down so it fits the slot width.
@@ -14925,7 +14935,10 @@
         if(f.kind==='calc'){ el=document.createElement('span'); el.style.fontSize=fs+'px'; el.dataset.basefs=fs; el.dataset.availw=px(w)-5; }
         else if(f.kind==='check'){ el=document.createElement('input'); el.type='checkbox'; }
         else if(f.kind==='portrait'){ el=document.createElement('div'); el.className='cl-port';
-          el.innerHTML='<img class="cl-port-img" alt="portrait" hidden><span class="cl-port-hint">Character portrait<br>(click to upload)</span>'; }
+          el.innerHTML='<img class="cl-port-img" alt="portrait" hidden><span class="cl-port-hint">Character portrait<br>(click to upload)</span>'
+            +'<div class="cl-port-menu noprint"><button type="button" data-pact="replace">Replace image</button>'
+            +'<button type="button" data-pact="dl">Download original</button>'
+            +'<button type="button" data-pact="rm">Remove</button></div>'; }
         else if(f.kind==='area'){
           el=document.createElement('textarea'); el.style.fontSize='10px';
           if(custom){ el.id='classic-'+f.id.replace(/_/g,''); el.setAttribute('data-save',''); }
@@ -14958,8 +14971,18 @@
       outer.querySelectorAll('.cl-slot').forEach(function(slot){
         var el=slot.firstChild; if(!el) return;
         var kind=(slot.className.match(/k-(\w+)/)||[])[1];
-        if(kind==='portrait'){   // click routes to the app's real portrait upload (input[type=file])
-          el.addEventListener('click', function(){ var inp=document.getElementById('portrait-input'); if(inp) inp.click(); });
+        if(kind==='portrait'){
+          // Empty → upload. With a portrait → toggle a menu (Replace / Download / Remove) that DELEGATES to the app's
+          // own #portrait-* buttons, so it reuses their exact logic (renderPortrait is wrapped, so the slot re-syncs).
+          el.addEventListener('click', function(ev){
+            var btn=ev.target.closest('[data-pact]');
+            if(btn){ ev.stopPropagation();
+              var map={replace:'portrait-replace', dl:'portrait-dl', rm:'portrait-rm'};
+              var t=document.getElementById(map[btn.dataset.pact]); if(t) t.click();
+              el.classList.remove('menu-open'); return; }
+            if(slot.classList.contains('has-img')) el.classList.toggle('menu-open');
+            else { var inp=document.getElementById('portrait-input'); if(inp) inp.click(); }
+          });
           return;
         }
         if(kind==='calc') return;
@@ -15013,6 +15036,8 @@
         }
         window.addEventListener('resize', fitAll);
         var pt=document.querySelector('.pagetabs'); if(pt) pt.addEventListener('click', function(){ setTimeout(fitAll,0); });
+        // close the portrait Replace/Download/Remove menu when clicking anywhere outside it
+        document.addEventListener('click', function(ev){ if(!ev.target.closest('.cl-port')) document.querySelectorAll('.cl-port.menu-open').forEach(function(e){ e.classList.remove('menu-open'); }); });
       }
     }
     window.buildClassicPages=buildAll; window.syncClassicPg1=syncClassic; window.applyClassicArt=applyArt;
