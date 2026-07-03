@@ -92,6 +92,22 @@
   .btn.primary:hover{filter:brightness(1.08)}
   .btn.ghost{border-color:transparent; background:transparent; color:var(--muted)}
   .btn.ghost:hover{color:var(--ink); background:var(--accent-soft)}
+  /* Overflow menu (hamburger) — the toolbar's Print/PDF, Manage Characters, Homebrew Studio, and Settings live in here. */
+  .menu-wrap{position:relative; display:inline-flex}
+  .menu-btn{display:inline-flex; align-items:center; gap:6px}
+  .menu-pop{
+    position:absolute; right:0; top:calc(100% + 6px); z-index:40;
+    display:flex; flex-direction:column; gap:2px;
+    min-width:190px; padding:6px;
+    background:var(--card); border:1px solid var(--line2); border-radius:8px;
+  }
+  .menu-pop[hidden]{display:none}
+  .menu-pop .menu-item{
+    width:100%; text-align:left; font-weight:600;
+    border-color:transparent; background:transparent; color:var(--ink);
+    padding:8px 10px; border-radius:6px;
+  }
+  .menu-pop .menu-item:hover{background:var(--accent-soft); border-color:transparent}
   .btn.danger{background:#b42318; color:#fff; border-color:#b42318}
   .btn.danger:hover{filter:brightness(1.1); background:#b42318; border-color:#b42318}
   .status{font-size:12px; color:var(--muted); min-width:54px}
@@ -1425,6 +1441,9 @@
   html.mobile .toolbar{ position:static; gap:6px; padding:8px 10px; }
   html.mobile .toolbar .brand{ width:100%; margin:0 0 4px; font-size:13px; }
   html.mobile .toolbar .btn{ flex:1 1 auto; min-height:44px; padding:9px 10px; }
+  html.mobile .toolbar .menu-wrap{ flex:1 1 auto; display:flex; }
+  html.mobile .menu-btn{ width:100%; justify-content:center; }
+  html.mobile .menu-pop{ left:0; right:0; min-width:0; }
   html.mobile .toolbar .status{ width:100%; order:5; min-width:0; text-align:center; }
 
   /* Save stays in the toolbar (same place as desktop) on mobile too — the
@@ -2025,11 +2044,20 @@
     <span class="status" id="status"></span>
     <button class="btn primary" id="btn-create" title="">Create Character</button>
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file (your character plus all loaded sourcebooks baked in — works offline, no localStorage needed)">Save</button>
-    <button class="btn" id="btn-print">Print / PDF</button>
     <button class="btn" id="btn-search" title="Search this character (⌘K / Ctrl-K)">Search</button>
-    <button class="btn" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
-    <button class="btn ghost" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
+    <div class="menu-wrap">
+      <button class="btn menu-btn" id="btn-menu" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu" title="More">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+        <span>Menu</span>
+      </button>
+      <div class="menu-pop noprint" id="app-menu" hidden="">
+        <button class="btn menu-item" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
+        <button class="btn menu-item" id="btn-hb-studio-top" type="button" title="Create and manage your custom spells, items, feats, and more">Homebrew Studio</button>
+        <button class="btn menu-item" id="btn-print">Print / PDF</button>
+        <button class="btn menu-item" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
+      </div>
+    </div>
     <input type="file" id="file-input" accept="application/json,.json" multiple style="display:none">
     <input type="file" id="import-chars-input" accept=".html,.htm,text/html,application/json,.json" style="display:none">
   </div>
@@ -3104,11 +3132,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v499 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v500 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.112.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.113.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3116,6 +3144,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v500", semver:"2.113.0", items:[
+      "Tidied the top toolbar: Print / PDF, Manage Characters, Homebrew Studio, and Settings now live together under a new “Menu” (hamburger) button on the right. Create Character, Save, Search, and Mobile stay as their own buttons. The menu closes when you pick something, click away, or press Escape.",
+    ]},
     {v:"v499", semver:"2.112.1", items:[
       "The ritual “R” marker beside a spell's prepared checkbox is now a bit smaller and vertically aligned with the checkbox instead of sitting slightly high.",
     ]},
@@ -13729,6 +13760,16 @@
     });
 
     $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
+    // Overflow menu (hamburger): toggle, close on outside-click / Escape / any item click.
+    (function(){
+      const pop = $("app-menu"), btn = $("btn-menu");
+      const close = () => { pop.hidden = true; btn.setAttribute("aria-expanded","false"); };
+      btn.addEventListener("click", e => { e.stopPropagation(); const willOpen = pop.hidden; pop.hidden = !willOpen; btn.setAttribute("aria-expanded", willOpen ? "true" : "false"); });
+      pop.addEventListener("click", close);   // clicking any item runs its own action, then closes the menu
+      document.addEventListener("click", e => { if(!pop.hidden && !pop.contains(e.target) && !btn.contains(e.target)) close(); });
+      document.addEventListener("keydown", e => { if(e.key === "Escape" && !pop.hidden) close(); });
+      $("btn-hb-studio-top").addEventListener("click", () => openHbStudio());
+    })();
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
