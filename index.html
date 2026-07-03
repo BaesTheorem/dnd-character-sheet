@@ -3090,11 +3090,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v533 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v534 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.127.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.127.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3102,6 +3102,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v534", semver:"2.127.2", items:[
+      "The Defenses and Conditions boxes now both bottom-align with the Armor Class / Initiative / Speed row instead of stretching taller — even when you have extra movement speeds shown or a lot of content in the other box.",
+    ]},
     {v:"v533", semver:"2.127.1", items:[
       "Fixed a Defenses badge showing twice (e.g. Fey Ancestry's advantage on saves vs. being charmed) when an older/differently-worded copy of the same defense was saved in the notes box. Equivalent (dis)advantages now collapse to one badge; genuinely different ones still show separately.",
     ]},
@@ -9896,15 +9899,21 @@
   let _saveTimer = null;
   function queueSave(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(()=>{ _saveTimer = null; save(); }, 400); }
   function flushSave(){ if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; save(); } }   // persist a pending debounced write immediately (tab hide/close)
-  function fitDefenses(){   // size the Defenses box to its content, shrinking past trailing blank lines, with a floor at the bottom of the AC/Init/Speed row (so it lines up with that stat row)
+  function fitDefenses(){   // size the Defenses box AND Conditions box to their content, with a floor at the bottom of the AC/Init/Speed row so both bottom-align with that stat row (they don't stretch past it when otherspeeds/content makes the left column taller)
     const ta = $("defnotes"); if(!ta) return;
+    const row = ta.closest(".combat-row"), acRow = row && row.querySelector(".combat-left .combat-top");
+    const acBottom = (acRow && acRow.getBoundingClientRect().height) ? acRow.getBoundingClientRect().bottom : 0;   // 0 when the row wrapped (mobile/narrow) → fall back to content height + CSS min-height
+    // Defenses textarea
     if(document.activeElement !== ta){ const t = ta.value.replace(/[ \t\r\n]+$/, ""); if(t !== ta.value) ta.value = t; }   // when not editing, drop trailing blank lines so the box can shrink past them
     ta.style.height = "auto";
     const pad = ta.offsetHeight - ta.clientHeight, contentH = ta.scrollHeight + pad;
-    let minH = 0;                                                         // floor = reach the bottom of the AC/Initiative/Speed boxes (same combat-row, to the left)
-    const row = ta.closest(".combat-row"), acRow = row && row.querySelector(".combat-left .combat-top");
-    if(acRow){ const r = acRow.getBoundingClientRect(); if(r.height) minH = Math.max(0, Math.round(r.bottom - ta.getBoundingClientRect().top)); }
-    ta.style.height = Math.max(contentH, minH) + "px";
+    const defMin = acBottom ? Math.max(0, Math.round(acBottom - ta.getBoundingClientRect().top)) : 0;
+    ta.style.height = Math.max(contentH, defMin) + "px";
+    // Conditions box (was flex:1 1 auto → stretched to the full column; pin it to the same floor instead)
+    const cb = row && row.querySelector(".conditions-sub .cond-box");
+    if(cb){ cb.style.flex = "0 0 auto"; cb.style.height = "auto"; const cH = cb.scrollHeight;
+      const cMin = acBottom ? Math.max(0, Math.round(acBottom - cb.getBoundingClientRect().top)) : 0;
+      cb.style.height = Math.max(cH, cMin) + "px"; }
   }
   function autoGrow(ta){
     if(!ta) return;
@@ -14305,7 +14314,11 @@
     if(typeof setupPreviewCards==="function") setupPreviewCards();   // hover/tap full-card previews (homebrew + sourcebook) on Studio lists + inventory/spell name fields
     { const dn = $("defnotes"); if(dn) dn.addEventListener("blur", () => { const moved = promoteDefNotes(); compute(); if(moved) save(); }); }   // typed defense lines (Resistance:/Immunity:/Adv. on…) become badges when you click away (compute also runs the derived-line strip)
     { const dc = $("def-chips"); if(dc) dc.addEventListener("click", e => { const x = e.target.closest(".def-chip-rm"); if(x) removeManualDef(x.dataset.def); }); }   // ✕ on a player-typed badge removes it
-    { let _dfrz; window.addEventListener("resize", () => { clearTimeout(_dfrz); _dfrz = setTimeout(fitDefenses, 120); }); }   // re-fit the Defenses box floor when the layout reflows
+    { let _dfrz; const refit = () => { clearTimeout(_dfrz); _dfrz = setTimeout(fitDefenses, 60); };   // re-fit the Defenses/Conditions floor whenever the layout reflows or the left column resizes (covers load timing + UCS relocation + otherspeeds toggling)
+      window.addEventListener("resize", refit);
+      const left = document.querySelector(".combat-left");
+      if(left && typeof ResizeObserver === "function"){ new ResizeObserver(refit).observe(left); }
+      requestAnimationFrame(() => requestAnimationFrame(fitDefenses)); }   // one settle pass after initial layout
     $("loaded-books").addEventListener("change", e => { const a = e.target.closest(".aw-module-toggle"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
     $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
