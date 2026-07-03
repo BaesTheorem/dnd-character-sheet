@@ -3041,11 +3041,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v470 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v471 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.98.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.99.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3053,6 +3053,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v471", semver:"2.99.0", items:[
+      "Updates now refresh your SOURCE DATA additively, not just the app code. When you update (or download a new file), any content the new build has that your sheet is missing is added, and changed official entries are refreshed to the latest version — including new entries added within a sourcebook you already have (detected by a content hash, so nothing is missed just because you have more total content than the shipped build). Your loaded adventures, imported books, homebrew, and characters are all kept exactly as they are; nothing is ever removed.",
+    ]},
     {v:"v470", semver:"2.98.0", items:[
       "Baked in the loaded sources from Alex's personal sheet so the hosted build matches it: added the Alex's Homebrew source (spells + items, including the Snicker-Snack Ancestral Weapon), and merged in the player content from six adventures now enabled by default (Waterdeep: Dragon Heist, Waterdeep: Dungeon of the Mad Mage, Tomb of Annihilation, Icewind Dale: Rime of the Frostmaiden, The Wild Beyond the Witchlight, Lost Laboratory of Kwalish). Purely additive: the existing 49-book catalog and all prior content are unchanged.",
     ]},
@@ -8983,13 +8986,30 @@
       // Stream the new app so the bar shows REAL download progress (the reload alone is opaque), then reload —
       // it's served fast from the HTTP cache we just warmed (cache:"reload" fetched fresh). localStorage is untouched.
       updProg(0, "Downloading the latest version…");
-      await fetchLatestApp((received, total) => {
+      const freshHtml = await fetchLatestApp((received, total) => {
         if(total && received <= total) updProg(Math.round(received/total*100), "Downloading the latest version…");
         else updProg(null, "Downloading the latest version… "+(received/1048576).toFixed(1)+" MB");   // gzipped → no usable length, show MB
       });
+      // Additively fold the fresh build's SOURCE DATA into the loaded sourcebooks (which live in localStorage and
+      // survive the reload) so a hosted update pulls in new/changed content too, not just new code: anything the
+      // user is missing is added, changed official entries are refreshed, and homebrew + any extra loaded books
+      // are kept. Persist before reloading so the boot reads the merged union from SOURCES_KEY.
+      if(freshHtml){
+        try{
+          const doc = new DOMParser().parseFromString(freshHtml, "text/html");
+          const freshSD = JSON.parse(doc.querySelector("#source-data").textContent);
+          const merged = mergeUpdatedSources(freshSD, DATA);
+          if(merged){
+            DATA = merged; _spellIndex = null;
+            if(DATA) DATA.homebrew = homebrewSources;   // keep the homebrew mirror in sync with the adopted DATA
+            try{ resolveSubraces(DATA); }catch(e){}
+            persistSources();   // write the union to SOURCES_KEY (+ raw); the reload boots from it
+          }
+        }catch(e){}
+      }
       updProg(100, "Reloading…");
       await new Promise(r => setTimeout(r, 200));   // let 100% paint before the navigation
-      location.reload();   // re-fetches fresh; localStorage (character + sourcebooks) is untouched
+      location.reload();   // re-fetches fresh; localStorage (character + sourcebooks now carry the merged source data)
       return;
     }
     // local file: fetch the latest code, re-bake the current character + sourcebooks, download a fresh file to replace this one.
@@ -13522,44 +13542,79 @@
   // the "5etools sources" (the build's built-in/default books — refreshed from the newer build) and the user's
   // own "loaded sources" (books loaded from a 5etools server that the new build doesn't ship — preserved).
   // Homebrew rides DATA.homebrew (in #source-data) and is preserved here too. Returns the data to bake.
+  // ADDITIVE SOURCE-DATA MERGE — fold a fresh build's source content INTO the user's data without ever losing
+  // what the user has. For every collection (spells/races/items/monsters/…): entries the user is MISSING are
+  // added; an entry present in both whose normalized content HASH differs is REFRESHED to the fresh build's
+  // version (errata / expanded-within-a-book content), UNLESS the user's copy is homebrew-injected (_hb) — those
+  // are the user's own and are never touched. The user's UNIQUE content (loaded adventures, imported books that
+  // the fresh build doesn't ship) and their `homebrew` are preserved verbatim, and _meta books/catalog are
+  // unioned (a brand-new fresh book inherits the fresh build's default enabled/disabled state). The hash compare
+  // ignores runtime-only annotations (keys starting with "_": _src/_srcName/_coex/_hb), so re-tagging at load
+  // doesn't read as a content change. Because the fresh build's FULL content is always folded in, this also heals
+  // a starved dataset (missing/partial books) in one pass.
+  let _addMergeStats = { added:0, refreshed:0 };
+  function additiveMergeSources(user, fresh){
+    if(!fresh) return user || null;
+    if(!user) return fresh;
+    let res; try{ res = JSON.parse(JSON.stringify(user)); }catch(e){ res = user; }   // clone so we never mutate live DATA / the persisted object
+    const strip = k => typeof k === "string" && k.charAt(0) === "_";                  // runtime-only annotations don't count as content
+    const stable = v => {                                                             // order-independent, annotation-free serialization for hashing
+      if(v === null || typeof v !== "object") return JSON.stringify(v);
+      if(Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
+      return "{" + Object.keys(v).filter(k => !strip(k)).sort().map(k => JSON.stringify(k) + ":" + stable(v[k])).join(",") + "}";
+    };
+    const keyOf = x => (x && typeof x === "object") ? String(x.name || "").toLowerCase() : String(x);
+    const SKIP = { _meta:1, homebrew:1, sources:1, awText:1 };                        // handled specially (or user-owned) below
+    let added = 0, refreshed = 0;
+    for(const col in fresh){
+      if(SKIP[col]) continue;
+      const inc = fresh[col];
+      if(Array.isArray(inc)){
+        let cur = res[col];
+        if(!Array.isArray(cur)){ res[col] = JSON.parse(JSON.stringify(inc)); added += inc.length; continue; }
+        const idx = new Map(); cur.forEach((x,i) => idx.set(keyOf(x), i));
+        inc.forEach(x => {
+          const k = keyOf(x), at = idx.get(k);
+          if(at === undefined){ cur.push(x); idx.set(k, cur.length - 1); added++; }
+          else { const b = cur[at]; if(b && b._hb) return; if(stable(b) !== stable(x)){ cur[at] = x; refreshed++; } }
+        });
+      } else if(inc && typeof inc === "object"){
+        let cur = res[col];
+        if(!cur || typeof cur !== "object" || Array.isArray(cur)){ res[col] = JSON.parse(JSON.stringify(inc)); added += Object.keys(inc).length; continue; }
+        for(const k in inc){
+          if(!(k in cur)){ cur[k] = inc[k]; added++; }
+          else { const b = cur[k]; if(b && b._hb) continue; if(stable(b) !== stable(inc[k])){ cur[k] = inc[k]; refreshed++; } }
+        }
+      }
+    }
+    // ---- _meta: union books + catalog, keep the user's toggles; a new fresh book inherits its default state ----
+    const rm = res._meta = res._meta || {}, fm = fresh._meta || {};
+    const haveBooks = new Set((rm.books || []).map(String)); rm.books = rm.books || [];
+    const freshOff = new Set((fm.disabled || []).map(String));
+    (fm.books || []).forEach(bk => { if(!haveBooks.has(String(bk))){ rm.books.push(bk); haveBooks.add(String(bk)); if(freshOff.has(String(bk))) (rm.disabled = rm.disabled || []).push(bk); } });
+    const haveBaked = new Set((rm.bakedBooks || []).map(String)); rm.bakedBooks = rm.bakedBooks || [];
+    (fm.bakedBooks || []).forEach(bk => { if(!haveBaked.has(String(bk))){ rm.bakedBooks.push(bk); haveBaked.add(String(bk)); } });
+    if(fm.raw){ rm.raw = rm.raw || {}; for(const bk in fm.raw){ if(!(bk in rm.raw)) rm.raw[bk] = fm.raw[bk]; } }
+    if(fm.fiveE){ const haveFive = new Set((rm.fiveE || []).map(String)); rm.fiveE = rm.fiveE || []; fm.fiveE.forEach(bk => { if(!haveFive.has(String(bk))){ rm.fiveE.push(bk); haveFive.add(String(bk)); } }); }
+    rm.dataVersion = Math.max((rm.dataVersion || 0), (fm.dataVersion || 0));
+    // ---- awText: the fresh build's rules text fills any gaps; the user's / imported additions win on collision ----
+    if(fresh.awText && Object.keys(fresh.awText).length) res.awText = Object.assign({}, fresh.awText, res.awText || {});
+    // homebrew stays exactly as the user has it (already carried by the clone) — never overwritten by the update.
+    _addMergeStats = { added, refreshed };
+    return res;
+  }
   function mergeUpdatedSources(shipped, user){
     const _ver = d => (d && d._meta && d._meta.dataVersion) || 0;
-    const _size = d => ((d && d.spells && d.spells.length) || 0) + ((d && d.classes && d.classes.length) || 0) + ((d && d.races && d.races.length) || 0);
     if(!shipped) return user || null;
     if(!user) return shipped;
-    // The fresh build's baked REFERENCE TEXT (AW upgrade rules text) is authoritative content the running file
-    // can be missing/empty (an old save, or a "Reload all sources" that dropped just awText — his runtime had 510
-    // spells but 0 awText). The _size starvation check below only weighs spells/classes/races, so an awText-starved
-    // but spell-fat runtime is kept "whole" and its EMPTY awText bakes into the download, wiping the fresh build's
-    // 134 descriptions (the blank-builder bug). So union awText from the fresh build into WHATEVER branch wins —
-    // base = the fresh build's, user/imported entries layered on top. This heals a starved file on every download.
     const healAw = res => { if(res && shipped.awText && Object.keys(shipped.awText).length){ res.awText = Object.assign({}, shipped.awText, res.awText || {}); } return res; };
-    // Keep the user's data whole ONLY when it's genuinely at least as complete as the fetched build:
-    // a strictly newer data version, OR the same version without being STARVED of official content. A
-    // starved same-version dataset (e.g. a partial "Reload all sources" that dropped most spells) must
-    // never overwrite the fresh build's full baseline — otherwise that loss propagates into every future
-    // update. When starved, fall through to rebuild from the shipped baseline + re-merge the user's extras.
-    if(_ver(user) > _ver(shipped)) return healAw(user);                                  // user strictly newer → keep whole (but heal awText)
-    if(_ver(user) === _ver(shipped) && _size(user) >= _size(shipped)) return healAw(user);   // same version AND not starved → keep the user's book choices (heal awText)
-    // The fetched build is newer: take its complete 5etools data as the refreshed base, then RE-MERGE the
-    // user's own loaded books that the new build doesn't ship, so user-loaded source material survives the update.
-    const shippedVer = _ver(shipped);
-    const shippedBooks = new Set((shipped._meta && shipped._meta.books || []).map(String));
-    const userRaw = (user._meta && user._meta.raw) || {};
-    shipped._meta = shipped._meta || {};
-    shipped._meta.raw = shipped._meta.raw || {};
-    (user._meta && user._meta.books || []).forEach(bk => {
-      if(shippedBooks.has(String(bk))) return;       // the new build already ships this book (fresher) — don't overwrite it with our stale copy
-      const raw = userRaw[bk];
-      if(raw){ try{ mergeBook(shipped, raw, bk); shipped._meta.raw[bk] = raw; }catch(e){} }   // preserve a user-loaded book the new build lacks
-    });
-    shipped._meta.dataVersion = shippedVer;           // the result is the new build's data (+ our extras) — keep the NEW version (mergeBook stamps the running const)
-    if(!shipped._meta.bakedBooks) shipped._meta.bakedBooks = [...shippedBooks];   // the 5etools "section" = the new build's default set
-    const survivors = new Set((shipped._meta.books || []).map(String));
-    shipped._meta.disabled = ((user._meta && user._meta.disabled) || []).filter(n => survivors.has(String(n)));   // carry the user's hide toggles for surviving books
-    if(user.homebrew) shipped.homebrew = user.homebrew;   // homebrew is your content — carry it across the update
-    shipped.awText = Object.assign({}, shipped.awText || {}, user.awText || {});   // keep the AW rules text (new build's + any imported additions)
-    return shipped;
+    if(_ver(user) > _ver(shipped)) return healAw(user);   // the running data is a strictly NEWER build → don't downgrade its official content to the older shipped copy; keep it whole (just fill any awText gaps)
+    // Otherwise fold the shipped build's source content into the user's data ADDITIVELY: add every missing entry,
+    // refresh a changed OFFICIAL entry to the shipped version (new-content-within-a-book, caught by hash diff),
+    // and keep ALL of the user's extras + homebrew. This replaces the old size-heuristic branch that kept the
+    // user "whole" whenever they had more TOTAL content than the shipped build — which silently skipped genuinely
+    // new entries the build added. It also heals a starved dataset (the full shipped baseline is always folded in).
+    return additiveMergeSources(user, shipped);
   }
   async function bakeAllInto(root){
     const activeData = collect();
