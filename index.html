@@ -3080,11 +3080,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v520 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v521 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.121.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.122.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3092,6 +3092,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v521", semver:"2.122.0", items:[
+      "Homebrew items can now carry a conditional Sense modifier — “grant N feet of a sense if you have none, or add M feet to your existing one.” The Eye of Dendallen now uses it: darkvision 60 ft. on its own, or +30 ft on top of whatever darkvision you already have (so a Dwarf wearing it reads Darkvision 90 ft.). The single darkvision chip shows the correct total and updates live as you equip/unequip.",
+    ]},
     {v:"v520", semver:"2.121.0", items:[
       "Senses now show as chips above the notes box, computed live from your race, feats, class features, and equipped/attuned items — so unequipping or removing an item (e.g. the Eye of Dendallen) instantly removes the darkvision it granted. If two sources give the same sense, it shows once (widest range) and stays as long as any source provides it. The Senses box below is now just for your own notes.",
       "Fixed: removing an item that granted a Limited Features row (e.g. the Eye's “See through magical darkness”) now clears that row automatically, without touching your class/feat rows.",
@@ -6871,6 +6874,20 @@
       return label ? {label, max:((p[1]||"1").trim()||"1"), rec:((p[2]||"LR").trim()||"LR")} : null; }).filter(Boolean);
   }
   function hbLimitedToText(arr){ return (arr||[]).map(L => `${L.label} | ${L.max||"1"} | ${L.rec||"LR"}`).join("\n"); }
+  // Conditional SENSE MODIFIERS on a homebrew item. Stored as [{sense, grant, bonus}]: while equipped (+ attuned if
+  // required), if you have NO existing <sense> you gain `grant` ft of it; if you ALREADY have it (from any other source)
+  // its range instead increases by `bonus` ft. senseChips() applies these after gathering every base sense, so the total
+  // scales off your real darkvision (e.g. Eye of Dendallen: darkvision 60, or +30 on top of an existing darkvision).
+  function hbNormSenseMods(arr){
+    if(!Array.isArray(arr)) return [];
+    return arr.map(m => (m && typeof m === "object") ? {sense:String(m.sense||"").trim().toLowerCase(), grant:parseInt(m.grant,10)||0, bonus:parseInt(m.bonus,10)||0} : null)
+      .filter(m => m && m.sense && (m.grant || m.bonus));
+  }
+  function hbSenseModsFromText(t){   // textarea: one per line, "sense | grant | bonus" (e.g. "darkvision | 60 | 30")
+    return String(t||"").split(/\n+/).map(line => { const p = line.split("|"); const sense = (p[0]||"").trim().toLowerCase();
+      return sense ? {sense, grant:parseInt(p[1],10)||0, bonus:parseInt(p[2],10)||0} : null; }).filter(m => m && (m.grant || m.bonus));
+  }
+  function hbSenseModsToText(arr){ return (arr||[]).map(m => `${m.sense} | ${m.grant||0} | ${m.bonus||0}`).join("\n"); }
   // Action-economy entries on a homebrew item (e.g. "See through magical darkness | bonus"). Stored as [{label, cost}],
   // cost ∈ action|bonus|reaction; each becomes a precisely-labeled entry in the Action Economy section when equipped (+ attuned).
   function _actCostKind(s){ s = String(s||"").toLowerCase(); return /reaction/.test(s) ? "reaction" : /bonus/.test(s) ? "bonus" : "action"; }
@@ -6892,7 +6909,8 @@
       spellDc:parseInt(it.spellDc,10)||0, unarmedBonus:parseInt(it.unarmedBonus,10)||0, text:String(it.text||""), flavor:String(it.flavor||"") };
     const gr = hbNormGrants(it.grantSpells); if(gr.length) o.grantSpells = gr;   // item-granted spells (at-will / X-per-rest)
     const lim = hbNormLimited(it.limited); if(lim.length) o.limited = lim;        // limited-use abilities → Limited Features rows
-    if(Array.isArray(it.senses)){ const ss = it.senses.map(s => String(s||"").trim()).filter(Boolean); if(ss.length) o.senses = ss; }   // sense lines → the Senses box (like race/feat darkvision)
+    if(Array.isArray(it.senses)){ const ss = it.senses.map(s => String(s||"").trim()).filter(Boolean); if(ss.length) o.senses = ss; }   // flat sense lines → a Senses chip (like race/feat darkvision)
+    const sm = hbNormSenseMods(it.senseMods); if(sm.length) o.senseMods = sm;    // conditional sense modifiers: grant-if-none / extend-if-present (e.g. Eye of Dendallen darkvision 60, +30 if you already have it)
     const acts = hbNormActions(it.actions); if(acts.length) o.actions = acts;     // precisely-labeled action-economy entries
     if(it.aw && typeof it.aw === "object") o.aw = it.aw;   // preserve an Ancestral Weapon build blob (re-editable)
     if(typeof it.img === "string" && it.img) o.img = it.img;
@@ -7153,7 +7171,8 @@
             `<label class="cspell-f"><span>Unarmed strike bonus</span><input type="number" id="hbi-unarmed" step="1" placeholder="0" title="Bonus to attack AND damage rolls with unarmed strikes (e.g. brass-knuckle items). Applies when equipped + attuned."></label>`+
             `<label class="cspell-f cspell-full"><span>Granted spells</span><textarea id="hbi-grant" rows="2" placeholder="One per line — e.g. See Invisibility | at will  (use defaults to “at will”; try “1/Long Rest”)" title="Spells this item lets you cast. Each shows in the Granted Spells table when the item is equipped (and attuned, if it requires attunement)."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Limited uses</span><textarea id="hbi-limited" rows="2" placeholder="One per line — Label | max | recharge  (e.g. See through magical darkness | 1 | Dusk; max defaults 1, recharge defaults LR)" title="Limited-use abilities. Each becomes a row in the Limited Features section when equipped (and attuned, if required). Recharge is free text: LR, SR, Dawn, Dusk, 1/Day, etc."></textarea></label>`+
-            `<label class="cspell-f cspell-full"><span>Senses</span><textarea id="hbi-senses" rows="2" placeholder="One per line — e.g. Darkvision 60 ft." title="Sense lines added to your Senses box when this item is equipped (and attuned, if required), the same way race/feat darkvision is written."></textarea></label>`+
+            `<label class="cspell-f cspell-full"><span>Senses</span><textarea id="hbi-senses" rows="2" placeholder="One per line — e.g. Darkvision 60 ft." title="Flat sense lines shown as Senses chips when this item is equipped (and attuned, if required), the same way race/feat darkvision is."></textarea></label>`+
+            `<label class="cspell-f cspell-full"><span>Sense modifiers</span><textarea id="hbi-sensemods" rows="2" placeholder="One per line — sense | grant | bonus  (e.g. darkvision | 60 | 30)" title="Conditional sense: while equipped (and attuned, if required), grant this many feet of the sense if you have none, OR add the bonus feet to your existing sense. E.g. darkvision | 60 | 30 = darkvision 60 ft., or +30 ft on top of any darkvision you already have."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Actions</span><textarea id="hbi-actions" rows="2" placeholder="One per line — Label | cost  (cost = action / bonus / reaction, defaults action). e.g. See through magical darkness | bonus" title="Action-economy abilities. Each shows as a precisely-labeled entry in the Action Economy section when the item is equipped (and attuned, if required). If left blank, the sheet falls back to scanning the item description."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Description</span><textarea id="hbi-text" rows="5" placeholder="Mechanical rules text — what the item does."></textarea></label>`+
             `<label class="cspell-f cspell-full"><span>Flavor text</span><textarea id="hbi-flavor" rows="3" placeholder="Evocative, non-mechanical prose — appearance, history, a quote, the vibe."></textarea></label>`+
@@ -7286,6 +7305,7 @@
     $("hbi-grant").value = hbGrantToText(base.grantSpells);
     $("hbi-limited").value = hbLimitedToText(base.limited);
     $("hbi-senses").value = (base.senses||[]).join("\n");
+    $("hbi-sensemods").value = hbSenseModsToText(base.senseMods);
     $("hbi-actions").value = hbActionsToText(base.actions);
     $("hbi-text").value = base.text || "";
     $("hbi-flavor").value = base.flavor || "";
@@ -7309,6 +7329,7 @@
     const gs = hbGrantFromText($("hbi-grant").value); if(gs.length) obj.grantSpells = gs;
     const lim = hbLimitedFromText($("hbi-limited").value); if(lim.length) obj.limited = lim;
     const ss = $("hbi-senses").value.split(/\n+/).map(s => s.trim()).filter(Boolean); if(ss.length) obj.senses = ss;
+    const smx = hbSenseModsFromText($("hbi-sensemods").value); if(smx.length) obj.senseMods = smx;
     const acts = hbActionsFromText($("hbi-actions").value); if(acts.length) obj.actions = acts;
     if(_hbImg.item) obj.img = _hbImg.item;
     const prev = _hbEditItemKey && cur.items[_hbEditItemKey];
@@ -9632,13 +9653,23 @@
     (asiChoices||[]).forEach(s => { if(s.type === "feat" && s.feat && FEAT_SENSES[s.feat]) add(FEAT_SENSES[s.feat], s.feat); });
     featureBlocks().forEach(b => { const s = FEATURE_SENSES[(b.name||"").toLowerCase()]; if(s) add(s, b.name); });
     const hi = (typeof hbActiveItems === "function") && hbActiveItems();
+    const mods = [];   // conditional sense modifiers from equipped items, applied AFTER every base sense is known
     if(hi){ const aset = attuneSet(), attd = attunedNames();
       for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
-        const it = hi[nm.toLowerCase()]; if(!it || !Array.isArray(it.senses) || !it.senses.length) continue;
+        const it = hi[nm.toLowerCase()]; if(!it) continue;
+        const hasS = Array.isArray(it.senses) && it.senses.length, hasM = Array.isArray(it.senseMods) && it.senseMods.length;
+        if(!hasS && !hasM) continue;
         if(it.attune && aset.has(nm.toLowerCase()) && !attd.has(nm.toLowerCase())) continue;   // needs attunement but isn't attuned → grants nothing yet
-        it.senses.forEach(s => add(s, nm)); } }
+        if(hasS) it.senses.forEach(s => add(s, nm));
+        if(hasM) it.senseMods.forEach(m => mods.push(Object.assign({}, m, {src:nm}))); } }
+    // apply conditional modifiers on the fully-gathered base senses: extend an existing sense by `bonus`, else grant `grant`
+    mods.forEach(m => { const k = String(m.sense||"").toLowerCase(); if(!k) return; const ex = by.get(k), base = ex ? ex.range : 0;
+      const nr = base > 0 ? base + (parseInt(m.bonus,10)||0) : (parseInt(m.grant,10)||0); if(nr <= 0) return;
+      if(ex){ ex.text = /\d/.test(ex.text) ? ex.text.replace(/\d+/, String(nr)) : `${ex.text} ${nr} ft.`; ex.range = nr; ex.srcs.add(m.src); }   // hide/replace the existing chip with the extended total
+      else by.set(k, {text: _capSense(k) + " " + nr + " ft.", srcs:new Set([m.src]), range:nr}); });
     return [...by.values()].sort((a,b) => a.text.localeCompare(b.text));
   }
+  function _capSense(k){ return ({darkvision:"Darkvision", blindsight:"Blindsight", tremorsense:"Tremorsense", truesight:"Truesight"})[k] || (k.charAt(0).toUpperCase() + k.slice(1)); }
   function renderSenseChips(){
     const chips = senseChips(), box = $("sense-chips");
     if(box) box.innerHTML = chips.map(c => `<span class="sense-chip" title="${esc([...c.srcs].join(", "))}">${esc(c.text)}</span>`).join("");
