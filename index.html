@@ -1013,6 +1013,9 @@
   .comp-line input{flex:1; padding:3px 5px}
   .comp-block textarea{min-height:60px; line-height:1.5}
   .comp-tmpl-note{font-size:11px; color:var(--accent); margin:0 0 8px}
+  .comp-ff{font-size:11px; margin:0 0 8px; border:1px solid var(--line); border-radius:6px; padding:4px 8px}
+  .comp-ff summary{cursor:pointer; font-weight:700; color:var(--muted)}
+  .comp-ff-text{margin-top:6px; line-height:1.5}
   .atk-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px}
   .atk-top h2{margin:0}
   .atk-per-box{min-width:96px; flex:none}
@@ -3081,11 +3084,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v522 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v523 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.122.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.123.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3093,6 +3096,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v523", semver:"2.123.0", items:[
+      "Homebrew Studio has a new Creatures tab — build and edit creature stat blocks (like the Eye of Dendallen familiar) right in a homebrew source, with full ability scores, senses, traits, actions, and art. They show up in the Companions “Pick a stat block…” picker.",
+      "Companions: the Familiar and Pact of the Chain templates now populate the full Find Familiar spell rules (a collapsible block), and it shows alongside a picked stat block instead of colliding with it.",
+    ]},
     {v:"v522", semver:"2.122.1", items:[
       "Temp HP: the resting “--” (and any value) now sits centered directly under the TEMP label. The stepper arrows were still reserving their width at rest even though they were hidden, nudging the number to the left; they’re now fully removed until you hover or focus the field.",
       "Fixed tool/instrument proficiencies granted by a class (Monk, Bard, Artificer) rendering as garbled prose like “Any One Type Of Woodcarver’s Tools” or “Any One Flute” after you picked the specific kind. The baked class data used an old phrasing the picker couldn’t fully clean up; class grants now read the same way background grants do.",
@@ -6448,7 +6455,7 @@
     r.readAsDataURL(file);
   }
   // ---- Shared homebrew image picker (spell / item / generic forms all use it via a data-scope) ----
-  const _hbImg = { spell:"", item:"", gen:"" };   // staged image dataURL for whichever form is open
+  const _hbImg = { spell:"", item:"", gen:"", creature:"" };   // staged image dataURL for whichever form is open
   function hbImgFieldHtml(scope){
     return `<label class="cspell-f cspell-full"><span>Image</span>`+
       `<div class="hb-img"><img class="hb-img-prev" data-scope="${scope}" alt="" style="display:none">`+
@@ -7143,7 +7150,7 @@
           `<button class="btn ghost" id="hb-src-del" type="button" title="Delete this homebrew source">Delete source</button>`+
         `</div>`+
         `<input type="file" id="hb-import-file" accept="application/json,.json" multiple style="display:none">`+
-        `<div class="hb-tabs"><button class="hb-tab active" data-hbtype="spells" type="button">Spells</button><button class="hb-tab" data-hbtype="items" type="button">Items</button><button class="hb-tab" data-hbtype="feats" type="button">Feats</button><button class="hb-tab" data-hbtype="races" type="button">Races</button><button class="hb-tab" data-hbtype="backgrounds" type="button">Backgrounds</button><button class="hb-tab" data-hbtype="subclasses" type="button">Subclasses</button></div>`+
+        `<div class="hb-tabs"><button class="hb-tab active" data-hbtype="spells" type="button">Spells</button><button class="hb-tab" data-hbtype="items" type="button">Items</button><button class="hb-tab" data-hbtype="feats" type="button">Feats</button><button class="hb-tab" data-hbtype="races" type="button">Races</button><button class="hb-tab" data-hbtype="backgrounds" type="button">Backgrounds</button><button class="hb-tab" data-hbtype="subclasses" type="button">Subclasses</button><button class="hb-tab" data-hbtype="creatures" type="button">Creatures</button></div>`+
         `<div id="hb-pane-spells" class="hb-pane">`+
         `<div class="hb-section-h"><span>Spells in this source</span><button class="btn" id="hb-new-spell" type="button">+ New spell</button></div>`+
         `<div id="hb-spell-list" class="hb-spells"></div>`+
@@ -7185,6 +7192,39 @@
           `</div><div class="hb-form-foot"><button class="btn ghost" id="hbi-cancel" type="button">Cancel</button><button class="btn primary" id="hbi-save" type="button">Save item</button></div></div>`+
         `</div>`+
         `<div id="hb-pane-gen" class="hb-pane" style="display:none"></div>`+
+        `<div id="hb-pane-creatures" class="hb-pane" style="display:none">`+
+          `<div class="hb-section-h"><span>Creatures in this source</span><button class="btn" id="hb-new-creature" type="button">+ New creature</button></div>`+
+          `<div id="hb-creature-list" class="hb-spells"></div>`+
+          `<div id="hb-creature-form" class="hb-form" style="display:none"><div class="cspell-grid">`+
+            `<label class="cspell-f cspell-full"><span>Name</span><input type="text" id="hbc-name"></label>`+
+            `<label class="cspell-f"><span>Size</span><select id="hbc-size"><option>Tiny</option><option>Small</option><option selected>Medium</option><option>Large</option><option>Huge</option><option>Gargantuan</option></select></label>`+
+            `<label class="cspell-f"><span>Type</span><input type="text" id="hbc-type" placeholder="undead, beast, construct…"></label>`+
+            `<label class="cspell-f"><span>Alignment</span><input type="text" id="hbc-align" placeholder="neutral evil"></label>`+
+            `<label class="cspell-f"><span>Challenge</span><input type="text" id="hbc-cr" placeholder="0, 1/4, 2…"></label>`+
+            `<label class="cspell-f"><span>AC</span><input type="number" id="hbc-ac" step="1" placeholder="12"></label>`+
+            `<label class="cspell-f"><span>AC note</span><input type="text" id="hbc-acnote" placeholder="natural armor"></label>`+
+            `<label class="cspell-f"><span>HP</span><input type="number" id="hbc-hp" step="1" placeholder="5"></label>`+
+            `<label class="cspell-f"><span>HP formula</span><input type="text" id="hbc-hpf" placeholder="2d4"></label>`+
+            `<label class="cspell-f cspell-full"><span>Speed</span><input type="text" id="hbc-speed" placeholder="20 ft., climb 20 ft."></label>`+
+            `<label class="cspell-f"><span>STR</span><input type="number" id="hbc-str" step="1" placeholder="10"></label>`+
+            `<label class="cspell-f"><span>DEX</span><input type="number" id="hbc-dex" step="1" placeholder="10"></label>`+
+            `<label class="cspell-f"><span>CON</span><input type="number" id="hbc-con" step="1" placeholder="10"></label>`+
+            `<label class="cspell-f"><span>INT</span><input type="number" id="hbc-int" step="1" placeholder="10"></label>`+
+            `<label class="cspell-f"><span>WIS</span><input type="number" id="hbc-wis" step="1" placeholder="10"></label>`+
+            `<label class="cspell-f"><span>CHA</span><input type="number" id="hbc-cha" step="1" placeholder="10"></label>`+
+            `<label class="cspell-f cspell-full"><span>Saving throws</span><input type="text" id="hbc-save" placeholder="Dex +4, Con +2"></label>`+
+            `<label class="cspell-f cspell-full"><span>Skills</span><input type="text" id="hbc-skill" placeholder="Perception +3, Stealth +6"></label>`+
+            `<label class="cspell-f cspell-full"><span>Senses</span><input type="text" id="hbc-senses" placeholder="darkvision 60 ft., passive Perception 13"></label>`+
+            `<label class="cspell-f cspell-full"><span>Languages</span><input type="text" id="hbc-languages" placeholder="understands Common but can't speak"></label>`+
+            `<label class="cspell-f"><span>Resistances</span><input type="text" id="hbc-resist"></label>`+
+            `<label class="cspell-f"><span>Immunities</span><input type="text" id="hbc-immune" placeholder="poison"></label>`+
+            `<label class="cspell-f"><span>Vulnerabilities</span><input type="text" id="hbc-vuln"></label>`+
+            `<label class="cspell-f"><span>Condition immunities</span><input type="text" id="hbc-condimmune" placeholder="exhaustion, poisoned"></label>`+
+            `<label class="cspell-f cspell-full"><span>Traits</span><textarea id="hbc-traits" rows="4" placeholder="One per blank-line block — “Name. Description.”  e.g.\nUndead Nature. The creature doesn't require air, food, drink, or sleep."></textarea></label>`+
+            `<label class="cspell-f cspell-full"><span>Actions</span><textarea id="hbc-actions" rows="4" placeholder="One per blank-line block — “Name. Description.”"></textarea></label>`+
+            hbImgFieldHtml("creature")+
+          `</div><div class="hb-form-foot"><button class="btn ghost" id="hbc-cancel" type="button">Cancel</button><button class="btn primary" id="hbc-save" type="button">Save creature</button></div></div>`+
+        `</div>`+
       `</div>`+
       `<div class="modal-foot"><span class="wiz-hint" style="flex:1; margin:0">Saved as reusable sources; they show as togglable books and travel with sheets you share.</span><button class="btn primary" id="hb-done" type="button">Done</button></div></div>`;
     document.body.appendChild(m);
@@ -7230,7 +7270,7 @@
       const ed = e.target.closest(".hb-edit"); if(ed){ hbOpenForm(String(ed.dataset.name||"").toLowerCase()); return; }
       const del = e.target.closest(".hb-del"); if(del){ hbDeleteSpell(del.dataset.name); return; }
     });
-    m.querySelector(".hb-tabs").addEventListener("click", e => { const t = e.target.closest(".hb-tab"); if(t){ _hbType = t.dataset.hbtype; hbCloseForm(); hbCloseItemForm(); _hbGenEditKey = null; renderHbStudio(); } });
+    m.querySelector(".hb-tabs").addEventListener("click", e => { const t = e.target.closest(".hb-tab"); if(t){ _hbType = t.dataset.hbtype; hbCloseForm(); hbCloseItemForm(); hbCloseCreatureForm(); _hbGenEditKey = null; renderHbStudio(); } });
     $("hb-pane-gen").addEventListener("click", e => {   // generic builder-type panes (feats/races/backgrounds/subclasses) — delegated, since the pane is rebuilt each render
       if(e.target.closest(".hbg-new")){ _hbGenEditKey = ""; renderHbGen(); return; }
       const ed = e.target.closest(".hbg-edit"); if(ed){ _hbGenEditKey = String(ed.dataset.name||"").toLowerCase(); renderHbGen(); return; }
@@ -7246,6 +7286,13 @@
       const ed = e.target.closest(".hb-edit"); if(ed){ hbOpenItemForm(String(ed.dataset.name||"").toLowerCase()); return; }
       const del = e.target.closest(".hb-del"); if(del){ hbDeleteItem(del.dataset.name); return; }
     });
+    $("hb-new-creature").addEventListener("click", () => hbOpenCreatureForm(null));
+    $("hbc-cancel").addEventListener("click", hbCloseCreatureForm);
+    $("hbc-save").addEventListener("click", hbSaveCreatureForm);
+    $("hb-creature-list").addEventListener("click", e => {
+      const ed = e.target.closest(".hb-edit"); if(ed){ hbOpenCreatureForm(String(ed.dataset.name||"").toLowerCase()); return; }
+      const del = e.target.closest(".hb-del"); if(del){ hbDeleteCreature(del.dataset.name); return; }
+    });
   }
   function renderHbStudio(){
     if(!$("hb-studio")) return;
@@ -7257,11 +7304,12 @@
     $("hb-src-del").style.display = homebrewSources.length > 1 ? "" : "none";   // always keep at least one source
     document.querySelectorAll("#hb-studio .hb-tab").forEach(b => b.classList.toggle("active", b.dataset.hbtype === _hbType));
     const generic = !!HB_GEN_SPECS[_hbType];
-    const sp = $("hb-pane-spells"), ip = $("hb-pane-items"), gp = $("hb-pane-gen");
+    const sp = $("hb-pane-spells"), ip = $("hb-pane-items"), gp = $("hb-pane-gen"), cp = $("hb-pane-creatures");
     if(sp) sp.style.display = _hbType === "spells" ? "" : "none";
     if(ip) ip.style.display = _hbType === "items" ? "" : "none";
     if(gp) gp.style.display = generic ? "" : "none";
-    if(_hbType === "items") renderHbItemList(); else if(_hbType === "spells") renderHbSpellList(); else if(generic) renderHbGen();
+    if(cp) cp.style.display = _hbType === "creatures" ? "" : "none";
+    if(_hbType === "items") renderHbItemList(); else if(_hbType === "spells") renderHbSpellList(); else if(_hbType === "creatures") renderHbCreatureList(); else if(generic) renderHbGen();
     { const b = $("hb-new-aw"); if(b) b.style.display = awEnabled ? "" : "none"; }
   }
   function openHbStudio(rowCtx){
@@ -7284,7 +7332,7 @@
       hbCloseForm();
     }
   }
-  function closeHbStudio(){ const m = $("hb-studio"); if(m) m.classList.remove("open"); _hbRowCtx = null; _hbEditKey = null; _hbEditItemKey = null; }
+  function closeHbStudio(){ const m = $("hb-studio"); if(m) m.classList.remove("open"); _hbRowCtx = null; _hbEditKey = null; _hbEditItemKey = null; _hbEditCreatureKey = null; }
   function renderHbItemList(){
     const el = $("hb-item-list"); if(!el) return;
     const cur = homebrewSources[_hbCurId] || {items:{}};
@@ -7352,6 +7400,75 @@
     if(!confirm(`Delete homebrew item \u201c${name}\u201d from ${cur.name}? This removes it for all characters.`)) return;
     delete cur.items[lc];
     refreshHbItems(); renderHbItemList();
+  }
+  // ---- Creatures (homebrew monster stat blocks) \u2014 stored per-source in the `monsters` bag, surfaced in the Companions
+  // "Pick a stat block" picker via the lookup-overlay in monsterByName/populateMonsterList (they're NOT merged into DATA).
+  function refreshHbCreatures(){ saveHomebrew(); if(typeof populateMonsterList === "function") populateMonsterList(); if(typeof renderCompanions === "function") renderCompanions(); renderHomebrewList(); renderLoadedBookList(); }
+  function renderHbCreatureList(){
+    const el = $("hb-creature-list"); if(!el) return;
+    const cur = homebrewSources[_hbCurId] || {monsters:{}};
+    const arr = Object.values(cur.monsters||{}).sort((a,b) => String(a.name).localeCompare(String(b.name)));
+    if(!arr.length){ el.innerHTML = `<div class="hb-empty">No creatures in this source yet. Click \u201c+ New creature\u201d to make one \u2014 it shows up in the Companions \u201cPick a stat block\u201d picker.</div>`; return; }
+    el.innerHTML = arr.map(m => { const tag = [m.size, m.type, (m.cr!=null && m.cr!=="") ? "CR "+m.cr : ""].filter(Boolean).join(" \u00b7 ");
+      return `<div class="hb-row"><span class="hb-name" data-card="${esc(m.name)}">${esc(m.name)}</span><span class="hb-lvl">${esc(tag)}</span><button type="button" class="hb-edit" data-name="${esc(m.name)}" title="Edit creature">\u270e</button><button type="button" class="hb-del" data-name="${esc(m.name)}" title="Delete creature">\u2715</button></div>`;
+    }).join("");
+  }
+  function hbOpenCreatureForm(key){
+    const cur = hbEnsureSource();
+    const lc = key ? String(key).toLowerCase() : null;
+    _hbEditCreatureKey = lc;
+    const base = (lc && (cur.monsters||{})[lc]) || {};
+    $("hbc-name").value = base.name || "";
+    $("hbc-size").value = base.size || "Medium";
+    $("hbc-type").value = base.type || "";
+    $("hbc-align").value = base.align || "";
+    $("hbc-cr").value = (base.cr!=null ? String(base.cr) : "");
+    $("hbc-ac").value = (base.ac!=null && base.ac!=="") ? String(base.ac) : "";
+    $("hbc-acnote").value = base.acNote || "";
+    $("hbc-hp").value = (base.hp!=null && base.hp!=="") ? String(base.hp) : "";
+    $("hbc-hpf").value = base.hpFormula || "";
+    $("hbc-speed").value = base.speed || "";
+    ["str","dex","con","int","wis","cha"].forEach(a => { $("hbc-"+a).value = (base[a]!=null && base[a]!=="") ? String(base[a]) : ""; });
+    $("hbc-save").value = base.save || ""; $("hbc-skill").value = base.skill || ""; $("hbc-senses").value = base.senses || ""; $("hbc-languages").value = base.languages || "";
+    $("hbc-resist").value = base.resist || ""; $("hbc-immune").value = base.immune || ""; $("hbc-vuln").value = base.vuln || ""; $("hbc-condimmune").value = base.condImmune || "";
+    $("hbc-traits").value = traitsToText(base.traits);
+    $("hbc-actions").value = traitsToText(base.actions);
+    _hbImg.creature = base.img || ""; hbImgSyncPreview("creature");
+    $("hb-creature-list").style.display = "none";
+    $("hb-creature-form").style.display = "";
+    setTimeout(() => $("hbc-name").focus(), 0);
+  }
+  function hbCloseCreatureForm(){ _hbEditCreatureKey = null; const f = $("hb-creature-form"); if(f) f.style.display = "none"; const l = $("hb-creature-list"); if(l) l.style.display = ""; }
+  function hbSaveCreatureForm(){
+    const cur = hbEnsureSource();
+    const name = ($("hbc-name").value||"").trim();
+    if(!name){ flashStatus("Name the creature first"); $("hbc-name").focus(); return; }
+    const lc = name.toLowerCase();
+    cur.monsters = cur.monsters || {};
+    if(cur.monsters[lc] && _hbEditCreatureKey !== lc){ flashStatus(`\u201c${name}\u201d already exists in ${cur.name}`); $("hbc-name").focus(); return; }
+    const numOr = (id) => { const v = parseInt($(id).value,10); return isNaN(v) ? null : v; };
+    const cr = ($("hbc-cr").value||"").trim(), crn = (typeof crNum === "function") ? crNum(cr||"0") : 0;
+    const obj = { name, size:$("hbc-size").value||"Medium", type:($("hbc-type").value||"").trim(), align:($("hbc-align").value||"").trim(),
+      ac:numOr("hbc-ac"), acNote:($("hbc-acnote").value||"").trim(), hp:numOr("hbc-hp"), hpFormula:($("hbc-hpf").value||"").trim(), speed:($("hbc-speed").value||"").trim(),
+      str:numOr("hbc-str"), dex:numOr("hbc-dex"), con:numOr("hbc-con"), int:numOr("hbc-int"), wis:numOr("hbc-wis"), cha:numOr("hbc-cha"),
+      save:($("hbc-save").value||"").trim(), skill:($("hbc-skill").value||"").trim(), senses:($("hbc-senses").value||"").trim(), languages:($("hbc-languages").value||"").trim(),
+      resist:($("hbc-resist").value||"").trim(), immune:($("hbc-immune").value||"").trim(), vuln:($("hbc-vuln").value||"").trim(), condImmune:($("hbc-condimmune").value||"").trim(),
+      cr, crNum:crn, pb:(typeof crPb === "function") ? crPb(crn) : 2,
+      traits:traitsFromText($("hbc-traits").value), actions:traitsFromText($("hbc-actions").value), reactions:[], legendary:[], spellcasting:"" };
+    if(_hbImg.creature) obj.img = _hbImg.creature;
+    if(_hbEditCreatureKey && _hbEditCreatureKey !== lc) delete cur.monsters[_hbEditCreatureKey];   // renamed \u2192 drop old key
+    cur.monsters[lc] = obj; cur.enabled = true;
+    refreshHbCreatures();
+    renderHbCreatureList(); hbCloseCreatureForm();
+    flashStatus(`Saved \u201c${name}\u201d to ${cur.name}`);
+  }
+  function hbDeleteCreature(name){
+    const cur = hbEnsureSource();
+    const lc = String(name||"").toLowerCase();
+    if(!(cur.monsters||{})[lc]) return;
+    if(!confirm(`Delete homebrew creature \u201c${name}\u201d from ${cur.name}? This removes it for all characters.`)) return;
+    delete cur.monsters[lc];
+    refreshHbCreatures(); renderHbCreatureList();
   }
   function renderHbSpellList(){
     const el = $("hb-spell-list"); if(!el) return;
@@ -7516,8 +7633,9 @@
   let customSpells = {};   // CHARACTER-data homebrew, keyed by lowercased name → DATA-spell shape {name,level,school,time,range,components,duration,ritual,conc,material,text,higher}. Clears with the character.
   let homebrewSources = [];   // [{name, enabled, spells:{lc->spell}}] — browser-wide source material; multiple named homebrew "books" surfaced as togglable sources. Survives character clears; cached in HOMEBREW_KEY (fast runtime persist) AND mirrored to DATA.homebrew so it bakes into the single #source-data container (travels with shared files; cleared when #source-data is nulled).
   let _hbCurId = 0;           // index of the source currently open in the Studio
-  let _hbType = "spells";     // which content tab is active in the Studio: "spells" | "items"
+  let _hbType = "spells";     // which content tab is active in the Studio: spells | items | feats | races | backgrounds | subclasses | creatures
   let _hbEditItemKey = null;  // lc name of the item being edited in the item form (for rename), or null
+  let _hbEditCreatureKey = null;  // lc name of the creature being edited in the creature form (for rename), or null
   const HB_ITEM_TYPES = ["Wondrous Item","Weapon","Armor","Shield","Ring","Rod","Staff","Wand","Potion","Scroll","Other"];
   const HB_RARITIES = ["Common","Uncommon","Rare","Very Rare","Legendary","Artifact"];
   const HB_BAGS = ["spells","items","feats","races","backgrounds","subclasses","classes","monsters"];   // every content type a homebrew source can hold
@@ -11074,7 +11192,11 @@
     const lines = COMP_LINES.map(([f,lbl]) =>
       `<div class="comp-line"><span class="k">${lbl}</span><input data-ci="${i}" data-f="${f}" value="${esc(c[f]||"")}"></div>`).join("");
     const tmpl = COMP_TEMPLATES.map(([v,l]) => `<option value="${v}"${c.template===v?" selected":""}>${esc(l)}</option>`).join("");
-    const note = COMP_TEMPLATE_NOTES[c.template] ? `<p class="comp-tmpl-note">${esc(COMP_TEMPLATE_NOTES[c.template])}</p>` : "";
+    let note = COMP_TEMPLATE_NOTES[c.template] ? `<p class="comp-tmpl-note">${esc(COMP_TEMPLATE_NOTES[c.template])}</p>` : "";
+    if(c.template === "familiar" || c.template === "chain"){                 // populate the actual Find Familiar rules alongside any picked stat block (they don't collide — the spell text is a computed block, the stat block fills Traits/Actions)
+      const ff = (typeof spellData === "function") && spellData("Find Familiar");
+      if(ff && ff.text) note += `<details class="comp-ff"><summary>Find Familiar — spell rules</summary><div class="comp-ff-text">${esc(ff.text).replace(/\n/g,"<br>")}</div></details>`;
+    }
     const port = c.portrait ? `<img src="${c.portrait}" alt="">` : `<span class="noprint">Portrait<br>(click)</span>`;
     return `<div class="card comp-block" data-ci="${i}">
       <div class="comp-head">
