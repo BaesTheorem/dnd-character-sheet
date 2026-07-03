@@ -3065,11 +3065,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v487 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v488 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.106.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.106.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3077,6 +3077,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v488", semver:"2.106.2", items:[
+      "The floating \"Can Prepare\" chip now hugs the left edge of the actual spell sheet instead of floating way out in the window margin (and follows it in the post-rest prepare-spells overlay too).",
+    ]},
     {v:"v487", semver:"2.106.1", items:[
       "Fixed homebrew spells all showing up under Level 1 no matter their real level. Their level is now read correctly everywhere (spellbook search, autocomplete, and the list), and any homebrew spell already stuck at the wrong level is moved to its correct one automatically.",
     ]},
@@ -7716,6 +7719,14 @@
     const pc = sEl(inst,"prepcount"), val = $("prep-float-val");
     if(val) val.innerHTML = pc ? pc.innerHTML : "";
     el.hidden = false;
+    // Anchor the chip just outside the LEFT EDGE of the actual spell sheet (in the overlay panel when prepping,
+    // else the active spell page) — not the window margin, so it hugs the sheet wherever it's centered/laid out.
+    const anchor = over ? document.querySelector("#prep-overlay .prep-ov-panel")
+                        : document.querySelector(".page.active");
+    if(anchor){
+      const r = anchor.getBoundingClientRect();
+      el.style.left = Math.max(8, r.left - el.offsetWidth - 12) + "px";
+    } else { el.style.left = ""; }   // fall back to the CSS default
   }
   // Cantrips the class knows: the exact count at the given level, or — class chosen but no level — the class's MAXIMUM.
   function cantripCount(cls, lvl){
