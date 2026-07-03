@@ -3060,11 +3060,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v480 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v481 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.102.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.102.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3072,6 +3072,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v481", semver:"2.102.3", items:[
+      "The “What’s new” guide that pops up after an update now shows only the latest version’s notes up front — every earlier version you skipped is tucked behind the collapsed “Older versions” toggle, so the list stays short.",
+    ]},
     {v:"v480", semver:"2.102.2", items:[
       "The gold line that shows where a dragged item will drop is now one clean line across the row, instead of stepping/breaking at the item column.",
     ]},
@@ -13655,24 +13658,13 @@
     document.addEventListener("keydown", ov._onKey);
   }
   function verNum(s){ const m = /v(\d+)/.exec(String(s||"")); return m ? +m[1] : null; }   // "v243 (2026-06-17)" → 243
-  function semverForBuild(num){   // map a build number to the human SemVer: the newest changelog entry at or before that build
-    if(num == null) return null; let best = null, bestN = -1;
-    for(const e of CHANGELOG){ const n = verNum(e.v); if(n != null && n <= num && n > bestN){ best = e; bestN = n; } }
-    return best ? (best.semver || best.v) : null;
-  }
   function renderChangelog(seenVer){
     const box = $("intro-changelog"); if(!box) return;
     if(!Array.isArray(CHANGELOG) || !CHANGELOG.length){ box.hidden = true; return; }
-    const curNum = verNum(APP_VERSION), seenNum = (typeof seenVer === "string") ? verNum(seenVer) : null;
     const isUpdate = (seenVer != null && seenVer !== APP_VERSION);
-    let shown = [CHANGELOG[0]], heading = "Changelog";   // default: only the latest version's notes are shown up front
-    if(isUpdate){
-      heading = "What's new";
-      if(seenNum != null && curNum != null && seenNum < curNum){   // know exactly where they were → show the whole gap they missed
-        const since = CHANGELOG.filter(e => { const n = verNum(e.v); return n == null || n > seenNum; });   // n==null keeps an unstamped dev "Unreleased" entry visible
-        if(since.length){ shown = since; heading = "What's new since " + (semverForBuild(seenNum) || seenVer.split(" ")[0]); }
-      }
-    }
+    // Always show only the LATEST version's notes up front; every earlier version (including any gap the user
+    // skipped over) is tucked behind the collapsed "Older versions" toggle. Keeps the post-update guide short.
+    const shown = [CHANGELOG[0]], heading = isUpdate ? "What's new" : "Changelog";
     const shownSet = new Set(shown), history = CHANGELOG.filter(e => !shownSet.has(e));
     const fmt = entry =>
       `<h4>${esc(entry.semver || entry.v)}${entry === CHANGELOG[0] ? " (latest)" : ""}</h4><ul>` +
