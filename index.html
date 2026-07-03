@@ -3084,11 +3084,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v523 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v524 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.123.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.123.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3096,6 +3096,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v524", semver:"2.123.1", items:[
+      "Existing characters now auto-repair the garbled class tool proficiencies from the last fix. If your Proficiencies box already read something like “Any One Type Of Woodcarver’s Tools” or “Any One Flute,” it’s cleaned up automatically when you open the sheet (kept your picked tools, dropped the leftover words). A tool you hadn’t chosen yet becomes a normal “artisan’s tools of your choice” you can pick.",
+    ]},
     {v:"v523", semver:"2.123.0", items:[
       "Homebrew Studio has a new Creatures tab — build and edit creature stat blocks (like the Eye of Dendallen familiar) right in a homebrew source, with full ability scores, senses, traits, actions, and art. They show up in the Companions “Pick a stat block…” picker.",
       "Companions: the Familiar and Pact of the Chain templates now populate the full Find Familiar spell rules (a collapsible block), and it shows alongside a picked stat block instead of colliding with it.",
@@ -9352,6 +9355,7 @@
     applyAnimSetting();
     applyDarkSetting();
     compute();
+    if(migrateStaleToolProse()) save();   // repair pre-2.122.1 garbled class tool-prof text, then persist the cleanup
   }
   let saveTimer = null;
   function flashStatus(msg){
@@ -10565,6 +10569,34 @@
       return out + t.slice(cursor);
     });
     return Object.assign({}, prof, {tools});
+  }
+  // ---- One-time repair for characters built before 2.122.1 ----
+  // The baked class tool-prof strings used stale prose ("Any One Type Of Artisan's Tools Or Any One
+  // Musical Instrument Of Your Choice") that the tool picker only partially cleaned, leaving garbage
+  // like "Any One Type Of Woodcarver's Tools" / "Any One Flute" frozen in a saved Proficiencies box.
+  // Rewrite those fragments in place: a still-generic kind → the clean loader phrasing (so the picker
+  // can offer it), an already-picked specific tool → its bare name. Only touches the known stale shapes.
+  function _staleToolTok(raw){
+    const t = String(raw).trim();
+    if(/^artisan['’]?s tools$/i.test(t)) return "1 artisan's tools of your choice";
+    if(/^musical instruments?$/i.test(t)) return "1 musical instrument of your choice";
+    return t;   // already a specific chosen tool — keep its name
+  }
+  function _cleanStaleToolProse(text){
+    return String(text)
+      // Monk composite: "Any One Type Of X Or Any One Y Of Your Choice"  (X/Y = a kind or a picked tool)
+      .replace(/\bany one type of (.+?) or any one (.+?) of your choice/gi, (m,a,b) => _staleToolTok(a) + ", " + _staleToolTok(b))
+      // Artificer / single: "(Any )One Type Of X Of Your Choice"
+      .replace(/\b(?:any )?one type of (.+?) of your choice/gi, (m,a) => _staleToolTok(a))
+      // Bard: "Three Musical Instruments Of Your Choice" → clean 3-pick loader phrasing
+      .replace(/\bthree musical instruments? of your choice/gi, "3 musical instrument of your choice");
+  }
+  function migrateStaleToolProse(){   // returns true if the Proficiencies box was changed
+    const p = $("proficiencies"); if(!p) return false;
+    const before = p.value, after = _cleanStaleToolProse(before);
+    if(after === before) return false;
+    p.value = after; autoGrow(p);
+    return true;
   }
   // Set just the Racial ability column from a race's fixed bonuses — for the in-wizard "Under the Hood" preview.
   function applyRaceAbilityOnly(name){
