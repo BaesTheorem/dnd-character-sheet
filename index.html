@@ -3060,11 +3060,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v481 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v482 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.102.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.103.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3072,6 +3072,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v482", semver:"2.103.0", items:[
+      "The update download bar now shows a real, filling percentage instead of a bar that just flashed with an arbitrary sliding fill. (The web copy is served compressed, which hid the true size; the app now reads the real size and fills the bar honestly.)",
+    ]},
     {v:"v481", semver:"2.102.3", items:[
       "The “What’s new” guide that pops up after an update now shows only the latest version’s notes up front — every earlier version you skipped is tucked behind the collapsed “Older versions” toggle, so the list stays short.",
     ]},
@@ -8931,14 +8934,18 @@
   // called as the body streams in (the file is ~13MB, so this drives the progress bar). cache:"reload" already
   // bypasses the browser cache for a fresh copy; we deliberately DON'T add a unique cache-busting query param —
   // that would make every request a unique URL the CDN can't serve from its edge, forcing a slow origin fetch.
-  async function fetchLatestApp(onProgress){
+  async function fetchLatestApp(onProgress, knownTotal){
     for(const url of [APP_SRC, APP_SRC_FALLBACK]){
       try{
         const r = await fetch(url, {cache:"reload"});
         if(!r || !r.ok) continue;
         let t;
         if(onProgress && r.body && r.body.getReader){
-          const total = +(r.headers.get("content-length")) || 0;
+          // On GitHub Pages the response is gzipped, so content-length is the COMPRESSED size while the stream
+          // yields DECOMPRESSED bytes — received overruns it and the % is meaningless (the bar fell back to an
+          // indeterminate slider that just flashed by). Prefer the true uncompressed size published in
+          // version.json (knownTotal) so the bar fills for real; fall back to content-length only when unknown.
+          const total = (knownTotal && knownTotal > 0) ? knownTotal : (+(r.headers.get("content-length")) || 0);
           const reader = r.body.getReader(); const chunks = []; let received = 0;
           for(;;){ const {done, value} = await reader.read(); if(done) break; chunks.push(value); received += value.length; onProgress(received, total); }
           let size = 0; chunks.forEach(c => size += c.length);
@@ -9072,6 +9079,7 @@
     // First check whether a newer build actually exists — if not, don't prompt a needless re-download.
     busy("Checking…");
     const latest = await fetchLatestVersion();
+    const knownTotal = (latest && latest.size) || 0;   // true uncompressed byte size of the new index.html (from version.json) → a real % bar despite gzip
     if(latest && latest.version){
       const cur = verNum(APP_VERSION), lat = verNum(latest.version);
       if(cur != null && lat != null && lat <= cur){ restore(); flashStatus("You're already up to date (" + appLabel() + ")."); return; }
@@ -9092,9 +9100,9 @@
       // it's served fast from the HTTP cache we just warmed (cache:"reload" fetched fresh). localStorage is untouched.
       updProg(0, "Downloading the latest version…");
       const freshHtml = await fetchLatestApp((received, total) => {
-        if(total && received <= total) updProg(Math.round(received/total*100), "Downloading the latest version…");
-        else updProg(null, "Downloading the latest version… "+(received/1048576).toFixed(1)+" MB");   // gzipped → no usable length, show MB
-      });
+        if(total) updProg(Math.min(100, Math.round(received/total*100)), "Downloading the latest version…");
+        else updProg(null, "Downloading the latest version… "+(received/1048576).toFixed(1)+" MB");   // no size known → show MB streamed
+      }, knownTotal);
       // Additively fold the fresh build's SOURCE DATA into the loaded sourcebooks (which live in localStorage and
       // survive the reload) so a hosted update pulls in new/changed content too, not just new code: anything the
       // user is missing is added, changed official entries are refreshed, and homebrew + any extra loaded books
@@ -9122,9 +9130,9 @@
     updProg(0, "Downloading the latest version…");
     const html = await fetchLatestApp((received, total) => {
       const mb = (received/1048576).toFixed(1);
-      if(total && received <= total) updProg(Math.round(received/total*100), "Downloading the latest version…");   // % shown in the dedicated indicator
-      else updProg(null, "Downloading the latest version… "+mb+" MB");   // gzipped responses report no usable length → show MB streamed
-    });
+      if(total) updProg(Math.min(100, Math.round(received/total*100)), "Downloading the latest version…");   // % shown in the dedicated indicator
+      else updProg(null, "Downloading the latest version… "+mb+" MB");   // no size known → show MB streamed
+    }, knownTotal);
     if(!html){ updProgDone(); flashStatus("Couldn't download the latest version — check your connection and try again."); restore(); return; }
     updProg(null, "Reading the new version…");
     await new Promise(requestAnimationFrame);   // let the bar paint before the synchronous parse/bake
@@ -9152,7 +9160,7 @@
     for(const url of [VERSION_SRC, VERSION_SRC_FALLBACK]){
       try{
         const r = await fetch(url + (url.includes("?") ? "&" : "?") + "_v=" + Date.now(), {cache:"no-store"});   // unique URL → bypasses the service-worker cache
-        if(r && r.ok){ const j = await r.json(); if(j && j.version) return { version: String(j.version), semver: j.semver ? String(j.semver) : null, critical: !!j.critical, note: j.note ? String(j.note) : "" }; }
+        if(r && r.ok){ const j = await r.json(); if(j && j.version) return { version: String(j.version), semver: j.semver ? String(j.semver) : null, size: (typeof j.size === "number" && j.size > 0) ? j.size : 0, critical: !!j.critical, note: j.note ? String(j.note) : "" }; }
       }catch(e){}
     }
     return null;

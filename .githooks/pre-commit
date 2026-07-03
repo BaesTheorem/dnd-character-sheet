@@ -58,16 +58,21 @@ fi
 # until the user updates (clients on a build that predates this feature simply ignore the extra fields).
 # STICKY: the note rides every release until you delete update-note.txt — remove it once the urgency passes.
 if [ -f version.json ]; then
+  # True UNCOMPRESSED byte size of index.html (measured after the stamps above land). The app uses this as the
+  # download denominator so the update progress bar shows a real % — GitHub Pages serves the file gzipped, so the
+  # response's content-length is the compressed size and can't drive an honest bar.
+  size="$(wc -c < index.html 2>/dev/null | tr -d '[:space:]')"
+  [ -z "$size" ] && size=0
   note=""
   [ -f update-note.txt ] && note="$(tr -d '\r' < update-note.txt | tr '\n' ' ' | sed 's/[[:space:]]\{1,\}/ /g; s/^ *//; s/ *$//')"
   if [ -n "$note" ] && command -v python3 >/dev/null 2>&1; then
-    ver="$ver" semver="$semver" note="$note" python3 -c 'import json,os; open("version.json","w").write(json.dumps({"version":os.environ["ver"],"semver":os.environ["semver"],"critical":True,"note":os.environ["note"]})+"\n")' \
+    ver="$ver" semver="$semver" size="$size" note="$note" python3 -c 'import json,os; open("version.json","w").write(json.dumps({"version":os.environ["ver"],"semver":os.environ["semver"],"size":int(os.environ["size"]),"critical":True,"note":os.environ["note"]})+"\n")' \
       && git add version.json \
-      && echo "pre-commit: wrote version.json = $ver / $semver (CRITICAL: $note)"
+      && echo "pre-commit: wrote version.json = $ver / $semver (size $size, CRITICAL: $note)"
   else
-    printf '{"version":"%s","semver":"%s"}\n' "$ver" "$semver" > version.json \
+    printf '{"version":"%s","semver":"%s","size":%s}\n' "$ver" "$semver" "$size" > version.json \
       && git add version.json \
-      && echo "pre-commit: wrote version.json = $ver / $semver"
+      && echo "pre-commit: wrote version.json = $ver / $semver (size $size)"
   fi
 fi
 
