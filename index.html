@@ -1682,9 +1682,24 @@
   .cl-slot.k-check input:checked{ background:#1a1a1a !important; }
   .cl-slot > *:focus{ background:rgba(60,90,160,.12) !important; }
   .cl-slot.k-toggle > *{ cursor:pointer; font-size:18px; justify-content:center; }
+  /* Classic-ONLY page order: the official sheet is page 1 Core, page 2 Background, page 3 Spells, but the app's DOM
+     puts Spells before Background. Reorder JUST for Classic with flex `order` (the .pagetabs is already flex; .sheet
+     is made flex only in print below). Both are gated on body.classic-layout, so they revert the instant the theme
+     changes and NO other theme (present or future) is affected. The hidden tabs are display:none, so their order is moot. */
+  body.classic-layout .ptab[data-page="core"]{ order:1; }
+  body.classic-layout .ptab[data-page="bg"]{ order:2; }
+  body.classic-layout .ptab[data-page="spells"]{ order:3; }
+  body.classic-layout .ptab[data-page="mini"]{ order:4; }
   @media print{
     body.classic-layout .pagetabs, body.classic-layout .toolbar{ display:none !important; }
     .cl-page{ box-shadow:none; }
+    /* Print the three canonical pages in 1-2-3 order (Core, Background, Spells), then Mini. .sheet's only
+       print-visible children are the .page sections (rest-bar + pagetabs are display:none), so flex is safe here. */
+    body.classic-layout .sheet{ display:flex; flex-direction:column; }
+    body.classic-layout #page-core{ order:1; }
+    body.classic-layout #page-bg{ order:2; }
+    body.classic-layout #page-spells{ order:3; }
+    body.classic-layout #page-mini{ order:4; }
   }
 
   /* ============================================================================
@@ -3002,11 +3017,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v503 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v504 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.114.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.114.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3014,6 +3029,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v504", semver:"2.114.1", items:[
+      "Classic theme now orders its tabs (and print) in the official sheet's own sequence: Core, Background, Spells, then Mini — instead of the app's internal order where Spells came before Background. This ordering applies to the Classic theme only; no other theme is affected.",
+    ]},
     {v:"v503", semver:"2.114.0", items:[
       "Classic theme is now a clean, faithful three-page sheet. It shows only the three canonical Wizards of the Coast pages (Core, Background, Spells) plus the printable Mini tab — every other tab (Inventory, Features, Companions, Ancestral Weapons, Backstory, Notes) is hidden on this theme. All the automation still runs underneath. The old custom “ivory paper” restyling of the app chrome was removed, and dark mode is disabled on Classic (it's a light-only printed sheet — the Dark mode toggle greys out while Classic is selected).",
     ]},
