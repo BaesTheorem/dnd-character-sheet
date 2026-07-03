@@ -3051,11 +3051,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v505 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v506 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.115.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.115.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3063,6 +3063,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v506", semver:"2.115.1", items:[
+      "Classic theme: a portrait a character already had now shows up in the page-2 \"Character Appearance\" box when you open the sheet (before, it only appeared if you re-uploaded it).",
+    ]},
     {v:"v505", semver:"2.115.0", items:[
       "Classic theme printing is fixed: it now prints exactly the three canonical pages (Core, Background, Spells) plus the Mini, each scaled to fit a single sheet — no more overflow onto a dozen pages, and none of the app's other tabs (Inventory, Features, etc.) leak into the printout.",
       "Classic theme: fillable text fields now show a faint blue tint on screen so it's clear where you can type. The tint never prints — the paper sheet stays clean.",
@@ -15009,6 +15012,11 @@
       window.applyDarkSetting=function(){ var r=od.apply(this,arguments); try{ if(document.body.classList.contains('classic-layout')) applyArt(); }catch(e){} return r; }; }
     if(typeof window.compute==='function'){ var oc=window.compute;
       window.compute=function(){ var r=oc.apply(this,arguments); try{ if(document.body.classList.contains('classic-layout')) syncClassic(); }catch(e){} return r; }; }
+    // The portrait can arrive AFTER the classic pages are built (loadStoredPortrait is async from IndexedDB, or the
+    // user uploads one) and the MutationObserver doesn't reliably catch the #portrait-img src change, so the page-2
+    // Character Appearance slot missed a pre-existing portrait. Re-sync on every renderPortrait (upload/load/remove).
+    if(typeof window.renderPortrait==='function'){ var op=window.renderPortrait;
+      window.renderPortrait=function(){ var r=op.apply(this,arguments); try{ if(document.body.classList.contains('classic-layout')) syncClassic(); }catch(e){} return r; }; }
     function boot(){ try{ if(typeof theme!=='undefined' && theme==='classic'){ document.body.classList.add('classic-layout'); buildAll(); } }catch(e){} }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot,0);
   })();
