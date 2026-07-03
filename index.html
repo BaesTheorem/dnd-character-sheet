@@ -861,7 +861,14 @@
   .invtable th{text-align:left}
   .lftable input{background:var(--field)}
   .lftable input[title]{cursor:help}   /* auto-populated limited features show their details on hover */
-  .lftable td:nth-child(2) input,.lftable td:nth-child(3) input,.lftable td:nth-child(4) input{text-align:center}
+  .lftable td:nth-child(3) input,.lftable td:nth-child(4) input,.lftable td:nth-child(5) input{text-align:center}   /* Max / Recover / Used centered (col 1 = drag handle, col 2 = Feature name) */
+  .lftable td.lfitem{display:flex; align-items:center; gap:1px}
+  .lftable td.lfitem input{flex:1; min-width:0}
+  .lf-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px}
+  .lf-del:hover{color:#b42318}
+  .lftable tbody tr{transition:opacity .12s ease; position:relative}
+  .lftable tbody tr.dragging{opacity:.4}
+  .lftable tr.drop-target::after{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:var(--accent);pointer-events:none;z-index:2}
   .rowtotal{display:flex; justify-content:space-between; align-items:center; margin-top:12px;
     background:var(--field); border:1px solid var(--line); padding:10px 12px}
   .rowtotal .k{font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--muted)}
@@ -2466,16 +2473,20 @@
 
         <div class="card" data-csec="limited">
           <h2>Limited Features</h2>
+          <div class="lf-cols">
           <table class="lftable">
             <thead><tr>
+              <th class="invdrag noprint" style="width:20px"></th>
               <th>Feature</th>
               <th style="width:48px">Max</th>
               <th style="width:112px">Recover</th>
               <th style="width:48px">Used</th>
             </tr></thead>
-            <tbody id="limited"><tr><td><input data-save="" id="lfname-0"></td><td><input data-save="" id="lfmax-0"></td><td><input data-save="" id="lfrec-0" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-0"></td></tr><tr><td><input data-save="" id="lfname-1"></td><td><input data-save="" id="lfmax-1"></td><td><input data-save="" id="lfrec-1" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-1"></td></tr><tr><td><input data-save="" id="lfname-2"></td><td><input data-save="" id="lfmax-2"></td><td><input data-save="" id="lfrec-2" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-2"></td></tr><tr><td><input data-save="" id="lfname-3"></td><td><input data-save="" id="lfmax-3"></td><td><input data-save="" id="lfrec-3" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-3"></td></tr><tr><td><input data-save="" id="lfname-4"></td><td><input data-save="" id="lfmax-4"></td><td><input data-save="" id="lfrec-4" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-4"></td></tr><tr><td><input data-save="" id="lfname-5"></td><td><input data-save="" id="lfmax-5"></td><td><input data-save="" id="lfrec-5" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-5"></td></tr><tr><td><input data-save="" id="lfname-6"></td><td><input data-save="" id="lfmax-6"></td><td><input data-save="" id="lfrec-6" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-6"></td></tr><tr><td><input data-save="" id="lfname-7"></td><td><input data-save="" id="lfmax-7"></td><td><input data-save="" id="lfrec-7" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-7"></td></tr></tbody>
+            <tbody id="limited"><tr data-r="0"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td><td class="lfitem"><button class="lf-del noprint" data-l="0" type="button" tabindex="-1" title="Delete">✕</button><input data-save="" id="lfname-0"></td><td><input data-save="" id="lfmax-0"></td><td><input data-save="" id="lfrec-0" placeholder="LR / SR / Dawn"></td><td><input data-save="" id="lfused-0"></td></tr></tbody>
           </table>
-          <p class="help noprint">Track uses per rest — Recover: LR (long rest), SR (short rest), or Dawn. The list grows as you add features.</p>
+          </div>
+          <button type="button" id="lf-addrow" class="btn ghost addrow-btn noprint">+ Add row</button>
+          <p class="help noprint">Track uses per rest — Recover: LR (long rest), SR (short rest), or Dawn. The list grows as you add features. Drag ⠿ to reorder, ✕ to delete a row, "+ Add row" for a manual one.</p>
         </div>
 
         <div class="card" data-csec="hitdice">
@@ -3054,11 +3065,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v484 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v485 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.104.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.105.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3066,6 +3077,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v485", semver:"2.105.0", items:[
+      "The Limited Features list now works like Inventory too: drag the ⠿ handle to reorder rows, click ✕ to delete a row, and use “+ Add row” (or press Enter) to add one manually. It starts as a single blank row and grows as features are added, so there are no more stray empty rows to scroll past.",
+    ]},
     {v:"v484", semver:"2.104.0", items:[
       "Every inventory item now shows a hover card with its full details — weapons show damage, properties, and range; armor shows AC and stealth; potions, scrolls, and magic items show their description; and plain gear shows its weight. (Potion of Healing, Light Crossbow, and everything else in the sourcebooks now have a card.)",
       "Fixed 2024-edition rules text that had crept into some item descriptions (e.g. the Gray Bag of Tricks was showing its 2024 wording). Every affected item now shows its correct 2014 text, and 2024-only items that slipped in were removed — this is a 2014-rules sheet.",
@@ -3688,7 +3702,7 @@
   let NATTACKS = ATK_MAIN;
   const INV_MAIN = 1, INV_GROW = 1;   // Inventory is ONE continuous list: starts at a single blank row, grows ONE row at a time as it fills (keeps exactly one trailing blank); print pads independently
   const NSPELLROWS = 24;    // spell list rows
-  const LIM_MAIN = 8, LIM_GROW = 4;     // Limited Features: ONE continuous list, starts at 8, grows as it fills
+  const LIM_MAIN = 1, LIM_GROW = 1;     // Limited Features: ONE continuous list like Inventory — starts at one blank row, grows as it fills, drag/delete/add-row (print pads to LIM_PRINT1 independently)
   // print-only pagination — rows past the first sheet flow onto continuation sheets at print time (buildPrintFlow); nothing to manage on screen
   const INV_PRINT1 = 20, INV_PRINTN = 24, LIM_PRINT1 = 8, LIM_PRINTN = 8;   // primary sheet caps; per overflow sheet = 8 Limited + 24 Inventory (the original overflow-page format)
   let NINV = INV_MAIN, NLIMITED = LIM_MAIN;
@@ -3706,7 +3720,8 @@
     `<td><input data-save type="number" id="xeqqty-${i}" min="0"></td>`+
     `<td><input data-save id="xeqloc-${i}" placeholder="mount / HQ / bank…"></td></tr>`;
   const limitedRowHTML = i =>
-    `<tr><td><input data-save id="lfname-${i}"></td>`+
+    `<tr data-r="${i}"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td>`+
+    `<td class="lfitem"><button class="lf-del noprint" data-l="${i}" type="button" tabindex="-1" title="Delete">✕</button><input data-save id="lfname-${i}"></td>`+
     `<td><input data-save id="lfmax-${i}"></td>`+
     `<td><input data-save id="lfrec-${i}" placeholder="LR / SR / Dawn"></td>`+
     `<td><input data-save id="lfused-${i}"></td></tr>`;
@@ -11143,6 +11158,28 @@
     a.splice(rm,1); const dest=((rm<i)?i-1:i)+1; a.splice(dest,0,{name:"",bonus:"",dmg:"",ds:{}});
     setAtkData(a); save(); compute(); const el=$("atkname-"+dest); if(el){ el.focus(); }
   }
+  // ---- Limited Features row management: reorder / delete / add (auto-populated rows re-link by name on the next compute) ----
+  function getLimData(){ const a=[]; for(let i=0;i<NLIMITED;i++){ const nm=$("lfname-"+i);
+    a.push({name:nm?nm.value:"", max:($("lfmax-"+i)||{}).value||"", rec:($("lfrec-"+i)||{}).value||"", used:($("lfused-"+i)||{}).value||"", desc:(nm&&nm.title)||""}); } return a; }
+  function setLimData(a){ for(let i=0;i<NLIMITED;i++){ const nm=$("lfname-"+i); if(!nm) continue;
+    nm.value=(a[i]&&a[i].name)||""; const mx=$("lfmax-"+i),rc=$("lfrec-"+i),us=$("lfused-"+i);
+    if(mx) mx.value=(a[i]&&a[i].max)||""; if(rc) rc.value=(a[i]&&a[i].rec)||""; if(us) us.value=(a[i]&&a[i].used)||"";
+    if(a[i]&&a[i].desc) nm.title=a[i].desc; else nm.removeAttribute("title"); } }
+  function moveLimRow(from, to){ if(from===to || from==null || to==null) return; const a=getLimData(); const [r]=a.splice(from,1); a.splice(to,0,r); setLimData(a); ensureLimTrailing(); save(); compute(); }
+  function deleteLimRow(i){   // remove the row entirely; an auto-populated feature that still applies is re-added by compute
+    i=+i; const a=getLimData(); if(i<0 || i>=a.length) return;
+    a.splice(i,1);
+    if(!a.length) a.push({name:"",max:"",rec:"",used:"",desc:""});   // never zero rows
+    while(NLIMITED>a.length){ const el=$("lfname-"+(NLIMITED-1)), tr=el&&el.closest("tr"); if(tr) tr.remove(); NLIMITED--; }
+    setLimData(a); ensureLimTrailing(); save(); compute();
+  }
+  function limEnterNewRow(i){   // Enter inside a Limited Features row → insert a fresh blank directly below it
+    i=+i; const a=getLimData();
+    let rm=-1; for(let j=a.length-1;j>=0;j--){ if(j!==i && !(a[j].name||"").trim()){ rm=j; break; } }
+    if(rm<0){ growLimTo(NLIMITED+LIM_GROW); return limEnterNewRow(i); }
+    a.splice(rm,1); const dest=((rm<i)?i-1:i)+1; a.splice(dest,0,{name:"",max:"",rec:"",used:"",desc:""});
+    setLimData(a); save(); const el=$("lfname-"+dest); if(el){ el.focus(); }
+  }
   // ---- "Active" weapons → Attacks table (toggled per inventory row; bonus & damage auto-computed) ----
   function _baseWeapon(n){ return ((DATA && DATA.weapons) || []).find(w => (w.name||"").toLowerCase() === n) || null; }
   function weaponByName(name){
@@ -13161,9 +13198,11 @@
     document.addEventListener("click", e => { const b = e.target.closest(".inv-del"); if(b) deleteInvRow(b.dataset.r); });   // ✕ delete an inventory item
     document.addEventListener("click", e => { const b = e.target.closest(".xeq-del"); if(b) deleteXeqRow(b.dataset.x); });   // ✕ delete an Extra Equipment row
     document.addEventListener("click", e => { const b = e.target.closest(".atk-del"); if(b) deleteAtkRow(b.dataset.a); });   // ✕ delete an Attacks row
+    document.addEventListener("click", e => { const b = e.target.closest(".lf-del"); if(b) deleteLimRow(b.dataset.l); });   // ✕ delete a Limited Features row
     { const ia = $("inv-addrow"); if(ia) ia.addEventListener("click", () => { growInvTo(NINV+1); const el = $("invname-"+(NINV-1)); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Inventory) — always exactly one
     { const xa = $("xeq-addrow"); if(xa) xa.addEventListener("click", () => { growXeqTo(NXEQ+1); const el = $("xeqname-"+(NXEQ-1)); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Extra Equipment) — always exactly one
     { const aa = $("atk-addrow"); if(aa) aa.addEventListener("click", () => { growAtkTo(NATTACKS+1); const el = $("atkname-"+(NATTACKS-1)); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Attacks) — always exactly one
+    { const la = $("lf-addrow"); if(la) la.addEventListener("click", () => { growLimTo(NLIMITED+1); const el = $("lfname-"+(NLIMITED-1)); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Limited Features) — always exactly one
     document.addEventListener("keydown", e => {   // Enter in an Inventory / Extra Equipment / Attacks row → create a new row (Inventory inherits the current row's container)
       if(e.key !== "Enter" || e.isComposing) return;
       const id = e.target && e.target.id; if(!id) return;
@@ -13175,6 +13214,8 @@
         e.preventDefault(); xeqEnterNewRow(+m[1]);
       } else if((m = id.match(/^atk(?:name|bonus|dmg)-(\d+)$/))){
         e.preventDefault(); atkEnterNewRow(+m[1]);
+      } else if((m = id.match(/^lf(?:name|max|rec|used)-(\d+)$/))){
+        e.preventDefault(); limEnterNewRow(+m[1]);
       }
     });
     document.addEventListener("contextmenu", e => {   // right-click an inventory item -> make/unmake a container
@@ -13316,6 +13357,27 @@
         clearAtkDrop(); atkDrag = null;
       });
       cols.addEventListener("dragend", () => { clearAtkDrop(); document.querySelectorAll(".attacks tr.dragging").forEach(r => r.classList.remove("dragging")); atkDrag = null; });
+    });
+
+    // --- Limited Features drag-to-reorder (scoped to .lf-cols; plain reorder) ---
+    let limDrag = null;
+    const clearLimDrop = () => document.querySelectorAll(".lf-cols tr.drop-target").forEach(r => r.classList.remove("drop-target"));
+    document.querySelectorAll(".lf-cols").forEach(cols => {
+      cols.addEventListener("dragstart", e => {
+        const h = e.target.closest(".invdrag"); if(!h){ e.preventDefault(); return; }
+        const tr = h.closest("tr"); limDrag = +tr.dataset.r; e.dataTransfer.effectAllowed = "move"; try{ e.dataTransfer.setData("text/plain", String(limDrag)); }catch(_){}
+        requestAnimationFrame(() => tr.classList.add("dragging"));
+      });
+      cols.addEventListener("dragover", e => {
+        if(limDrag == null) return; e.preventDefault(); e.dataTransfer.dropEffect = "move";
+        const tr = e.target.closest("tr"); clearLimDrop(); if(tr) tr.classList.add("drop-target");
+      });
+      cols.addEventListener("drop", e => {
+        if(limDrag == null) return; e.preventDefault();
+        const tr = e.target.closest("tr"); if(tr) moveLimRow(limDrag, +tr.dataset.r);
+        clearLimDrop(); limDrag = null;
+      });
+      cols.addEventListener("dragend", () => { clearLimDrop(); document.querySelectorAll(".lftable tr.dragging").forEach(r => r.classList.remove("dragging")); limDrag = null; });
     });
     document.addEventListener("contextmenu", e => {   // right-click an Extra Equipment item -> make/unmake a container
       const el = e.target.closest('input[id^="xeqname-"]');
