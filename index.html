@@ -3060,11 +3060,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v510 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v511 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.116.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.116.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3072,6 +3072,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v511", semver:"2.116.1", items:[
+      "Classic theme: shrank the portrait a bit more so it sits fully inside the \"Character Appearance\" box with an even margin, no longer touching the border or crowding the label at the bottom.",
+    ]},
     {v:"v510", semver:"2.116.0", items:[
       "Classic theme: the portrait now fits neatly inside the \"Character Appearance\" box (it slightly overhung the border and label before).",
       "Classic theme: clicking the portrait now opens the same Replace image / Download original / Remove menu as the Universal sheet (when a portrait is set); an empty box still opens the upload picker.",
@@ -14893,7 +14896,7 @@
     // the space between the header row and the Backstory label. The portrait wiring (upload/display) hangs off it.
     (function(){ var bg = PAGES.filter(function(p){ return p.host==='page-bg'; })[0];
       if(bg && !bg.map.some(function(f){ return f.kind==='portrait'; }))
-        bg.map.push({ kind:'portrait', align:'center', r:[34.8, 124.0, 164.4, 232.0] });   // fits inside the box's inner rule, above the "CHARACTER APPEARANCE" label (measured from the sheet art)
+        bg.map.push({ kind:'portrait', align:'center', r:[41.0, 133.0, 151.2, 216.0] });   // inset ~20px inside the box's inner rule on all sides, clearing the "CHARACTER APPEARANCE" label (box inner x42-282, writing area y168-505 in the 850px art space, ÷SCALE 1.389)
     })();
 
     // Shrink-to-fit: measure the value with a canvas (no reflow) and scale the font down so it fits the slot width.
