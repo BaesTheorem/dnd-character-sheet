@@ -401,9 +401,9 @@
   /* Defenses chips — auto resistances/immunities + (dis)advantages (race/feat/class/equipped items), recomputed each compute (removal is automatic); adv/disadv chips show the d20 icon instead of the word */
   .def-chips{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px}
   .def-chips:empty{display:none}
-  .def-chip{display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:3px 8px;
+  .def-chip{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 9px;
     border:1px solid var(--line2); border-radius:12px; background:var(--field); color:var(--ink)}
-  .def-chip svg{display:block; flex:0 0 auto}
+  .def-chip svg{display:block; flex:0 0 auto; width:16px; height:16px}
   .def-chip-adv,.def-chip-res,.def-chip-imm{border-color:#2e9e4f}
   .def-chip-dis{border-color:#c0392b}
   .def-chip-rm{border:none; background:none; color:var(--muted); font:inherit; font-size:13px; line-height:1; padding:0; margin-left:1px; cursor:pointer}
@@ -1902,8 +1902,8 @@
     body.ucs-layout #ucs-topbar .ucs-abilstrip [data-csec="abilities"]{ flex:1 1 auto; }
     body.ucs-layout #ucs-topbar [data-csec="topstats"]{ flex:0 0 150px; }   /* Prof Bonus + Inspiration sit at the end of the abilities strip */
     body.ucs-layout #ucs-topbar [data-csec="combat"]{ grid-area:combat; align-self:start; }
-    /* Defenses field + Conditions card stretch down to the bottom of the combat card (matches the HP/AC-Init-Speed column height) */
-    body.ucs-layout [data-csec="combat"] .defenses-sub textarea{ flex:1 1 auto; height:auto !important; min-height:100px; resize:none; }
+    /* Defenses field sizes to its content with a floor at the bottom of the AC/Init/Speed row (JS fitDefenses); Conditions card fills its column */
+    body.ucs-layout [data-csec="combat"] .defenses-sub textarea{ resize:none; }
     body.ucs-layout [data-csec="combat"] .conditions-sub .cond-box{ flex:1 1 auto; }
     body.ucs-layout #ucs-topbar .ucs-flag-moved{ grid-column:1 / -1; }   /* ASI / sources / decisions banners span the full header width below the cards */
 
@@ -3090,11 +3090,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v531 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v532 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.126.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.127.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3102,6 +3102,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v532", semver:"2.127.0", items:[
+      "The Defenses notes box now shrinks to fit its text (ignoring empty lines) instead of leaving a big empty field, down to a minimum that lines up with the bottom of the Armor Class / Initiative / Speed boxes.",
+      "Made the advantage / disadvantage / resistance / immunity badges a little larger.",
+    ]},
     {v:"v531", semver:"2.126.3", items:[
       "A skill-check advantage that's already shown on the skill line (e.g. One with the Word → Arcana, Actor, Dungeon Delver) no longer also shows as a redundant Defenses chip. Skill advantages with no marker (like Cloak of Elvenkind → Stealth) still show in Defenses.",
     ]},
@@ -4190,7 +4194,8 @@
       if(s && raws.has(_defNorm(s))) return false;                               // covered by a chip
       if(s && _defSkillCovered(s, advSkills)) return false;                      // skill-check adv already on the skill line (e.g. One with the Word → Arcana) — build wrote it here, drop it
       return true; });
-    const nv = kept.join("\n"); if(nv !== t.value){ t.value = nv; autoGrow(t); }
+    const nv = kept.join("\n"); if(nv !== t.value) t.value = nv;
+    fitDefenses();
   }
   function _splitBlocks(t){ return String(t||"").split(/\n\n+/).map(b => b.trim()).filter(Boolean); }
   function _removeBlocks(id, blocks){ const el = $(id); if(!el || !blocks || !blocks.length) return; const drop = new Set(blocks);
@@ -9880,6 +9885,16 @@
   let _saveTimer = null;
   function queueSave(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(()=>{ _saveTimer = null; save(); }, 400); }
   function flushSave(){ if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer = null; save(); } }   // persist a pending debounced write immediately (tab hide/close)
+  function fitDefenses(){   // size the Defenses box to its content, shrinking past trailing blank lines, with a floor at the bottom of the AC/Init/Speed row (so it lines up with that stat row)
+    const ta = $("defnotes"); if(!ta) return;
+    if(document.activeElement !== ta){ const t = ta.value.replace(/[ \t\r\n]+$/, ""); if(t !== ta.value) ta.value = t; }   // when not editing, drop trailing blank lines so the box can shrink past them
+    ta.style.height = "auto";
+    const pad = ta.offsetHeight - ta.clientHeight, contentH = ta.scrollHeight + pad;
+    let minH = 0;                                                         // floor = reach the bottom of the AC/Initiative/Speed boxes (same combat-row, to the left)
+    const row = ta.closest(".combat-row"), acRow = row && row.querySelector(".combat-left .combat-top");
+    if(acRow){ const r = acRow.getBoundingClientRect(); if(r.height) minH = Math.max(0, Math.round(r.bottom - ta.getBoundingClientRect().top)); }
+    ta.style.height = Math.max(contentH, minH) + "px";
+  }
   function autoGrow(ta){
     if(!ta) return;
     ta.style.height = "auto";                                             // grow to fit content on screen
@@ -14279,6 +14294,7 @@
     if(typeof setupPreviewCards==="function") setupPreviewCards();   // hover/tap full-card previews (homebrew + sourcebook) on Studio lists + inventory/spell name fields
     { const dn = $("defnotes"); if(dn) dn.addEventListener("blur", () => { const moved = promoteDefNotes(); compute(); if(moved) save(); }); }   // typed defense lines (Resistance:/Immunity:/Adv. on…) become badges when you click away (compute also runs the derived-line strip)
     { const dc = $("def-chips"); if(dc) dc.addEventListener("click", e => { const x = e.target.closest(".def-chip-rm"); if(x) removeManualDef(x.dataset.def); }); }   // ✕ on a player-typed badge removes it
+    { let _dfrz; window.addEventListener("resize", () => { clearTimeout(_dfrz); _dfrz = setTimeout(fitDefenses, 120); }); }   // re-fit the Defenses box floor when the layout reflows
     $("loaded-books").addEventListener("change", e => { const a = e.target.closest(".aw-module-toggle"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
     $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
