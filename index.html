@@ -3073,11 +3073,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v517 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v518 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.118.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.119.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3085,6 +3085,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v518", semver:"2.119.0", items:[
+      "Companions can now auto-load an embedded (data URL) portrait from a homebrew monster's art — pick a homebrew stat block in the Companions picker and its image fills in, no 5etools server needed.",
+      "A homebrew JSON file flagged “homebrew” now imports through the Homebrew Studio even if it also carries a bundled monster for Settings → Import files… — so one file can hold both an item and its creature stat block.",
+    ]},
     {v:"v517", semver:"2.118.0", items:[
       "Blinded now imposes disadvantage on Perception, which drops your passive Perception by 5 (with the red disadvantage marker on the Perception line).",
       "Passive Perception now reflects advantage/disadvantage on the Perception check in general (±5): Blinded, Frightened, Poisoned, and exhaustion level 1+ all lower it by 5, matching the rules.",
@@ -6905,7 +6909,10 @@
   // sourcebook-schema file (that goes through Settings → Import files…). Returns {counts:{type:n}, total, name} or {err}.
   function hbImportIntoSource(idx, d){
     if(!d || typeof d !== "object" || Array.isArray(d)) return {err:"not a homebrew JSON object"};
-    if(Array.isArray(d.races) && Array.isArray(d.classes) && Array.isArray(d.spells))
+    // A file explicitly flagged `_meta.homebrew` is always honored as a homebrew envelope (it may ALSO carry empty
+    // sourcebook arrays so the SAME file imports a bundled monster via Settings → Import files…). Only reject an
+    // UNFLAGGED sourcebook file here, so it isn't misread as homebrew.
+    if(!(d._meta && d._meta.homebrew) && Array.isArray(d.races) && Array.isArray(d.classes) && Array.isArray(d.spells))
       return {err:"that's a full sourcebook file — use Settings → Source books → “Import files…” instead"};
     const cur = hbEnsureSourceAt(idx);
     hbAwBundleInto(d);   // AW rules ride along when present, so an Ancestral Weapon's framework travels with the file
@@ -10896,7 +10903,10 @@
     const wantAuto = !c.portrait || c.autoPortrait;
     if(wantAuto && c._autoImgFor !== m.name){          // a different stat block than the current auto art
       c.portrait = null; c.autoPortrait = false; c._autoImgFor = null;
-      if(m.img) fetchMonsterPortrait(c, m);            // async, fire-and-forget (skips silently if no server / no image)
+      if(m.img){
+        if(/^data:/.test(m.img)){ c.portrait = m.img; c.autoPortrait = true; c._autoImgFor = m.name; }  // embedded art (homebrew monster) — use the data URL directly
+        else fetchMonsterPortrait(c, m);               // server-relative path — async fetch (skips silently if no server)
+      }
     }
     applyCompanionTemplate(c);   // Phase C overlays template rules
   }

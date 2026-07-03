@@ -10,7 +10,7 @@
    - Everything else (manifest, icons, version.json, …) is stale-while-revalidate for speed.
    The activate step deletes every cache except the current one, so nothing lingers across deploys.
    CACHE is auto-stamped to the app version by .githooks/pre-commit on every commit. */
-const CACHE = "dnd-sheet-v517";
+const CACHE = "dnd-sheet-v518";
 const DOC = "./index.html";
 
 self.addEventListener("install", () => self.skipWaiting());
