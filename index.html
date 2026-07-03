@@ -3104,11 +3104,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v497 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v498 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.111.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.112.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3116,6 +3116,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v498", semver:"2.112.0", items:[
+      "Wizard spell sheets now keep your Ritual-tagged spellbook spells visible and un-collapsed even when they aren't prepared, since you can cast them as rituals straight from your spellbook. Non-ritual unprepared spells still tuck behind the per-level “Show N not prepared” toggle.",
+    ]},
     {v:"v497", semver:"2.111.0", items:[
       "Hand-edits to auto-generated feature cards are now sticky: if you edit a class/race/feat feature's text, your version survives an “Edit Character” rebuild instead of being replaced by the regenerated original. Deleting a hand-edited feature releases it to regenerate again next time.",
     ]},
@@ -7710,7 +7713,8 @@
           const propArea = (named && !d)         // typed-in name with no spell data yet → offer the properties wizard right in the info columns
             ? `<td class="col-comp prop-setbtn" colspan="6"><button type="button" class="sp-edit-inline noprint" data-inst="${inst}" data-l="${l}" data-i="${i}">✎ Set spell properties…</button></td>`
             : propCells(d);
-          const hide = isPrepCaster && l>0 && named && !(!!m.prep || mFree);   // named spellbook spell, not prepared → collapsible
+          const isRit = !!(d && d.ritual);   // a spellbook ritual (Wizard-style) is castable WITHOUT preparing, so keep it visible even when unprepared
+          const hide = isPrepCaster && l>0 && named && !(!!m.prep || mFree) && !(canRit && isRit);   // named spellbook spell, not prepared and not a ritual you can cast unprepared → collapsible
           const cls = [named ? "has-spell" : "", hide ? ("sp-unprep" + (open ? "" : " is-hidden")) : ""].filter(Boolean).join(" ");
           const castBtn = (named && l>0) ? castBtnHTML(l) : "";   // known/write-in spell → Cast button
           const row = `<tr${cls ? ` class="${cls}"` : ""}${hide ? ` data-unprep="${inst}:${l}"` : ""}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}${castBtn}${spMobileMeta(d)}</td>${propArea}</tr>`;
