@@ -3104,11 +3104,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v496 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v497 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.110.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.111.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3116,6 +3116,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v497", semver:"2.111.0", items:[
+      "Hand-edits to auto-generated feature cards are now sticky: if you edit a class/race/feat feature's text, your version survives an “Edit Character” rebuild instead of being replaced by the regenerated original. Deleting a hand-edited feature releases it to regenerate again next time.",
+    ]},
     {v:"v496", semver:"2.110.0", items:[
       "Features & Traits is now a card list you manage directly. The freeform text box is gone: your class/race/feat features auto-populate as cards, each card has an edit (✎) and remove (✕) button, and a “+ Add feature” button lets you write in your own.",
       "Armorer artificers get an Arcane Armor picker at the top of the Features page: designate a suit of armor you're wearing and it ignores that armor's Strength requirement (no more speed penalty), with a reminder of the don/doff and spellcasting-focus benefits.",
@@ -3911,6 +3914,7 @@
   let tceOff = {};                                          // Tasha's optional rules that are DISABLED (every rule is on by default; absence here = enabled)
   let genTce = [], genTceRemoved = [];                      // TCE class-feature blocks this build added / the base feature blocks it replaced — so toggling a rule (or Edit) can cleanly undo them
   let genFeatures = [], genProf = [], genDefenses = [];     // exact Feature blocks + Proficiency lines + Defense notes the wizard last generated, so "Edit Character" replaces them instead of duplicating
+  let featOverrides = {};   // {featureNameLc: true} — generated feature cards the player hand-edited; the Edit rebuild keeps their version instead of regenerating it
   let genSpells = {};      // per-caster record of spell picks the wizard last wrote (so Edit replaces, not piles up): {casterKey:{cantrips,rows,prepared}}
   let genFeatSpells = [];  // spells a "you learn ..." feat (Fey/Shadow Touched) auto-added to the spell sheet: [{name,inst,mode:'prep'|'row'}] — tracked so a swap/removal never touches the player's own copy
   function _tidyDef(s){ return String(s).replace(/\s+damage\s*$/i, "").replace(/\s+/g, " ").trim().replace(/[,.]$/, "").slice(0, 90); }
@@ -8907,7 +8911,8 @@
     data.charBgChoices = charBgChoices;
     data.charRaceChoices = charRaceChoices;
     data.tceOff = tceOff; data.genTce = genTce; data.genTceRemoved = genTceRemoved;   // Tasha's optional-rule prefs + the feature blocks they added/replaced
-    data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells; data.genFeatSpells = genFeatSpells;   // remember generated content so Edit Character replaces it instead of duplicating
+    data.genFeatures = genFeatures; data.genProf = genProf; data.genDefenses = genDefenses; data.genSpells = genSpells; data.genFeatSpells = genFeatSpells;
+    data.featOverrides = featOverrides;   // remember generated content so Edit Character replaces it instead of duplicating
     data.levelMethod = levelMethod;
     data.hpMode = hpMode; data.hpRolls = hpRolls;   // HP-by-level records
     data.speedBase = speedBase;
@@ -9007,6 +9012,7 @@
     genTce = (data && Array.isArray(data.genTce)) ? data.genTce : [];
     genTceRemoved = (data && Array.isArray(data.genTceRemoved)) ? data.genTceRemoved : [];
     genFeatures = (data && Array.isArray(data.genFeatures)) ? data.genFeatures : [];
+    featOverrides = (data && data.featOverrides && typeof data.featOverrides === "object") ? data.featOverrides : {};
     genProf = (data && Array.isArray(data.genProf)) ? data.genProf : [];
     genDefenses = (data && Array.isArray(data.genDefenses)) ? data.genDefenses : [];
     genSpells = (data && data.genSpells && typeof data.genSpells === "object" && !Array.isArray(data.genSpells) && !data.genSpells.cantrips) ? data.genSpells : {};   // keyed by caster (old single-record saves reset to {})
@@ -12670,6 +12676,14 @@
     const v = ($("features").value||""); if(!v.trim()) return [];
     return v.split(/\n\s*\n+/).map(_featCardParse).filter(Boolean);
   }
+  function _featTitle(b){ const c = _featCardParse(b); return c ? c.title.trim().toLowerCase() : ""; }
+  // A player-edited generated feature is registered by NAME in featOverrides; its edited block rides through the Edit
+  // rebuild as a preserved (baseline) user block. This drops the freshly-regenerated ORIGINAL duplicate so their version wins.
+  function dedupFeatOverrides(){
+    if(!featOverrides || !Object.keys(featOverrides).length) return;
+    const dropDup = genFeatures.filter(b => featOverrides[_featTitle(b)]);
+    if(dropDup.length){ _removeBlocks("features", dropDup); const ds = new Set(dropDup); genFeatures = genFeatures.filter(b => !ds.has(b)); }
+  }
   // Canonical block list backing the cards (1:1 with the editable cards). Edit/add/delete operate on this + rewrite #features.
   function featBlocksRaw(){ return ($("features").value||"").split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean); }
   function setFeatBlocks(arr){ $("features").value = arr.join("\n\n"); }
@@ -12704,7 +12718,9 @@
     if(e.target.closest("#feat-add")){ _featEdit = "new"; renderFeatureCards(); const inp = $("feat-cards").querySelector(".feat-e-name"); if(inp) inp.focus(); return; }
     const ed = e.target.closest(".feat-edit"); if(ed){ _featEdit = +ed.dataset.bi; renderFeatureCards(); const inp = $("feat-cards").querySelector(".feat-e-name"); if(inp) inp.focus(); return; }
     const cancel = e.target.closest(".feat-cancel"); if(cancel){ _featEdit = null; renderFeatureCards(); return; }
-    const del = e.target.closest(".feat-del"); if(del){ const arr = featBlocksRaw(); arr.splice(+del.dataset.bi, 1); _featEdit = null; setFeatBlocks(arr); renderFeatureCards(); compute(); save(); return; }
+    const del = e.target.closest(".feat-del"); if(del){ const arr = featBlocksRaw(); const gone = arr[+del.dataset.bi];
+      const gt = _featTitle(gone||""); if(gt && featOverrides[gt]) delete featOverrides[gt];   // deleting a hand-edited feature releases it to regenerate on the next Edit
+      arr.splice(+del.dataset.bi, 1); _featEdit = null; setFeatBlocks(arr); renderFeatureCards(); compute(); save(); return; }
     const sv = e.target.closest(".feat-save"); if(sv){
       const cardEl = sv.closest(".feat-editing"); if(!cardEl) return;
       const name = (cardEl.querySelector(".feat-e-name").value || "").trim();
@@ -12713,7 +12729,17 @@
       if(!name && !text){ _featEdit = null; renderFeatureCards(); return; }   // nothing entered → treat as cancel
       const block = text ? (name ? name + ". " + text : text) : name;
       const arr = featBlocksRaw();
-      if(bi === "new") arr.push(block); else arr[+bi] = block;
+      if(bi === "new"){ arr.push(block); }
+      else {                                                                  // editing an existing card
+        const orig = arr[+bi] || "", origT = _featTitle(orig);
+        // Make a real change to a GENERATED (or already-overridden) feature STICKY: mark its name so the character
+        // Edit rebuild suppresses the freshly-regenerated duplicate and keeps the player's version.
+        if(block !== orig && (genFeatures.includes(orig) || (origT && featOverrides[origT]))){
+          if(origT) featOverrides[origT] = true;
+          const newT = _featTitle(block); if(newT && newT !== origT) featOverrides[newT] = true;   // survive a rename too
+        }
+        arr[+bi] = block;
+      }
       _featEdit = null; setFeatBlocks(arr); renderFeatureCards(); compute(); save();
     }
   }
@@ -12988,6 +13014,7 @@
     if(hpRolls.length || hpMode !== "manual") regenHp(hpMode, list);   // size HP records to the final build
     ensureUnarmedStrike();   // every character can punch — auto Unarmed Strike as the first attack
     genFeatures = _splitBlocks($("features").value).filter(b => !_featBefore.has(b));   // remember what we generated, so the next Edit replaces (not duplicates) it
+    dedupFeatOverrides();   // sticky hand-edits: keep the player's edited version, drop the freshly-regenerated duplicate
     genProf = $("proficiencies").value.split("\n").filter(l => l.trim() && !/^\s*Languages:/i.test(l) && !_profBefore.has(l));
     genDefenses = [...new Set(genFeatures.flatMap(b => scanDefenses(b)))];   // resistances/immunities stated in any generated class/subclass feature (e.g. Bear Totem)
     { const present = new Set($("defnotes").value.split("\n").map(l => l.trim()));   // race resistances are added structurally by applyRace — don't double them
