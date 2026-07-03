@@ -3090,11 +3090,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v528 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v529 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.126.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.126.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3102,6 +3102,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v529", semver:"2.126.1", items:[
+      "Fixed the Enter/Return key in the Defenses and Senses notes boxes — pressing Enter now inserts a line break instead of being swallowed.",
+    ]},
     {v:"v528", semver:"2.126.0", items:[
       "Defenses you type into the notes box now become badges too — type a line like \"Resistance: fire\", \"Immune: charmed\", or \"Adv. on saves vs. spells\" and click away, and it turns into the matching chip. A small ✕ on your own chips removes them.",
     ]},
@@ -4156,7 +4159,7 @@
     }).join("");
     const t = $("defnotes"); if(!t) return;                                     // strip any box line a chip now covers (de-dup + migrate the old in-box defenses)
     const raws = new Set(chips.map(c => _defNorm(c.raw)));
-    const kept = t.value.split("\n").filter(line => { const s = line.trim(); return s && !raws.has(_defNorm(s)); });
+    const kept = t.value.split("\n").filter(line => { const s = line.trim(); return !(s && raws.has(_defNorm(s))); });   // keep blank lines (don't eat the newline while typing) — only drop chip-covered content lines
     const nv = kept.join("\n"); if(nv !== t.value){ t.value = nv; autoGrow(t); }
   }
   function _splitBlocks(t){ return String(t||"").split(/\n\n+/).map(b => b.trim()).filter(Boolean); }
@@ -9904,7 +9907,7 @@
     if(box) box.innerHTML = chips.map(c => `<span class="sense-chip" title="${esc([...c.srcs].join(", "))}">${esc(c.text)}</span>`).join("");
     const t = $("senses"); if(!t) return;                                        // strip any free-text line a chip now covers (de-dup + migrate the old in-box senses)
     const keys = new Set(chips.map(c => _senseKey(c.text))), texts = new Set(chips.map(c => c.text.trim().toLowerCase()));
-    const kept = t.value.split("\n").filter(line => { const s = line.trim(); if(!s) return false;
+    const kept = t.value.split("\n").filter(line => { const s = line.trim(); if(!s) return true;   // keep blank lines (don't eat the newline while typing)
       if(_VISION.test(s) && keys.has(_senseKey(s))) return false; return !texts.has(s.toLowerCase()); });
     const nv = kept.join("\n"); if(nv !== t.value){ t.value = nv; autoGrow(t); }
   }
