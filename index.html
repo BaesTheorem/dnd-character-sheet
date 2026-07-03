@@ -3060,11 +3060,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v482 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v483 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.103.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.103.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -13666,14 +13666,25 @@
     document.addEventListener("keydown", ov._onKey);
   }
   function verNum(s){ const m = /v(\d+)/.exec(String(s||"")); return m ? +m[1] : null; }   // "v243 (2026-06-17)" → 243
+  function semverForBuild(num){   // map a build number to the human SemVer: the newest changelog entry at or before that build
+    if(num == null) return null; let best = null, bestN = -1;
+    for(const e of CHANGELOG){ const n = verNum(e.v); if(n != null && n <= num && n > bestN){ best = e; bestN = n; } }
+    return best ? (best.semver || best.v) : null;
+  }
   function renderChangelog(seenVer){
     const box = $("intro-changelog"); if(!box) return;
     if(!Array.isArray(CHANGELOG) || !CHANGELOG.length){ box.hidden = true; return; }
     const isUpdate = (seenVer != null && seenVer !== APP_VERSION);
-    // Always show only the LATEST version's notes up front; every earlier version (including any gap the user
-    // skipped over) is tucked behind the collapsed "Older versions" toggle. Keeps the post-update guide short.
-    const shown = [CHANGELOG[0]], heading = isUpdate ? "What's new" : "Changelog";
-    const shownSet = new Set(shown), history = CHANGELOG.filter(e => !shownSet.has(e));
+    const curNum = verNum(APP_VERSION), seenNum = (typeof seenVer === "string") ? verNum(seenVer) : null;
+    // Serve only the changelog SINCE the version the user last saw (the gap they're catching up on) — never the
+    // whole history. Of that gap, show only the LATEST entry up front and collapse the rest under "Older versions".
+    let served = [CHANGELOG[0]], heading = isUpdate ? "What's new" : "Changelog";
+    if(isUpdate && seenNum != null && curNum != null && seenNum < curNum){   // know exactly where they were → serve the whole gap they missed
+      const since = CHANGELOG.filter(e => { const n = verNum(e.v); return n == null || n > seenNum; });   // n==null keeps an unstamped dev "Unreleased" entry visible
+      if(since.length){ served = since; heading = "What's new since " + (semverForBuild(seenNum) || seenVer.split(" ")[0]); }
+    }
+    const shown = [CHANGELOG[0]];   // latest entry expanded up front (it's served[0], since CHANGELOG is newest-first)
+    const shownSet = new Set(shown), history = served.filter(e => !shownSet.has(e));
     const fmt = entry =>
       `<h4>${esc(entry.semver || entry.v)}${entry === CHANGELOG[0] ? " (latest)" : ""}</h4><ul>` +
       (entry.items||[]).map(it => `<li>${esc(it)}</li>`).join("") + `</ul>`;
