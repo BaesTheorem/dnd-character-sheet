@@ -841,8 +841,24 @@
   .feat-editor > summary::before{content:"▸ "; }
   .feat-editor[open] > summary::before{content:"▾ "; }
   .feat-cards{display:flex; flex-direction:column; gap:8px}
-  .feat-card-title{font-weight:700; font-size:14px; margin-bottom:3px}
+  .feat-card-head{display:flex; align-items:flex-start; gap:8px}
+  .feat-card-title{font-weight:700; font-size:14px; margin-bottom:3px; flex:1}
   .feat-card-body{white-space:pre-wrap; line-height:1.45; font-size:13px}
+  .feat-card-tools{display:inline-flex; gap:4px; flex:0 0 auto}
+  .feat-edit, .feat-del{background:none; border:none; cursor:pointer; color:var(--muted); font-size:13px; padding:0 2px; line-height:1}
+  .feat-del:hover{color:#b42318}
+  .feat-edit:hover{color:var(--accent)}
+  .feat-add{align-self:flex-start; margin-top:2px}
+  .feat-editing .feat-e-name{width:100%; box-sizing:border-box; font-weight:700; margin-bottom:6px}
+  .feat-editing .feat-e-text{width:100%; box-sizing:border-box; resize:vertical; font:inherit}
+  .feat-e-actions{display:flex; gap:8px; margin-top:6px}
+  /* Armorer: Arcane Armor designation */
+  .aa-row{margin:6px 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  #arcane-armor-sel{min-width:200px}
+  .aa-status{font-size:12px; font-weight:600}
+  .aa-status.on{color:var(--accent)}
+  .aa-status.off{color:#b4690e}
+  .aa-benefits{margin:6px 0 0; padding-left:18px; font-size:12px; color:var(--muted); line-height:1.5}
   .action-econ{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
   .ae-col h3{margin:0 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--line); padding-bottom:3px}
   .ae-col ul{list-style:none; margin:0; padding:0}
@@ -2624,10 +2640,9 @@
     <section class="page" id="page-feat" data-page="feat">
       <div class="card" id="infusions-inner" style="display:none"></div>
       <div class="card" id="optfeat-inner" style="display:none"></div>
-      <details class="feat-editor noprint" id="feat-editor" open="">
-        <summary>Features &amp; Traits — edit text (one feature per block, blank line between)</summary>
-        <textarea data-save="" id="features" placeholder="Class features, racial traits, feats…" style="height: 0px;"></textarea><div class="ta-print"></div>
-      </details>
+      <div class="card" id="arcane-armor-card" style="display:none"></div>
+      <!-- #features is the hidden backing store for every feature scanner + save; the visible UI is the cards below. -->
+      <textarea data-save="" id="features" placeholder="Class features, racial traits, feats…" style="display:none"></textarea>
       <div id="feat-cards" class="feat-cards"><div class="card feat-blank"><h2>Features &amp; Traits</h2></div></div>
     </section>
 
@@ -3089,11 +3104,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v495 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v496 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.109.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.110.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3101,6 +3116,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v496", semver:"2.110.0", items:[
+      "Features & Traits is now a card list you manage directly. The freeform text box is gone: your class/race/feat features auto-populate as cards, each card has an edit (✎) and remove (✕) button, and a “+ Add feature” button lets you write in your own.",
+      "Armorer artificers get an Arcane Armor picker at the top of the Features page: designate a suit of armor you're wearing and it ignores that armor's Strength requirement (no more speed penalty), with a reminder of the don/doff and spellcasting-focus benefits.",
+    ]},
     {v:"v495", semver:"2.109.0", items:[
       "Artificer infusions are now an expandable pick-list (like the Ancestral Weapons upgrade list) instead of blank rows + a dropdown. Every infusion shows a + to learn it, a chevron to read its rules text in place, expand/collapse-all, level-locks with a reason, and a repeatable badge on Replicate Magic Item. Your Infusions-known limit is enforced.",
       "The “On item” field now picks an eligible weapon/armor/shield straight from your inventory for slotted infusions (Enhanced Weapon, Radiant/Returning Weapon, Repeating Shot, Enhanced Defense, Resistant Armor, etc.), instead of free-typing a name.",
@@ -8606,7 +8625,7 @@
     {
       const selArmor = armorByName($("armorsel").value || "");   // case-insensitive match (e.g. "Chain mail" → "Chain Mail")
       const mithralMod = $("armormod") && $("armormod").value === "mithral";    // mithral removes the Strength requirement
-      const req = (selArmor && selArmor.strength && !mithralMod) ? parseInt(selArmor.strength, 10) : 0;
+      const req = (selArmor && selArmor.strength && !mithralMod && !arcaneArmorActive()) ? parseInt(selArmor.strength, 10) : 0;   // Armorer Arcane Armor ignores the Strength requirement
       if(req && strScore != null && strScore < req){
         speedPenalty += 10;
         $("encnote").textContent = ($("encnote").textContent ? $("encnote").textContent + " " : "") + `Speed −10 ft: ${selArmor.name} requires Strength ${req}.`;
@@ -8700,6 +8719,7 @@
     { let esp = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(cb && cb.checked && ELSEWHERE_ITEMS[nm]) esp += nm + "|"; }   // equipping a spellbook item changes the class spell list → re-render the spell sheets
       if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
     { const fv = $("features").value; if(fv !== _lastFeatSig){ _lastFeatSig = fv; renderFeatureCards(); } }   // rebuild Feature cards only when the text changed (action economy is rebuilt in the lim-sig block, which also fires on equip/attune)
+    { const aaSig = (isArmorer()?"1":"0")+"|"+arcaneArmor+"|"+(($("armorsel")||{}).value||"")+"|"+armorerArmorOptions().join(","); if(aaSig !== _lastAaSig){ _lastAaSig = aaSig; renderArcaneArmor(); } }   // Armorer Arcane Armor picker
     { const el = $("attacks-per"); if(el) el.textContent = (charLevel()==null) ? "" : String(attacksPerAction()); }   // blank → writable box on a pen-and-paper sheet
     renderWeaponFireButtons();   // per-weapon fire/throw button + live ammo badge in the Attacks table
     updateDeathSaves();   // show the death-save pips only at 0 HP
@@ -8906,6 +8926,7 @@
     data.companions = companions;
     data.awOverrides = awOverrides;   // per-character Ancestral Weapon SP/upgrade tuning (source item untouched)
     data.infusions = infusions;
+    data.arcaneArmor = arcaneArmor;
     data.optFeats = optFeats;
     data.lfDesc = []; for(let i=0;i<NLIMITED;i++){ const el = $("lfname-"+i); data.lfDesc.push((el && el.title) || ""); }   // limited-feature tooltips
     data.overrides = overrides;   // hand-pinned computed values
@@ -9046,6 +9067,8 @@
     awOverrides = (data && data.awOverrides && typeof data.awOverrides === "object") ? data.awOverrides : {};
     infusions = (data && Array.isArray(data.infusions)) ? data.infusions.map(x => Object.assign(blankInfusion(), x)) : [];
     renderInfusions();
+    arcaneArmor = (data && typeof data.arcaneArmor === "string") ? data.arcaneArmor : "";
+    renderArcaneArmor();
     optFeats = (data && Array.isArray(data.optFeats)) ? data.optFeats.map(x => ({type:x.type, name:x.name||""})) : [];
     renderOptFeats();
     for(let i=0;i<NLIMITED;i++){ const el = $("lfname-"+i); if(!el) continue;   // restore limited-feature tooltips
@@ -10399,6 +10422,42 @@
   function blankInfusion(){ return {known:"", replicate:"", resist:"", target:"", infused:false, attuned:false}; }
   function infusionByName(n){ return ARTIFICER_INFUSIONS.find(x => x.name === n) || null; }
   function isArtificer(){ return /\bartificer\b/i.test($("classlevel").value || ""); }
+  // ---- Armorer subclass: Arcane Armor (designate a worn suit → ignore its Strength requirement, use as focus) ----
+  let arcaneArmor = "";   // the armor NAME the player designated as their Arcane Armor
+  let _lastAaSig = "";
+  function isArmorer(){
+    try{ if((charClasses||[]).some(c => /artificer/i.test(c.name||"") && /armor/i.test(c.sub||""))) return true; }catch(e){}
+    return /\barcane armor\b/i.test(($("features")||{}).value || "");
+  }
+  function armorerArmorOptions(){   // armor you could designate: the worn armor plus any armor in inventory
+    const out = [], push = nm => { nm = String(nm||"").trim(); if(nm && armorByName(nm) && !out.some(x => x.toLowerCase() === nm.toLowerCase())) out.push(nm); };
+    push(($("armorsel")||{}).value || "");
+    for(let i=0;i<NINV;i++) push(($("invname-"+i).value || ""));
+    return out;
+  }
+  function arcaneArmorActive(){   // benefits (incl. no Str requirement) apply only while you're WEARING the designated armor
+    if(!arcaneArmor || !isArmorer()) return false;
+    return (($("armorsel")||{}).value || "").trim().toLowerCase() === arcaneArmor.trim().toLowerCase();
+  }
+  function renderArcaneArmor(){
+    const card = $("arcane-armor-card"); if(!card) return;
+    if(!isArmorer()){ card.style.display = "none"; card.innerHTML = ""; return; }
+    card.style.display = "";
+    const opts = armorerArmorOptions();
+    if(arcaneArmor && !opts.some(x => x.toLowerCase() === arcaneArmor.toLowerCase())) opts.push(arcaneArmor);
+    const sel = `<select id="arcane-armor-sel"><option value="">— none —</option>`+
+      opts.map(n => `<option value="${esc(n)}"${n === arcaneArmor ? " selected" : ""}>${esc(n)}</option>`).join("") + `</select>`;
+    const status = !arcaneArmor ? `<span class="aa-status">No armor designated.</span>`
+      : arcaneArmorActive() ? `<span class="aa-status on">Active — worn as your Arcane Armor.</span>`
+      : `<span class="aa-status off">Designated, but not worn — select it as your Armor to gain the benefits.</span>`;
+    card.innerHTML = `<h2>Arcane Armor</h2>`+
+      `<p class="wiz-hint" style="margin-top:0">Armorer feature: turn a suit of armor you're wearing into Arcane Armor. Designate it here and the benefits apply while you wear it.</p>`+
+      `<div class="aa-row"><label class="lbl" for="arcane-armor-sel">Designated armor</label>${sel}</div>`+
+      `<div class="aa-row">${status}</div>`+
+      `<ul class="aa-benefits"><li><b>No Strength requirement</b> — the armor's Strength requirement is ignored for you (no speed penalty).</li>`+
+      `<li><b>Quick don/doff</b> — don or doff as a Utilize action; it can't be removed against your will.</li>`+
+      `<li><b>Spellcasting focus</b> — use the Arcane Armor as a spellcasting focus for your artificer spells.</li></ul>`;
+  }
   function infCaps(){ const lvl = artificerClassLevel(); const i = (lvl == null || lvl < 1) ? 0 : Math.min(20, lvl) - 1;
     return {known: INFUSIONS_KNOWN[i] || 0, items: INFUSED_ITEMS[i] || 0}; }
   // an infusion counts against attunement if the infusion itself requires it, or (for Replicate) you marked its item attuned
@@ -12598,26 +12657,65 @@
   }
   // Split the Features box into {title, body} for the per-feature card view (separate from featureBlocks, which the
   // limited-use detector uses — this one keeps the full body and drops the "Name. " lead-in for a clean card title).
+  function _featCardParse(b){                     // one Features block → {title, body} for a card
+    const s = b.trim().replace(/^Feat:\s*/i, ""); if(!s) return null;
+    const dot = s.indexOf(". "), par = s.indexOf(" (");
+    let cut = -1, skip = 0;
+    if(dot >= 0 && (par < 0 || dot < par)){ cut = dot; skip = 2; }   // "Rage. You can…" → title "Rage"
+    else if(par >= 0){ cut = par; skip = 1; }                        // "Darkvision (60 ft)…" → title "Darkvision", keep the paren in the body
+    if(cut < 0){ const nl = s.indexOf("\n"); return nl >= 0 ? {title:s.slice(0,nl).trim(), body:s.slice(nl+1).trim()} : {title:s, body:""}; }
+    return {title:s.slice(0,cut).trim(), body:s.slice(cut+skip).trim()};
+  }
   function featureCards(){
     const v = ($("features").value||""); if(!v.trim()) return [];
-    return v.split(/\n\s*\n+/).map(b => {
-      const s = b.trim().replace(/^Feat:\s*/i, ""); if(!s) return null;
-      const dot = s.indexOf(". "), par = s.indexOf(" (");
-      let cut = -1, skip = 0;
-      if(dot >= 0 && (par < 0 || dot < par)){ cut = dot; skip = 2; }   // "Rage. You can…" → title "Rage"
-      else if(par >= 0){ cut = par; skip = 1; }                        // "Darkvision (60 ft)…" → title "Darkvision", keep the paren in the body
-      if(cut < 0){ const nl = s.indexOf("\n"); return nl >= 0 ? {title:s.slice(0,nl).trim(), body:s.slice(nl+1).trim()} : {title:s, body:""}; }
-      return {title:s.slice(0,cut).trim(), body:s.slice(cut+skip).trim()};
-    }).filter(Boolean);
+    return v.split(/\n\s*\n+/).map(_featCardParse).filter(Boolean);
+  }
+  // Canonical block list backing the cards (1:1 with the editable cards). Edit/add/delete operate on this + rewrite #features.
+  function featBlocksRaw(){ return ($("features").value||"").split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean); }
+  function setFeatBlocks(arr){ $("features").value = arr.join("\n\n"); }
+  let _featEdit = null;   // null = view; an index = editing that block; "new" = adding a feature
+  function featEditFormHtml(id, block){
+    const c = block ? (_featCardParse(block) || {title:"", body:""}) : {title:"", body:""};
+    return `<div class="card feat-card feat-editing" data-bi="${id}">`+
+      `<input class="feat-e-name" placeholder="Feature name" value="${esc(c.title)}">`+
+      `<textarea class="feat-e-text" rows="4" placeholder="Description…">${esc(c.body)}</textarea>`+
+      `<div class="feat-e-actions"><button type="button" class="btn feat-save" data-bi="${id}">Save</button>`+
+      `<button type="button" class="btn feat-cancel">Cancel</button></div></div>`;
   }
   function renderFeatureCards(){
     const wrap = $("feat-cards"); if(!wrap) return;
-    const cards = featureCards();
-    wrap.innerHTML = cards.length
-      ? cards.map(c =>
-          `<div class="card feat-card"><div class="feat-card-title">${esc(c.title)}</div>`
-          + (c.body ? `<div class="feat-card-body">${esc(c.body)}</div>` : "") + `</div>`).join("")
-      : `<div class="card feat-blank"><h2>Features &amp; Traits</h2></div>`;   // nothing written → print a full-page write-in card (hidden on screen)
+    const blocks = featBlocksRaw();
+    let html = blocks.map((b,i) => {
+      if(_featEdit === i) return featEditFormHtml(i, b);
+      const c = _featCardParse(b) || {title:b, body:""};
+      return `<div class="card feat-card" data-bi="${i}">`+
+        `<div class="feat-card-head"><div class="feat-card-title">${esc(c.title)}</div>`+
+        `<div class="feat-card-tools noprint"><button type="button" class="feat-edit" data-bi="${i}" title="Edit">✎</button>`+
+        `<button type="button" class="feat-del" data-bi="${i}" title="Remove">✕</button></div></div>`+
+        (c.body ? `<div class="feat-card-body">${esc(c.body)}</div>` : "") + `</div>`;
+    }).join("");
+    if(_featEdit === "new") html += featEditFormHtml("new", "");
+    else html += `<button type="button" class="btn feat-add noprint" id="feat-add">+ Add feature</button>`;
+    if(!blocks.length) html = `<div class="card feat-blank"><h2>Features &amp; Traits</h2></div>` + html;   // print-only full-page write-in when empty (hidden on screen)
+    wrap.innerHTML = html;
+  }
+  // Add / edit / delete a feature card (the freeform textarea replacement). Delegated once in init.
+  function featCardsAction(e){
+    if(e.target.closest("#feat-add")){ _featEdit = "new"; renderFeatureCards(); const inp = $("feat-cards").querySelector(".feat-e-name"); if(inp) inp.focus(); return; }
+    const ed = e.target.closest(".feat-edit"); if(ed){ _featEdit = +ed.dataset.bi; renderFeatureCards(); const inp = $("feat-cards").querySelector(".feat-e-name"); if(inp) inp.focus(); return; }
+    const cancel = e.target.closest(".feat-cancel"); if(cancel){ _featEdit = null; renderFeatureCards(); return; }
+    const del = e.target.closest(".feat-del"); if(del){ const arr = featBlocksRaw(); arr.splice(+del.dataset.bi, 1); _featEdit = null; setFeatBlocks(arr); renderFeatureCards(); compute(); save(); return; }
+    const sv = e.target.closest(".feat-save"); if(sv){
+      const cardEl = sv.closest(".feat-editing"); if(!cardEl) return;
+      const name = (cardEl.querySelector(".feat-e-name").value || "").trim();
+      const text = (cardEl.querySelector(".feat-e-text").value || "").trim();
+      const bi = sv.dataset.bi;
+      if(!name && !text){ _featEdit = null; renderFeatureCards(); return; }   // nothing entered → treat as cancel
+      const block = text ? (name ? name + ". " + text : text) : name;
+      const arr = featBlocksRaw();
+      if(bi === "new") arr.push(block); else arr[+bi] = block;
+      _featEdit = null; setFeatBlocks(arr); renderFeatureCards(); compute(); save();
+    }
   }
   // MPMB-style "action" capability: sort the character's features by action-economy cost (Action / Bonus / Reaction),
   // derived from the feature prose. A quick combat reference, not exhaustive; weapon attacks stay in the Attacks table.
@@ -13751,6 +13849,11 @@
         const rm = e.target.closest(".inf-rm"); if(rm){ infusions.splice(+rm.dataset.ii, 1); renderInfusions(); compute(); save(); }
       });
     }
+    { const fc = $("feat-cards"); if(fc) fc.addEventListener("click", featCardsAction); }
+    { const aa = $("arcane-armor-card"); if(aa) aa.addEventListener("change", e => {
+        const sel = e.target.closest("#arcane-armor-sel"); if(!sel) return;
+        arcaneArmor = sel.value; renderArcaneArmor(); compute(); save();
+      }); }
 
     $("btn-export-blank").addEventListener("click", shareBlankSheet);
     $("btn-import").addEventListener("click", ()=> $("file-input").click());
