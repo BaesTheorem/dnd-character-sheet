@@ -790,12 +790,11 @@
   .invtable td.invitem{display:flex; align-items:center; gap:1px}
   .invtable td.invitem input{flex:1; min-width:0}
   #inv-ac{position:fixed; z-index:60; max-height:260px; overflow:auto}   /* shared per-row item autocomplete popup (positioned under the focused row) */
-  .inv-del{flex:none; display:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px}
+  .inv-del{flex:none; display:block; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px}   /* delete ✕ on EVERY row */
   .inv-del:hover{color:#b42318}
-  .invtable tr.has-item .inv-del{display:block}   /* delete ✕ shows only on filled rows */
-  .xeq-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px; visibility:hidden}
-  .xeqtable tr:hover .xeq-del{visibility:visible}
+  .xeq-del{flex:none; border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1; padding:0 3px}   /* delete ✕ on EVERY row */
   .xeq-del:hover{color:#b42318}
+  .addrow-btn{margin-top:8px; font-size:12px; padding:5px 12px}   /* "+ Add row" under Inventory / Extra Equipment */
   .xeqtable td:nth-child(2) input{text-align:center}                     /* Qty centered */
   .xeqtable td:nth-child(3) input{text-align:left}                       /* Location left-aligned (free text) */
   .ctx-menu{position:fixed; z-index:60; background:#fff; border:1px solid var(--line2); min-width:150px; padding:2px}
@@ -809,7 +808,11 @@
   .invtable tr.in-container td.invitem{padding-left:14px}                /* nested rows indent; top-level containers stay flush */
   .invtable tr.in-weightless input{color:var(--muted)}                  /* item in a weightless container (Bag of Holding): weight not counted */
   .invtable tr.is-container .invname-ac{font-weight:600}                 /* a container's name reads a little heavier */
-  .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px}
+  .invdrag{cursor:grab; color:var(--muted); text-align:center; user-select:none; font-size:13px; touch-action:none}
+  .invtable tbody tr{transition:opacity .12s ease}
+  .invtable tbody tr.dragging{opacity:.4}   /* row being dragged fades so the drop line reads clearly */
+  .invtable tbody tr td{border-top:2px solid transparent}   /* reserve the drop-line space so a drop-target never reflows the rows below */
+  @media print{ .invtable tbody tr td{border-top-width:0} }   /* screen-only reservation — don't perturb print row-height / pagination */
   .ac-items-auto{display:flex; flex-direction:column; gap:4px; margin-top:4px}
   .ac-items-auto .aci{display:flex; justify-content:space-between; align-items:center; background:var(--field); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font-size:13px}
   .ac-items-auto .aci .b{font-weight:700; color:var(--accent)}
@@ -817,7 +820,7 @@
   .ac-items-auto .none{color:var(--muted); font-size:12px}
   .ac-items-write{display:none}   /* print-only blank write-in box (see @media print) */
   .invdrag:active{cursor:grabbing}
-  .invtable tr.drop-target td{border-top:2px solid var(--accent)}   /* flat outline (survives the global box-shadow:none) */
+  .invtable tr.drop-target td{border-top-color:var(--accent)}   /* colour the reserved 2px line (no reflow); survives the global box-shadow:none */
   .invtable tr.drop-into td{outline:2px solid var(--accent); outline-offset:-2px; background:var(--accent-soft)}   /* dropping onto a container */
   /* Features page: a collapsible raw-text editor + one independent card per feature */
   .feat-editor{margin-bottom:12px}
@@ -2568,6 +2571,7 @@
             <tbody id="inv"></tbody>
           </table>
         </div>
+        <button type="button" id="inv-addrow" class="btn ghost addrow-btn noprint">+ Add row</button>
         <div class="rowtotal"><span class="k">Total weight (items + coins)</span><span class="v" id="totalwt"></span></div>
         <div id="inv-ac" class="item-results" hidden=""></div>
         <p class="help noprint">Search the box above (or type in any row) to add items from your loaded sourcebooks — weight auto-fills. Check <strong>Equip</strong> on a weapon (→ Attacks), armor or attunement item (→ their pickers). Carry a <strong>Bag of Holding</strong> or <strong>Handy Haversack</strong> and items dropped into it stop counting toward weight. <strong>Right-click</strong> any item to <strong>make it a container</strong> (then drag rows onto it to nest them — a normal container's contents still weigh).</p>
@@ -2712,6 +2716,7 @@
       <div class="card"><h2>Extra Equipment</h2>
         <p class="help noprint">Gear that exists somewhere other than on your person — stored on a mount, in a stronghold, at a bank, etc. Separate from your Inventory: it doesn't count toward carry weight and has no Equip toggle.</p>
         <table class="invtable xeqtable"><thead><tr><th>Item</th><th style="width:70px">Qty</th><th>Location</th></tr></thead><tbody id="xeq"></tbody></table>
+        <button type="button" id="xeq-addrow" class="btn ghost addrow-btn noprint">+ Add row</button>
       </div>
       <div class="card grow"><h2>Notes</h2><textarea data-save="" id="notes" style="height: 0px;"></textarea><div class="ta-print"></div></div>
     </section>
@@ -3054,11 +3059,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v476 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v477 (2026-07-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.100.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.101.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3066,6 +3071,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v477", semver:"2.101.0", items:[
+      "Inventory: the delete ✕ now shows on every row (not just filled ones), pressing Enter in a row creates a new one right below it (and if that row is inside a container, the new row goes in the same container), and there's a “+ Add row” button under the list.",
+      "Extra Equipment (Notes tab) works the same way now — ✕ on every row, Enter makes a new row, a “+ Add row” button — and it starts as a single blank row instead of 24 empty ones.",
+      "Dragging inventory items to reorder is smoother: the row you’re dragging fades, and the drop line no longer nudges the rows below it.",
+    ]},
     {v:"v475", semver:"2.100.2", items:[
       "Adding an Ancestral Weapon to your inventory (via the item search box or the builder) now shows the Ancestral Weapons tab immediately, matching the delete behavior — no refresh needed either way.",
     ]},
@@ -3670,7 +3680,8 @@
     `<td><input data-save type="number" id="invqty-${i}" min="0"></td>`+
     `<td><input type="number" id="invwt-${i}" min="0" step="0.1" title="Total weight for this line (auto = per-item weight × quantity)"></td>`+
     `<td class="noprint" style="text-align:center"><input type="checkbox" class="invequip" id="invequip-${i}" data-r="${i}" title="Equipped — weapons are added to Attacks; equipped armor & attunement items become selectable in their pickers" style="display:none"></td></tr>`;
-  const XEQ_ROWS = 24;   // "Extra Equipment" on the Notes tab — gear stored elsewhere (mount/HQ/bank); no weight, no equip, separate from Inventory
+  const XEQ_MAIN = 1, XEQ_GROW = 6;   // "Extra Equipment" (Notes tab) — ONE continuous list; starts at a single blank row, grows as it fills. Gear stored elsewhere (mount/HQ/bank); no weight, no equip.
+  let NXEQ = XEQ_MAIN;
   const xeqRowHTML = i =>
     `<tr><td class="invitem"><button class="xeq-del noprint" data-x="${i}" type="button" tabindex="-1" title="Delete">✕</button><input data-save id="xeqname-${i}" autocomplete="off"></td>`+
     `<td><input data-save type="number" id="xeqqty-${i}" min="0"></td>`+
@@ -3694,6 +3705,11 @@
   function ensureLimSlot(){ for(let i=0;i<NLIMITED;i++) if(!limFilled(i)) return i; growLimTo(NLIMITED+LIM_GROW); return NLIMITED-LIM_GROW; }
   function ensureInvTrailing(){ let last=-1; for(let i=0;i<NINV;i++) if(invFilled(i)) last=i; if(last >= NINV-1) growInvTo(NINV+INV_GROW); }
   function ensureLimTrailing(){ let last=-1; for(let i=0;i<NLIMITED;i++) if(limFilled(i)) last=i; if(last >= NLIMITED-1) growLimTo(NLIMITED+LIM_GROW); }
+  function xeqFilled(i){ const e=$("xeqname-"+i); return !!(e && (e.value||"").trim()); }
+  function rebuildXeq(n){ n = Math.max(XEQ_MAIN, n||XEQ_MAIN); let h=""; for(let i=0;i<n;i++) h += xeqRowHTML(i); $("xeq").innerHTML = h; NXEQ = n; }
+  function growXeqTo(n){ let h=""; for(let i=NXEQ;i<n;i++) h += xeqRowHTML(i); if(h){ $("xeq").insertAdjacentHTML("beforeend", h); NXEQ = n; } }
+  function ensureXeqSlot(){ for(let i=0;i<NXEQ;i++) if(!xeqFilled(i)) return i; growXeqTo(NXEQ+XEQ_GROW); return NXEQ-XEQ_GROW; }
+  function ensureXeqTrailing(){ let last=-1; for(let i=0;i<NXEQ;i++) if(xeqFilled(i)) last=i; if(last >= NXEQ-1) growXeqTo(NXEQ+XEQ_GROW); }
   function maxSaved(data, prefix){ let m=-1; if(data) for(const k in data){ if(k.indexOf(prefix)===0 && String(data[k]||"").trim()){ const nn=+k.slice(prefix.length); if(Number.isInteger(nn) && nn>m) m=nn; } } return m; }
   // ---- print-only continuation sheets ----
   function pfEsc(v){ return String(v==null?"":v).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -4008,7 +4024,7 @@
 
     rebuildLim(LIM_MAIN);   // Limited Features: one continuous list (grows as it fills)
     rebuildInv(INV_MAIN);   // Inventory: one continuous list (grows as it fills)
-    let xe=""; for(let i=0;i<XEQ_ROWS;i++) xe += xeqRowHTML(i); $("xeq").innerHTML = xe;   // Notes-tab Extra Equipment
+    rebuildXeq(XEQ_MAIN);   // Notes-tab Extra Equipment: one continuous list (grows as it fills)
 
     $("slots").innerHTML = slotsHTML(0);
     // spell rows are built by renderSpellTable() (class-dependent), called from renderSpellStyle()
@@ -8827,6 +8843,7 @@
     renderHoodControls();
     rebuildInv(maxSaved(data, "invname-") + 1);   // grow the continuous lists to hold everything saved, BEFORE restoring values
     rebuildLim(maxSaved(data, "lfname-") + 1);
+    rebuildXeq(maxSaved(data, "xeqname-") + 1);
     setSpellSheets(nSheets);                         // build the right number of extra spell pages BEFORE restoring their data-save fields
     applyFields(data);
     for(let i=0;i<NINV;i++){                       // restore per-item inventory weights (legacy sheets stored per-item in invwt-*)
@@ -8846,7 +8863,7 @@
     }
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i); if(cb) cb.checked = !!(data && Array.isArray(data.invEquip) && data.invEquip[i]); }   // restore equipped state
     refreshEquippedPickers();   // build Armor + Attunement options from equipped items, then re-apply the saved selections
-    ensureInvTrailing(); ensureLimTrailing();   // one blank row at the end of each continuous list
+    ensureInvTrailing(); ensureLimTrailing(); ensureXeqTrailing();   // one blank row at the end of each continuous list
     if(data){ const as = $("armorsel"); if(as && ("armorsel" in data)) as.value = data["armorsel"]||"";
       ["0","1","2"].forEach(k => { const s = $("attune-"+k); if(s && (("attune-"+k) in data)) s.value = data["attune-"+k]||""; }); }
     companions = (data && Array.isArray(data.companions)) ? data.companions.map(c => Object.assign(blankCompanion(), c)) : [];
@@ -10961,6 +10978,29 @@
     else { renderContainers(); save(); compute(); }
     if(typeof awEnabled !== "undefined" && awEnabled && typeof applyLayout === "function") applyLayout();   // a deleted item may have been an Ancestral Weapon → hot-reload the layout so the AW tab disappears immediately (this fires for the ✕ button too, which calls deleteInvRow directly)
   }
+  function invEnterNewRow(i){   // Enter inside an inventory row → insert a fresh blank row directly below it (inheriting the same container, so entering items inside a container keeps them there)
+    i = +i;
+    let cont = rowCont(i);                                             // nested item → same parent container
+    if(!cont && isContainerRow(i)) cont = ($("invname-"+i).value||"").trim();   // on the container header itself → new row goes inside it
+    const a = getInvData();                                           // length stays NINV: reuse a trailing blank as the inserted row
+    let rm = -1; for(let j=a.length-1;j>=0;j--){ if(j!==i && !(a[j].name||"").trim()){ rm=j; break; } }
+    if(rm < 0){ growInvTo(NINV+INV_GROW); return invEnterNewRow(i); }  // no spare blank → grow, then retry
+    a.splice(rm,1);
+    const dest = ((rm < i) ? i-1 : i) + 1;                            // visual slot immediately below the current row
+    a.splice(dest, 0, {name:"", qty:"", unit:"", cont:cont||"", equip:false});
+    setInvData(a); save(); compute();
+    const el = $("invname-"+dest); if(el){ el.focus(); }
+  }
+  function deleteXeqRow(i){   // remove an Extra Equipment row: shift the rows below up one so the list stays compact, keep one trailing blank
+    i = +i;
+    for(let j=i; j<NXEQ-1; j++){ ["xeqname","xeqqty","xeqloc"].forEach(p => { const a=$(p+"-"+j), b=$(p+"-"+(j+1)); if(a&&b) a.value = b.value; }); }
+    ["xeqname","xeqqty","xeqloc"].forEach(p => { const el=$(p+"-"+(NXEQ-1)); if(el) el.value=""; });
+    save(); ensureXeqTrailing();
+  }
+  function xeqEnterNewRow(i){   // Enter inside an Extra Equipment row → move to the next row, creating one if needed
+    i = +i; let n = i+1; if(n >= NXEQ) growXeqTo(NXEQ+XEQ_GROW);
+    const el = $("xeqname-"+n); if(el) el.focus(); ensureXeqTrailing();
+  }
   // ---- "Active" weapons → Attacks table (toggled per inventory row; bonus & damage auto-computed) ----
   function _baseWeapon(n){ return ((DATA && DATA.weapons) || []).find(w => (w.name||"").toLowerCase() === n) || null; }
   function weaponByName(name){
@@ -12667,7 +12707,7 @@
     window.addEventListener("beforeprint", ()=>{ applyLayout(); buildPrintFlow(); });   // build print-only continuation sheets right before printing
     window.addEventListener("afterprint", teardownPrintFlow);                            // and tear them down again after
     if(window.matchMedia){ const mq = window.matchMedia("print"); const onMq = ev => { if(ev.matches){ applyLayout(); buildPrintFlow(); } else teardownPrintFlow(); }; if(mq.addEventListener) mq.addEventListener("change", onMq); else if(mq.addListener) mq.addListener(onMq); }
-    document.addEventListener("input", e => { const id = e.target && e.target.id; if(!id) return; if(id.indexOf("invname-")===0) ensureInvTrailing(); else if(id.indexOf("lfname-")===0) ensureLimTrailing(); });
+    document.addEventListener("input", e => { const id = e.target && e.target.id; if(!id) return; if(id.indexOf("invname-")===0) ensureInvTrailing(); else if(id.indexOf("lfname-")===0) ensureLimTrailing(); else if(id.indexOf("xeqname-")===0) ensureXeqTrailing(); });
 
     /* ===== Short Rest / Long Rest ===== */
     // Read a Limited Feature's "Recover" hint. No canonical format exists — it's free text
@@ -12975,7 +13015,20 @@
     });
     document.addEventListener("click", e => { if(e.target.closest("[data-addspellsheet]")){ appendSpellSheet("manual"); applyLayout(); showPage(sx(spellSheets-1,'spells')); save(); compute(); } });
     document.addEventListener("click", e => { const b = e.target.closest(".inv-del"); if(b) deleteInvRow(b.dataset.r); });   // ✕ delete an inventory item
-    document.addEventListener("click", e => { const b = e.target.closest(".xeq-del"); if(b){ const i = b.dataset.x; ["xeqname","xeqqty","xeqloc"].forEach(p => { const el = $(p+"-"+i); if(el) el.value = ""; }); save(); } });   // ✕ clear an Extra Equipment row
+    document.addEventListener("click", e => { const b = e.target.closest(".xeq-del"); if(b) deleteXeqRow(b.dataset.x); });   // ✕ delete an Extra Equipment row
+    { const ia = $("inv-addrow"); if(ia) ia.addEventListener("click", () => { const i = ensureInvSlot(); const el = $("invname-"+i); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Inventory)
+    { const xa = $("xeq-addrow"); if(xa) xa.addEventListener("click", () => { const i = ensureXeqSlot(); const el = $("xeqname-"+i); if(el){ el.focus(); el.scrollIntoView({block:"nearest"}); } }); }   // + Add row (Extra Equipment)
+    document.addEventListener("keydown", e => {   // Enter in an Inventory / Extra Equipment row → create a new row (Inventory inherits the current row's container)
+      if(e.key !== "Enter" || e.isComposing) return;
+      const id = e.target && e.target.id; if(!id) return;
+      let m;
+      if((m = id.match(/^inv(?:name|qty|wt)-(\d+)$/))){
+        const ac = $("inv-ac"); if(ac && !ac.hidden && id.indexOf("invname-")===0) return;   // autocomplete popup open → let it handle Enter (select an item)
+        e.preventDefault(); invEnterNewRow(+m[1]);
+      } else if((m = id.match(/^xeq(?:name|qty|loc)-(\d+)$/))){
+        e.preventDefault(); xeqEnterNewRow(+m[1]);
+      }
+    });
     document.addEventListener("contextmenu", e => {   // right-click an inventory item -> make/unmake a container
       const invEl = e.target.closest('input[id^="invname-"]');
       if(!invEl || !(invEl.value||"").trim()) return;
@@ -13031,7 +13084,8 @@
     });
     invCols.addEventListener("dragstart", e => {
       const h = e.target.closest(".invdrag"); if(!h){ e.preventDefault(); return; }
-      invDrag = +h.closest("tr").dataset.r; e.dataTransfer.effectAllowed = "move"; try{ e.dataTransfer.setData("text/plain", String(invDrag)); }catch(_){}
+      const tr = h.closest("tr"); invDrag = +tr.dataset.r; e.dataTransfer.effectAllowed = "move"; try{ e.dataTransfer.setData("text/plain", String(invDrag)); }catch(_){}
+      requestAnimationFrame(() => tr.classList.add("dragging"));   // fade the source row (rAF so the drag image is captured first, not the faded one)
     });
     invCols.addEventListener("dragover", e => {
       if(invDrag == null) return; e.preventDefault(); e.dataTransfer.dropEffect = "move";
@@ -13054,7 +13108,7 @@
       }
       clearDrop(); invDrag = null;
     });
-    invCols.addEventListener("dragend", () => { clearDrop(); invDrag = null; });
+    invCols.addEventListener("dragend", () => { clearDrop(); document.querySelectorAll(".invtable tr.dragging").forEach(r => r.classList.remove("dragging")); invDrag = null; });
     });
 
     $("speed").addEventListener("focus", ()=>{ $("speed").value = (speedBase != null ? speedBase : ""); });   // show base for editing
