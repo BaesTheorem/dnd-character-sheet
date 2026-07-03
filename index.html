@@ -3090,11 +3090,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v530 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v531 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.126.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.126.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3102,6 +3102,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v531", semver:"2.126.3", items:[
+      "A skill-check advantage that's already shown on the skill line (e.g. One with the Word → Arcana, Actor, Dungeon Delver) no longer also shows as a redundant Defenses chip. Skill advantages with no marker (like Cloak of Elvenkind → Stealth) still show in Defenses.",
+    ]},
     {v:"v530", semver:"2.126.2", items:[
       "Typed defenses now understand plain phrasing — \"Immune to fire\", \"Cold resistance\", \"Resist poison\", \"Advantage on stealth\" all turn into the right badge when you click away (you no longer have to write it as \"Immunity: fire\"). Ordinary notes are left alone.",
     ]},
@@ -4117,10 +4120,20 @@
     if(m) return (/^r/i.test(m[1]) ? "resistance" : "immunity") + ":" + [...new Set(m[2].split(",").map(x=>x.trim().toLowerCase()).filter(Boolean))].sort().join(",");
     return s.toLowerCase().replace(/\s+/g, " ");
   }
+  function _defAdvSkills(){   // skill keys already shown as a green/red d20 marker ON THE SKILL LINE (via featureAdvEntries) — a Defenses chip for the same skill-check would be redundant
+    return new Set((typeof featureAdvEntries === "function" ? featureAdvEntries() : []).flatMap(e => e.targets || []).filter(t => t.indexOf("skill:") === 0).map(t => t.slice(6)));
+  }
+  function _defSkillCovered(line, advSkills){   // true when a line is an adv/disadv on a skill CHECK whose skill(s) are ALL already on the skill line (e.g. One with the Word → Arcana). Leaves skill advs with no marker (Cloak of Elvenkind → Stealth) alone.
+    if(!/^(?:adv|disadv)\.\s/i.test(line) || !/\bchecks?\b/i.test(line)) return false;
+    const named = SKILLS.filter(s => new RegExp("\\b" + s[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(line)).map(s => s[0]);
+    return named.length > 0 && named.every(k => advSkills.has(k));
+  }
   function defenseChips(){
+    const advSkills = _defAdvSkills();
     const by = new Map();   // key = normalized line → {kind, text, raw, srcs:Set, hasDerived, hasManual}
     const add = (line, src, isManual) => { line = String(line||"").trim(); if(!line) return;
       const p = _defParse(line), k = _defNorm(p.raw), ex = by.get(k);
+      if(!isManual && _defSkillCovered(p.raw, advSkills)) return;   // already shown on the skill line (One with the Word → Arcana) — don't duplicate it here
       if(ex){ ex.srcs.add(src); if(isManual) ex.hasManual = true; else ex.hasDerived = true; return; }
       by.set(k, {kind:p.kind, text:p.text, raw:p.raw, srcs:new Set([src]), hasDerived:!isManual, hasManual:!!isManual}); };
     const rn = ($("race").value||"").trim(), ro = rn && DATA && DATA.races && findBy(DATA.races, rn);
@@ -4172,8 +4185,11 @@
       return `<span class="${cls}" title="${esc(title)}">${ic}<span>${esc(c.text)}</span>${x}</span>`;
     }).join("");
     const t = $("defnotes"); if(!t) return;                                     // strip any box line a chip now covers (de-dup + migrate the old in-box defenses)
-    const raws = new Set(chips.map(c => _defNorm(c.raw)));
-    const kept = t.value.split("\n").filter(line => { const s = line.trim(); return !(s && raws.has(_defNorm(s))); });   // keep blank lines (don't eat the newline while typing) — only drop chip-covered content lines
+    const raws = new Set(chips.map(c => _defNorm(c.raw))), advSkills = _defAdvSkills();
+    const kept = t.value.split("\n").filter(line => { const s = line.trim();       // keep blank lines (don't eat the newline while typing)
+      if(s && raws.has(_defNorm(s))) return false;                               // covered by a chip
+      if(s && _defSkillCovered(s, advSkills)) return false;                      // skill-check adv already on the skill line (e.g. One with the Word → Arcana) — build wrote it here, drop it
+      return true; });
     const nv = kept.join("\n"); if(nv !== t.value){ t.value = nv; autoGrow(t); }
   }
   function _splitBlocks(t){ return String(t||"").split(/\n\n+/).map(b => b.trim()).filter(Boolean); }
