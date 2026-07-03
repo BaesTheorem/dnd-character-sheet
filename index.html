@@ -3132,11 +3132,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v500 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v501 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.113.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.113.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3144,6 +3144,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v501", semver:"2.113.1", items:[
+      "Fixed the “Can Prepare” chip flying off to the far right, outside the dialog, when you open the prepare-spells window after a long rest. It now tucks into the top-right corner of that dialog and stays visible as you scroll the spell list.",
+    ]},
     {v:"v500", semver:"2.113.0", items:[
       "Tidied the top toolbar: Print / PDF, Manage Characters, Homebrew Studio, and Settings now live together under a new “Menu” (hamburger) button on the right. Create Character, Save, Search, and Mobile stay as their own buttons. The menu closes when you pick something, click away, or press Escape.",
     ]},
@@ -7820,6 +7823,7 @@
     _prepDetached.classList.remove("prep-detached", "over");
     _prepDetached.style.width = "";
     _prepDetached.style.top = "";
+    _prepDetached.style.right = "";
     _prepDetached = null;
   }
   function updatePrepFloat(){
@@ -7843,7 +7847,23 @@
       _prepDetached = ps;
     }
     ps.classList.toggle("over", !!over);
-    // Sit just below the sticky toolbar so the detached box never covers the top bar / Manage Characters button.
+    if(over){
+      // In the overlay the spell sheet is MOVED into a centered modal, so anchoring to the viewport's right edge (the
+      // CSS default) flings the box OUTSIDE the panel. Pin it to the modal PANEL's top-right, just below its header,
+      // so it reads as part of the dialog and stays visible while the modal body scrolls.
+      const panel = document.querySelector("#prep-overlay .prep-ov-panel");
+      const mhead = document.querySelector("#prep-overlay .modal-head");
+      if(panel){
+        const pr = panel.getBoundingClientRect();
+        const hb = mhead ? mhead.getBoundingClientRect().bottom : pr.top + 8;
+        ps.style.right = Math.max(8, Math.round(window.innerWidth - pr.right) + 14) + "px";
+        ps.style.top = Math.round(hb + 8) + "px";
+        return;
+      }
+    }
+    // Normal spell page: clear any overlay override and sit just below the sticky toolbar so the detached box never
+    // covers the top bar / Manage Characters button.
+    ps.style.right = "";                                                // fall back to the CSS right:14px (viewport)
     const tb = document.querySelector(".toolbar");
     const tbBottom = (tb && getComputedStyle(tb).display !== "none") ? tb.getBoundingClientRect().bottom : 0;
     ps.style.top = (Math.max(0, tbBottom) + 10) + "px";
@@ -8059,7 +8079,7 @@
     $("prep-ov-body").appendChild(sb);
     const cls = (sEl(inst,"spellclass").value || `Sheet ${inst+1}`);
     $("prep-ov-title").textContent = `Prepare spells: ${cls}`;
-    $("prep-ov-note").textContent = hasMore ? `${_prepQueue.length} more class${_prepQueue.length > 1 ? "es" : ""} after this` : "Tick the spells you want ready; the chip on the left tracks your limit.";
+    $("prep-ov-note").textContent = hasMore ? `${_prepQueue.length} more class${_prepQueue.length > 1 ? "es" : ""} after this` : "Tick the spells you want ready; the chip in the top-right tracks your limit.";
     $("prep-ov-next").textContent = hasMore ? "Next class" : "Done";
     prepOverlayInst = inst;
     ov.classList.add("open");
