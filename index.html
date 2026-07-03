@@ -393,6 +393,11 @@
     border:1px solid var(--line2); border-radius:12px; background:var(--field); color:var(--ink)}
   .cond-chip .x{cursor:pointer; color:var(--muted); font-weight:900; line-height:1}
   .cond-chip .x:hover{color:#c0392b}
+  /* Senses chips — auto senses (race/feat/class/equipped items), recomputed each compute (removal is automatic) */
+  .sense-chips{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 8px}
+  .sense-chips:empty{display:none}
+  .sense-chip{display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:3px 8px;
+    border:1px solid var(--line2); border-radius:12px; background:var(--field); color:var(--ink)}
   .cond-open{font:inherit; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     border:1px solid var(--line); border-radius:7px; background:var(--card); color:var(--ink); padding:6px 10px; cursor:pointer; align-self:flex-start}
   .cond-open:hover{border-color:var(--accent)}
@@ -2379,7 +2384,8 @@
             <span class="v" id="passive"></span>
             <span class="k">Passive Perception</span>
           </div>
-          <textarea data-save="" id="senses" placeholder="Darkvision 60 ft, Observant feat, Danger Sense…" style="min-height: 72px; height: 72px;"></textarea><div class="ta-print"></div>
+          <div class="sense-chips" id="sense-chips"></div>
+          <textarea data-save="" id="senses" placeholder="Notes — auto senses (darkvision, feats, item senses) show as chips above" style="min-height: 72px; height: 72px;"></textarea><div class="ta-print"></div>
         </div>
       </div>
 
@@ -2579,6 +2585,7 @@
           <div id="item-results" class="item-results" hidden=""></div>
         </div>
         <input type="hidden" data-save="" id="inv-prefer-official"><!-- lc names (one per line) where the player chose the OFFICIAL item over a same-name homebrew one -->
+        <input type="hidden" data-save="" id="gen-item-limited"><!-- lc labels (one per line) of Limited Features rows an equipped item introduced → cleared when the item is unequipped/removed -->
         <div class="inv-cols">
           <table class="invtable">
             <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Item</th><th style="width:70px">Qty</th><th style="width:76px">Wt (lb)</th><th class="noprint" style="width:64px" title="Equipped">Equip</th></tr></thead>
@@ -3073,11 +3080,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v519 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v520 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.120.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.121.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3085,6 +3092,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v520", semver:"2.121.0", items:[
+      "Senses now show as chips above the notes box, computed live from your race, feats, class features, and equipped/attuned items — so unequipping or removing an item (e.g. the Eye of Dendallen) instantly removes the darkvision it granted. If two sources give the same sense, it shows once (widest range) and stays as long as any source provides it. The Senses box below is now just for your own notes.",
+      "Fixed: removing an item that granted a Limited Features row (e.g. the Eye's “See through magical darkness”) now clears that row automatically, without touching your class/feat rows.",
+    ]},
     {v:"v519", semver:"2.120.0", items:[
       "Homebrew Studio → Import JSON now handles EVERY content type, including creature stat blocks (monsters) and whole classes — so one JSON file can drop an item, its creature, spells, feats, races, subclasses, and classes all into a single existing homebrew source at once.",
       "Imported homebrew creatures appear in the Companions “Pick a stat block…” picker (with their embedded art), and imported homebrew classes show up in the character builder.",
@@ -8834,6 +8845,7 @@
     refreshSimulacrumButton();   // surface the "Create Simulacrum" button only when the Simulacrum spell is on a sheet
     refreshSpellDamageCells();   // keep the per-spell Damage column live as level/scores change (in place, no re-render)
     renderConditions();          // active-condition chips + panel state
+    renderSenseChips();          // auto senses (race/feat/class/equipped items) as chips — recomputed so unequip removes them
     renderConditionMarks();      // advantage/disadvantage d20 markers (must run last, after all roll values are written)
   }
 
@@ -9601,6 +9613,40 @@
     if(has) return;
     t.value = t.value.trim() ? t.value.trim()+"\n"+line : line;
     autoGrow(t);
+  }
+  // Senses that come from LIVE sources — race traits, custom-lineage darkvision, sense-granting feats/class features,
+  // and equipped+attuned item senses — rendered as chips and RECOMPUTED every compute, so removing a source (e.g.
+  // unequipping an item) drops its chip automatically. The #senses textarea stays for free-form user notes; a chip
+  // that covers a box line strips it (migrates the old add-only behavior + prevents duplication).
+  const _VISION = /\b(darkvision|blindsight|tremorsense|truesight)\b/i;
+  function _senseKey(t){ const m = _VISION.exec(t||""); return m ? m[1].toLowerCase() : String(t||"").trim().toLowerCase(); }
+  function _senseRange(t){ const m = String(t||"").match(/(\d+)\s*(?:feet|ft)/i); return m ? parseInt(m[1],10) : 0; }
+  function senseChips(){
+    const by = new Map();   // key → {text, srcs:Set, range} (vision senses dedup by type, keeping the widest range)
+    const add = (text, src) => { text = String(text||"").trim(); if(!text) return; const k = _senseKey(text), rg = _senseRange(text), ex = by.get(k);
+      if(!ex) by.set(k, {text, srcs:new Set([src]), range:rg});
+      else { ex.srcs.add(src); if(_VISION.test(text) && rg > ex.range){ ex.text = text; ex.range = rg; } } };
+    const rn = ($("race").value||"").trim(), ro = rn && DATA && DATA.races && findBy(DATA.races, rn);
+    if(ro) (ro.traits||[]).forEach(tr => { if(/darkvision|blindsight|tremorsense|truesight/i.test(tr.name||"")){ const m = (tr.text||"").match(/(\d+)\s*(?:feet|ft)/i); add(m ? `${tr.name} ${m[1]} ft.` : tr.name, rn); } });
+    if(typeof charRaceChoices === "object" && charRaceChoices && charRaceChoices.skillDv === "darkvision") add("Darkvision " + ((ro && ro.darkvision) || 60) + " ft.", rn || "Race");   // variable skill-or-darkvision race, chose darkvision
+    (asiChoices||[]).forEach(s => { if(s.type === "feat" && s.feat && FEAT_SENSES[s.feat]) add(FEAT_SENSES[s.feat], s.feat); });
+    featureBlocks().forEach(b => { const s = FEATURE_SENSES[(b.name||"").toLowerCase()]; if(s) add(s, b.name); });
+    const hi = (typeof hbActiveItems === "function") && hbActiveItems();
+    if(hi){ const aset = attuneSet(), attd = attunedNames();
+      for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
+        const it = hi[nm.toLowerCase()]; if(!it || !Array.isArray(it.senses) || !it.senses.length) continue;
+        if(it.attune && aset.has(nm.toLowerCase()) && !attd.has(nm.toLowerCase())) continue;   // needs attunement but isn't attuned → grants nothing yet
+        it.senses.forEach(s => add(s, nm)); } }
+    return [...by.values()].sort((a,b) => a.text.localeCompare(b.text));
+  }
+  function renderSenseChips(){
+    const chips = senseChips(), box = $("sense-chips");
+    if(box) box.innerHTML = chips.map(c => `<span class="sense-chip" title="${esc([...c.srcs].join(", "))}">${esc(c.text)}</span>`).join("");
+    const t = $("senses"); if(!t) return;                                        // strip any free-text line a chip now covers (de-dup + migrate the old in-box senses)
+    const keys = new Set(chips.map(c => _senseKey(c.text))), texts = new Set(chips.map(c => c.text.trim().toLowerCase()));
+    const kept = t.value.split("\n").filter(line => { const s = line.trim(); if(!s) return false;
+      if(_VISION.test(s) && keys.has(_senseKey(s))) return false; return !texts.has(s.toLowerCase()); });
+    const nv = kept.join("\n"); if(nv !== t.value){ t.value = nv; autoGrow(t); }
   }
   function download(content, filename, mime){
     const blob = new Blob([content], {type:mime});
@@ -12951,21 +12997,31 @@
     const txt = allItemText();
     const hi = (typeof hbActiveItems === "function") && hbActiveItems();
     const lfAset = attuneSet(), lfAttuned = attunedNames();
+    // Item-granted Limited rows are RECONCILED (removed on unequip), so track which rows an item introduced. A label is
+    // "item-owned" if the item introduced it (no row existed when we added it) or it was already item-owned last pass —
+    // that guard keeps us from clobbering an identically-named class/feat row. (Item SENSES now render as chips via
+    // renderSenseChips/senseChips, recomputed live, so they're no longer written into the Senses box here.)
+    const _prevLimOwned = new Set((($("gen-item-limited")||{}).value||"").split("\n").map(s=>s.trim().toLowerCase()).filter(Boolean));
+    const _nowLimOwned = new Set();
+    const _claimLim = (label, max, rec, desc) => { if(!label) return; const existed = lfIndexByName(label) >= 0;
+      addLimitedRow(label, max, rec, desc);
+      if(!existed || _prevLimOwned.has(String(label).toLowerCase())) _nowLimOwned.add(String(label).toLowerCase()); };
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(!cb || !cb.checked || !nm) continue;
       const lc = nm.toLowerCase(), hit = hi && hi[lc];
       const hitLim = hit && Array.isArray(hit.limited) && hit.limited.length;
       const hitSenses = hit && Array.isArray(hit.senses) && hit.senses.length;
-      if(hitLim || hitSenses){                                               // homebrew item granting Limited Features rows and/or Senses lines
+      if(hitLim || hitSenses){                                               // homebrew item granting Limited Features rows (senses → chips, computed separately)
         if(hit.attune && lfAset.has(lc) && !lfAttuned.has(lc)) continue;      // requires attunement but isn't attuned → nothing applies yet
-        if(hitSenses) hit.senses.forEach(s => addSense(s));                   // darkvision/etc. into the Senses box, like race/feat senses
-        if(hitLim){ hit.limited.forEach(L => addLimitedRow(L.label, resolveLimMax(L.max), L.rec, (txt[nm]||"").slice(0,300))); continue; }   // explicit rows win over the text heuristic
+        if(hitLim){ hit.limited.forEach(L => _claimLim(L.label, resolveLimMax(L.max), L.rec, (txt[nm]||"").slice(0,300))); continue; }   // explicit rows win over the text heuristic
       }
       const d = txt[nm]; if(!d) continue;
       const r = limitedFromText(nm, d); if(!r) continue;
       const dc = itemFixedDC(d);                                            // fixedDC: the item's printed save DC, shown in the row name
       if(dc != null){ const bi = lfIndexByName(r.name); if(bi >= 0) clearLfRow(bi); }   // drop a pre-DC bare row migrated from an older save
-      addLimitedRow(dc != null ? `${r.name} (save DC ${dc})` : r.name, r.max, r.rec, d.slice(0,300));
+      _claimLim(dc != null ? `${r.name} (save DC ${dc})` : r.name, r.max, r.rec, d.slice(0,300));
     }
+    _prevLimOwned.forEach(lc => { if(!_nowLimOwned.has(lc)){ const i = lfIndexByName(lc); if(i >= 0) clearLfRow(i); } });   // an item's row is gone → remove it (class/feat rows aren't item-owned, so they're safe)
+    { const g = $("gen-item-limited"); if(g) g.value = [...(_nowLimOwned)].join("\n"); }
   }
   function createCharacter(){
     const name=$("wiz-name").value.trim(), race=$("wiz-race").value, bg=$("wiz-bg").value;
