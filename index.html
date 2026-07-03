@@ -159,7 +159,7 @@
   .charname input:focus{border-bottom-color:var(--accent); outline:none}
   .header-grid{display:flex; align-items:stretch; gap:16px}
   .header-main{flex:1; min-width:0; display:flex; flex-direction:column}
-  .portrait{position:relative; flex:none; width:132px; height:168px; align-self:flex-start;
+  .portrait{position:relative; flex:none; width:132px; min-height:168px; align-self:stretch;
     border:1px solid var(--line2); background:var(--field); cursor:pointer; overflow:hidden;
     display:flex; align-items:center; justify-content:center}
   .portrait.has-img{background:transparent}
@@ -174,8 +174,10 @@
   .portrait-menu button{font:inherit; font-size:11px; font-weight:600; text-align:center; cursor:pointer;
     border:1px solid var(--line2); background:#fff; color:var(--ink); padding:6px 8px}
   .portrait-menu button:hover{background:var(--accent-soft); border-color:var(--accent)}
-  .meta-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px 16px; margin-top:16px}
-  .meta-grid > div:last-child{grid-column:span 2}   /* Experience: give the XP widget a double-wide cell so it doesn't wrap */
+  .meta-grid{display:flex; flex-direction:column; gap:12px; margin-top:16px}
+  .meta-row{display:grid; gap:12px 16px}
+  .meta-row1{grid-template-columns:repeat(3, minmax(0,1fr))}   /* Class & Level · Background · Race */
+  .meta-row2{grid-template-columns:repeat(3, minmax(0,1fr)) minmax(0,1.7fr)}   /* Alignment · Player · Campaign · Experience (wider) */
   .xp-wrap{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
   .xp-wrap > #xp{flex:1; min-width:64px}
   .xp-add{width:74px}
@@ -195,7 +197,7 @@
   /* drag-and-drop a file onto the portrait box to set it */
   .portrait.drag-over{outline:2px dashed var(--accent); outline-offset:-3px; background:var(--accent-soft)}
   @media print{ .btn.xp-levelup{display:none} }
-  @media (max-width:560px){ .meta-grid{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:560px){ .meta-row1, .meta-row2{grid-template-columns:repeat(2,1fr)} }
 
   /* Source-data build pickers */
 
@@ -1249,7 +1251,8 @@
     .portrait{width:110px; height:138px}
     .portrait-menu{display:none !important}
     input::placeholder, textarea::placeholder{color:transparent !important}  /* no hint text on a printed sheet */
-    .meta-grid{gap:3px 8px; margin-top:5px}
+    .meta-grid{gap:3px; margin-top:5px}
+    .meta-row{gap:3px 8px}
     /* Experience → one blank write-in box: drop the Add-XP controls and the "… / 300 XP to 2" status line */
     .xp-wrap{display:block}
     .xp-add,#btn-addxp,.xp-status{display:none !important}
@@ -1416,8 +1419,8 @@
      labels and the values ("Lawful Neut…", "+ gaine"). One column keeps everything readable.
      The Experience cell carries grid-column:span 2 (its double-wide desktop cell); reset it to auto
      here or it forces an implicit second column and the row overflows the one-column grid. */
-  html.mobile .meta-grid{ grid-template-columns:1fr; gap:10px; margin-top:10px; }
-  html.mobile .meta-grid > div:last-child{ grid-column:auto; }
+  html.mobile .meta-grid{ gap:10px; margin-top:10px; }
+  html.mobile .meta-row1, html.mobile .meta-row2{ grid-template-columns:1fr; gap:10px; }
 
   /* --- Stack the big two-column regions --- */
   html.mobile .columns, html.mobile .topblock{ grid-template-columns:1fr; }
@@ -1881,9 +1884,9 @@
       grid-template-areas:"ident" "abilities" "combat"; }
     body.ucs-layout #ucs-topbar > .card{ margin:0; }
     body.ucs-layout #ucs-topbar .ucs-ident{ grid-area:ident; min-width:0; align-self:start; }
-    body.ucs-layout #ucs-topbar .ucs-ident .meta-grid{ grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:10px 14px; margin-top:12px; }
-    body.ucs-layout #ucs-topbar .ucs-ident .meta-grid > div:last-child{ grid-column:span 2; }   /* Experience: double-wide cell for the XP total + Level Up + status */
-    body.ucs-layout #ucs-topbar .ucs-ident .portrait{ width:104px; min-width:104px; flex:0 0 104px; height:132px; }
+    body.ucs-layout #ucs-topbar .ucs-ident .meta-grid{ gap:10px; margin-top:12px; }
+    body.ucs-layout #ucs-topbar .ucs-ident .meta-row{ gap:10px 14px; }
+    body.ucs-layout #ucs-topbar .ucs-ident .portrait{ width:104px; min-width:104px; flex:0 0 104px; min-height:132px; }
     body.ucs-layout #ucs-rail [data-csec="hitdice"] .hd-grid{ grid-template-columns:1fr 1fr; }   /* 4-across is too tight in the 232px rail — wrap to 2×2 */
     body.ucs-layout #ucs-topbar .ucs-ident .xp-add, body.ucs-layout #ucs-topbar .ucs-ident #btn-addxp{ display:none; }   /* keep the +gained / Add XP convenience out of the header; edit the XP total directly */
     body.ucs-layout #ucs-topbar .ucs-ident .xp-status{ font-size:11px; color:var(--muted); }   /* the Level Up button (#btn-levelup) + level/XP status now show in the full-width Experience row */
@@ -2150,14 +2153,18 @@
         <div class="header-main">
           <div class="charname"><input data-save="" id="charname" placeholder="Character name"></div>
           <div class="meta-grid">
-            <div><label class="lbl" for="classlevel">Class &amp; Level</label><input data-save="" id="classlevel"></div>
-            <div><label class="lbl" for="background">Background</label><input data-save="" id="background"></div>
-            <div><label class="lbl" for="race">Race</label><input data-save="" id="race"><input type="hidden" data-save="" id="race-src"></div>
-            <div><label class="lbl" for="alignment">Alignment</label><input data-save="" id="alignment"></div>
-            <div><label class="lbl" for="player">Player</label><input data-save="" id="player"></div>
-            <div><label class="lbl" for="campaign">Campaign</label><input data-save="" id="campaign"></div>
-            <div><label class="lbl">Experience</label>
-              <div class="xp-wrap"><input data-save="" id="xp" inputmode="numeric" title="Total XP"><input id="xp-add" class="xp-add" inputmode="numeric" placeholder="+ gained" title="XP gained — click Add XP to add it to your total"><button class="btn" id="btn-addxp" type="button">Add XP</button><button class="btn xp-levelup" id="btn-levelup" type="button" hidden="">Level Up</button><span class="xp-status" id="xp-status">Level 1 · 0 / 300 XP to 2</span></div>
+            <div class="meta-row meta-row1">
+              <div><label class="lbl" for="classlevel">Class &amp; Level</label><input data-save="" id="classlevel"></div>
+              <div><label class="lbl" for="background">Background</label><input data-save="" id="background"></div>
+              <div><label class="lbl" for="race">Race</label><input data-save="" id="race"><input type="hidden" data-save="" id="race-src"></div>
+            </div>
+            <div class="meta-row meta-row2">
+              <div><label class="lbl" for="alignment">Alignment</label><input data-save="" id="alignment"></div>
+              <div><label class="lbl" for="player">Player</label><input data-save="" id="player"></div>
+              <div><label class="lbl" for="campaign">Campaign</label><input data-save="" id="campaign"></div>
+              <div class="xp-cell"><label class="lbl">Experience</label>
+                <div class="xp-wrap"><input data-save="" id="xp" inputmode="numeric" title="Total XP"><input id="xp-add" class="xp-add" inputmode="numeric" placeholder="+ gained" title="XP gained — click Add XP to add it to your total"><button class="btn" id="btn-addxp" type="button">Add XP</button><button class="btn xp-levelup" id="btn-levelup" type="button" hidden="">Level Up</button><span class="xp-status" id="xp-status">Level 1 · 0 / 300 XP to 2</span></div>
+              </div>
             </div>
           </div>
         </div>
@@ -3061,11 +3068,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v492 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v493 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.107.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.108.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3073,6 +3080,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v493", semver:"2.108.0", items:[
+      "Reorganized the header into two clean rows: Class & Level · Background · Race on top, then Alignment · Player · Campaign · Experience (with the Level Up controls) below. The character portrait now grows taller to fill the freed-up vertical space.",
+    ]},
     {v:"v492", semver:"2.107.3", items:[
       "Fixed the detached \"Can Prepare\" box flickering in and out while scrolling and vanishing the moment you stopped. It now detaches seamlessly and stays put (solid, not see-through) as long as the header is scrolled off the top.",
     ]},
