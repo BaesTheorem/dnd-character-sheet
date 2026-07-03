@@ -1019,10 +1019,10 @@
   .spelltable td.col-dmg{font-size:10px; text-align:center; vertical-align:middle; white-space:nowrap; font-weight:700; color:var(--ink)}   /* auto-computed per-spell damage — emphasized, never wrapped */
   .spelltable th.col-dmg{text-align:center}
   .spelltable td.sc-changed{color:var(--accent); font-weight:700; cursor:help}   /* a feature/invocation changed how this spell is cast (hover for what) */
-  .sp-tag-pre{margin:0}   /* ritual "R" centered in its fixed slot, left of the checkbox */
+  .sp-tag-pre{margin:0; font-size:8px; padding:1px 2px; letter-spacing:0}   /* ritual "R" left of the checkbox — smaller than the inline badge, centered in its slot */
   .conc-tag{display:inline-block; font-size:9px; font-weight:800; line-height:1; padding:2px 4px; border-radius:0;
     background:var(--accent-soft); color:var(--accent); vertical-align:middle; margin-right:3px; letter-spacing:.04em}   /* Concentration */
-  .col-prep .sp-rit-slot{display:inline-block; width:15px; text-align:center; vertical-align:middle}   /* fixed slot reserves space so checkboxes + names stay aligned whether or not the spell is a ritual */
+  .col-prep .sp-rit-slot{display:inline-flex; align-items:center; justify-content:center; width:14px; vertical-align:middle}   /* fixed slot reserves space so checkboxes + names stay aligned whether or not the spell is a ritual; flex-centered so the R lines up with the checkbox */
   .spelltable .col-name[title]{cursor:help}
   .spelltable td.col-name-edit{display:flex; align-items:center; gap:2px}   /* write-in rows: name field + delete ✕ */
   .spelltable .sp-mmeta{display:none}   /* compact "Level 3 Evocation · Cast: 1 action · …" line under the spell name — SHOWN ONLY on mobile, where the property columns are hidden (see the html.mobile spell-table rule) */
@@ -3104,11 +3104,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v498 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v499 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.112.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.112.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3116,6 +3116,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v499", semver:"2.112.1", items:[
+      "The ritual “R” marker beside a spell's prepared checkbox is now a bit smaller and vertically aligned with the checkbox instead of sitting slightly high.",
+    ]},
     {v:"v498", semver:"2.112.0", items:[
       "Wizard spell sheets now keep your Ritual-tagged spellbook spells visible and un-collapsed even when they aren't prepared, since you can cast them as rituals straight from your spellbook. Non-ritual unprepared spells still tuck behind the per-level “Show N not prepared” toggle.",
     ]},
