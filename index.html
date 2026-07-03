@@ -1688,9 +1688,13 @@
   .cl-slot.k-check input:checked{ background:#1a1a1a !important; }
   .cl-slot > *:focus{ background:rgba(60,90,160,.18) !important; }
   .cl-slot.k-toggle > *{ cursor:pointer; font-size:18px; justify-content:center; }
-  /* Portrait slot (page 2 "Character Appearance"): shows the uploaded portrait, click to upload/replace. */
-  .cl-slot.k-portrait > *{ cursor:pointer; background-size:contain; background-position:center; background-repeat:no-repeat; display:flex; align-items:center; justify-content:center; }
+  /* Portrait slot (page 2 "Character Appearance"): shows the uploaded portrait, click to upload/replace. The portrait
+     is a real <img> (NOT a CSS background) because the base `.cl-slot > *{background:transparent !important}` rule
+     overrides any inline background-image — an <img> also renders large portraits far better than a data-URI bg. */
+  .cl-slot.k-portrait > *{ cursor:pointer; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   body.classic-layout .cl-slot.k-portrait > *{ background-color:rgba(64,120,220,.10) !important; }
+  .cl-slot.k-portrait .cl-port-img{ max-width:100%; max-height:100%; width:100%; height:100%; object-fit:contain; }
+  .cl-slot.k-portrait .cl-port-img[hidden]{ display:none; }
   .cl-slot.k-portrait .cl-port-hint{ font-size:11px; color:#6b6252; text-align:center; pointer-events:none; padding:4px; }
   .cl-slot.k-portrait.has-img .cl-port-hint{ display:none; }
   /* Classic-ONLY page order: the official sheet is page 1 Core, page 2 Background, page 3 Spells, but the app's DOM
@@ -3051,11 +3055,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v508 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v509 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.115.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.115.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3063,6 +3067,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v509", semver:"2.115.3", items:[
+      "Classic theme: the character portrait now actually appears in the page-2 \"Character Appearance\" box. It was being drawn as a background image, which the sheet's own styling was silently blanking out, so the box always looked empty even when a portrait was loaded. It's now a proper image element that shows on screen and prints.",
+    ]},
     {v:"v508", semver:"2.115.2", items:[
       "Classic theme: extra safety net so an existing character's portrait always shows in the Character Appearance box — the Classic overlay now re-syncs whenever you switch pages, so navigating to the Background tab guarantees the portrait (and every value) is up to date.",
     ]},
@@ -14918,7 +14925,7 @@
         if(f.kind==='calc'){ el=document.createElement('span'); el.style.fontSize=fs+'px'; el.dataset.basefs=fs; el.dataset.availw=px(w)-5; }
         else if(f.kind==='check'){ el=document.createElement('input'); el.type='checkbox'; }
         else if(f.kind==='portrait'){ el=document.createElement('div'); el.className='cl-port';
-          el.innerHTML='<span class="cl-port-hint">Character portrait<br>(click to upload)</span>'; }
+          el.innerHTML='<img class="cl-port-img" alt="portrait" hidden><span class="cl-port-hint">Character portrait<br>(click to upload)</span>'; }
         else if(f.kind==='area'){
           el=document.createElement('textarea'); el.style.fontSize='10px';
           if(custom){ el.id='classic-'+f.id.replace(/_/g,''); el.setAttribute('data-save',''); }
@@ -14978,10 +14985,11 @@
         var el=slot.firstChild; if(!el) return;
         var kind=(slot.className.match(/k-(\w+)/)||[])[1];
         if(kind==='toggle'){ var ins=document.getElementById('insp-mark'); if(ins){ var v=(ins.textContent||'').trim(); el.textContent=v||'○'; } return; }
-        if(kind==='portrait'){   // mirror the app's uploaded portrait image
-          var pimg=document.getElementById('portrait-img');
+        if(kind==='portrait'){   // mirror the app's uploaded portrait image into a real <img> (a CSS bg is killed by
+          var pimg=document.getElementById('portrait-img');   // .cl-slot > *{background:transparent !important})
           var src=(pimg && !pimg.hidden) ? (pimg.getAttribute('src')||'') : '';
-          el.style.backgroundImage = src ? "url('"+src+"')" : '';
+          var im=el.querySelector('.cl-port-img');
+          if(im){ if(src){ if(im.getAttribute('src')!==src) im.src=src; im.hidden=false; } else { im.removeAttribute('src'); im.hidden=true; } }
           slot.classList.toggle('has-img', !!src);
           return;
         }
