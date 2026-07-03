@@ -3,9 +3,12 @@ name: Deploy to Pages (with deploy retry)
 # Replaces the legacy "Deploy from a branch" pipeline. Publishes the repo
 # root as-is (no Jekyll, no build step). The deploy step is retried because
 # GitHub's Pages deploy backend intermittently hard-fails with
-# "Deployment failed, try again later." on the first attempt and succeeds on
-# a retry. Without this, that flake sends a red email and can leave the live
-# site one commit stale.
+# "Deployment failed, try again later." Observed behavior: it fails in bad
+# windows lasting ~1-3 minutes where every deployment is rejected, then
+# recovers. So the retries are spaced MINUTES apart (attempts at 0, +90s,
+# +240s) to land after recovery rather than piling into the same bad window.
+# Without this, that flake sends a red email and can leave the live site one
+# commit stale.
 
 on:
   push:
@@ -45,9 +48,11 @@ jobs:
         uses: actions/deploy-pages@v4
         continue-on-error: true
 
+      # Spacing matters more than count: the backend fails in ~1-3 min windows,
+      # so retries must be minutes apart to land after it recovers, not seconds.
       - name: Wait before retry
         if: steps.try1.outcome == 'failure'
-        run: sleep 20
+        run: sleep 90
 
       - name: Deploy attempt 2
         id: try2
@@ -57,7 +62,7 @@ jobs:
 
       - name: Wait before final attempt
         if: steps.try1.outcome == 'failure' && steps.try2.outcome == 'failure'
-        run: sleep 30
+        run: sleep 150
 
       # No continue-on-error: if this one fails, the run legitimately fails
       # (three backend rejections in a row is worth an email).
