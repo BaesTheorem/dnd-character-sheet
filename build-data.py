@@ -82,7 +82,29 @@ def render_prof_list(lst):
 def load(*parts):
     return json.load(open(os.path.join(SRC, *parts)))
 def is_src(x): return x.get("source") == SRC_TAG       # belongs to the book we're extracting
-def is_2024(x): return (x.get("edition") or "").lower() == "one"   # XPHB / 2024 entry — out of scope for this 2014-rules sheet
+# Known 2024 ("One D&D") source codes (mirror index.html's RULESET_2024). Belt-and-suspenders next to the date rule.
+_R2024 = {"XPHB", "XDMG", "XMM", "XSCREEN", "XSAC", "ABH", "FRAIF", "FRHOF", "NF", "LFL", "EFA"}
+_pub_cache = None
+def _published(code):                                  # 5eTools publish date for a source code, from books.json + adventures.json
+    global _pub_cache
+    if _pub_cache is None:
+        _pub_cache = {}
+        for fn in ("books.json", "adventures.json"):
+            try: data = load(fn)
+            except Exception: continue
+            for b in data.get("book", []) + data.get("adventure", []):
+                c = b.get("id") or b.get("source")
+                if c: _pub_cache[c] = b.get("published", "")
+    return _pub_cache.get(code, "") or _pub_cache.get((code or "").upper(), "")
+def is_2024(x):                                        # XPHB/XDMG/2024 entry — out of scope for this 2014-rules sheet
+    # NOTE: 5eTools leaves `edition` UNSET on many 2024 reprints (e.g. XDMG's "Bag of Tricks"), so the old edition-only
+    # check silently missed them and their 2024 text overwrote the 2014 version on a name collision. Also key on the
+    # source code + publish date (the 2024 PHB launch), mirroring index.html's isBook2024, so the guard actually fires.
+    ed = (x.get("edition") or "").lower()
+    if ed: return ed == "one" or "2024" in ed
+    src = x.get("source") or ""
+    if src.upper() in _R2024: return True
+    return _published(src) >= "2024-09-01"
 def book_name(code):                                   # friendly title for _meta.book
     if code in BOOK_NAMES: return BOOK_NAMES[code]
     try:
@@ -863,6 +885,7 @@ def build_ac_items():
     try: items = load("items.json").get("item", [])
     except Exception: return out
     for it in items:
+        if is_2024(it): continue                       # skip 2024 reprints/originals — this is a 2014-rules sheet
         b = it.get("bonusAc")
         if not b: continue
         if (it.get("type") or "").split("|")[0] in ("LA", "MA", "HA"): continue   # body armor → Armor dropdown
@@ -1025,6 +1048,7 @@ def build_item_spells(items_base, items):   # magic items that let you cast a sp
 def build_magic_weapons(items):   # named magic weapons → {name_lc: {base, bonus, rider}} so an equipped one becomes an Attacks row
     out = {}
     for it in items.get("item", []):
+        if is_2024(it): continue                       # skip 2024 reprints/originals — this is a 2014-rules sheet
         nm, bi = it.get("name"), it.get("baseItem")
         if not nm or not bi or it.get("type") not in ("M", "R"): continue
         m = re.search(r'\+(\d+)', str(it.get("bonusWeapon") or "")); bonus = int(m.group(1)) if m else 0
