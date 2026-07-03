@@ -406,6 +406,8 @@
   .def-chip svg{display:block; flex:0 0 auto}
   .def-chip-adv,.def-chip-res,.def-chip-imm{border-color:#2e9e4f}
   .def-chip-dis{border-color:#c0392b}
+  .def-chip-rm{border:none; background:none; color:var(--muted); font:inherit; font-size:13px; line-height:1; padding:0; margin-left:1px; cursor:pointer}
+  .def-chip-rm:hover{color:#c0392b}
   .cond-open{font:inherit; font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     border:1px solid var(--line); border-radius:7px; background:var(--card); color:var(--ink); padding:6px 10px; cursor:pointer; align-self:flex-start}
   .cond-open:hover{border-color:var(--accent)}
@@ -2460,7 +2462,8 @@
               <div class="combat-sub defenses-sub" data-csec="defenses">
                 <h3>Defenses</h3>
                 <div class="def-chips" id="def-chips"></div>
-                <textarea data-save="" id="defnotes" placeholder="Notes — auto defenses (resistances, immunities, item effects) show as chips above" style="height: 120px;"></textarea><div class="ta-print"></div>
+                <textarea data-save="" id="defnotes" placeholder="Notes — auto defenses (resistances, immunities, item effects) show as chips above; type e.g. &quot;Resistance: fire&quot; and it becomes a chip too" style="height: 120px;"></textarea><div class="ta-print"></div>
+                <textarea data-save="" id="defmanual" style="display:none"></textarea>
               </div>
               <div class="combat-sub conditions-sub">
                 <h3>Conditions</h3>
@@ -3087,11 +3090,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v527 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v528 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.125.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.126.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3099,7 +3102,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
-    {v:"v527", semver:"2.125.0", semver:"", items:[
+    {v:"v528", semver:"2.126.0", items:[
+      "Defenses you type into the notes box now become badges too — type a line like \"Resistance: fire\", \"Immune: charmed\", or \"Adv. on saves vs. spells\" and click away, and it turns into the matching chip. A small ✕ on your own chips removes them.",
+    ]},
+    {v:"v527", semver:"2.125.0", items:[
       "Resistance and Immunity defense chips now show a green shield badge (R / I) instead of the word, matching the advantage/disadvantage die icons.",
       "Fixed a duplicated race resistance (e.g. a Dwarf showing \"Poison, Poison\") — some subraces baked the parent's resistance twice; it's now deduped at load.",
     ]},
@@ -4095,11 +4101,11 @@
     return s.toLowerCase().replace(/\s+/g, " ");
   }
   function defenseChips(){
-    const by = new Map();   // key = normalized line → {kind, text, raw, srcs:Set}
-    const add = (line, src) => { line = String(line||"").trim(); if(!line) return;
+    const by = new Map();   // key = normalized line → {kind, text, raw, srcs:Set, hasDerived, hasManual}
+    const add = (line, src, isManual) => { line = String(line||"").trim(); if(!line) return;
       const p = _defParse(line), k = _defNorm(p.raw), ex = by.get(k);
-      if(ex){ ex.srcs.add(src); return; }
-      by.set(k, {kind:p.kind, text:p.text, raw:p.raw, srcs:new Set([src])}); };
+      if(ex){ ex.srcs.add(src); if(isManual) ex.hasManual = true; else ex.hasDerived = true; return; }
+      by.set(k, {kind:p.kind, text:p.text, raw:p.raw, srcs:new Set([src]), hasDerived:!isManual, hasManual:!!isManual}); };
     const rn = ($("race").value||"").trim(), ro = rn && DATA && DATA.races && findBy(DATA.races, rn);
     if(ro){                                                                     // race damage resistances (chosen draconic ancestry wins) + save/adv traits
       const anc = (typeof breathAncestry === "function") && breathAncestry();
@@ -4117,15 +4123,36 @@
       if(txt[nm]) scanDefenses(txt[nm]).forEach(l => add(l, nm));
       if(DEF_ITEM_SPECIAL[lc]) add(DEF_ITEM_SPECIAL[lc], nm);
     }
+    const man = $("defmanual");   // free-form defenses the player typed into the notes box, promoted to chips (persisted here, keyed lc)
+    if(man) man.value.split("\n").forEach(l => { if(l.trim()) add(l, "You", true); });
     return [...by.values()].sort((a,b) => a.raw.localeCompare(b.raw));
+  }
+  function promoteDefNotes(){   // move any recognized defense line the player typed into #defnotes into the persisted manual store (so it renders as a badge); skip lines a DERIVED source already covers (those strip separately). Called on blur, not per-keystroke, so it never yanks a line mid-type.
+    const box = $("defnotes"), man = $("defmanual"); if(!box || !man) return false;
+    const derived = new Set(defenseChips().filter(c => c.hasDerived).map(c => _defNorm(c.raw)));
+    const keep = [], moved = [];
+    box.value.split("\n").forEach(line => { const s = line.trim();
+      if(s && _defParse(s).kind && !derived.has(_defNorm(s))) moved.push(s); else keep.push(line); });
+    if(!moved.length) return false;
+    const cur = man.value.split("\n").map(x => x.trim()).filter(Boolean), seen = new Set(cur.map(_defNorm));
+    moved.forEach(s => { const n = _defNorm(s); if(!seen.has(n)){ cur.push(s); seen.add(n); } });
+    man.value = cur.join("\n"); box.value = keep.join("\n"); autoGrow(box);
+    return true;
+  }
+  function removeManualDef(norm){   // drop a player-typed defense badge (its ✕) from the manual store
+    const man = $("defmanual"); if(!man) return;
+    man.value = man.value.split("\n").filter(l => l.trim() && _defNorm(l) !== norm).join("\n");
+    compute(); save();
   }
   function renderDefenseChips(){
     const chips = defenseChips(), box = $("def-chips");
     if(box) box.innerHTML = chips.map(c => {
-      const ic = _defIcon(c.kind), cls = "def-chip" + (c.kind ? " def-chip-" + c.kind : "");
+      const ic = _defIcon(c.kind), rm = (c.hasManual && !c.hasDerived);   // player-typed → give it a ✕; source-derived chips are controlled by their source
+      const cls = "def-chip" + (c.kind ? " def-chip-" + c.kind : "") + (rm ? " def-chip-manual" : "");
       const lab = ({adv:"Advantage", dis:"Disadvantage", res:"Resistance", imm:"Immunity"})[c.kind] || "";
       const title = (lab ? lab + (c.srcs.size ? " — " : "") : "") + [...c.srcs].join(", ");
-      return `<span class="${cls}" title="${esc(title)}">${ic}<span>${esc(c.text)}</span></span>`;
+      const x = rm ? `<button type="button" class="def-chip-rm noprint" data-def="${esc(_defNorm(c.raw))}" title="Remove">×</button>` : "";
+      return `<span class="${cls}" title="${esc(title)}">${ic}<span>${esc(c.text)}</span>${x}</span>`;
     }).join("");
     const t = $("defnotes"); if(!t) return;                                     // strip any box line a chip now covers (de-dup + migrate the old in-box defenses)
     const raws = new Set(chips.map(c => _defNorm(c.raw)));
@@ -9430,6 +9457,7 @@
     applyDarkSetting();
     compute();
     if(migrateStaleToolProse()) save();   // repair pre-2.122.1 garbled class tool-prof text, then persist the cleanup
+    if(promoteDefNotes()) save();   // promote any player-typed defense lines already in the notes box into badges (migrates existing characters)
   }
   let saveTimer = null;
   function flashStatus(msg){
@@ -14216,6 +14244,8 @@
     $("btn-reload-all").addEventListener("click", ()=> reloadAllBooks(false));
     ["attune-0","attune-1","attune-2"].forEach(id => { const el = $(id); if(el) el.addEventListener("change", () => { if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }); });   // attuning/un-attuning an Ancestral Weapon shows/hides its tab + refreshes its sheet
     if(typeof setupPreviewCards==="function") setupPreviewCards();   // hover/tap full-card previews (homebrew + sourcebook) on Studio lists + inventory/spell name fields
+    { const dn = $("defnotes"); if(dn) dn.addEventListener("blur", () => { const moved = promoteDefNotes(); compute(); if(moved) save(); }); }   // typed defense lines (Resistance:/Immunity:/Adv. on…) become badges when you click away (compute also runs the derived-line strip)
+    { const dc = $("def-chips"); if(dc) dc.addEventListener("click", e => { const x = e.target.closest(".def-chip-rm"); if(x) removeManualDef(x.dataset.def); }); }   // ✕ on a player-typed badge removes it
     $("loaded-books").addEventListener("change", e => { const a = e.target.closest(".aw-module-toggle"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
     $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
