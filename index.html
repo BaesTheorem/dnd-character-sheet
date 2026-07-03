@@ -187,6 +187,9 @@
   .pe-sub{font-size:9px; color:var(--muted)}
   .portrait-menu{display:none; position:absolute; left:6px; right:6px; bottom:6px; flex-direction:column; gap:3px; z-index:6}
   .portrait.menu-open .portrait-menu{display:flex}
+  /* Reveal the Replace/Download/Remove menu on HOVER too (desktop pointers), not just click, so it's discoverable.
+     Only when a portrait exists, and only on hover-capable devices (touch keeps the click-to-toggle behaviour). */
+  @media (hover:hover){ .portrait.has-img:hover .portrait-menu{display:flex} }
   .portrait-menu button{font:inherit; font-size:11px; font-weight:600; text-align:center; cursor:pointer;
     border:1px solid var(--line2); background:var(--card); color:var(--ink); padding:6px 8px}   /* var(--card), not #fff, so the buttons go dark (with readable ink) in dark mode instead of white-on-washed-out */
   .portrait-menu button:hover{background:var(--accent-soft); border-color:var(--accent)}
@@ -1700,6 +1703,7 @@
   /* Replace / Download / Remove menu — same as the UCS portrait box, shown when a portrait is present and the box is clicked. */
   .cl-slot.k-portrait .cl-port-menu{ display:none; position:absolute; left:6px; right:6px; bottom:6px; flex-direction:column; gap:3px; z-index:6; }
   .cl-slot.k-portrait .cl-port.menu-open .cl-port-menu{ display:flex; }
+  @media (hover:hover){ .cl-slot.k-portrait.has-img .cl-port:hover .cl-port-menu{ display:flex; } }   /* reveal on hover (desktop), matching the UCS portrait box */
   .cl-slot.k-portrait .cl-port-menu button{ font:inherit; font-size:11px; font-weight:600; text-align:center; cursor:pointer; border:1px solid var(--line2); background:var(--card); color:var(--ink); padding:6px 8px; }
   .cl-slot.k-portrait .cl-port-menu button:hover{ background:var(--accent-soft); border-color:var(--accent); }
   /* Classic-ONLY page order: the official sheet is page 1 Core, page 2 Background, page 3 Spells, but the app's DOM
@@ -3060,11 +3064,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v511 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v512 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.116.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.116.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3072,6 +3076,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v512", semver:"2.116.2", items:[
+      "The portrait's Replace / Download / Remove menu now appears when you HOVER the portrait (on desktop), not only when you click it — in both the Universal and Classic themes. Clicking still pins it open, and touch devices keep the tap-to-open behaviour.",
+    ]},
     {v:"v511", semver:"2.116.1", items:[
       "Classic theme: shrank the portrait a bit more so it sits fully inside the \"Character Appearance\" box with an even margin, no longer touching the border or crowding the label at the bottom.",
     ]},
