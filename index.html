@@ -1633,150 +1633,24 @@
   @keyframes search-flash{0%,55%{background:var(--accent-soft)} 100%{background:transparent}}
   .flash-hit{animation:search-flash 1.3s ease-out}
 
+
   /* ============================================================================
-     Theme: "Classic" — a faithful re-skin in the visual language of the official
-     Wizards of the Coast 2014 character sheet: ivory paper, black double-line
-     ruled frames, condensed all-caps labels, a serif wordmark. Layout is kept;
-     only the look/feel is restyled. Light + dark palettes so the universal Dark
-     Mode toggle composes on top. Print keeps the light look (handled globally).
-     All selectors gated under body[data-theme="classic"]. The signature double
-     rule = element border + an inset ::after border (no inline SVG, which breaks
-     <style> parsing — every other SVG in this file is base64 for that reason).
+     Theme: "Classic" — the official WotC sheet, PDF-faithful pages ONLY.
+     The old CSS re-skin (ivory paper / serif restyle of the app chrome) was torn
+     out (2.114.0): Classic now shows just the three canonical pages via the PDF
+     overlay engine below (body.classic-layout) + the Mini tab, with plain default
+     chrome. Dark mode is disabled on this theme (applyDarkSetting is classic-aware).
      ============================================================================ */
-  body[data-theme="classic"]{
-    --bg:#e4dac1;            /* desk / margin */
-    --card:#fbf7ea;          /* sheet paper (warm ivory) */
-    --ink:#1c1712;           /* ink black */
-    --muted:#6e6450;         /* faded ink for sublabels */
-    --line:#cdbf9f;          /* hairline separators on paper */
-    --line2:#1c1712;         /* strong ink rule */
-    --accent:#1c1712;        /* the official sheet is monochrome ink — values read as black */
-    --accent-soft:#efe7d2;   /* soft fill behind value boxes */
-    --field:#fffdf5;         /* fillable boxes, a touch brighter than the page */
-    --radius:11px;
-    --shadow:none;
-    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif;
-  }
-  body[data-theme="classic"].dark{
-    --bg:#15110c;
-    --card:#221c13;
-    --ink:#ece0c4;
-    --muted:#a4926e;
-    --line:#4a3f2b;
-    --line2:#cdab68;         /* aged gold rule */
-    --accent:#ece0c4;
-    --accent-soft:#2c2417;
-    --field:#1b160e;
-  }
-
-  /* ---- Page + paper + the double-rule frame ---- */
-  body[data-theme="classic"]{ background:var(--bg); }
-  body[data-theme="classic"] .card{
-    position:relative; background:var(--card); background-clip:padding-box;
-    border:2px solid var(--line2); border-radius:var(--radius);
-    box-shadow:none; padding:9px 16px 13px;
-  }
-  body[data-theme="classic"] .card::after{
-    content:""; position:absolute; inset:3px; pointer-events:none;
-    border:1px solid var(--line2); border-radius:calc(var(--radius) - 4px);
-  }
-  /* nested boxes (top-block cards, stat tiles, chips, asi slots): single rule only */
-  body[data-theme="classic"] .topblock-left .card,
-  body[data-theme="classic"] .asi-slot,
-  body[data-theme="classic"] .stat,
-  body[data-theme="classic"] .chip{ border:1.5px solid var(--line2); border-radius:9px; box-shadow:none; }
-  body[data-theme="classic"] .topblock-left .card::after{ display:none; }
-
-  /* ---- Section headers: centered, spaced, ink caps with a hairline beneath ---- */
-  body[data-theme="classic"] .card > h2,
-  body[data-theme="classic"] .atk-top h2{
-    color:var(--ink); text-align:center; font-weight:700;
-    font-size:12px; letter-spacing:.16em; margin:2px 0 10px;
-    padding-bottom:5px; border-bottom:1px solid var(--line2);
-  }
-
-  /* ---- Header / banner ---- */
-  body[data-theme="classic"] .charname input{
-    font-family:var(--serif); font-size:27px; font-weight:700; letter-spacing:.01em;
-    color:var(--ink); border-bottom:2px solid var(--line2);
-  }
-  body[data-theme="classic"] label.lbl,
-  body[data-theme="classic"] .stat .k,
-  body[data-theme="classic"] .chip .k,
-  body[data-theme="classic"] .passive .k,
-  body[data-theme="classic"] .ability .name,
-  body[data-theme="classic"] .ability-head .col{ letter-spacing:.12em; color:var(--muted); }
-
-  /* ---- Value boxes: ability score (rounded square) + modifier (ink circle) ---- */
-  body[data-theme="classic"] .score-out{
-    background:var(--field) !important; border:1.5px solid var(--line2) !important; border-radius:7px; color:var(--ink);
-  }
-  /* modifier / save / skill totals read as the official inked circles (beat the flat-theme !important rule) */
-  body[data-theme="classic"] .ability .mod,
-  body[data-theme="classic"] .row .total{
-    background:var(--field) !important; color:var(--ink);
-    border:1.5px solid var(--line2) !important; border-radius:50% !important;
-  }
-  body[data-theme="classic"] .passive .v{
-    background:var(--field) !important; color:var(--ink);
-    border:2px solid var(--line2) !important; border-radius:50% !important;
-  }
-
-  /* ---- Saves / skills ---- */
-  body[data-theme="classic"] .marks label{ color:var(--muted); }
-  body[data-theme="classic"] input[type=checkbox],
-  body[data-theme="classic"] input[type=radio]{ accent-color:var(--line2); }
-  body[data-theme="classic"] .row .rname,
-  body[data-theme="classic"] .ability .name{ font-weight:700; }
-
-  /* ---- Combat stat boxes ---- */
-  body[data-theme="classic"] .stat .calc,
-  body[data-theme="classic"] .stat input,
-  body[data-theme="classic"] .chip .v{ color:var(--ink); }
-  body[data-theme="classic"] .stat.on,
-  body[data-theme="classic"] .chip.on{ background:var(--line2); border-color:var(--line2); }
-  body[data-theme="classic"] .stat.on .k,
-  body[data-theme="classic"] .stat.on .calc,
-  body[data-theme="classic"] .chip.on .v,
-  body[data-theme="classic"] .chip.on .k{ color:var(--card); }
-  /* Armor Class — the official's heater-shield silhouette */
-  body[data-theme="classic"] .combat-top:not(.hd-grid) .stat:first-child{
-    border-radius:8px 8px 48% 48%/8px 8px 42% 42% !important;
-  }
-
-  /* ---- Inputs / textareas as fillable ruled boxes ---- */
-  body[data-theme="classic"] input,
-  body[data-theme="classic"] select,
-  body[data-theme="classic"] textarea{
-    background:var(--field); border:1px solid var(--line); border-radius:4px; color:var(--ink);
-  }
-  body[data-theme="classic"] textarea{ line-height:1.7; }
-
-  /* ---- Tabs + toolbar ---- */
-  body[data-theme="classic"] .toolbar{ background:var(--card); border-bottom:1px solid var(--line2); }
-  body[data-theme="classic"] .toolbar .brand span{ font-family:var(--serif); }   /* tabs keep one font — don't switch the active tab to serif (jarring on click) */
-  body[data-theme="classic"] .ptab{ border-color:var(--line2); }
-  body[data-theme="classic"] .ptab.active{ background:var(--card); color:var(--ink); border-bottom-color:var(--card); }
-
-  /* ---- Buttons read like pressed ink ---- */
-  body[data-theme="classic"] .btn:not(.xp-levelup){ border-color:var(--line2); background:var(--card); color:var(--ink); }   /* keep the gold Level Up button */
-  body[data-theme="classic"] .btn.primary{ background:var(--line2); color:var(--card); border-color:var(--line2); }
-  body[data-theme="classic"] .btn:not(.primary):hover{ background:var(--accent-soft); }
-
-  /* ---- Tables (attacks / limited features / hit dice) ---- */
-  body[data-theme="classic"] table th{
-    color:var(--muted); letter-spacing:.1em; text-transform:uppercase; font-size:9px;
-    border-bottom:1px solid var(--line2);
-  }
-  body[data-theme="classic"] table td{ border-color:var(--line); }
-
   /* ============================================================================
      Classic LAYOUT — pixel-faithful rebuild of the official WotC 2014 sheet.
      The real sheet art (from the fillable PDF) is the page background; the app's
      live, automated fields are positioned over it at the PDF's own field rects
      and kept in step by a sync layer (CLASSIC_PAGES / classic engine below).
-     Pages 1–2 done. Active only under body.classic-layout. Dark mode swaps to
-     inverted art + light ink. Universal theme is untouched.
+     Active only under body.classic-layout. Light only — dark mode is disabled on
+     this theme (applyDarkSetting never sets body.dark when the theme is Classic),
+     so the old .classic-layout.dark inverted-art rules were removed. Only the three
+     canonical pages (core / bg / spells) render here; every other tab except Mini
+     is hidden in Classic (applyLayout). Universal theme is untouched.
      ============================================================================ */
   .cl-canvas-wrap{ display:none; width:100%; overflow:hidden; justify-content:center; }
   body.classic-layout #page-core > *:not(.cl-canvas-wrap),
@@ -1788,7 +1662,6 @@
     background-size:100% 100%; background-repeat:no-repeat; background-color:#fff;
     transform-origin:top center;
   }
-  body.classic-layout.dark .cl-page{ background-color:#14110b; }
   .cl-slot{ position:absolute; box-sizing:border-box; overflow:hidden; }
   .cl-slot > *{
     width:100%; height:100%; margin:0; box-sizing:border-box;
@@ -1797,7 +1670,6 @@
     font-family:Helvetica,"Helvetica Neue",Arial,sans-serif; color:#1a1a1a; font-weight:600;
     -webkit-appearance:none; appearance:none;
   }
-  body.classic-layout.dark .cl-slot > *{ color:#f1e7cf; }
   .cl-slot input, .cl-slot span{ display:flex; align-items:center; line-height:1; }
   .cl-slot.al-center > *{ justify-content:center; text-align:center; }
   .cl-slot.al-left > *{ justify-content:flex-start; text-align:left; }
@@ -1808,8 +1680,6 @@
   .cl-slot.k-check input{ width:78%; height:78%; cursor:pointer; border-radius:50% !important;
     border:1.4px solid #1a1a1a !important; }
   .cl-slot.k-check input:checked{ background:#1a1a1a !important; }
-  body.classic-layout.dark .cl-slot.k-check input{ border-color:#f1e7cf !important; }
-  body.classic-layout.dark .cl-slot.k-check input:checked{ background:#f1e7cf !important; }
   .cl-slot > *:focus{ background:rgba(60,90,160,.12) !important; }
   .cl-slot.k-toggle > *{ cursor:pointer; font-size:18px; justify-content:center; }
   @media print{
@@ -2975,7 +2845,7 @@
             </div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Appearance</label>
             <label class="lay-row"><input type="checkbox" id="set-dark"> Dark mode</label>
-            <p class="wiz-hint">A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.</p>
+            <p class="wiz-hint" id="dark-hint">A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.</p>
             <label class="lay-row"><input type="checkbox" id="set-noanim"> Disable animations</label>
             <p class="wiz-hint">Turns off all motion (like the shimmer on the level-up button) for a calmer, distraction-free sheet during play. This applies across all of your characters.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
@@ -3132,11 +3002,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v502 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v503 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.113.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.114.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3144,6 +3014,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v503", semver:"2.114.0", items:[
+      "Classic theme is now a clean, faithful three-page sheet. It shows only the three canonical Wizards of the Coast pages (Core, Background, Spells) plus the printable Mini tab — every other tab (Inventory, Features, Companions, Ancestral Weapons, Backstory, Notes) is hidden on this theme. All the automation still runs underneath. The old custom “ivory paper” restyling of the app chrome was removed, and dark mode is disabled on Classic (it's a light-only printed sheet — the Dark mode toggle greys out while Classic is selected).",
+    ]},
     {v:"v502", semver:"2.113.2", items:[
       "Attacks table: weapon names are left-aligned again instead of centered. (Adding the drag handle had shifted the “center” styling off the Bonus column and onto the Name column.) The Bonus column stays centered; Name and Damage/Type are left-aligned.",
     ]},
@@ -4664,7 +4537,20 @@
   let noAnimations = prefBool(NOANIM_KEY);       // Settings → Appearance: disable all animations/transitions (global)
   function applyAnimSetting(){ document.body.classList.toggle("no-animations", noAnimations); }
   let darkMode = prefBool(DARK_KEY);             // Settings → Appearance: dark theme (global)
-  function applyDarkSetting(){ document.body.classList.toggle("dark", darkMode); }
+  // Dark mode is disabled on the Classic theme (it's a light-only faithful sheet). Read the theme off the body
+  // dataset (set by applyThemeSetting) rather than the `theme` let — this runs once at load BEFORE `theme` is
+  // initialized, and touching a `let` in its TDZ throws. dataset.theme is "" that early → treated as not-Classic.
+  function applyDarkSetting(){ document.body.classList.toggle("dark", darkMode && document.body.dataset.theme !== "classic"); }
+  // Grey out the Dark-mode toggle in Settings while the Classic theme is active (dark is unavailable there).
+  function refreshDarkAvail(){
+    const cb = $("set-dark"); if(!cb) return;
+    const classic = (theme === "classic");
+    cb.disabled = classic;
+    const row = cb.closest(".lay-row"); if(row) row.style.opacity = classic ? ".5" : "";
+    const hint = $("dark-hint"); if(hint) hint.textContent = classic
+      ? "The Classic theme is the faithful printed sheet, so it's light only — dark mode is turned off while it's selected."
+      : "A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.";
+  }
   applyDarkSetting(); applyAnimSetting();        // apply the global prefs right away (independent of which character loads)
   // The sheet-wide appearance prefs (dark / disable-animations) ride with a saved or imported file so it keeps
   // its look. Applying them updates the global localStorage prefs + the body classes + the Settings checkboxes.
@@ -6093,8 +5979,13 @@
     const hasPortrait = !!(portraitData && portraitData.data) || (companions||[]).some(c => c.portrait);
     const hasCompanion = (companions||[]).length > 0;
     const hasAw = awEnabled && (typeof awInvItems === "function") && awInvItems().length > 0;   // the AW tab/sheet shows only when an Ancestral Weapon is actually IN THE INVENTORY (awSaveBuild auto-adds new ones; a built-but-not-carried AW lives in the Homebrew Studio, not on the sheet). Mechanics still gate on attunement; each card shows its own attuned-vs-mundane state.
+    // Classic theme = the three canonical WotC pages (core / bg / spells) + Mini ONLY. Every other tab is hidden
+    // there (the automation still runs off the underlying fields — this only removes the extra editing tabs).
+    const classicMode = (theme === "classic");
+    const CANON_CLASSIC = ["core", "bg", "spells", "mini"];
     PAGES.forEach(([key]) => {
-      const userHidden = !!hiddenPages[key];
+      const classicHidden = classicMode && CANON_CLASSIC.indexOf(key) < 0;
+      const userHidden = !!hiddenPages[key] || classicHidden;
       const excluded = userHidden || (key === "mini" && !hasPortrait) || (key === "companion" && !hasCompanion) || (key === "aw" && !hasAw);
       const tab = document.querySelector('.ptab[data-page="'+key+'"]');
       const hideTab = userHidden || (key === "aw" && excluded);   // the AW tab HIDES entirely when no Ancestral Weapon is carried (you build one via the Homebrew Studio, which auto-adds it to inventory) — Companions/Mini instead stay muted-but-clickable as their discovery path
@@ -6102,10 +5993,10 @@
       const page = $("page-"+key);
       if(page) page.classList.toggle("excluded", excluded);
     });
-    for(let i=1;i<spellSheets;i++){            // each extra spell sheet prints only when it holds something
+    for(let i=1;i<spellSheets;i++){            // each extra spell sheet prints only when it holds something (never in Classic — only the one canonical Spells page)
       const used = spellSheetUsed(i), pg = $("page-"+sx(i,'spells')), tab = document.querySelector('.ptab[data-page="'+sx(i,'spells')+'"]');
-      if(pg) pg.classList.toggle("excluded", !used);
-      if(tab) tab.classList.toggle("muted", !used);
+      if(pg) pg.classList.toggle("excluded", classicMode || !used);
+      if(tab){ tab.style.display = classicMode ? "none" : ""; tab.classList.toggle("muted", !classicMode && !used); }
     }
     if(typeof window._ucsTabsSync === "function") window._ucsTabsSync();   // mirror the result into the UCS tab bar
     const active = document.querySelector(".page.active");          // active page hidden → jump to first visible
@@ -13782,7 +13673,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; refreshDarkAvail(); $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; updateBlockMode(); $("settings").classList.add("open"); });
     // Overflow menu (hamburger): toggle, close on outside-click / Escape / any item click.
     (function(){
       const pop = $("app-menu"), btn = $("btn-menu");
@@ -13800,7 +13691,7 @@
     });
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
-    $("set-theme").addEventListener("change", e => { theme = e.target.value || DEFAULT_THEME; applyThemeSetting(); save(); });   // per-character; dark mode stays a separate global toggle
+    $("set-theme").addEventListener("change", e => { theme = e.target.value || DEFAULT_THEME; applyThemeSetting(); applyDarkSetting(); applyLayout(); refreshDarkAvail(); save(); });   // per-character; dark mode stays a separate global toggle (but is force-off + disabled on Classic), and Classic hides the non-canon tabs
     $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; setPrefBool(NOANIM_KEY, noAnimations); applyAnimSetting(); });   // global pref — not per-character
     $("set-dark").addEventListener("change", e => { darkMode = e.target.checked; setPrefBool(DARK_KEY, darkMode); applyDarkSetting(); });               // global pref — not per-character
     // Run fn ONCE after the print dialog closes — whether the user printed OR cancelled (afterprint fires on
