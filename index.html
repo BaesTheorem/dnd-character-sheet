@@ -3090,11 +3090,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v529 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v530 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.126.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.126.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3102,6 +3102,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v530", semver:"2.126.2", items:[
+      "Typed defenses now understand plain phrasing — \"Immune to fire\", \"Cold resistance\", \"Resist poison\", \"Advantage on stealth\" all turn into the right badge when you click away (you no longer have to write it as \"Immunity: fire\"). Ordinary notes are left alone.",
+    ]},
     {v:"v529", semver:"2.126.1", items:[
       "Fixed the Enter/Return key in the Defenses and Senses notes boxes — pressing Enter now inserts a line break instead of being swallowed.",
     ]},
@@ -4090,6 +4093,17 @@
     if(kind==="imm") return defBadgeSvg("I");
     return "";
   }
+  function _defCanon(line){   // normalize FREE-FORM phrasings a player types ("Immune to fire", "Cold resistance", "advantage on stealth") into the canonical scanDefenses shape _defParse understands, so typed defenses badge like the derived ones. Anchored so ordinary prose notes don't match.
+    let s = String(line||"").trim(); if(!s || _defParse(s).kind) return s; let m;   // already canonical → leave it
+    const tidy = x => x.trim().replace(/[.,;]+$/, "");
+    if(m = s.match(/^(?:you(?:'re| are)?\s+)?immun(?:e|ity|ities)\b\s*(?:to\s+|:\s*|\s+)(.+)$/i)) return "Immunity: " + tidy(m[1]);
+    if(m = s.match(/^(.+?)\s+immunit(?:y|ies)$/i))                                         return "Immunity: " + tidy(m[1]);
+    if(m = s.match(/^(?:you(?:'re| are)?\s+)?(?:resistances?|resistant|resist)\b\s*(?:to\s+|against\s+|:\s*|\s+)(.+)$/i)) return "Resistance: " + tidy(m[1]);
+    if(m = s.match(/^(.+?)\s+resistances?$/i))                                             return "Resistance: " + tidy(m[1]);
+    if(m = s.match(/^(?:you(?:'ve| have)?\s+)?(?:advantage|adv\.?)\s+(?:on|against|vs\.?|to)\s+(.+)$/i))    return "Adv. on " + tidy(m[1]);
+    if(m = s.match(/^(?:you(?:'ve| have)?\s+)?(?:disadvantage|disadv\.?)\s+(?:on|against|vs\.?|to)\s+(.+)$/i)) return "Disadv. on " + tidy(m[1]);
+    return s;
+  }
   function _defParse(line){   // classify a scanDefenses-style line for chip rendering: the leading word becomes an icon, the rest is the text
     const s = String(line||"").trim(); let m;
     if(m = s.match(/^Adv\.\s+on\s+(.+)$/i)) return {kind:"adv", text:"on " + m[1].trim(), raw:s};
@@ -4134,8 +4148,8 @@
     const box = $("defnotes"), man = $("defmanual"); if(!box || !man) return false;
     const derived = new Set(defenseChips().filter(c => c.hasDerived).map(c => _defNorm(c.raw)));
     const keep = [], moved = [];
-    box.value.split("\n").forEach(line => { const s = line.trim();
-      if(s && _defParse(s).kind && !derived.has(_defNorm(s))) moved.push(s); else keep.push(line); });
+    box.value.split("\n").forEach(line => { const s = line.trim(), canon = s && _defCanon(s);   // accept free-form phrasings ("Immune to fire", "Cold resistance") by canonicalizing first
+      if(canon && _defParse(canon).kind && !derived.has(_defNorm(canon))) moved.push(canon); else keep.push(line); });
     if(!moved.length) return false;
     const cur = man.value.split("\n").map(x => x.trim()).filter(Boolean), seen = new Set(cur.map(_defNorm));
     moved.forEach(s => { const n = _defNorm(s); if(!seen.has(n)){ cur.push(s); seen.add(n); } });
