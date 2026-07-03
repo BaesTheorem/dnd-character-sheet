@@ -3090,11 +3090,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v535 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v536 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.127.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.127.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3102,6 +3102,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v536", semver:"2.127.4", items:[
+      "Fixed the first page (Core) coming out blank when you print from the landscape (Universal) view. Printing now reliably switches to the portrait sheet and no longer re-sizes the Defenses/Conditions boxes mid-print, which was blanking the first sheet.",
+    ]},
     {v:"v535", semver:"2.127.3", items:[
       "Fixed the Defenses box extending below the Armor Class / Initiative / Speed row (with empty space) when you have several defense chips that wrap to multiple rows — the box now shrinks to line up with that row as intended.",
     ]},
@@ -9905,6 +9908,17 @@
   function fitDefenses(){   // size the Defenses box AND Conditions box to their content, with a floor at the bottom of the AC/Init/Speed row so both bottom-align with that stat row (they don't stretch past it when otherspeeds/content makes the left column taller)
     const ta = $("defnotes"); if(!ta) return;
     const row = ta.closest(".combat-row"), acRow = row && row.querySelector(".combat-left .combat-top");
+    // PRINT: never size against the UCS-dashboard floor. Print drops to the canonical portrait layout, where that
+    // floor is meaningless and, worse, mutating these heights DURING printing re-lays-out the combat card mid-render
+    // and the first (Core) sheet comes out BLANK (same class as the old _ucsAfterPrint focus bug). Clear our inline
+    // sizing so the printed boxes size to their content via CSS, and bail — the resize/ResizeObserver refit below is
+    // already gated on print, so this only runs on the deterministic beforeprint call.
+    if(window.matchMedia && window.matchMedia("print").matches){
+      ta.style.height = ""; ta.style.minHeight = "";
+      const cbp = row && row.querySelector(".conditions-sub .cond-box");
+      if(cbp){ cbp.style.height = ""; cbp.style.flex = ""; }
+      return;
+    }
     const acBottom = (acRow && acRow.getBoundingClientRect().height) ? acRow.getBoundingClientRect().bottom : 0;   // 0 when the row wrapped (mobile/narrow) → fall back to content height + CSS min-height
     // Defenses textarea
     if(document.activeElement !== ta){ const t = ta.value.replace(/[ \t\r\n]+$/, ""); if(t !== ta.value) ta.value = t; }   // when not editing, drop trailing blank lines so the box can shrink past them
@@ -13706,7 +13720,7 @@
     document.addEventListener("pointercancel", clearLongPress);
     window.addEventListener("pagehide", flushSave);   // flush any debounced autosave before the tab is hidden/closed
     document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState === "hidden") flushSave(); });
-    window.addEventListener("beforeprint", ()=>{ applyLayout(); buildPrintFlow(); });   // build print-only continuation sheets right before printing
+    window.addEventListener("beforeprint", ()=>{ applyLayout(); buildPrintFlow(); if(typeof fitDefenses==="function") fitDefenses(); });   // build print-only continuation sheets right before printing; fitDefenses() here (print media matches) clears the UCS-floor inline heights so the Core page prints correctly
     window.addEventListener("afterprint", teardownPrintFlow);                            // and tear them down again after
     if(window.matchMedia){ const mq = window.matchMedia("print"); const onMq = ev => { if(ev.matches){ applyLayout(); buildPrintFlow(); } else teardownPrintFlow(); }; if(mq.addEventListener) mq.addEventListener("change", onMq); else if(mq.addListener) mq.addListener(onMq); }
     // (removed the auto-append-trailing-blank listener — lists stay exactly as filled; add rows via "+ Add row" / Enter)
@@ -14318,7 +14332,7 @@
     if(typeof setupPreviewCards==="function") setupPreviewCards();   // hover/tap full-card previews (homebrew + sourcebook) on Studio lists + inventory/spell name fields
     { const dn = $("defnotes"); if(dn) dn.addEventListener("blur", () => { const moved = promoteDefNotes(); compute(); if(moved) save(); }); }   // typed defense lines (Resistance:/Immunity:/Adv. on…) become badges when you click away (compute also runs the derived-line strip)
     { const dc = $("def-chips"); if(dc) dc.addEventListener("click", e => { const x = e.target.closest(".def-chip-rm"); if(x) removeManualDef(x.dataset.def); }); }   // ✕ on a player-typed badge removes it
-    { let _dfrz; const refit = () => { clearTimeout(_dfrz); _dfrz = setTimeout(fitDefenses, 60); };   // re-fit the Defenses/Conditions floor whenever the layout reflows or the left column resizes (covers load timing + UCS relocation + otherspeeds toggling)
+    { let _dfrz; const refit = () => { if(window.matchMedia && window.matchMedia("print").matches) return; clearTimeout(_dfrz); _dfrz = setTimeout(fitDefenses, 60); };   // re-fit the Defenses/Conditions floor whenever the layout reflows or the left column resizes (covers load timing + UCS relocation + otherspeeds toggling). SKIP while printing: resize/reflow events fire during the print preview and re-fitting mid-print blanks the first (Core) sheet.
       window.addEventListener("resize", refit);
       const left = document.querySelector(".combat-left");
       if(left && typeof ResizeObserver === "function"){ new ResizeObserver(refit).observe(left); }
