@@ -949,6 +949,9 @@ def build_futuristic(items_base, items):   # laser/antimatter weapons, powered a
 def build_modern(items_base, items):       # pistols/rifles/shotguns/dynamite
     return build_by_age(items_base, items, "modern")
 
+def build_renaissance(items_base, items):  # muskets/pistols/bombs/gunpowder
+    return build_by_age(items_base, items, "renaissance")
+
 LIMITED_SIGNAL = re.compile(r"\brest\b|\bdawn\b|\bcharges\b|\bper day\b|\bexpend", re.I)
 def build_item_text(items_base, items):   # descriptions of magic items that look like they have limited daily uses (Bag of Tricks, etc.)
     out = {}
@@ -1171,6 +1174,7 @@ def main():
     out["itemNames"] = build_item_names(items_base, items)
     out["futuristic"] = build_futuristic(items_base, items)
     out["modern"] = build_modern(items_base, items)
+    out["renaissance"] = build_renaissance(items_base, items)
     out["containers"] = build_containers(items_base, items)
     out["attuneItems"] = build_attune_items(items_base, items)
     out["magicItems"] = build_magic_items(items_base, items)
