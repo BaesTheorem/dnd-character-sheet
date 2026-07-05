@@ -3093,11 +3093,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v539 (2026-07-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v540 (2026-07-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.129.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.130.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3105,6 +3105,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v540", semver:"2.130.0", items:[
+      "Ammunition and other bundled items now split into individual pieces when you add them. Adding “Renaissance Bullets (10)” now puts a single “Renaissance Bullets” line in your inventory with a quantity of 10 (weight unchanged), instead of one row literally named “... (10)”. Same for Arrows, Crossbow Bolts, Sling Bullets, Blowgun Needles, and Iron Spikes.",
+    ]},
     {v:"v539", semver:"2.129.0", items:[
       "Updates now deliver new shared homebrew. When a build ships new homebrew content (like the new Mage Mashers (AW)), updating — or just reopening the sheet — now adds it to your homebrew, instead of your existing saved homebrew hiding it. It’s strictly add-only: anything you’ve created or edited yourself is never changed or removed.",
     ]},
@@ -11799,7 +11802,11 @@
       pop.innerHTML = matches.map((n,i) => { const w = itemWeight(n); return `<div class="opt${i===0?' sel':''}" data-i="${i}">${esc(n)}${w!=null?`<span class="w">${w} lb</span>`:''}</div>`; }).join("");
       pop.hidden = false; position();
     }
-    function accept(name){ if(cur && name){ const inp = cur; suppress = true; inp.value = name; inp.dispatchEvent(new Event("input",{bubbles:true})); suppress = false; } close(); }
+    function accept(name){ if(cur && name){ const inp = cur, im = inp.id.match(/^invname-(\d+)$/), i = im ? +im[1] : -1;
+        const b = (typeof bundleSplit === "function") ? bundleSplit(name) : null;   // picking "Arrows (20)" fills the row as 20 pieces
+        if(b && i >= 0){ name = b.base; const q = $("invqty-"+i); if(q) q.value = b.count; if(rowUnit(i) == null && b.unit != null) setRowUnit(i, b.unit); }
+        suppress = true; inp.value = name; inp.dispatchEvent(new Event("input",{bubbles:true})); suppress = false;
+        if(b && i >= 0) refreshRowWeight(i); } close(); }
     document.addEventListener("input", e => { if(!suppress && isInv(e.target)) render(e.target); });
     document.addEventListener("focusin", e => { if(isInv(e.target)){ if((e.target.value||"").trim()) render(e.target); } else if(!e.target.closest("#inv-ac")) close(); });
     document.addEventListener("keydown", e => {
@@ -12369,11 +12376,27 @@
       // armor / AC / attunement / spell-bonus / charged items keep their user-set checked state (persisted)
     }
   }
+  // Ammo/consumable bundles are catalogued as "Arrows (20)". When one is added we split it into individual
+  // pieces: store the base name ("Arrows"), set the quantity to the bundle count, and divide the bundle's
+  // weight across the pieces so the line total is unchanged. Only real catalog bundles expand — a free-typed
+  // "Something (3)" is left alone unless it exactly matches a catalogued bundle name.
+  function bundleSplit(name){
+    const s = String(name||"").trim(), m = s.match(/^(.*\S)\s*\((\d+)\)$/);
+    if(!m) return null;
+    const count = parseInt(m[2], 10); if(!(count > 1)) return null;
+    const names = (DATA && DATA.itemNames) || [];
+    if(!names.some(n => n.toLowerCase() === s.toLowerCase())) return null;
+    const bw = itemWeight(s);
+    return {base:m[1].trim(), count, unit:(bw != null ? bw / count : null)};
+  }
   function addInvItem(name, qty){            // place in next empty inventory row (growing the list if full) + auto-fill qty/weight
     const i = ensureInvSlot(); const el = $("invname-"+i); if(!el) return;
+    const b = bundleSplit(name);             // "Renaissance Bullets (10)" → 10 individual pieces
+    if(b){ name = b.base; qty = (qty && qty > 1 ? qty : 1) * b.count; }
     el.value = name;
     if(qty && qty > 1){ const q = $("invqty-"+i); if(q) q.value = qty; }
-    const w = itemWeight(name); if(w != null && rowUnit(i) == null) setRowUnit(i, w);
+    if(b){ if(rowUnit(i) == null && b.unit != null) setRowUnit(i, b.unit); }
+    else { const w = itemWeight(name); if(w != null && rowUnit(i) == null) setRowUnit(i, w); }
     refreshRowWeight(i);
     if(typeof awEnabled !== "undefined" && awEnabled && typeof applyLayout === "function") applyLayout();   // a programmatically-added item (inventory "Search to add" box, AW builder) sets the name without firing onChange → hot-reload the layout so the AW tab appears immediately if it's an Ancestral Weapon
   }
