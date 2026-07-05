@@ -3093,11 +3093,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v538 (2026-07-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v539 (2026-07-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.128.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.129.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3105,6 +3105,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v539", semver:"2.129.0", items:[
+      "Updates now deliver new shared homebrew. When a build ships new homebrew content (like the new Mage Mashers (AW)), updating — or just reopening the sheet — now adds it to your homebrew, instead of your existing saved homebrew hiding it. It’s strictly add-only: anything you’ve created or edited yourself is never changed or removed.",
+    ]},
     {v:"v537", semver:"2.128.0", items:[
       "Ancestral Weapons: a new “Applies to Unarmed Strikes” option. Turn it on in the AW builder and the weapon’s +X to hit/damage and its extra-damage riders ride your Unarmed Strike instead of a weapon attack row (the weapon becomes a focus, not something you swing). All the character-wide effects — AC, speed, senses, resistances, extra slots — still apply as normal, and everything is gated behind attunement.",
       "For an unarmed-target Ancestral Weapon you can choose the damage dice: “Scale with my Unarmed Strike” (uses your Martial Arts / Tavern Brawler / base die) or “Use base weapon’s damage die” (e.g. your fists deal the longsword’s 1d8). Picking a ranged or thrown base weapon warns you but is allowed.",
@@ -7818,6 +7821,7 @@
     return _spellIndex;
   }
   let customSpells = {};   // CHARACTER-data homebrew, keyed by lowercased name → DATA-spell shape {name,level,school,time,range,components,duration,ritual,conc,material,text,higher}. Clears with the character.
+  let _bakedHomebrew = null;   // the file's CURRENT baked homebrew (captured from #source-data at init) — lets loadHomebrew deliver a shipped build's new homebrew to a cache that predates the file (DATA.homebrew may be a shadowing SOURCES_KEY copy)
   let homebrewSources = [];   // [{name, enabled, spells:{lc->spell}}] — browser-wide source material; multiple named homebrew "books" surfaced as togglable sources. Survives character clears; cached in HOMEBREW_KEY (fast runtime persist) AND mirrored to DATA.homebrew so it bakes into the single #source-data container (travels with shared files; cleared when #source-data is nulled).
   let _hbCurId = 0;           // index of the source currently open in the Studio
   let _hbType = "spells";     // which content tab is active in the Studio: spells | items | feats | races | backgrounds | subclasses | creatures
@@ -7863,16 +7867,37 @@
     try{ const raw = localStorage.getItem(HOMEBREW_KEY); if(raw) got = fromAny(JSON.parse(raw)); }catch(e){}   // this browser's cache (fast persist)
     if(!got && DATA && Array.isArray(DATA.homebrew)) got = hbNormSources(DATA.homebrew);                       // else a shared file's baked homebrew (it rides #source-data)
     homebrewSources = got || [];
-    // Heal: the cache wins over the baked copy, but a cached item can never legitimately LACK an .aw build
-    // blob the baked copy has (no UI removes just the blob; only the old plain-item-form save bug stripped
-    // it). Graft the baked blob back so the weapon stays an Ancestral Weapon.
-    if(got && DATA && Array.isArray(DATA.homebrew) && DATA.homebrew !== got){
-      DATA.homebrew.forEach(bs => { const cs = got.find(x => x && bs && x.name === bs.name); if(!cs) return;
-        Object.keys((bs&&bs.items)||{}).forEach(k => { const bi = bs.items[k], ci = (cs.items||{})[k];
-          if(bi && bi.aw && ci && !ci.aw) ci.aw = bi.aw; }); });
+    // Deliver the NEW baked homebrew this FILE ships that the cache predates (a shipped build's added items/spells,
+    // or a wholly-new source) — ADD-ONLY, never overwriting or removing the user's own entries, and re-graft a
+    // stripped .aw blob. Reconcile against the file's CURRENT baked copy (_bakedHomebrew, parsed from #source-data at
+    // init), NOT DATA.homebrew: DATA can be a SOURCES_KEY copy that predates the file, so it wouldn't carry the newly
+    // shipped homebrew. This is how a new build's homebrew reaches an existing player whose HOMEBREW_KEY cache wins.
+    if(got){
+      const baked = _bakedHomebrew || (DATA && Array.isArray(DATA.homebrew) ? DATA.homebrew : null);
+      if(baked && baked !== got) hbUnionBakedInto(got, baked);
     }
     if(DATA) DATA.homebrew = homebrewSources;        // keep DATA's bake-mirror in sync so it travels in #source-data
     if(got) saveHomebrew();
+  }
+  // ADD-ONLY union: fold baked homebrew (missing items/spells/bags AND wholly-new sources) into `target`, NEVER
+  // overwriting or deleting the user's own entries. Also re-grafts a baked .aw blob onto a same-name item that lost
+  // one. Returns the number of entries/sources added. Shared by loadHomebrew (cache delivery) + additiveMergeSources.
+  function hbUnionBakedInto(target, baked){
+    if(!Array.isArray(target) || !Array.isArray(baked)) return 0;
+    let added = 0;
+    baked.forEach(bs => {
+      if(!bs || !bs.name) return;
+      let ts = target.find(x => x && x.name === bs.name);
+      if(!ts){ const n = hbNormSources([bs])[0]; if(n){ target.push(n); added++; } return; }   // a baked source the target lacks entirely → adopt it whole
+      HB_BAGS.forEach(bag => { const bm = bs[bag]; if(!bm || typeof bm !== "object") return;
+        ts[bag] = ts[bag] || {};
+        for(const k in bm){ const bi = bm[k], ti = ts[bag][k];
+          if(ti === undefined){ ts[bag][k] = bi; added++; }                          // add-only: a baked entry the target is missing
+          else if(bag === "items" && bi && bi.aw && ti && !ti.aw){ ti.aw = bi.aw; }  // legacy heal: re-attach a stripped .aw blob
+        }
+      });
+    });
+    return added;
   }
   function saveHomebrew(){ if(typeof DATA !== "undefined" && DATA) DATA.homebrew = homebrewSources;   // mirror into DATA so bakeSourceData carries homebrew in #source-data
     try{ localStorage.setItem(HOMEBREW_KEY, JSON.stringify(homebrewSources)); }catch(e){} }
@@ -13698,6 +13723,7 @@
     let _stored = null, _baked = null;
     try{ const s = localStorage.getItem(SOURCES_KEY); if(s) _stored = JSON.parse(s); }catch(e){}            // books loaded from the server / imported
     try{ _baked = JSON.parse($("source-data").textContent); }catch(e){}                                        // baked default (DATA build)
+    _bakedHomebrew = (_baked && Array.isArray(_baked.homebrew)) ? _baked.homebrew : null;                        // the file's current baked homebrew → loadHomebrew delivers any of it the cache is missing
     const srcComplete = d => d && ["races","classes","spells","armor","acItems"].every(k => Array.isArray(d[k]));
     const verOf = d => (d && d._meta && d._meta.dataVersion) || 0;
     const storedFresh = verOf(_stored) >= verOf(_baked);   // keep stored unless it was built by an OLDER app/data shape (same-or-newer wins, so a reloaded copy isn't clobbered by stale baked data)
@@ -14932,7 +14958,14 @@
     }
     // ---- awText: the fresh build's rules text fills any gaps; the user's / imported additions win on collision ----
     if(fresh.awText && Object.keys(fresh.awText).length) res.awText = Object.assign({}, fresh.awText, res.awText || {});
-    // homebrew stays exactly as the user has it (already carried by the clone) — never overwritten by the update.
+    // homebrew: ADD-ONLY union of the fresh build's baked homebrew, so a shipped build's NEW homebrew (new items/
+    // spells, or a wholly-new source) rides the update into a re-baked download — while the user's own homebrew
+    // entries are never overwritten or removed. Delivery to the running app is completed on load by loadHomebrew
+    // (→ hbUnionBakedInto against #source-data), which shadow-proofs it past the HOMEBREW_KEY/SOURCES_KEY caches.
+    if(Array.isArray(fresh.homebrew) && fresh.homebrew.length){
+      if(!Array.isArray(res.homebrew)) res.homebrew = [];
+      hbUnionBakedInto(res.homebrew, fresh.homebrew);
+    }
     _addMergeStats = { added, refreshed };
     return res;
   }
