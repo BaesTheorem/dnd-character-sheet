@@ -1143,6 +1143,9 @@
   .aw-budget{font-size:12px; color:var(--muted)}
   .aw-budget.over{color:#b42318; font-weight:700}
   .aw-uplist{max-height:none}
+  .aw-unarmed-opts{display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; margin:6px 0 2px; padding:8px 10px; border:1px solid var(--line); background:var(--field)}
+  .aw-unarmed-chk{display:flex; gap:7px; align-items:center; font-size:13px; flex:1 1 240px}
+  .aw-unarmed-opts.off #aw-unarmed-die-wrap{opacity:.45}
   .aw-tier{font-weight:700; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); padding:10px 0 3px; margin-top:8px}
   .aw-up{display:flex; gap:8px; align-items:flex-start; padding:5px 2px; border-bottom:1px solid var(--line)}
   .aw-up.chosen{background:color-mix(in srgb, var(--accent) 8%, transparent)}
@@ -3090,11 +3093,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v536 (2026-07-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v537 (2026-07-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.127.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.128.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3102,6 +3105,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v537", semver:"2.128.0", items:[
+      "Ancestral Weapons: a new “Applies to Unarmed Strikes” option. Turn it on in the AW builder and the weapon’s +X to hit/damage and its extra-damage riders ride your Unarmed Strike instead of a weapon attack row (the weapon becomes a focus, not something you swing). All the character-wide effects — AC, speed, senses, resistances, extra slots — still apply as normal, and everything is gated behind attunement.",
+      "For an unarmed-target Ancestral Weapon you can choose the damage dice: “Scale with my Unarmed Strike” (uses your Martial Arts / Tavern Brawler / base die) or “Use base weapon’s damage die” (e.g. your fists deal the longsword’s 1d8). Picking a ranged or thrown base weapon warns you but is allowed.",
+    ]},
     {v:"v536", semver:"2.127.4", items:[
       "Fixed the first page (Core) coming out blank when you print from the landscape (Universal) view. Printing now reliably switches to the portrait sheet and no longer re-sizes the Defenses/Conditions boxes mid-print, which was blanking the first sheet.",
     ]},
@@ -6825,6 +6832,10 @@
           `<label class="cspell-f" style="flex:0 0 92px"><span>Spirit Points</span><input type="number" id="aw-points" min="0" max="25" step="1" value="0"></label>`+
         `</div>`+
         `<div class="aw-summary" id="aw-summary"></div>`+
+        `<div class="aw-unarmed-opts off" id="aw-unarmed-opts">`+
+          `<label class="aw-unarmed-chk"><input type="checkbox" id="aw-unarmed"> Applies to Unarmed Strikes <span style="color:var(--muted);font-size:11px">(its effects ride your fists, not a weapon attack)</span></label>`+
+          `<label class="cspell-f" id="aw-unarmed-die-wrap" style="flex:0 1 260px"><span>Damage dice</span><select id="aw-unarmed-die"><option value="unarmed">Scale with my Unarmed Strike</option><option value="weapon">Use base weapon’s damage die</option></select></label>`+
+        `</div>`+
         `<div class="hb-section-h"><span>Upgrades</span><span class="aw-up-tools"><button type="button" class="aw-up-all" id="aw-expand-all">Expand all</button><button type="button" class="aw-up-all" id="aw-collapse-all">Collapse all</button></span><span class="aw-budget" id="aw-budget"></span></div>`+
         `<div id="aw-upgrades" class="aw-uplist"></div>`+
         `<div class="hb-section-h"><span>Additional properties</span><button class="btn" id="aw-add-extra" type="button">+ Property</button></div>`+
@@ -6841,7 +6852,9 @@
     $("aw-cancel").addEventListener("click", closeAwBuilder);
     m.addEventListener("mousedown", e => { if(e.target === m) closeAwBuilder(); });
     $("aw-points").addEventListener("input", () => { _awBuild.points = parseInt($("aw-points").value,10)||0; awRenderState(); });
-    $("aw-base").addEventListener("change", () => { _awBuild.baseWeapon = $("aw-base").value.trim(); awRenderUpgrades(); awRenderState(); });
+    $("aw-base").addEventListener("change", () => { _awBuild.baseWeapon = $("aw-base").value.trim(); awUnarmedRangedWarn(); awRenderUpgrades(); awRenderState(); });
+    $("aw-unarmed").addEventListener("change", () => { _awBuild.unarmed = $("aw-unarmed").checked; awSyncUnarmedOpts(); if(_awBuild.unarmed) awUnarmedRangedWarn(); awRenderState(); });
+    $("aw-unarmed-die").addEventListener("change", () => { _awBuild.unarmedDie = $("aw-unarmed-die").value; });
     $("aw-save").addEventListener("click", awSaveBuild);
     $("aw-img-in").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; if(f) awResizeImage(f, url => { _awBuild.img = url; awSyncImg(); }); e.target.value = ""; });
     $("aw-img-rm").addEventListener("click", () => { _awBuild.img = ""; awSyncImg(); });
@@ -6882,14 +6895,26 @@
     if(img){ if(url){ img.src = url; img.style.display = ""; } else { img.removeAttribute("src"); img.style.display = "none"; } }
     if(rm) rm.style.display = url ? "" : "none";
   }
+  function awSyncUnarmedOpts(){   // reflect the unarmed flag into the builder controls (die-mode dims when off)
+    const on = !!(_awBuild && _awBuild.unarmed), box = $("aw-unarmed-opts"), die = $("aw-unarmed-die");
+    if($("aw-unarmed")) $("aw-unarmed").checked = on;
+    if(die){ die.value = (_awBuild && _awBuild.unarmedDie) || "unarmed"; die.disabled = !on; }
+    if(box) box.classList.toggle("off", !on);
+  }
+  function awUnarmedRangedWarn(){   // warn (but allow) when an unarmed-target AW's base weapon is ranged or thrown
+    if(!(_awBuild && _awBuild.unarmed)) return;
+    const bw = _baseWeapon(String(_awBuild.baseWeapon||"").toLowerCase()); if(!bw) return;
+    const thrown = (bw.props||[]).some(p=>/thrown/i.test(p)), ranged = (bw.melee === false) || (bw.props||[]).some(p=>/ammunition|^AF/i.test(p));
+    if(thrown || ranged) flashStatus(`Heads up: “${bw.name}” is a ${ranged?"ranged":"thrown"} weapon — its effects will still ride your Unarmed Strikes. Allowed, just unusual.`);
+  }
   function openAwBuilder(sourceIdx, editKey){
     buildAwBuilder();
     hbEnsureSource();
     const idx = (sourceIdx != null) ? sourceIdx : _hbCurId;
     const existing = (editKey && homebrewSources[idx] && homebrewSources[idx].items[editKey] && homebrewSources[idx].items[editKey].aw) || null;
     _awBuild = existing
-      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), extras:(existing.extras||[]).map(x=>Object.assign({},x)), lore:existing.lore||"", physical:existing.physical||"", flavor:(homebrewSources[idx].items[editKey].flavor)||"", img:(homebrewSources[idx].items[editKey].img || existing.art || ""), editKey}
-      : {name:"", baseWeapon:"", points:0, upgrades:[], extras:[], lore:"", physical:"", flavor:"", img:"", editKey:null};
+      ? {name:homebrewSources[idx].items[editKey].name, baseWeapon:existing.baseWeapon||"", points:existing.points||0, upgrades:(existing.upgrades||[]).slice(), extras:(existing.extras||[]).map(x=>Object.assign({},x)), lore:existing.lore||"", physical:existing.physical||"", flavor:(homebrewSources[idx].items[editKey].flavor)||"", img:(homebrewSources[idx].items[editKey].img || existing.art || ""), unarmed:!!existing.unarmed, unarmedDie:existing.unarmedDie||"unarmed", editKey}
+      : {name:"", baseWeapon:"", points:0, upgrades:[], extras:[], lore:"", physical:"", flavor:"", img:"", unarmed:false, unarmedDie:"unarmed", editKey:null};
     const awHide = hiddenItemNames();   // respect the futuristic/modern age toggles — don't offer e.g. the Antimatter Rifle when futuristic gear is off
     $("aw-base-list").innerHTML = ((DATA&&DATA.weapons)||[]).map(w=>w.name).filter(n=>n && !awHide.has(n)).sort().map(n=>`<option value="${esc(n)}"></option>`).join("");
     { const pl = $("aw-prop-list"); if(pl) pl.innerHTML = AW_PROPS.map(p=>`<option value="${esc(p.n)}"></option>`).join(""); }   // known-property autofill suggestions
@@ -6897,6 +6922,7 @@
     $("aw-name").value = _awBuild.name; $("aw-base").value = _awBuild.baseWeapon;
     $("aw-points").value = String(_awBuild.points); $("aw-lore").value = _awBuild.lore; $("aw-physical").value = _awBuild.physical; $("aw-flavor").value = _awBuild.flavor;
     awSyncImg();
+    awSyncUnarmedOpts();
     _awUpOpen.clear();   // start with every description collapsed
     awRenderUpgrades(); awRenderExtras(); awRenderState();
     $("aw-builder").classList.add("open");
@@ -6985,7 +7011,7 @@
     const d=awDerive(b), lc=name.toLowerCase();
     const item={name, type:"Weapon", rarity:d.rarity, attune:true, acBonus:d.ac, spellAtk:d.spellAtk, spellDc:0,
       text:awDescribe(b,d), flavor:b.flavor, img:(b.img||undefined),
-      aw:{baseWeapon:b.baseWeapon, points:b.points, upgrades:b.upgrades.slice(), extras:(b.extras||[]).map(x=>Object.assign({},x)), lore:b.lore, physical:b.physical, magicBonus:d.magicBonus, rider:d.riders.join(", ")}};
+      aw:{baseWeapon:b.baseWeapon, points:b.points, upgrades:b.upgrades.slice(), extras:(b.extras||[]).map(x=>Object.assign({},x)), lore:b.lore, physical:b.physical, unarmed:!!b.unarmed, unarmedDie:b.unarmedDie||"unarmed", magicBonus:d.magicBonus, rider:d.riders.join(", ")}};
     const srcIdx=parseInt($("aw-src").value,10)||0;
     const src=hbEnsureSourceAt(srcIdx); src.items=src.items||{};
     if(b.editKey && b.editKey!==lc) delete src.items[b.editKey];
@@ -7819,6 +7845,7 @@
   // which must show the homebrew alternate even for a name currently resolved to official, so you can switch back.
   function hbPickerItems(){ const out = {}; homebrewSources.forEach(s => { if(s.enabled !== false) for(const k in (s.items||{})){ const it = s.items[k]; if(it.aw && !awEnabled) continue; if(!(k in out)) out[k] = {name:it.name, src:s.name}; } }); return out; }
   function hbAwMagicWeapon(lc){ const it = hbEnabledItem(lc); if(!(it && it.aw && it.aw.baseWeapon)) return null;
+    if(it.aw.unarmed) return null;   // an unarmed-target AW empowers your Unarmed Strike (see awUnarmedEffects), NOT a weapon attack row — so it never resolves as a swingable weapon
     const attuned = (typeof attunedNames === "function") && attunedNames().has(String(lc).toLowerCase());
     if(!attuned) return {base:it.aw.baseWeapon, bonus:0, rider:""};   // un-attuned Ancestral Weapon acts as a mundane weapon of its type (RAW)
     const d = awDerive(it.aw); return {base:it.aw.baseWeapon, bonus:d.magicBonus, rider:d.riders.join(", ")}; }   // attuned → base weapon + magic bonus + damage riders (upgrades + properties)
@@ -12042,6 +12069,22 @@
     if(riders.length) dmg += "; " + riders.join("; ");
     return {bonus: sgn(atkB), dmg: dmg.trim()};
   }
+  function awUnarmedEffects(){   // an ATTUNED "applies to Unarmed Strikes" Ancestral Weapon rides its +X, riders, and (optionally) its base weapon's die onto your fists
+    const out = {bonus:0, riders:[], dieStr:"", dieType:"", from:[]};
+    if(typeof attunedNames !== "function" || typeof hbEnabledItem !== "function") return out;
+    attunedNames().forEach(lc => {
+      const it = hbEnabledItem(lc); if(!(it && it.aw && it.aw.unarmed)) return;
+      const d = awDerive(it.aw);
+      out.bonus += d.magicBonus;                                  // +X to attack AND damage, folded in like an item's unarmedBonus
+      d.riders.forEach(r => out.riders.push(r));                  // extra-damage dice (e.g. + 1d6 fire)
+      if(it.aw.unarmedDie === "weapon" && !out.dieStr){           // die-mode: lock to the base weapon's damage die instead of the unarmed die
+        const bw = _baseWeapon(String(it.aw.baseWeapon||"").toLowerCase());
+        if(bw && bw.dmg){ out.dieStr = String(bw.dmg); out.dieType = bw.dmgType || "bludgeoning"; }
+      }
+      out.from.push(it.name);
+    });
+    return out;
+  }
   function unarmedStrike(){                   // auto Unarmed Strike row: Str (or Monk Dex) + PB; damage 1+mod, or a die from Monk Martial Arts / Tavern Brawler
     const cls = ($("classlevel").value || "").toLowerCase();
     const lvl = charLevel(), pb = profBonus() || 0;
@@ -12053,9 +12096,13 @@
     if(hasFightingStyle("Unarmed Fighting")) die = Math.max(die, 6);      // Unarmed Fighting: at least 1d6 (1d8 situational)
     if(isMonk){ const mm = cls.match(/monk[^\d]*(\d+)/), ml = mm ? parseInt(mm[1],10) : (lvl||1);
       die = Math.max(die, ml>=17?10 : ml>=11?8 : ml>=5?6 : 4); }          // Martial Arts die scales with monk level
-    const ib = unarmedItemBonus().bonus;                                  // +X to attack AND damage from an equipped+attuned item (e.g. Mage Mashers)
+    const uw = awUnarmedEffects();
+    const ib = unarmedItemBonus().bonus + uw.bonus;                       // +X to attack AND damage from an equipped+attuned item (Mage Mashers) or an unarmed-target Ancestral Weapon
     const dm = m + ib;                                                    // damage modifier folds the item bonus in alongside the ability mod
-    const dmg = die ? `1d${die}${dm?md(dm):""} bludgeoning` : `${1+dm} bludgeoning`;
+    let dmg = uw.dieStr                                                   // base-weapon-die lock: use the AW base weapon's dice + type instead of the unarmed die
+      ? `${uw.dieStr}${dm?md(dm):""} ${uw.dieType||"bludgeoning"}`
+      : (die ? `1d${die}${dm?md(dm):""} bludgeoning` : `${1+dm} bludgeoning`);
+    if(uw.riders.length) dmg += " + " + uw.riders.join(" + ");           // extra-damage riders ride the strike (e.g. + 1d6 fire)
     return {bonus: sgn(m + pb + ib), dmg};
   }
   function ensureUnarmedStrike(){             // every generated character gets Unarmed Strike as the first attack
