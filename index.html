@@ -3095,11 +3095,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v541 (2026-07-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v542 (2026-07-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.131.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.131.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -15019,7 +15019,18 @@
   async function bakeAllInto(root){
     const activeData = collect();
     const ed = root.querySelector("#embedded-data"); if(ed) ed.textContent = JSON.stringify(activeData);   // active char (with portrait) — also keeps single-char-file readers working
-    try{ const _sd = root.querySelector("#source-data"); if(_sd){ const _d = JSON.parse(_sd.textContent); if(_d){ _d.homebrew = (DATA && DATA.homebrew) || homebrewSources || []; _sd.textContent = JSON.stringify(_d); } } }catch(e){}   // homebrew rides #source-data
+    try{ const _sd = root.querySelector("#source-data"); if(_sd){ const _d = JSON.parse(_sd.textContent); if(_d){
+      // Homebrew rides #source-data — ADD-ONLY so a bake can NEVER drop a SHIPPED homebrew item the cache predates.
+      // Start from the user's live homebrew (their own edits are the truth), then fold in any of the fresh shell's
+      // baked homebrew the cache is missing (e.g. a new Ancestral Weapon that only lives in the committed
+      // #source-data). Without this, baking a cache that lacks a shipped item silently LOSES it — that is exactly
+      // how a downloaded copy ended up without "Mage Mashers (AW)". hbUnionBakedInto never overwrites user entries.
+      const _cacheHb = (DATA && DATA.homebrew) || homebrewSources || [];
+      const _bakedHb = Array.isArray(_d.homebrew) ? _d.homebrew : [];
+      const _outHb = JSON.parse(JSON.stringify(_cacheHb));
+      hbUnionBakedInto(_outHb, _bakedHb);
+      _d.homebrew = _outHb; _sd.textContent = JSON.stringify(_d);
+    } } }catch(e){}
     const roster = { v:1, chars:[] };
     const curData = Object.assign({}, activeData), curPort = activeData.portrait || null; delete curData.portrait;
     roster.chars.push({ slot:"", data:curData, portrait:curPort, thumb:slotThumb(KEY) || null });   // the active character opens by default (slot "")
