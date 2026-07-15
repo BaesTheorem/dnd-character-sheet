@@ -18,3 +18,6 @@ ancestral-weapons/*.json
 
 # Session scratch (screenshots etc.) — never ship
 tmp/
+
+# Local end-to-end test harness for the per-book load pipeline (copyrighted book data)
+_pipeline-test/

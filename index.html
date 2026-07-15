@@ -3095,11 +3095,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v543 (2026-07-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v545 (2026-07-15)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.131.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.132.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3107,6 +3107,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v545", semver:"2.132.0", items:[
+      "Loading sourcebooks on a fresh/blank sheet is now a single click with no server. When no sourcebooks are loaded, the “No sourcebooks loaded” banner opens the file picker directly — pick the book JSON files you downloaded (you can select several at once) and they load in. Same one-click, no-server flow MPMB uses; the 5etools-server path is still there in Settings for power users.",
+    ]},
     {v:"v543", semver:"2.131.2", items:[
       "Shared homebrew now rides updates additively: when a build ships homebrew content (like Mage Mashers (AW)), updating adds it to your homebrew without ever dropping or overwriting your own homebrew. Saving or updating a copy can no longer lose a shipped item your local copy hadn’t seen yet.",
     ]},
@@ -4627,9 +4630,11 @@
     const stale = !none && sourcesAreStale();
     if(none){
       flag.style.display = "";
-      flag.innerHTML = "⚠ No sourcebooks loaded<span class=\"sub\">Click to load D&D content (races, classes, spells…) so Create Character works.</span>";
+      flag.dataset.mode = "load";   // click opens the native file picker directly — MPMB-style, no server needed
+      flag.innerHTML = "⚠ No sourcebooks loaded<span class=\"sub\">Click to load a sourcebook file (races, classes, spells…). No server needed — just pick the book JSONs you downloaded.</span>";
     } else if(stale){
       flag.style.display = "";
+      flag.dataset.mode = "settings";
       flag.innerHTML = "⚠ Sourcebooks are out of date<span class=\"sub\">Click, then “Reload all loaded sources,” to enable new features (e.g. subclass choices).</span>";
     } else flag.style.display = "none";
   }
@@ -14340,7 +14345,10 @@
     // Ability Score Improvement flag + picker
     $("asi-flag").addEventListener("click", openAsiModal);
     $("decisions-flag").addEventListener("click", ()=>{ openWizard(); wizStep = 2; renderWizStep(); });   // jump straight to the class builder's pending panel
-    $("sources-flag").addEventListener("click", ()=>{ $("btn-settings").click(); const t = document.querySelector('.set-tab[data-sec="advanced"]'); if(t) t.click(); });   // open Settings → Source books
+    $("sources-flag").addEventListener("click", ()=>{
+      if($("sources-flag").dataset.mode === "load"){ $("file-input").click(); return; }   // nothing loaded → straight to the native file picker (single click, no server)
+      $("btn-settings").click(); const t = document.querySelector('.set-tab[data-sec="advanced"]'); if(t) t.click();   // stale case → open Settings → Source books
+    });
     $("asi-close").addEventListener("click", ()=>{ $("asimodal").classList.remove("open"); resolveToolChoices(); });   // a chosen feat may grant a generic tool/instrument
     $("asi-done").addEventListener("click", ()=>{ $("asimodal").classList.remove("open"); resolveToolChoices(); });
     $("asimodal").addEventListener("click", e => { if(e.target.id === "asimodal"){ $("asimodal").classList.remove("open"); resolveToolChoices(); } });
