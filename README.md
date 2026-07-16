@@ -61,15 +61,20 @@ Tabs at the top switch pages on screen; **printing outputs every page on its own
 page you don't want via **Settings → Layout**.
 1. **Core** — identity & portrait; abilities (final score + modifier — base scores and bonuses are
    edited in the Create/Edit Character wizard); saving throws; 18 skills (single tri-state proficiency control on screen, both
-   checkboxes on print); senses & passive perception; hit dice; and Proficiencies & Languages. The
+   checkboxes on print); senses & passive perception; and Proficiencies & Languages. The
    combat area holds Proficiency Bonus, Inspiration, a D&D-Beyond-style **HP widget** (Heal/Damage
    buttons, temp HP, death saves), AC / Initiative / Speed, a **Defenses** box (with auto-computed
    resistance/immunity/advantage chips), a **Conditions & Exhaustion** tracker, an **Attacks** table
    (with a calculated *attacks per action* from Extra Attack), a **Limited Features** tracker
-   (Feature / Max / Recover / Used), and an **Action Economy** summary.
+   (Feature / Max / Recover / Used), and an **Action Economy** summary. A **Rest** bar above the page
+   tabs runs **Short** and **Long** rests — spend Hit Dice to heal, restore HP / slots / limited uses,
+   reduce exhaustion — with an overview of what each rest will restore. (Hit dice are auto-filled from
+   class & level and spent through the rest flow; there's no separate Hit Dice card.)
 2. **Inventory** — currency (PP/GP/EP/SP/CP) with coin weight; a continuous, auto-growing item table
    (auto item weights, drag to reorder, nest items into **containers**, live total weight); Strength-based
-   carrying capacity (×5/×10/×15/×30 with status); **Armor** (sets your AC, with AC-bonus item pickers)
+   carrying capacity (Max Carry ×15 and Push / Drag / Lift ×30; the variant **Encumbrance** rule in
+   Character Settings adds the ×5/×10 encumbered thresholds and their speed penalties);
+   **Armor** (sets your AC, with AC-bonus item pickers)
    beside **Attuned Items**; and Extra Equipment (its own containers + drag-reorder).
 3. **Features** — Features & Traits, as an editable card list. Class, subclass, racial, feat, and
    background features all land here on character creation; hand-edits to a generated card survive a
@@ -200,7 +205,7 @@ homebrew bakes into the file alongside the sourcebook data, so a saved/shared co
 Every calculated value can be pinned by hand when your table's ruling, a homebrew item, or a variant
 rule disagrees with the math. **Double-click** any computed field (ability scores, modifiers,
 proficiency bonus, AC, initiative, passive Perception, saves, skills, spell save DC / attack /
-prepared count, attack rows, Max HP, hit dice, speed, carrying capacity), type a value, and press
+prepared count, attack rows, Max HP, speed, carrying capacity), type a value, and press
 **Enter**. Pinned fields show a small marker and an outline; their tooltip shows the calculated value
 so drift stays visible. **Override-as-source:** pinning a *source* value cascades — pin an ability
 score and its modifier, saves, skills, AC and attacks all recompute from it; pin the proficiency bonus
