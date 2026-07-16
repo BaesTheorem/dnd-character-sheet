@@ -3099,11 +3099,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v547 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v552 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.133.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.133.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3111,6 +3111,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v552", semver:"2.133.2", items:[
+      "Fixed the first page printing blank from the Universal Character Sheet. Chrome's print preview fires a resize event while the dialog is open (opening it, changing settings), which rebuilt the landscape dashboard mid-print and pulled the Core cards out of the page after the first sheet had already been laid out — so Core came out empty while every other page printed fine.",
+    ]},
     {v:"v547", semver:"2.133.1", items:[
       "Readability polish: the long explanations inside section headers (Homebrew, 5etools sources, wizard hints) now render in sentence case instead of inheriting the header's ALL-CAPS style, and the Homebrew blurb points at the new per-character Enabled sources. The mobile Experience row's “+ gained” field no longer clips its placeholder.",
     ]},
@@ -15892,6 +15895,12 @@
     }
     function activate(){
       if(active()) return;
+      // Never build the landscape scaffold while printing. UCS prints as the canonical portrait sheet (beforeprint
+      // deactivates), but Chrome's interactive print preview fires resize/focus MID-print — and a resize reaches
+      // _ucsSync, which would relocate the Core cards back into the now-hidden scaffold after the first sheet was
+      // laid out → the Core page prints blank while every other page prints fine. Guarding the mutation itself (not
+      // just each trigger) covers any future reflow-driven caller. _ucsAfterPrint re-activates once printing ends.
+      if(window.matchMedia && window.matchMedia('print').matches) return;
       restoreCanonical();                                   // start from a clean canonical DOM
       var sc=ensureScaffold(); if(!sc) return;
       relocate(findCard('ident'), sc['ucs-topbar'], 'ident');
