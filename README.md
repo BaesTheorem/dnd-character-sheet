@@ -33,6 +33,27 @@ Then:
    Remove**. The original file is stored so the download is full resolution. HEIC is kept and
    re-downloadable but only previews in Safari.
 
+## iPhone & iPad (iOS)
+On iOS, use the web version — it installs as a real offline app:
+1. Open [`baestheorem.github.io/dnd-character-sheet`](https://baestheorem.github.io/dnd-character-sheet)
+   in **Safari**.
+2. Tap **Share** (the square with the up arrow), then **Add to Home Screen** (the sheet shows the same
+   tip in a bar at the bottom).
+3. Launch it from the new home-screen icon: full screen, no browser chrome, and **fully offline** from
+   then on. It updates itself automatically the next time you're online.
+
+Notes for touch:
+- The **phone layout** turns on automatically: stacked cards, bigger tap targets, a swipeable page-tab
+  strip, and spell properties folded under each spell name.
+- There's no double-click or Alt key on touch, so **long-press** a calculated field to pin a manual
+  override; long-press, clear, and commit to revert one (see **Manual overrides** below).
+- Characters auto-save to the app's own storage **on that device**. iOS keeps the home-screen app's
+  storage separate from the Safari tab's, so pick one and stay in it — a character made in the Safari
+  tab won't appear in the home-screen app.
+- To back up a character (or move it to a computer), use **Save**: it downloads a copy of the sheet
+  with the character baked in to your Files app; opening that file in any computer's browser shows
+  the character.
+
 ## Pages
 Tabs at the top switch pages on screen; **printing outputs every page on its own sheet**. Hide any
 page you don't want via **Settings → Layout**.
@@ -119,8 +140,12 @@ The top bar keeps a few direct buttons; the rest live under a **☰ menu**.
   - **Print / PDF** — "Save as PDF". A dense, standardized stylesheet fits a normal character onto
     **one page** (builder UI hidden; text sections render as full-content mirrors; overflow inventory /
     limited features flow onto extra sheets).
-  - **Settings** — **Themes** (per character), page-layout toggles, **Rules modules**, **Item filters**,
-    manual-override management, and **Source books** (see below).
+  - **Settings** — three sections. **General**: updates, appearance (dark mode, disable animations),
+    the welcome guide, clearing manual overrides, and **Export a blank sheet** (a fresh copy with your
+    loaded sourcebooks baked in but no characters — good for handing someone a ready-to-use sheet).
+    **Character Settings** (saved per character): theme, visible pages, portrait, variant encumbrance,
+    **Item filters** (Renaissance / modern / futuristic gear), per-character **Enabled sources**, and
+    Tasha's optional rules. **Advanced**: Homebrew summary and **Source books** (see below).
 
 ## Themes
 Each character can carry its own **theme** — a named look chosen under **Settings → Character Settings → Theme** and saved with that character. Two ship today:
@@ -158,7 +183,7 @@ and **auto-applies** its clean mechanical effects — the +X to hit/damage, extr
 spell attack, speed, flight — all gated behind attunement. You can also point the weapon's effects at
 your **Unarmed Strike** (a focus instead of something you swing). Spirit Points and the upgrade buy are
 **per-character**, so the same source weapon can be tuned differently on each character. The whole
-module is a toggle under **Settings → Rules modules**.
+module is a per-character toggle under **Settings → Character Settings → Enabled sources**.
 
 ## Homebrew Studio
 A built-in authoring UI for homebrew content, organized into named, togglable "source books" you can
@@ -178,14 +203,27 @@ prepared count, attack rows, Max HP, hit dice, speed, carrying capacity), type a
 so drift stays visible. **Override-as-source:** pinning a *source* value cascades — pin an ability
 score and its modifier, saves, skills, AC and attacks all recompute from it; pin the proficiency bonus
 and everything that uses it follows. **Alt-click** a pinned field to revert it to calculated, or use
-**Settings → Manual overrides → Clear all manual overrides** to drop them all. **On a phone or tablet,
+**Settings → General → Manual overrides → Clear all manual overrides** to drop them all. **On a phone or tablet,
 long-press** a field to edit it (there's no double-click or Alt key on touch); to revert a pinned field
 on touch, long-press it, clear the value, and commit. Overrides are saved with the character and print
 as plain values.
 
 ## Source books (Settings)
-The build ships with the core 2014 sourcebooks already baked in. To load more (or refresh them),
-open **Settings → Source books**:
+The build ships with the core 2014 sourcebooks already baked in. Sources split into two questions,
+in two Settings sections:
+
+**Which sources a character uses — Settings → Character Settings → Enabled sources.** Every loaded
+book, homebrew source, and the Ancestral Weapons module gets a checkbox **per character**: uncheck one
+to hide its content (races, spells, items, …) from the pickers and the wizard for *this* character
+only — every character keeps its own choices. Toggling needs no server: unchecking applies instantly,
+and re-checking a book whose data is baked into the file merges its content back in on the spot.
+
+**Loading and managing the books themselves — Settings → Advanced → Source books:**
+- **From a book file (no server).** On a sheet with no sourcebooks loaded, a "No sourcebooks loaded"
+  banner opens a file picker directly — select one or more downloaded book JSON files and they load in
+  a single click. The same files load any time via **Import files…**, merged into whatever's already
+  loaded (never replacing it). **Export books as JSON…** produces those per-book files from your own
+  loaded library, bundled in a .zip — the way to hand books to someone else.
 - **From a local 5etools server** — pick any book or adventure with player content (PHB, XGE, TCE,
   **Monster Manual**, …) and click **Load**, or **Load all books** to import every available
   2014-ruleset book in one pass. The sheet fetches the raw 5etools JSON from your server (default
@@ -193,16 +231,14 @@ open **Settings → Source books**:
   brings in every monster stat block for the **Companions** page. Loading more books **merges** them
   (dedup by name). Works fully offline as long as that local server is running. Only 2014-ruleset books
   are listed — **2024 ("One D&D") content is filtered out on purpose**; this sheet is 2014-only.
-- **Loaded sources (filter)** — every loaded book (and the Homebrew sources + the Ancestral Weapons
-  module) gets a checkbox. Uncheck one to **hide its content** from the pickers and the wizard without
-  unloading it; re-check to bring it back.
-- **Import file…** — load a pre-built `source-data.json` (made by `build-data.py`) when you don't
-  want to run a server.
-- **Save data file** — a browser can't overwrite the file it's opened from, so this **downloads an
-  updated copy** of the sheet with **every loaded book baked into the file**. Keep it to make the books
-  permanent and portable.
+- **The loaded-sources list** shows everything loaded in this browser (books, imports, homebrew
+  sources); ✕ unloads one for every character. Per-character hiding lives in Enabled sources, above.
 - **Clear loaded books** — forgets anything loaded in this browser and reverts to the data baked into
-  the file. Your character isn't affected.
+  the file. Your characters aren't affected.
+
+Loaded books are remembered per browser; the toolbar **Save** button bakes them into the downloaded
+copy (making the file itself permanent and portable), and **Settings → General → Export a blank
+sheet** does the same with no character data.
 
 ## Updating
 The sheet self-updates without you touching code.
@@ -246,7 +282,7 @@ artifacts (they carry copyrighted content) so the working tree stays clean.
 ## Versioning
 The app carries **two** version numbers:
 - **`APP_SEMVER`** (from the `VERSION` file) — the human-facing SemVer shown in the UI and used to name
-  downloads, e.g. `2.131.2`. Hand-curated: MINOR for features, PATCH for fixes and internal changes.
+  downloads, e.g. `2.133.1`. Hand-curated: MINOR for features, PATCH for fixes and internal changes.
 - **`APP_VERSION`** (`v<N>`) — a build id the pre-commit hook auto-bumps every commit; it drives update
   detection and the service-worker cache-bust. Not hand-edited.
 
