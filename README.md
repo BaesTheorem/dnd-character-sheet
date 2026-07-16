@@ -20,13 +20,15 @@ Then:
    - all 18 skills (with **proficiency** and **expertise** toggles), passive perception,
    - initiative, AC (from the armor you select), hit dice, spell save DC / attack, spell slots,
      carrying capacity / encumbrance, and effective speed.
-2. **Ability scores** — the Abilities card shows only the final **score** and **modifier**. Click
-   **⚙ Under the hood** (hidden when printing) for everything that feeds them:
+2. **Ability scores** — the Abilities card shows only the final **score** and **modifier**. Everything
+   that feeds them lives in the wizard's **Ability Scores** step (**Create Character**, or **Edit
+   Character** once one exists):
    - **Generation method** — **Manual** (type base scores), **Standard Array** (assign 15/14/13/12/10/8,
-     each used once), or **Point Buy** (27-point budget, scores 8–15, with a live points counter).
-   - **Bonus columns** — separate **ASI**, **Racial**, **Magical**, and **Misc** bonuses per ability,
-     plus a **Notes** field. Final score = base + ASI + racial + magical + misc.
-   Creating a character auto-fills the Racial column from the chosen race.
+     each used once), **Rolled** (enter your rolls, assign each one), or **Point Buy** (27-point budget,
+     scores 8–15, with a live points counter).
+   - **Bonus columns** — separate **ASI**, **Feat**, **Racial**, **Magical**, and **Misc** bonuses per
+     ability, plus a **Notes** field. Final score = base + all bonuses; the Racial column pre-fills
+     from the chosen race.
 3. It **auto-saves to that browser** as you type — reopening the file restores your character. Storage is IndexedDB (character data, portraits, and thumbnails), so a large photo can't blow a storage cap.
 4. **Portrait** — click the box by the name to upload one (png/jpeg/webp/heic/etc.); it's shown at a
    fixed size beside the name. Click an uploaded image for a pop-up menu: **Replace / Download original /
@@ -57,8 +59,8 @@ Notes for touch:
 ## Pages
 Tabs at the top switch pages on screen; **printing outputs every page on its own sheet**. Hide any
 page you don't want via **Settings → Layout**.
-1. **Core** — identity & portrait; abilities (final score + modifier, with a **⚙ Under the hood**
-   generator); saving throws; 18 skills (single tri-state proficiency control on screen, both
+1. **Core** — identity & portrait; abilities (final score + modifier — base scores and bonuses are
+   edited in the Create/Edit Character wizard); saving throws; 18 skills (single tri-state proficiency control on screen, both
    checkboxes on print); senses & passive perception; hit dice; and Proficiencies & Languages. The
    combat area holds Proficiency Bonus, Inspiration, a D&D-Beyond-style **HP widget** (Heal/Damage
    buttons, temp HP, death saves), AC / Initiative / Speed, a **Defenses** box (with auto-computed
