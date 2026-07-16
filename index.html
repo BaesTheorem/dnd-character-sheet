@@ -717,6 +717,10 @@
   .intro-card p:last-of-type{margin-bottom:0}
   .intro-cta{font-weight:700}
   .intro-note{border:1px solid var(--line2); border-left:3px solid var(--accent); padding:12px 14px; margin:16px 0; font-size:14px; line-height:1.5}
+  .intro-foot{font-size:12.5px; color:var(--muted)}
+  .intro-card a{color:var(--accent)}
+  .intro-feats{margin:0 0 12px; padding-left:20px}
+  .intro-feats li{margin:3px 0}
   .intro-ver{margin:16px 0 0; font-size:11px; letter-spacing:.04em; color:var(--muted)}
   .intro-changelog{border:1px solid var(--line2); padding:10px 14px; margin:16px 0; font-size:13px; line-height:1.45}
   .intro-changelog[hidden]{display:none}
@@ -2028,8 +2032,19 @@
     <div class="intro-card" role="dialog" aria-modal="true" aria-labelledby="intro-title">
       <h2 id="intro-title">⬢ Universal Character Sheet</h2>
       <p class="intro-sub">D&amp;D 5e · offline · one file</p>
-      <p>This is your whole character sheet in a single file. No Adobe, no login, no hosted app. It works offline in any browser, and it autosaves in this one, though it's worth pressing <strong>Save</strong> now and then for a backup.</p>
-      <p>Print it blank for the table, or let it build your character and auto-calculate everything as you play. You can keep several characters in here and switch between them from <strong>Manage Characters</strong> up top. Upload a portrait and it even makes a printable paper mini.</p>
+      <p>This is your whole automated character sheet in a single HTML file. An HTML file is basically a file that functions like a web page, and will work in any* browser! No other programs required, no login to manage, no hosted app to rely on. Press <strong>“Save”</strong> to download it! (It will autosave to your browser’s cache, but don’t rely on that)</p>
+      <p>Print it blank for the table, or let it build your character and auto-calculate everything as you play. You can keep all your characters in here and switch between them from <strong>Manage Characters</strong> in the menu. That is also where you can import characters from other files!</p>
+      <p class="intro-foot">*iOS users will need to rely on the online version <a href="https://baestheorem.github.io/dnd-character-sheet/" target="_blank" rel="noopener">here</a>, because Safari is scared of HTML files, but you can still import your characters from an existing file. I keep my sheets in iCloud Drive so I can seamlessly switch between my desktop and my phone, re-importing my characters when I switch to my phone.</p>
+      <p>Other features include:</p>
+      <ul class="intro-feats">
+        <li>Upload a portrait and it makes a printable paper mini for the table (any companions with portraits get added to this as well!)</li>
+        <li>A homebrew studio for making your own items/races/classes/creatures/etc</li>
+        <li>Multiple themes, including the classic 5e sheet</li>
+        <li>(Optional) updates will get pushed to you as long as you have internet. If you dismiss an update it will never bother you again.</li>
+        <li>Firing a ranged weapon automatically deducts the corresponding ammunition from your inventory</li>
+        <li>Scrolls added to your inventory also get added as one-time-use spells in your spells list</li>
+        <li>And many more!</li>
+      </ul>
       <div class="intro-note">
         <strong>Fill it in with Create Character.</strong> This sheet is built to be filled out by the Create Character process, not typed in by hand. It walks you through race, class, background, and feats, then keeps everything (modifiers, AC, saves, spell DC, attacks, HP, and more) calculated and correct as you go. Unless you really know the rules, start there.
         <br><br>
@@ -3099,11 +3114,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v552 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v553 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.133.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.133.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3111,6 +3126,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v553", semver:"2.133.3", items:[
+      "Rewrote the welcome guide: plainer explanation of what a single-HTML-file sheet is, a pointer to the online version for iOS users, and a highlights list of features (paper minis, the Homebrew Studio, themes, pushed updates, ammo auto-deduction, scroll spells).",
+    ]},
     {v:"v552", semver:"2.133.2", items:[
       "Fixed the first page printing blank from the Universal Character Sheet. Chrome's print preview fires a resize event while the dialog is open (opening it, changing settings), which rebuilt the landscape dashboard mid-print and pulled the Core cards out of the page after the first sheet had already been laid out — so Core came out empty while every other page printed fine.",
     ]},
