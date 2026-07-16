@@ -158,6 +158,7 @@
 
   label.lbl{display:block; font-size:10px; font-weight:700; letter-spacing:.09em;
     text-transform:uppercase; color:var(--muted); margin-bottom:3px}
+  label.lbl .wiz-hint{text-transform:none; letter-spacing:normal}   /* an inline hint inside a header keeps sentence case — long all-caps runs are hard to read */
 
   input,select,textarea{
     font:inherit; color:var(--ink); width:100%;
@@ -199,7 +200,7 @@
   .meta-row2{grid-template-columns:repeat(3, minmax(0,1fr)) minmax(0,1.7fr)}   /* Alignment · Player · Campaign · Experience (wider) */
   .xp-wrap{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
   .xp-wrap > #xp{flex:1; min-width:64px}
-  .xp-add{width:74px}
+  .xp-add{width:90px}   /* wide enough for the "+ gained" placeholder on mobile (74px clipped it) */
   .btn#btn-addxp{font-size:11px; padding:3px 10px}
   .xp-status{font-size:11px; color:var(--muted); flex-basis:100%}
   .wiz-leveltarget-banner{background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:8px 12px; font-size:13px; font-weight:600; margin-bottom:12px}
@@ -3098,11 +3099,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v546 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v547 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.133.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.133.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3110,6 +3111,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v547", semver:"2.133.1", items:[
+      "Readability polish: the long explanations inside section headers (Homebrew, 5etools sources, wizard hints) now render in sentence case instead of inheriting the header's ALL-CAPS style, and the Homebrew blurb points at the new per-character Enabled sources. The mobile Experience row's “+ gained” field no longer clips its placeholder.",
+    ]},
     {v:"v546", semver:"2.133.0", items:[
       "Which sources a character uses is now a per-character choice. Settings → Character Settings gained an “Enabled sources” list — check/uncheck any loaded book, homebrew source, or the Ancestral Weapons module for THIS character only; every character keeps its own choices (this is also what gates the Tasha's optional rules, right below it). Settings → Advanced keeps the browser-wide list of what's LOADED (load, import, export, ✕ delete) without checkboxes.",
       "Source toggles no longer need your 5etools server: unchecking applies instantly, and checking a book whose data is baked into the file merges its content in on the spot (previously the checkbox silently reverted without a server).",
@@ -5159,7 +5163,7 @@
     const ns = homebrewSources.length;
     const totals = HB_BAGS.map(k => { const n = homebrewSources.reduce((a,s) => a + Object.keys(s[k]||{}).length, 0); return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean);
     const summary = totals.length ? (totals.join(", ") + " across " + (ns||0) + " source" + (ns===1?"":"s") + ".") : ("No homebrew content yet, across " + (ns||0) + " source" + (ns===1?"":"s") + ".");
-    el.innerHTML = `<label class="lbl" style="display:block; margin:0 0 6px">Homebrew <span class="wiz-hint" style="font-weight:400; display:inline">— your own content, as one or more named sources (this browser; survives character clears; travels with shared sheets; toggle/delete each above)</span></label>`+
+    el.innerHTML = `<label class="lbl" style="display:block; margin:0 0 6px">Homebrew <span class="wiz-hint" style="font-weight:400; display:inline">— your own content, as one or more named sources. Lives in this browser, survives character clears, and travels with shared sheets. Delete a source in the loaded list below; choose which sources each character uses in Settings → Character Settings → Enabled sources.</span></label>`+
       `<p class="wiz-hint" style="margin:0 0 8px">${summary}</p>`+
       `<button class="btn primary" id="btn-hb-studio" type="button">Open Homebrew Studio…</button>`;
   }
