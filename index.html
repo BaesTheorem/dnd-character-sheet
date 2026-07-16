@@ -2970,6 +2970,9 @@
             <p class="wiz-hint">Off by default. When off, modern gear (pistols, rifles, shotguns, dynamite, etc.) is hidden from the item search and the per-row item autocomplete.</p>
             <label class="lay-row"><input type="checkbox" id="set-futuristic"> Show futuristic items</label>
             <p class="wiz-hint">Off by default. When off, futuristic gear (laser/antimatter weapons, powered armor, etc.) is hidden from the item search and the per-row item autocomplete.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Enabled sources</label>
+            <p class="wiz-hint" style="margin-top:0">Which loaded sources <strong>this character</strong> uses. Unchecking one hides its content (races, spells, items…) for this character only — every character keeps its own choices. Unchecking Tasha's Cauldron here also turns off its optional rules below, and the Ancestral Weapons row turns that whole rules module on or off. Loading, importing, and deleting sources for the whole sheet lives in Settings → Advanced.</p>
+            <div id="char-sources"></div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Tasha's Cauldron of Everything — optional rules</label>
             <p class="wiz-hint" style="margin-top:0">Every optional rule is on by default. The origin rules change what the creation wizard lets you customize; the class-feature rules add the feature to a character that has the class (limited-use ones get a tracker, and a few replace a base feature). Changes apply when you next create or edit a character.</p>
             <div id="tce-allbtns" style="margin:6px 0 10px"><button class="btn" id="tce-all-on" type="button" style="font-size:11px; padding:3px 9px">Enable all</button> <button class="btn" id="tce-all-off" type="button" style="font-size:11px; padding:3px 9px">Disable all</button></div>
@@ -2985,7 +2988,7 @@
             </div>
             <button class="btn primary" id="btn-loadall" type="button" style="margin-top:8px" title="Import every available 2014-ruleset book from your 5etools server in one click">Load all books</button>
             <button class="btn" id="btn-reload-all" type="button" style="display:none; margin-top:8px" title="Re-fetch every loaded book from your 5etools server to refresh its data">Reload all loaded sources</button>
-            <div id="loaded-books"><label class="lbl" style="display:block; margin:14px 0 4px">Loaded sources <span class="wiz-hint" style="font-weight:400; display:inline">— uncheck to hide a book's content</span></label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Acquisitions Incorporated"> Acquisitions Incorporated</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Adventure Atlas: The Mortuary"> Adventure Atlas: The Mortuary</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Adventure with Muk"> Adventure with Muk</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Adventurers League"> Adventurers League</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Astral Adventurer's Guide"> Astral Adventurer's Guide</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Bigby Presents: Glory of the Giants"> Bigby Presents: Glory of the Giants</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Boo's Astral Menagerie"> Boo's Astral Menagerie</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Domains of Delight"> Domains of Delight</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Guide (2014)" checked=""> Dungeon Master's Guide (2014)</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Screen"> Dungeon Master's Screen</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Screen: Dungeon Kit"> Dungeon Master's Screen: Dungeon Kit</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Screen: Spelljammer"> Dungeon Master's Screen: Spelljammer</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeon Master's Screen: Wilderness Kit"> Dungeon Master's Screen: Wilderness Kit</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Dungeons &amp; Dragons vs. Rick and Morty: Basic Rules"> Dungeons &amp; Dragons vs. Rick and Morty: Basic Rules</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Eberron: Rising from the Last War" checked=""> Eberron: Rising from the Last War</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Explorer's Guide to Wildemount" checked=""> Explorer's Guide to Wildemount</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Fizban's Treasury of Dragons" checked=""> Fizban's Treasury of Dragons</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Guildmasters' Guide to Ravnica" checked=""> Guildmasters' Guide to Ravnica</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Heroes' Feast"> Heroes' Feast</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Heroes' Feast Flavors of the Multiverse"> Heroes' Feast Flavors of the Multiverse</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Minsc and Boo's Journal of Villainy"> Minsc and Boo's Journal of Villainy</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Monster Manual (2014)" checked=""> Monster Manual (2014)</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Monstrous Compendium Volume 4: Eldraine Creatures"> Monstrous Compendium Volume 4: Eldraine Creatures</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Mordenkainen Presents: Monsters of the Multiverse" checked=""> Mordenkainen Presents: Monsters of the Multiverse</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Mordenkainen's Tome of Foes" checked=""> Mordenkainen's Tome of Foes</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Morte's Planar Parade"> Morte's Planar Parade</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Muk's Guide to Everything He Learned From Tasha"> Muk's Guide to Everything He Learned From Tasha</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Mythic Odysseys of Theros"> Mythic Odysseys of Theros</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="One Grung Above"> One Grung Above</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Amonkhet"> Plane Shift: Amonkhet</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Dominaria"> Plane Shift: Dominaria</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Innistrad"> Plane Shift: Innistrad</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Ixalan"> Plane Shift: Ixalan</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Kaladesh"> Plane Shift: Kaladesh</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Plane Shift: Zendikar"> Plane Shift: Zendikar</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Player's Handbook (2014)" checked=""> Player's Handbook (2014)</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Puncheons and Flagons"> Puncheons and Flagons</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Sage Advice Compendium (2014)"> Sage Advice Compendium (2014)</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Sigil and the Outlands"> Sigil and the Outlands</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Strixhaven: A Curriculum of Chaos" checked=""> Strixhaven: A Curriculum of Chaos</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Sword Coast Adventurer's Guide" checked=""> Sword Coast Adventurer's Guide</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Tarot Deck"> Tarot Deck</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Tasha's Cauldron of Everything" checked=""> Tasha's Cauldron of Everything</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="The Book of Many Things"> The Book of Many Things</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="The Deck of Many Things: Card Reference Guide"> The Deck of Many Things: Card Reference Guide</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Thieves' Gallery"> Thieves' Gallery</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Van Richten's Guide to Ravenloft" checked=""> Van Richten's Guide to Ravenloft</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Volo's Guide to Monsters" checked=""> Volo's Guide to Monsters</label><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="Xanathar's Guide to Everything" checked=""> Xanathar's Guide to Everything</label></div>
+            <div id="loaded-books"></div>
             <label class="lbl" style="display:block; margin:10px 0 4px" for="server-url">5etools server</label>
             <input id="server-url" value="http://localhost:5050" spellcheck="false">
             <p class="wiz-hint">Loads any book straight from your local 5etools server (works offline; keep that server running). Loaded books are remembered in this browser. <strong>Reload all loaded sources</strong> re-fetches them to refresh their data.</p>
@@ -3095,11 +3098,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v545 (2026-07-15)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v546 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.132.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.133.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3107,6 +3110,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v546", semver:"2.133.0", items:[
+      "Which sources a character uses is now a per-character choice. Settings → Character Settings gained an “Enabled sources” list — check/uncheck any loaded book, homebrew source, or the Ancestral Weapons module for THIS character only; every character keeps its own choices (this is also what gates the Tasha's optional rules, right below it). Settings → Advanced keeps the browser-wide list of what's LOADED (load, import, export, ✕ delete) without checkboxes.",
+      "Source toggles no longer need your 5etools server: unchecking applies instantly, and checking a book whose data is baked into the file merges its content in on the spot (previously the checkbox silently reverted without a server).",
+    ]},
     {v:"v545", semver:"2.132.0", items:[
       "Loading sourcebooks on a fresh/blank sheet is now a single click with no server. When no sourcebooks are loaded, the “No sourcebooks loaded” banner opens the file picker directly — pick the book JSON files you downloaded (you can select several at once) and they load in. Same one-click, no-server flow MPMB uses; the 5etools-server path is still there in Settings for power users.",
     ]},
@@ -3898,7 +3905,7 @@
   let awEnabled = true;
   function loadAwEnabled(){ try{ const v = localStorage.getItem(AW_ENABLED_KEY); awEnabled = (v === null) ? true : v !== "0"; }catch(e){ awEnabled = true; } }
   function saveAwEnabled(){ try{ localStorage.setItem(AW_ENABLED_KEY, awEnabled ? "1" : "0"); }catch(e){} }
-  function setAwEnabled(on){ awEnabled = !!on; saveAwEnabled(); if(typeof refreshHbItems==="function") refreshHbItems(); if($("hb-studio")) renderHbStudio(); flashStatus("Ancestral Weapons " + (awEnabled ? "enabled" : "disabled")); }
+  function setAwEnabled(on){ awEnabled = !!on; saveAwEnabled(); if(typeof save === "function") save(); if(typeof refreshHbItems==="function") refreshHbItems(); if($("hb-studio")) renderHbStudio(); flashStatus("Ancestral Weapons " + (awEnabled ? "enabled" : "disabled") + " for this character"); }   // per-character (collect() persists data.awEnabled); localStorage keeps the default for characters without a record
   function serverBase(){ return (($("server-url")||{}).value || "").trim() || "http://localhost:5050"; }   // the 5etools server URL (single source)
 
   const ABILITIES = [
@@ -5058,7 +5065,7 @@
   // Rebuild the merged DATA from the unified store — the sources-driven successor to rebuildFromRaw. Merges each enabled
   // 5etools/file source (in priority order) via mergeBook with (name,src) coexist + _src tagging, so same-name entities
   // from different sources survive side by side. Homebrew still rides hbApplyToData + the read-overlay here (folded in at
-  // Stage 4); toggling still uses _meta.disabled so the existing book-toggle UI keeps working. Per-book data is read from
+  // Stage 4); toggling still uses _meta.disabled so the enabled-sources UI (per-character checkboxes) keeps working. Per-book data is read from
   // _meta.raw during the transition (authoritative), with DATA.sources supplying the order/id/tag.
   function rebuildFromSources(){
     if(!DATA || !DATA._meta) return;
@@ -5093,7 +5100,7 @@
   function refreshAfterData(){                     // one call to re-render everything that reads DATA
     if(typeof hbApplyToData === "function") hbApplyToData();   // re-inject structured homebrew (feats/races/backgrounds/subclasses) into the freshly-changed DATA
     populateWizard(); populateArmor(); populateItemList(); renderAllSpellSheets(false);
-    updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); renderLoadedBookList(); if(typeof renderTceToggles==="function") renderTceToggles(); compute();
+    updateSourcebookStatus(); populateBookSelect(); populateMonsterList(); renderLoadedBookList(); if(typeof renderCharSourceToggles==="function") renderCharSourceToggles(); if(typeof renderTceToggles==="function") renderTceToggles(); compute();
   }
   // Re-pick DATA from localStorage and re-render — used by the cross-tab sync so a source reload/clear in ANY tab
   // applies to the whole app, not just the tab that did it (mirrors the DATA-selection logic in init()).
@@ -5112,31 +5119,39 @@
     _spellIndex = null;
     refreshAfterData();
   }
-  function renderLoadedBookList(){
-    const el = $("loaded-books"); if(!el) return;
-    const names = loadedBooks(); const off = disabledBooks();
-    // (always render — the Ancestral Weapons module toggle below shows even with no books/homebrew loaded)
+  function groupedSourceNames(){   // loaded source names split into "official 5etools" vs "other" (imported files) — shared by the Advanced list + the per-character Enabled-sources list
+    const names = loadedBooks();
     const baked = new Set(((DATA && DATA._meta && DATA._meta.bakedBooks) || []).map(String));
     const fiveELoaded = new Set(((DATA && DATA._meta && DATA._meta.fiveE) || []).map(String));   // books/adventures loaded from the 5etools server (tagged in doLoadBook)
     const sorted = names.slice().sort((a,b)=>String(a).localeCompare(String(b)));
-    const row = nm => `<div class="book-row"><label class="lay-row"><input type="checkbox" class="book-toggle" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label><button type="button" class="book-del" data-book="${esc(nm)}" title="Delete this sourcebook entirely" aria-label="Delete ${esc(nm)}">✕</button></div>`;
-    const hdr = (t,h) => `<label class="lbl" style="display:block; margin:14px 0 4px">${t} <span class="wiz-hint" style="font-weight:400; display:inline">— ${h}</span></label>`;
-    // Two sections: official 5etools content (baked in OR loaded from the 5etools server — sourcebooks AND adventure
-    // modules, since adventures are 5etools content too) and "Other loaded sources" (everything else, together:
-    // imported files, homebrew, and rules modules like Ancestral Weapons). With no markers at all (old data), treat
-    // every loaded book as 5etools so nothing wrongly lands under "Other".
+    // With no markers at all (old data), treat every loaded book as 5etools so nothing wrongly lands under "Other".
     const haveMarkers = baked.size || fiveELoaded.size;
     const isFiveE = nm => haveMarkers ? (baked.has(String(nm)) || fiveELoaded.has(String(nm))) : true;
-    const fiveE = sorted.filter(isFiveE);
-    const other = sorted.filter(nm => !isFiveE(nm));   // imported source-data files (not from the 5etools server)
+    return { fiveE: sorted.filter(isFiveE), other: sorted.filter(nm => !isFiveE(nm)) };
+  }
+  function hbSrcCounts(src){ const parts = HB_BAGS.map(k => { const n = Object.keys(src[k]||{}).length; return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean); return parts.join(", ") || "empty"; }
+  const srcListHdr = (t,h) => `<label class="lbl" style="display:block; margin:14px 0 4px">${t} <span class="wiz-hint" style="font-weight:400; display:inline">— ${h}</span></label>`;
+  function renderLoadedBookList(){   // Settings → Advanced: what's LOADED in this browser (all characters) — manage/delete here; per-character enablement lives in Character Settings
+    const el = $("loaded-books"); if(!el) return;
+    const g = groupedSourceNames();
+    const row = nm => `<div class="book-row"><label class="lay-row">${esc(nm)}</label><button type="button" class="book-del" data-book="${esc(nm)}" title="Delete this sourcebook entirely" aria-label="Delete ${esc(nm)}">✕</button></div>`;
     let html = "";
-    if(fiveE.length) html += hdr("5etools sources", "official 5etools books and adventures — built in or loaded from your 5etools server. Uncheck to hide a book's content, ✕ to delete it") + fiveE.map(row).join("");
-    // Other loaded sources: imported files + homebrew sources + rules modules, all in one list.
-    const hbrow = src => { const parts = HB_BAGS.map(k => { const n = Object.keys(src[k]||{}).length; return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean); const cnt = parts.join(", ") || "empty";
-      return `<div class="book-row"><label class="lay-row"><input type="checkbox" class="hbsrc-toggle" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(homebrew · ${cnt})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`; };
-    const awRow = `<div class="book-row"><label class="lay-row"><input type="checkbox" class="aw-module-toggle" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(rules module · Spirit-Points heirloom weapons)</span></label></div>`;   // export is redundant with the Homebrew Studio's per-source “Export JSON…” (AW weapons live in homebrew sources)
-    const otherHtml = other.map(row).join("") + homebrewSources.map(hbrow).join("") + awRow;
-    html += hdr("Other loaded sources", "your homebrew, imported files, and rules modules. Uncheck to hide, ✕ to delete") + otherHtml;
+    if(g.fiveE.length) html += srcListHdr("5etools sources", "official 5etools books and adventures — built in or loaded from your 5etools server. ✕ deletes one from this browser; choose which sources each character uses in Settings → Character Settings → Enabled sources") + g.fiveE.map(row).join("");
+    const hbrow = src => `<div class="book-row"><label class="lay-row">${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(homebrew · ${hbSrcCounts(src)})</span></label><button type="button" class="hbsrc-del" data-hb="${esc(src.name)}" title="Delete this homebrew source entirely" aria-label="Delete ${esc(src.name)}">✕</button></div>`;
+    const otherHtml = g.other.map(row).join("") + homebrewSources.map(hbrow).join("");
+    if(otherHtml) html += srcListHdr("Other loaded sources", "your homebrew and imported files. ✕ to delete") + otherHtml;
+    el.innerHTML = html || `<p class="wiz-hint" style="margin:10px 0 0">No sources loaded yet.</p>`;
+  }
+  function renderCharSourceToggles(){   // Settings → Character Settings → Enabled sources: which loaded sources THIS character uses (checkboxes, per-character)
+    const el = $("char-sources"); if(!el) return;
+    const off = disabledBooks();   // the live stores are the active character's projection (applyCharSources), so render straight from them
+    const g = groupedSourceNames();
+    const row = nm => `<div class="book-row"><label class="lay-row"><input type="checkbox" class="csrc-book" data-book="${esc(nm)}" ${off.has(nm)?"":"checked"}> ${esc(nm)}</label></div>`;
+    const hbrow = src => `<div class="book-row"><label class="lay-row"><input type="checkbox" class="csrc-hb" data-hb="${esc(src.name)}" ${src.enabled!==false?"checked":""}> ${esc(src.name)} <span class="wiz-hint" style="font-weight:400; display:inline">(homebrew · ${hbSrcCounts(src)})</span></label></div>`;
+    const awRow = `<div class="book-row"><label class="lay-row"><input type="checkbox" class="csrc-aw" ${awEnabled?"checked":""}> Ancestral Weapons <span class="wiz-hint" style="font-weight:400; display:inline">(rules module · Spirit-Points heirloom weapons)</span></label></div>`;
+    let html = "";
+    if(g.fiveE.length) html += srcListHdr("5etools sources", "uncheck to hide a book's content for this character") + g.fiveE.map(row).join("");
+    html += srcListHdr("Other sources", "homebrew, imported files, and rules modules") + g.other.map(row).join("") + homebrewSources.map(hbrow).join("") + awRow;
     el.innerHTML = html;
   }
   function renderHomebrewList(){   // Settings: summary + entry to the Homebrew Studio (the sources themselves toggle/delete in the loaded-sources list above)
@@ -5148,28 +5163,75 @@
       `<p class="wiz-hint" style="margin:0 0 8px">${summary}</p>`+
       `<button class="btn primary" id="btn-hb-studio" type="button">Open Homebrew Studio…</button>`;
   }
-  function refreshHomebrew(){ saveHomebrew(); if(typeof hbApplyToData === "function") hbApplyToData(); renderHomebrewList(); renderLoadedBookList(); if($("hb-studio")) renderHbStudio(); if(typeof populateWizard === "function") populateWizard(); if(typeof populateMonsterList === "function") populateMonsterList(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-inject structured homebrew into DATA + re-render everything that reads homebrew (incl. the builder pickers + Companions monster list)
-  function hbToggleSource(name, enabled){ const i = hbFindIdx(name); if(i < 0) return; homebrewSources[i].enabled = enabled; refreshHomebrew(); flashStatus((homebrewSources[i].name) + (enabled ? " shown" : " hidden")); }
+  function refreshHomebrew(){ saveHomebrew(); if(typeof hbApplyToData === "function") hbApplyToData(); renderHomebrewList(); renderLoadedBookList(); renderCharSourceToggles(); if($("hb-studio")) renderHbStudio(); if(typeof populateWizard === "function") populateWizard(); if(typeof populateMonsterList === "function") populateMonsterList(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-inject structured homebrew into DATA + re-render everything that reads homebrew (incl. the builder pickers + Companions monster list)
+  function hbToggleSource(name, enabled){ const i = hbFindIdx(name); if(i < 0) return; srcOffRecord(homebrewSources[i].name, enabled); homebrewSources[i].enabled = enabled; refreshHomebrew(); flashStatus((homebrewSources[i].name) + (enabled ? " shown" : " hidden") + " for this character"); }
   function hbDeleteSource(name){
     const i = hbFindIdx(name); if(i < 0) return;
     const src = homebrewSources[i], n = HB_BAGS.reduce((a,k) => a + Object.keys(src[k]||{}).length, 0);
     if(!confirm(`Delete homebrew source “${src.name}”${n?` and its ${n} entr${n===1?"y":"ies"}`:""}? This can't be undone.`)) return;
     homebrewSources.splice(i, 1);
     if(_hbCurId >= homebrewSources.length) _hbCurId = Math.max(0, homebrewSources.length - 1);
+    srcOffForget(src.name);   // drop it from this character's per-character record too
     refreshHomebrew(); flashStatus("“"+src.name+"” deleted");
   }
   async function toggleBook(name, enabled){
     if(!DATA || !DATA._meta) return;
+    srcOffRecord(name, enabled);   // the choice belongs to the ACTIVE character (Settings → Character Settings → Enabled sources)
     const prev = (DATA._meta.disabled || []).slice();
     const set = new Set(prev); if(enabled) set.delete(name); else set.add(name);
     DATA._meta.disabled = Array.from(set);
     if(hasAllRaw()){ rebuildFromSources(); bakeSourceData(); refreshAfterData(); persistSources();
       flashStatus(enabled ? name+" shown" : name+" hidden"); return;
     }
-    flashStatus("Fetching source data to enable filtering…");
-    const ok = await reloadAllBooks(true);        // re-fetch all books to populate per-book data, then re-applies the filter
-    if(!ok){ DATA._meta.disabled = prev; renderLoadedBookList(); }   // server unreachable — revert the toggle
-    else flashStatus(enabled ? name+" shown" : name+" hidden");
+    // Partial per-book data (the shipped file bakes raw for most but not all books, so this is the COMMON case):
+    // apply the choice instantly WITHOUT a full rebuild — rebuilding would drop the no-raw books' content (the
+    // documented hollow-out failure), and the old fallback (re-fetch everything from the 5etools server) made the
+    // checkbox dead without a server. Enabling a book whose raw IS baked merges it in additively; disabling just
+    // flags it — everything reading disabledBooks() (tashaEnabled, the lists) follows now, and the book's
+    // already-merged content fully filters out on the next "Reload all loaded sources".
+    if(enabled && DATA._meta.raw && DATA._meta.raw[name]){ mergeBook(DATA, DATA._meta.raw[name], name); resolveSubraces(DATA); _spellIndex = null; }
+    bakeSourceData(); refreshAfterData(); persistSources();
+    flashStatus(enabled ? name+" shown" : name+" hidden");
+  }
+
+  // ===== Per-character source enablement =====
+  // WHICH loaded sources a character uses is the CHARACTER's choice (Settings → Character Settings → Enabled
+  // sources); loading/importing/deleting sources stays browser-wide (Settings → Advanced). The browser-wide stores
+  // (DATA._meta.disabled, homebrewSources[].enabled, awEnabled) act as live projections of the ACTIVE character's
+  // choices — every existing reader (rebuildFromSources, tashaEnabled, hbActive*, …) keeps working untouched.
+  // applyCharSources() re-projects on character load; a character with no record (legacy) adopts the current
+  // browser-wide state as its starting choice the first time it opens.
+  let charSrcOff = null;   // array of disabled source names for the active character (null until a character loads)
+  function charSrcOffSet(){ return new Set((charSrcOff || []).map(String)); }
+  function srcOffRecord(name, enabled){   // record one per-character choice (checkbox toggle)
+    const s = charSrcOffSet(); if(enabled) s.delete(String(name)); else s.add(String(name));
+    charSrcOff = Array.from(s); if(typeof save === "function") save();
+  }
+  function srcOffForget(name){   // a source was deleted or (re)loaded browser-wide → it starts enabled for this character
+    if(!Array.isArray(charSrcOff) || !charSrcOff.some(n => String(n) === String(name))) return;
+    charSrcOff = charSrcOff.filter(n => String(n) !== String(name)); if(typeof save === "function") save();
+  }
+  function applyCharSources(){   // project the active character's choices into the live stores; true = data changed (caller re-renders)
+    if(!DATA || !DATA._meta || !Array.isArray(charSrcOff)) return false;
+    const want = charSrcOffSet();
+    const loaded = new Set(loadedBooks().map(String));
+    const wantBooks = Array.from(loaded).filter(n => want.has(n)).sort();
+    const curBooks = Array.from(disabledBooks()).map(String).filter(n => loaded.has(n)).sort();
+    let changed = false;
+    if(wantBooks.join("\n") !== curBooks.join("\n")){
+      DATA._meta.disabled = wantBooks;
+      if(hasAllRaw()) rebuildFromSources();
+      else {   // partial per-book raw → can't rebuild (would drop no-raw books' content); additively merge the books this character newly enables, where their raw is baked
+        const raw = (DATA._meta && DATA._meta.raw) || {}; let merged = false;
+        curBooks.forEach(nm => { if(!want.has(nm) && raw[nm]){ mergeBook(DATA, raw[nm], nm); merged = true; } });
+        if(merged){ resolveSubraces(DATA); _spellIndex = null; }
+      }
+      changed = true;
+    }
+    let hbChanged = false;
+    homebrewSources.forEach(s => { const on = !want.has(String(s.name)); if((s.enabled !== false) !== on){ s.enabled = on; hbChanged = true; } });
+    if(hbChanged) saveHomebrew();
+    return changed || hbChanged;
   }
 
   // ===== In-browser 5etools data processing (port of build-data.py) =====
@@ -6159,6 +6221,7 @@
     DATA._meta.raw = DATA._meta.raw || {};
     DATA._meta.raw[name] = d;   // the file IS this source's per-book data → toggling it off rebuilds without it, no server needed
     if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== name);   // a freshly imported source starts shown
+    srcOffForget(name);   // …for this character too
   }
   // Known 2024 ("One D&D") edition source codes — UPPERCASED for case-insensitive matching. This sheet is 2014-ruleset
   // only, so all of these are blocklisted from the loadable sources. The `published >= 2024-09-01` date rule below is
@@ -6215,7 +6278,7 @@
       const data = await fetch5etoolsBook(base, srcCode);
       if(!DATA) DATA = {_meta:{books:[]}};
       DATA._meta.raw = DATA._meta.raw || {}; DATA._meta.raw[bookName] = data;   // keep per-book copy so it can be filtered out later
-      if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== bookName);   // an explicit load (re)enables the book
+      if(!reloading){ if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== bookName); srcOffForget(bookName); }   // an explicit fresh load (re)enables the book — for this character too. A RELOAD refreshes data only (reloadAllBooks runs for every book incl. per-character-disabled ones; forgetting here would wipe the character's choices)
       DATA._meta.fiveE = DATA._meta.fiveE || []; if(!DATA._meta.fiveE.includes(bookName)) DATA._meta.fiveE.push(bookName);   // it came from the 5etools server (sourcebook OR adventure) → list it under "5etools sources", not "Other"
       mergeBook(DATA, data, bookName);
       if(defer) return;   // batch loader finalizes once at the end
@@ -7444,8 +7507,10 @@
     m.addEventListener("click", e => { const rm = e.target.closest(".hb-img-rm"); if(rm){ _hbImg[rm.dataset.scope] = ""; hbImgSyncPreview(rm.dataset.scope); } });
     $("hb-src-select").addEventListener("change", e => { _hbCurId = parseInt(e.target.value, 10) || 0; hbCloseForm(); renderHbStudio(); });
     $("hb-src-name").addEventListener("change", e => { const cur = hbEnsureSource(); const want = (e.target.value||"").trim() || "My Homebrew";
-      cur.name = (want.toLowerCase() === cur.name.toLowerCase()) ? want : hbUniqueName(want); refreshHomebrew(); });
-    $("hb-src-enabled").addEventListener("change", e => { hbEnsureSource().enabled = e.target.checked; refreshHomebrew(); });
+      const old = cur.name; cur.name = (want.toLowerCase() === cur.name.toLowerCase()) ? want : hbUniqueName(want);
+      if(cur.name !== old && Array.isArray(charSrcOff) && charSrcOff.some(n => String(n) === String(old))){ srcOffForget(old); srcOffRecord(cur.name, false); }   // a renamed source keeps this character's disabled choice
+      refreshHomebrew(); });
+    $("hb-src-enabled").addEventListener("change", e => { const s = hbEnsureSource(); s.enabled = e.target.checked; srcOffRecord(s.name, e.target.checked); refreshHomebrew(); });   // the Studio checkbox is the same per-character choice as Character Settings → Enabled sources
     $("hb-src-new").addEventListener("click", () => { homebrewSources.push({name:hbUniqueName("Homebrew"), enabled:true, spells:{}}); _hbCurId = homebrewSources.length - 1; hbCloseForm(); refreshHomebrew(); setTimeout(() => { const el = $("hb-src-name"); if(el){ el.focus(); el.select(); } }, 0); });
     $("hb-src-del").addEventListener("click", () => { const cur = homebrewSources[_hbCurId]; if(cur){ hbDeleteSource(cur.name); renderHbStudio(); } });
     $("hb-src-export").addEventListener("click", () => hbExportSource(_hbCurId));
@@ -9422,6 +9487,8 @@
     data.invEquip = []; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i); data.invEquip.push(!!(cb && cb.checked)); }   // per-row equipped state
     data.atkLinks = []; for(let i=0;i<NATTACKS;i++){ const el = $("atkname-"+i); data.atkLinks.push((el && el.dataset.weapon) || ""); }   // active-weapon Attacks rows
     data.companions = companions;
+    data.disabledSources = Array.isArray(charSrcOff) ? charSrcOff.slice() : Array.from(disabledBooks());   // per-character source enablement (Settings → Character Settings → Enabled sources)
+    data.awEnabled = awEnabled;   // Ancestral Weapons rules module — per-character too
     data.awOverrides = awOverrides;   // per-character Ancestral Weapon SP/upgrade tuning (source item untouched)
     data.infusions = infusions;
     data.arcaneArmor = arcaneArmor;
@@ -9526,6 +9593,10 @@
     showFuturistic = !!(data && data.showFuturistic);   // default off
     showModern = !!(data && data.showModern);           // default off
     showRenaissance = !!(data && data.showRenaissance); // default off
+    awEnabled = (data && ("awEnabled" in data)) ? !!data.awEnabled : awEnabled;   // per-character AW module; a character with no record keeps the browser-wide value
+    charSrcOff = (data && Array.isArray(data.disabledSources)) ? data.disabledSources.map(String)
+      : Array.from(new Set([ ...disabledBooks(), ...homebrewSources.filter(s => s.enabled === false).map(s => String(s.name)) ]));   // legacy character: adopt the current browser-wide choices as its starting per-character record
+    const srcChanged = applyCharSources();   // project this character's source choices into the live stores (DATA rebuild if they differ)
     if(data){                                                       // migrate old per-page include checkboxes
       if(data["spell-include"] === false) hiddenPages.spells = true;
       if(data["mini-include"] === false) hiddenPages.mini = true;
@@ -9587,6 +9658,7 @@
     applyAnimSetting();
     applyDarkSetting();
     compute();
+    if(srcChanged) refreshAfterData();   // this character's enabled sources differ from the previous projection — re-render everything that reads DATA (wizard/item/spell/monster lists were populated before applyAll)
     if(migrateStaleToolProse()) save();   // repair pre-2.122.1 garbled class tool-prof text, then persist the cleanup
     if(promoteDefNotes()) save();   // promote any player-typed defense lines already in the notes box into badges (migrates existing characters)
   }
@@ -10186,6 +10258,7 @@
     DATA._meta.books = (DATA._meta.books || []).filter(n => n !== name);
     if(DATA._meta.raw) delete DATA._meta.raw[name];
     if(DATA._meta.disabled) DATA._meta.disabled = DATA._meta.disabled.filter(n => n !== name);
+    srcOffForget(name);   // drop it from this character's per-character record too
     if(DATA._meta.bakedBooks) DATA._meta.bakedBooks = DATA._meta.bakedBooks.filter(n => n !== name);
     if(!DATA._meta.books.length){   // nothing left → clear stored sources, fall back to no data
       DATA = null; _spellIndex = null;
@@ -13793,6 +13866,7 @@
     else loadStoredPortrait();                                                   // otherwise pull it from IndexedDB (migrating any legacy localStorage copy)
     updateSourcebookStatus();
     renderLoadedBookList();
+    renderCharSourceToggles();
     renderHomebrewList();
     if(sourcesAreStale()) flashStatus("Loaded sourcebooks are out of date — open Settings → Source books → “Reload all loaded sources” to enable new features (e.g. subclass choices).");
     checkForMissingBooks();   // if the open character has spells that don't resolve (a needed sourcebook isn't loaded), show the "Load the missing book" banner — manual, user decides
@@ -14384,7 +14458,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; refreshDarkAvail(); $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("set-renaissance").checked = showRenaissance; updateBlockMode(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderCharSourceToggles(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; refreshDarkAvail(); $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("set-renaissance").checked = showRenaissance; updateBlockMode(); $("settings").classList.add("open"); });
     // Overflow menu (hamburger): toggle, close on outside-click / Escape / any item click.
     (function(){
       const pop = $("app-menu"), btn = $("btn-menu");
@@ -14455,8 +14529,8 @@
       const left = document.querySelector(".combat-left");
       if(left && typeof ResizeObserver === "function"){ new ResizeObserver(refit).observe(left); }
       requestAnimationFrame(() => requestAnimationFrame(fitDefenses)); }   // one settle pass after initial layout
-    $("loaded-books").addEventListener("change", e => { const a = e.target.closest(".aw-module-toggle"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".book-toggle"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".hbsrc-toggle"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });
-    $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });
+    $("char-sources").addEventListener("change", e => { const a = e.target.closest(".csrc-aw"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".csrc-book"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".csrc-hb"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });   // per-CHARACTER enabled-source checkboxes (Character Settings)
+    $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });   // browser-wide loaded-source management (Advanced): delete only
     $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
