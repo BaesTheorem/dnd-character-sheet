@@ -3166,11 +3166,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v559 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v560 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.134.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.134.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3178,6 +3178,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v560", semver:"2.134.1", items:[
+      "Subclass resources now track in Limited Features: Battle Master Superiority Dice (4/5/6 with the die size in the row name, growing d8 → d10 → d12 as you level), Arcane Shot uses (2 per short rest — previously the row appeared with a blank max), Giant's Might (proficiency-bonus uses per long rest), and one invocation row per learned rune (each twice per rest once Master of Runes lands at 15). Rows update live as you level or swap runes.",
+    ]},
     {v:"v559", semver:"2.134.0", items:[
       "Arcane Archer and Rune Knight join the Optional Features picker: Arcane Shot options (2 known at Fighter 3, up to 6 by 18) and Runes (2 known at 3, up to 5 at 15; Hill and Storm marked as level-7 options), with the full rules text for every arrow and rune.",
       "Save DCs now show right in the picker headers: Arcane Shot (8 + prof + Int), Runes (8 + prof + Con), and Battle Master Maneuvers (8 + prof + Str/Dex) all display their live DC.",
@@ -9366,7 +9369,8 @@
         + "" + (asiChoices||[]).map(s => (s.type||"")+"/"+(s.feat||"")+":"+(s.featSpell||"")+":"+(s.featVariant||"")+":"+((s.featSpells||[]).join("|"))).join(",")   // feat type + spell picks drive limited rows, granted spells, and learned-spell sync
         + "" + scrollSig()   // spell scrolls in inventory surface as one-time-use casts in the granted table
         + "" + ["0","1","2"].map(k => ($("attune-"+k)||{}).value||"").join(",")   // attunement drives attune-gated granted spells + item Limited Features rows
-        + "" + [...characterCasterKeys()].sort().join(",");   // caster classes drive which scrolls are castable (multiclassing opens up more lists)
+        + "" + [...characterCasterKeys()].sort().join(",")   // caster classes drive which scrolls are castable (multiclassing opens up more lists)
+        + "⚿" + (typeof optFeats !== "undefined" ? optFeats.map(x => x.type + ":" + x.name).join(",") : "");   // optional-feature picks drive per-rune invocation rows
       if(sig !== _lastLimSig){ _lastLimSig = sig; refreshLimitedFeatures(); syncFeatSpells(); renderGrantedSpells(); renderActionEconomy(); } }   // only recompute when its inputs changed (skip on Notes/Backstory keystrokes)
     { let esp = ""; for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim(); if(cb && cb.checked && ELSEWHERE_ITEMS[nm]) esp += nm + "|"; }   // equipping a spellbook item changes the class spell list → re-render the spell sheets
       if(esp !== _lastEspSig){ _lastEspSig = esp; renderAllSpellSheets(false); } }
@@ -13394,7 +13398,7 @@
   const LIMITED_FEAT_NAMES = new Set();
   Object.values(LIMITED_RESOURCES).forEach(list => list.forEach(r => { LIMITED_FEAT_NAMES.add(r.feat.toLowerCase()); LIMITED_FEAT_NAMES.add(r.name.toLowerCase()); }));
   // Features the heuristic gets wrong — never track these as limited-use:
-  const LIMITED_EXCLUDE = new Set(["spellcasting", "pact magic", "lay on hands"]);   // Lay on Hands is an HP pool, not a use-count tracker
+  const LIMITED_EXCLUDE = new Set(["spellcasting", "pact magic", "lay on hands", "master of runes"]);   // Lay on Hands is an HP pool, not a use-count tracker; Master of Runes just bumps the per-rune invocation count
   // Known limited features with exact values (override the heuristic's guess).
   // Each maps a feature-block name → one or more rows {label, max, rec}. A "label" lets a single
   // feature produce a renamed/disambiguated row (or split into multiple rows). max="PB" means
@@ -13408,6 +13412,16 @@
     "psionic power":[{label:"Psionic Energy dice", max:"2PB", rec:"LR"}]   // Soulknife / Psi Warrior: dice = twice your proficiency bonus (d6→d12); regain all on a long rest, +1 as a bonus action per short rest
   };
   TCE_RULES.forEach(r => { if(r.lim){ LIMITED_OVERRIDES[r.label.toLowerCase().split(" (")[0]] = [r.lim]; } });   // Tasha's limited-use features (Favored Foe, Nature's Veil, Harness Divine Power)
+  // Subclass resources (function overrides re-derive on every refresh, so they track level + picks live)
+  LIMITED_OVERRIDES["combat superiority"] = () => { const l = optfeatClassLevel("Fighter");   // Battle Master: 4 dice at 3, 5 at 7, 6 at 15; d8 → d10 at 10 → d12 at 18
+    const die = l>=18?"d12":l>=10?"d10":"d8", n = l>=15?"6":l>=7?"5":"4";
+    return [{label:`Superiority Dice (${die})`, max:n, rec:"SR"}]; };
+  LIMITED_OVERRIDES["arcane shot"]   = [{label:"Arcane Shot", max:"2", rec:"SR"}];            // Arcane Archer: the text says "two uses" in words, so the heuristic leaves max blank
+  LIMITED_OVERRIDES["giant's might"] = [{label:"Giant's Might", max:"PB", rec:"LR"}];
+  { const _rc = () => { const per = optfeatClassLevel("Fighter") >= 15 ? "2" : "1";           // Rune Knight: one invocation row per LEARNED rune; Master of Runes (15) makes each twice/rest
+      return optFeats.filter(x => x.type === "Rune" && x.name)
+        .map(x => ({label:`Rune Invocation (${x.name.replace(/\s+Rune$/i,"")})`, max:per, rec:"SR"})); };
+    _rc.stale = ["rune invocation"]; LIMITED_OVERRIDES["rune carver"] = _rc; }
   function pbValue(){ const lv = charLevel(); return (lv == null) ? null : 2 + Math.floor((lv - 1) / 4); }
   function resolveLimMax(max){
     if(max === "PB"){ const pb = pbValue(); return pb == null ? "" : String(pb); }
@@ -13649,9 +13663,13 @@
       }
       if(/^channel divinity\b\s*[:(]/.test(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); return; }   // "Channel Divinity: X" options share the tracked Channel Divinity pool
       if(LIMITED_EXCLUDE.has(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); return; }   // never limited → clear any stray row
-      if(LIMITED_OVERRIDES[lc]){ const rows = LIMITED_OVERRIDES[lc];          // known exact values (possibly renamed / split into several rows)
+      if(LIMITED_OVERRIDES[lc]){ const ov = LIMITED_OVERRIDES[lc];            // known exact values (possibly renamed / split into several rows)
+        const rows = (typeof ov === "function") ? ov() : ov;                  // function overrides derive rows from live state (class level, optFeats picks)
         const labels = rows.map(r => r.label.toLowerCase());
         if(!labels.includes(lc)){ const i = lfIndexByName(b.name); if(i>=0) clearLfRow(i); }   // drop a stray row that used the bare feature name (e.g. a pre-relabel "Manifest Mind")
+        const bases = [...new Set(rows.map(r => r.label.toLowerCase().split(" (")[0]).concat(ov.stale || []))];
+        for(let i=0;i<NLIMITED;i++){ const nm = ($("lfname-"+i).value||"").trim().toLowerCase();   // clear stale variants: "Superiority Dice (d8)" after the die grew, an unlearned rune's invocation row
+          if(nm && !labels.includes(nm) && bases.some(bs => nm === bs || nm.startsWith(bs + " ("))) clearLfRow(i); }
         rows.forEach(o => { const mx = resolveLimMax(o.max), i = lfIndexByName(o.label);
           if(i>=0){ $("lfmax-"+i).value = mx; $("lfrec-"+i).value = o.rec; }                   // correct an existing row (keep its Used count)
           else addLimitedRow(o.label, mx, o.rec, b.text.slice(0,300)); });
