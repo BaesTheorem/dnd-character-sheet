@@ -21,9 +21,7 @@ Enter final ability scores + max HP directly (for porting a character built else
 
 ## Backlog (smaller mechanics)
 
-- Warlock Pact Boon; Battle Master Arcane Shot; Rune Knight runes.
-- `weaponOptions`: Polearm Master is the only remaining in-data case.
-- Natural-weapon races (Tabaxi, Lizardfolk) + feature-attack subclasses (Soulknife, Armorer, beast Barbarian) are absent from the baked data — needs those books loaded plus a prose natural-weapon extractor. The feature-attack mechanism (`setBreathWeapon`/`breathWeaponRow`, rows re-linked by name after reload like Unarmed Strike) is the pattern to extend.
+Empty — file new items here. (The 2026-07-17 audit shipped or retired the prior three: Arcane Archer Arcane Shot + Rune Knight rune pickers with save DCs, subclass limited-use resources, rune passives, and Pact of the Talisman shipped in 2.134.0–2.134.3; the `weaponOptions` item was retired because that field doesn't exist in the 5etools schema and Polearm Master was already handled in `FEATURE_ATTACKS`; the natural-weapons/feature-attack-subclasses item had already shipped — Tabaxi/Lizardfolk/etc. bake with structured `naturalWeapons`, and `FEATURE_ATTACKS` covers Soulknife, Armorer, Path of the Beast and more.)
 
 ## Shelved (design done, deliberately not building yet)
 
