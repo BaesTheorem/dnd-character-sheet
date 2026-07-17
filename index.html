@@ -1298,8 +1298,8 @@
     /* keep the on-screen two-column grouping (left = abilities/saves/skills, right = combat/etc.) */
     #page-core:not(.excluded){display:flex !important; flex-direction:column; gap:7px; min-height:252mm}   /* fill the printed sheet; min-height stays under the natural content height so it never inflates Core past one page (was 261mm, which left only ~2mm of slack and spilled to a 2nd sheet in real browser print). :not(.excluded) so an ID rule can't override .page.excluded's display:none (that leaked hidden pages into print) */
     #page-core .columns{flex:1 1 auto; grid-template-rows:1fr}                     /* row fills the page; stacks stretch into it */
-    .columns{display:grid; grid-template-columns:290px 1fr; gap:8px; align-items:stretch}
-    .stack{display:flex; flex-direction:column; gap:5px}   /* tighter inter-card gaps buy Core a few mm of headroom so a filled character still fits one page */
+    .columns{display:grid; grid-template-columns:290px 1fr; gap:6px; align-items:stretch}
+    .stack{display:flex; flex-direction:column; gap:4px}   /* tighter inter-card gaps buy Core a few mm of headroom so a filled character still fits one page */
     .card.grow .ta-print{min-height:0}   /* fill via flex, not a fixed floor */
     #page-inv:not(.excluded){display:flex !important; flex-direction:column; gap:8px; min-height:261mm}     /* fill the printed sheet; even gaps between cards. :not(.excluded) so a hidden page stays hidden (ID rule was overriding .page.excluded) */
     #page-spells:not(.excluded), .page.spell-extra:not(.excluded), #page-bg:not(.excluded), #page-companion:not(.excluded), #page-aw:not(.excluded), .pf-cont:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* even card separation; :not(.excluded) so a hidden page stays hidden */
@@ -1324,8 +1324,8 @@
     #page-story:not(.excluded),#page-notes:not(.excluded){display:block !important}   /* :not(.excluded) so a hidden page stays hidden (ID rule was overriding .page.excluded) */
     #page-story .card.grow,#page-notes .card.grow{display:block; break-inside:auto}
     #page-story .ta-print,#page-notes .ta-print{min-height:247mm; break-inside:auto}
-    .card{padding:4px 7px; margin:0; border-color:#999; break-inside:avoid}
-    .card>h2, .atk-top h2{margin:0 0 3px; font-size:8px; letter-spacing:.07em}   /* Attacks h2 is inside .atk-top, not a direct card child — include it for header parity */
+    .card{padding:3px 6px; margin:0; border-color:#999; break-inside:avoid}
+    .card>h2, .atk-top h2{margin:0 0 2px; font-size:8px; letter-spacing:.07em}   /* Attacks h2 is inside .atk-top, not a direct card child — include it for header parity */
     input,select,textarea{background:#fff !important; padding:1px 3px}
     select{-webkit-appearance:none; -moz-appearance:none; appearance:none; background-image:none}  /* no dropdown arrows in print */
     label.lbl{font-size:7px; margin-bottom:0}
@@ -1341,12 +1341,12 @@
     .xp-add,#btn-addxp,.xp-status{display:none !important}
     .xp-wrap > #xp{width:100%; min-height:15px}
 
-    .ability{padding:1.5px 0; gap:4px}
+    .ability{padding:1px 0; gap:4px}
     .ability .name{font-size:8px}
-    .ability .mod{width:19px; height:19px; font-size:10px}   /* all value boxes share one print size so saves/skills/passive match the ability boxes (and Core still fits one page) */
-    .score-out{width:19px; height:19px; font-size:10px; border:1px solid #999}
+    .ability .mod{width:18px; height:18px; font-size:9px}   /* all value boxes share one print size so saves/skills/passive match the ability boxes (and Core still fits one page) */
+    .score-out{width:18px; height:18px; font-size:9px; border:1px solid #999}
     .ability-head{gap:4px; padding-bottom:2px}
-    .ability-head .col{width:19px; font-size:6px; line-height:1}
+    .ability-head .col{width:18px; font-size:6px; line-height:1}
 
     .chips{gap:5px}
     .chip{padding:3px 2px}
@@ -1354,14 +1354,14 @@
     .chip .k{font-size:6px}
 
     .row{padding:0; gap:5px}   /* skills/saves are the tallest fixed block on Core; shaving the per-row padding buys a few mm so a filled sheet stays on one page */
-    .row .total{width:19px; height:19px; font-size:10px}   /* match the ability score/modifier boxes */
+    .row .total{width:18px; height:18px; font-size:9px}   /* match the ability score/modifier boxes */
     .row .rname{font-size:8px}
     .row .rname .ab{font-size:6px}
     .marks{gap:4px}
     .marks label{font-size:6px; gap:2px}
     input[type=checkbox],input[type=radio]{width:10px; height:10px}
     .passive{gap:6px; margin-bottom:4px}
-    .passive .v{width:19px; height:19px; font-size:10px; border-width:1px}   /* match the ability boxes */
+    .passive .v{width:18px; height:18px; font-size:9px; border-width:1px}   /* match the ability boxes */
     .passive .k{font-size:8px}
 
     .topblock{grid-template-columns:1fr 1fr; gap:8px}   /* on the narrow printed sheet the fixed 332px left squished Resistances to a sliver; rebalance ~1:1 like the tab view */
@@ -1381,11 +1381,30 @@
     .stat input{font-size:11px; padding:0}
     .stat .calc{font-size:11px}
     .hp-grid{gap:4px; margin-top:5px}
-    .deathsaves{gap:12px; margin-top:5px}
-    .deathsaves .ds-title{font-size:9px; margin-right:10px}
-    .deathsaves .grp{gap:5px}
-    .deathsaves .grp .k{font-size:7px}
-    .defenses-card .ta-print{min-height:60px}
+    /* HP readout: compact print sizing — the screen's 30px digits / 3.6ch fields overflow the ~250px printed combat
+       column and shoved the TEMP column out into the Attacks card */
+    .hpbox{gap:8px; margin-top:4px; padding:5px 8px}
+    .hp-readout{gap:2px}
+    .hp-vals{display:flex !important; gap:6px}   /* the numbers print even at 0 HP (on screen the death saves replace them) */
+    .hp-lbl{font-size:6px}
+    .hp-big{font-size:13px; width:3.6ch; padding:0}   /* 3.6ch + no padding: a 3-digit max (e.g. 173) must not clip (the generic print input padding:1px 3px would eat the third digit at 3.2ch) */
+    .hp-slash{font-size:11px; padding-bottom:1px}
+    .hp-tempcol{margin-left:2px}
+    .deathsaves{display:flex !important; gap:8px; margin-top:3px}   /* death saves ALWAYS print — blank bubbles to mark at the table (screen hides them above 0 HP via inline style; !important beats it) */
+    .deathsaves .ds-title{font-size:7px; margin-right:4px}
+    .deathsaves .grp{gap:4px}
+    .deathsaves .grp .k{font-size:6px}
+    /* Defenses / Senses / Conditions chips: the screen-size 11-12px pills wrap into giant boxes in the narrow
+       printed column — print them at table-row size */
+    .def-chips,.sense-chips,.cond-active{gap:3px; margin:0 0 4px}
+    .def-chip,.sense-chip,.cond-chip{font-size:8px; padding:1px 4px; gap:2px}
+    .def-chip svg{width:9px; height:9px}
+    .def-chip-rm,.cond-chip .x{display:none}   /* the remove-✕ buttons are interaction chrome */
+    .combat-sub h3{font-size:8px; margin:0 0 3px}
+    .cond-box{padding:5px; gap:4px}
+    .cond-active{min-height:12px; margin-bottom:0}
+    .defenses-sub .ta-print{min-height:60px}   /* Defenses notes keeps write-in room without the 120px generic floor (was .defenses-card — a stale class that matched nothing, so the box printed at 120px) */
+    #defmanual + .ta-print{display:none !important}   /* #defmanual is hidden storage for promoted defense badges; its mirror printed them a second time (also covers a mirror already serialized into an older saved copy) */
 
     th{font-size:6px; padding:1px 3px}
     td{padding:1px 2px}
@@ -3114,11 +3133,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v553 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v554 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.133.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.133.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3126,6 +3145,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v554", semver:"2.133.4", items:[
+      "Print cleanup for the Core page. Death saves now ALWAYS print (blank bubbles to mark at the table). The HP readout fits the printed column instead of pushing the Temp box into the Attacks card, and a 3-digit Max HP no longer clips. Defense, sense, and condition chips print at table-row size instead of wrapping into giant pills. Fixed the Defenses notes printing at write-in-page height and the hidden defense-badge storage printing its contents a second time as a big empty-looking box. Cards, value boxes, and gaps tightened so a full character sheet fits the Core page on one printed sheet again.",
+    ]},
     {v:"v553", semver:"2.133.3", items:[
       "Rewrote the welcome guide: plainer explanation of what a single-HTML-file sheet is, a pointer to the online version for iOS users, and a highlights list of features (paper minis, the Homebrew Studio, themes, pushed updates, ammo auto-deduction, scroll spells).",
     ]},
@@ -10105,6 +10127,7 @@
   }
   function autoGrow(ta){
     if(!ta) return;
+    if(ta.id === "defmanual") return;   // hidden storage for promoted defense badges — never size it or spawn a .ta-print mirror (the mirror printed the badges a second time as a big box under the chips)
     ta.style.height = "auto";                                             // grow to fit content on screen
     ta.style.height = (ta.scrollHeight + (ta.offsetHeight - ta.clientHeight)) + "px";   // + border (box-sizing) so nothing clips
     let m = ta.nextElementSibling;                                        // print-only text mirror
