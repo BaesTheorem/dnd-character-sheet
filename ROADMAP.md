@@ -1,0 +1,31 @@
+# Roadmap
+
+The forward-looking work list for the sheet. Shipped work lives in the in-app changelog; deep design notes for bigger items live in `plans/`. Items here are roughly ordered by intent, not commitment.
+
+## Planned
+
+### 3D dice rolling (D&D Beyond style)
+Full plan: [`plans/3d-dice-rolling.md`](plans/3d-dice-rolling.md). Click ability mods / skills / saves / initiative / attacks / Cast to roll; full-screen 3D tumbling dice overlay (three.js + cannon.js vendored inline, procedural materials — plastic/glass/opalescent/metal); auto-applied advantage/disadvantage from the existing `resolveAdv` engine; 50-roll history log; the ranged fire button expends ammo + rolls to-hit in one click. Ships in three phases (roll engine + log first, 3D second, materials third), each leaving the sheet fully working.
+
+### Per-book source loading pipeline (MPMB-style, no server) — consumer shipped 2.132.0
+The stripped-file front door is live: an empty `#source-data` shows the sources flag in `mode="load"`, one click opens the native picker, per-book `source-data.json` files merge additively. **Do NOT strip the real `#source-data` until the owner has tested end-to-end and signed off.** Remaining polish once approved:
+- Host the 50 per-book JSON files as GitHub Release assets (the community-index equivalent) so recipients of a stripped file have somewhere to download from.
+- Decide whether the empty-state flag should also link that download URL.
+- 6 adventures have no per-book raw in the shipped bake (Waterdeep DH/DotMM, ToA, IDRotF, WBtW, Kwalish) — they still need a 5etools-server reload to split out.
+
+### Homebrew Studio: authoring forms for classes + monsters
+Import already covers all 8 content types (spells/items/feats/races/backgrounds/subclasses/classes/monsters) and creatures gained an in-Studio form in 2.123.0; classes still lack an authoring form (import-only). Full monster combat automation is out of scope (stat blocks are display + Companions-picker only).
+
+### "Recreate existing character" wizard path
+Enter final ability scores + max HP directly (for porting a character built elsewhere), parking the unexplained delta in a misc bucket instead of forcing a level-by-level rebuild. Awaiting owner go-ahead.
+
+## Backlog (smaller mechanics)
+
+- Warlock Pact Boon; Battle Master Arcane Shot; Rune Knight runes.
+- `weaponOptions`: Polearm Master is the only remaining in-data case.
+- Natural-weapon races (Tabaxi, Lizardfolk) + feature-attack subclasses (Soulknife, Armorer, beast Barbarian) are absent from the baked data — needs those books loaded plus a prose natural-weapon extractor. The feature-attack mechanism (`setBreathWeapon`/`breathWeaponRow`, rows re-linked by name after reload like Unarmed Strike) is the pattern to extend.
+
+## Shelved (design done, deliberately not building yet)
+
+### Save-in-place (self-overwriting HTML file)
+Feasibility confirmed: the File System Access API (`showSaveFilePicker` + `createWritable()` atomic temp-file swap) works from `file://` in Chrome — the TiddlyWiki saver model. Design when picked up: progressive enhancement (Chromium desktop only; the download flow stays as the fallback), a "Save to this file" item in the ☰ menu, reusing the `btn-savecopy` serializer + `stripTransientChrome`. Constraints: the page cannot auto-obtain a handle to its own file (picker once → cache the handle in the file://-origin IndexedDB; Chrome ~122+ can persist it); sanity-check name/size on `handle.getFile()` before writing; BASE_KEY churn per save is safe (baked roster loads regardless of partition). Playwright can't drive the native picker — verify headed or by mocking the handle. Est. 60–80 lines.
