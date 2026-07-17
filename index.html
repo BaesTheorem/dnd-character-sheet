@@ -1381,7 +1381,7 @@
     .topblock > .topblock-left{grid-column:1 / -1}   /* Combat spans the full width... */
     .topblock-left{gap:6px}
     .combat-row{flex-wrap:nowrap; gap:8px; margin-top:4px}   /* ...and lays out horizontally like the screen: HP+AC | Defenses | Conditions */
-    .combat-left{flex:1.2 1 0; min-width:0; gap:6px}
+    .combat-left{flex:1.2 1 0; min-width:0; gap:6px; position:relative; padding-bottom:54px}   /* reserve a strip at the column bottom for the absolutely-pinned death saves (see .deathsaves below) */
     .combat-sub{flex:1 1 0; min-width:0}
     #page-core .stack > .topblock{flex:1 1 auto}   /* fill the stack so the 1fr last row can reach the sheet bottom */
     .combat-top{gap:4px}
@@ -1406,11 +1406,12 @@
     .hp-readout{gap:2px}
     .hp-vals{display:flex !important; gap:6px}   /* the numbers print even at 0 HP (on screen the death saves replace them) */
     .hp-lbl{font-size:6px}
-    .hp-big{font-size:13px; width:3.6ch; padding:0}   /* 3.6ch + no padding: a 3-digit max (e.g. 173) must not clip (the generic print input padding:1px 3px would eat the third digit at 3.2ch) */
+    .hp-big{font-size:13px; width:4ch; padding:0}   /* 3.6ch + no padding: a 3-digit max (e.g. 173) must not clip (the generic print input padding:1px 3px would eat the third digit at 3.2ch) */
     .hp-slash{font-size:11px; padding-bottom:1px}
     .hp-tempcol{margin-left:2px}
-    .deathsaves{display:flex !important; gap:8px; margin-top:3px}   /* death saves ALWAYS print — blank bubbles to mark at the table (screen hides them above 0 HP via inline style; !important beats it) */
-    .deathsaves .ds-title{font-size:7px; margin-right:4px}
+    .hp-readout{position:static}   /* let the absolute death saves anchor to .combat-left, not the readout */
+    .deathsaves{display:flex !important; flex-direction:column; align-items:center; gap:1px; margin:0; position:absolute; left:2px; right:2px; bottom:3px}   /* pinned into the reserved strip at the bottom of the HP/AC column — inline in the readout it was wider than the narrow horizontal-combat column and bled into the Defenses card */   /* death saves ALWAYS print — blank bubbles to mark at the table (screen hides them above 0 HP via inline style; !important beats it) */
+    .deathsaves .ds-title{font-size:7px; margin:0}
     .deathsaves .grp{gap:4px}
     .deathsaves .grp .k{font-size:6px}
     /* Defenses / Senses / Conditions chips: the screen-size 11-12px pills wrap into giant boxes in the narrow
@@ -3158,11 +3159,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v555 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v556 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.133.5";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.133.6";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3170,6 +3171,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v556", semver:"2.133.6", items:[
+      "Print polish: the death saves now sit in their own strip below the AC / Initiative / Speed row instead of spilling out of the HP column into the Defenses card, and a 3-digit Max HP no longer clips on any font.",
+    ]},
     {v:"v555", semver:"2.133.5", items:[
       "Print layout, round two. The Combat block now prints HORIZONTALLY across the top (HP + AC beside Defenses and Conditions) with Attacks, Action Economy, Limited Features, and Proficiencies packed two-up beneath it — no more half-empty columns. Conditions no longer prints the \"None active\" placeholder (the empty box is your write-in space). The Features page prints just the feature cards, without the raw features text above them. Fixed the Notes page's random mid-box page break: Extra Equipment and Notes now share one sheet with the Notes box filling the rest of it (long notes still flow onto extra sheets). Also fixed an empty Companions page sneaking into every print, which could silently cut off the LAST pages of the printout.",
     ]},
