@@ -727,6 +727,73 @@ def build_optional_features():   # v33: {name: text} for invocations/maneuvers/m
         if txt: out[o["name"]] = txt
     return out
 
+def build_condition_text():   # {name: text} for the PHB conditions — verbatim rules text for the Conditions panel (CONDITIONS in app JS holds mechanics only)
+    out = {}
+    try: conds = load("conditionsdiseases.json").get("condition", [])
+    except Exception: return out
+    for c in conds:
+        if c.get("source") != "PHB" or not c.get("name"): continue
+        txt = entries_to_text(c.get("entries", []))
+        if txt: out[c["name"]] = txt
+    return out
+
+# TCE optional class features + Customizing Your Origin, keyed by the app's TCE_RULES ids (labels can carry
+# "(Class)" disambiguators, and cleric/paladin Harness Divine Power is named "Channel Divinity: Harness Divine
+# Power" in the data, so an explicit map beats label-derivation).
+_TCE_TEXT_SOURCES = [
+    ("barb-primal-knowledge", "barbarian", "Primal Knowledge"), ("barb-instinctive-pounce", "barbarian", "Instinctive Pounce"),
+    ("bard-magical-inspiration", "bard", "Magical Inspiration"), ("bard-versatility", "bard", "Bardic Versatility"),
+    ("cleric-harness-divine", "cleric", "Channel Divinity: Harness Divine Power"), ("cleric-cantrip-versatility", "cleric", "Cantrip Versatility"),
+    ("druid-wild-companion", "druid", "Wild Companion"), ("druid-cantrip-versatility", "druid", "Cantrip Versatility"),
+    ("fighter-martial-versatility", "fighter", "Martial Versatility"),
+    ("monk-dedicated-weapon", "monk", "Dedicated Weapon"), ("monk-ki-fueled", "monk", "Ki-Fueled Attack"),
+    ("monk-quickened-healing", "monk", "Quickened Healing"), ("monk-focused-aim", "monk", "Focused Aim"),
+    ("paladin-harness-divine", "paladin", "Channel Divinity: Harness Divine Power"), ("paladin-martial-versatility", "paladin", "Martial Versatility"),
+    ("ranger-deft-explorer", "ranger", "Deft Explorer"), ("ranger-favored-foe", "ranger", "Favored Foe"),
+    ("ranger-primal-awareness", "ranger", "Primal Awareness"), ("ranger-spellcasting-focus", "ranger", "Spellcasting Focus"),
+    ("ranger-martial-versatility", "ranger", "Martial Versatility"), ("ranger-natures-veil", "ranger", "Nature's Veil"),
+    ("rogue-steady-aim", "rogue", "Steady Aim"),
+    ("sorc-versatility", "sorcerer", "Sorcerous Versatility"), ("sorc-magical-guidance", "sorcerer", "Magical Guidance"),
+    ("warlock-eldritch-versatility", "warlock", "Eldritch Versatility"),
+    ("wizard-cantrip-formulas", "wizard", "Cantrip Formulas"),
+]
+def build_tce_text():   # {TCE_RULES id: verbatim text} for the Tasha's optional-rule toggles + generated feature blocks
+    out = {}
+    for rid, cls, fname in _TCE_TEXT_SOURCES:
+        try: cf = load(f"class/class-{cls}.json")
+        except Exception: continue
+        hits = [f for f in cf.get("classFeature", []) if f.get("name") == fname and f.get("source") == "TCE"]
+        if hits:
+            txt = entries_to_text(hits[0].get("entries", []))
+            if txt: out[rid] = txt
+    try:   # Blessed Strikes is a per-domain TCE subclassFeature; the body text is shared (drop the per-variant scaffolding header)
+        cf = load("class/class-cleric.json")
+        bs = [f for f in cf.get("subclassFeature", []) if f.get("name") == "Blessed Strikes" and f.get("source") == "TCE"]
+        if bs:
+            t = entries_to_text(bs[0].get("entries", []))
+            out["cleric-blessed-strikes"] = t.split("\n", 1)[1].strip() if t.lower().startswith("8th-level") else t
+    except Exception: pass
+    try:   # Customizing Your Origin lives in variantrules.json (the TCE book chapter just references it)
+        vr = load("variantrules.json").get("variantrule", [])
+        r = next(x for x in vr if x.get("name") == "Customizing Your Origin" and x.get("source") == "TCE")
+        def find(name, node):
+            if isinstance(node, dict):
+                if node.get("name") == name: return node
+                for v in (node.get("entries") or []):
+                    q = find(name, v)
+                    if q: return q
+            elif isinstance(node, list):
+                for v in node:
+                    q = find(name, v)
+                    if q: return q
+        for rid, sub in [("origin-asi", "Ability Score Increases"), ("origin-lang", "Languages"), ("origin-prof", "Proficiencies")]:
+            n = find(sub, r)
+            if n:
+                txt = entries_to_text(n.get("entries", []))
+                if txt: out[rid] = txt
+    except Exception: pass
+    return out
+
 _SCALEDAMAGE = re.compile(r"\{@scaledamage\s+([^|]+)\|([^|]+)\|([^}]+)\}")
 def build_spell_upcast(spell_names):   # {name: {up: per-slot-level dice, at: base level}} from 5etools @scaledamage → upcast damage picker
     out = {}
@@ -1185,6 +1252,8 @@ def main():
     out["itemAdvText"] = build_item_adv_text(items_base, items)   # v30: item (dis)advantage sentences → live Defenses item line
     out["magicWeapons"] = {**build_variant_weapons(items_base), **build_magic_weapons(items)}   # variant templates (Flame Tongue ×bases) + concrete named magic weapons → Attacks rows
     out["optionalFeatures"] = build_optional_features()        # v33: de-baked invocation/maneuver/metamagic/fighting-style rules text → DATA layer
+    out["conditionText"] = build_condition_text()              # verbatim PHB condition rules → Conditions panel
+    out["tceText"] = build_tce_text()                          # verbatim TCE optional-rule text → Tasha's toggles + generated feature blocks
     json.dump(out, open(OUT, "w"), separators=(",", ":"), ensure_ascii=False)
     sz = os.path.getsize(OUT)
     print(f"wrote {OUT}  ({sz/1024:.0f} KB)")
