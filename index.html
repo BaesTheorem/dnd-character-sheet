@@ -287,7 +287,7 @@
   .pc-img{display:block; max-width:100%; max-height:170px; object-fit:contain; margin:0 0 8px; border:1px solid var(--line2)}
   .pc-name{font-weight:700; font-size:14px; line-height:1.2}
   .pc-meta{font-size:11px; color:var(--muted); margin:2px 0 6px}
-  .pc-body{font-size:12px; line-height:1.4; white-space:pre-wrap; max-height:320px; overflow:auto}
+  .pc-body{font-size:12px; line-height:1.4; white-space:pre-wrap; max-height:min(60vh,560px); overflow:hidden}
   .pc-flavor{font-size:12px; line-height:1.4; white-space:pre-wrap; font-style:italic; color:var(--muted); margin-top:6px; padding-top:6px; border-top:1px solid var(--line)}
   .pc-mech{font-size:12px; line-height:1.5; margin:0 0 4px}
   .pc-mech + .pc-body{margin-top:6px; padding-top:6px; border-top:1px solid var(--line)}
@@ -3166,11 +3166,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v565 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v566 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.135.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.135.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3178,6 +3178,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v566", semver:"2.135.1", items:[
+      "Spell hovers show the full spell card again, everywhere. Hovering any spell name — class lists, fixed lists, spellbook write-ins, and the Granted Spells table — now opens the rich preview card with the complete data line (level, school, casting time, range, components, duration, ritual, concentration) above the full description, material components, higher-level scaling, and any active spell changes. The old truncated grey browser tooltip is gone (it was competing with the card), and the card itself got taller so long spells fit.",
+    ]},
     {v:"v565", semver:"2.135.0", items:[
       "The last inline rules summaries are gone: condition descriptions, Tasha's optional-rule text, and spell-change notes (invocations' at-will casting, Empty Body, Infernal Legacy) now come verbatim from the sourcebook data. The Conditions panel and Tasha's toggles show the full printed rules, and Tasha's feature blocks written to your sheet carry the real text.",
       "Removed the 'Spell Versatility' ranger toggle — it was an Unearthed Arcana playtest rule that never appeared in Tasha's Cauldron.",
@@ -6896,7 +6899,9 @@
     const hit = previewCardLookup(name); if(!hit) return null;
     const o = hit.obj, t = hit.type; let meta = "", body = "", flav = "";
     if(t==="bakeditem") return bakedItemCardHtml(o);   // sourcebook item → mechanics + description
-    if(t==="spells"){ meta = [((o.level||0)===0?"Cantrip":"Level "+o.level), o.school].filter(Boolean).join(" · "); body = (o.text||"") + (o.higher?"\n\nAt Higher Levels. "+o.higher:""); }
+    if(t==="spells"){ const ov = (typeof scFor==="function") && scFor(o.name), oo = ov ? Object.assign({}, o, ov) : o;   // active spellChanges override reshapes the meta (e.g. Armor of Shadows → Mage Armor Range: Self, no M)
+      meta = ((typeof spellMetaLine==="function") && spellMetaLine(oo)) || [((oo.level||0)===0?"Cantrip":"Level "+oo.level), oo.school].filter(Boolean).join(" · ");   // full data line: level/school · cast · range · components · duration · ritual/conc
+      body = ((typeof spellTitle==="function") && spellTitle(o)) || (o.text||"") + (o.higher?"\n\nAt Higher Levels. "+o.higher:""); }
     else if(t==="items"){ meta = [o.type, o.rarity, o.attune?"requires attunement":""].filter(Boolean).join(" · "); body = o.text||""; flav = o.flavor||""; }
     else if(t==="feats"){ meta = o.prerequisite ? ("Prerequisite: "+o.prerequisite) : "Feat"; body = o.text||""; }
     else if(t==="races"){ meta = [o.subraceOf?("Subrace of "+o.subraceOf):(o.size||""), o.speed?(o.speed+" ft"):""].filter(Boolean).join(" · "); body = (o.traits||[]).map(tr => (tr.name?tr.name+". ":"")+(tr.text||"")).join("\n\n") || (Array.isArray(o.flavor)?o.flavor.join("\n\n"):""); }
@@ -8320,8 +8325,8 @@
       Object.keys(info.fixed).map(Number).sort((a,b)=>a-b).forEach(l => {
         fbody += `<tr class="sp-section"><td colspan="8">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
         info.fixed[l].slice().sort((a,b)=>a.localeCompare(b)).forEach(name => {
-          const d = spellData(name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
-          fbody += `<tr><td class="col-prep"></td><td class="col-name"${titleAttr}>${esc(name)}${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;
+          const d = spellData(name);
+          fbody += `<tr><td class="col-prep"></td><td class="col-name"><span data-card="${esc(name)}">${esc(name)}</span>${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;
         });
       });
       sEl(inst,"spells").innerHTML = fbody;
@@ -8339,14 +8344,14 @@
       if(l>0 && fullByLvl){                      // full-list class → pre-fill this level's real spells (Prep checkbox each)
         const open = !!unprepOpen[inst+":"+l]; let prep = "", unprep = "", nUnprep = 0;   // unprepared spells collapse into a per-level toggle
         (fullByLvl[l]||[]).forEach(sp => {
-          const d = spellData(sp.n), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
+          const d = spellData(sp.n);
           const locked = alwaysSet.has((sp.n||"").toLowerCase()), free = locked || !!F[sp.n];
           const prepared = !!preparedSpells[sp.n] || free;
           const castable = prepared || !isPrepCaster;   // prepared / always-prepared spells get a Cast button
           const hide = isPrepCaster && !prepared;        // unprepared → behind the collapsible
           const row = `<tr${hide ? ` class="sp-unprep${open?"":" is-hidden"}" data-unprep="${inst}:${l}"` : ""}>`+
             prepCellHTML({inst, sp:sp.n, prepared, free, locked, prepares:isPrepCaster, canRitual:canRit, ritualHTML:ritualLeft(d)})+
-            `<td class="col-name"${titleAttr}>${esc(sp.n)}${castable ? castBtnHTML(l) : ""}${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;
+            `<td class="col-name"><span data-card="${esc(sp.n)}">${esc(sp.n)}</span>${castable ? castBtnHTML(l) : ""}${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;
           if(hide){ unprep += row; nUnprep++; } else prep += row;
         });
         body += prep + unprepToggle(inst, l, nUnprep, open) + unprep;
@@ -8358,7 +8363,7 @@
         });
         const open = !!unprepOpen[inst+":"+l]; let prep = "", unprep = "", nUnprep = 0;   // spellbook spells not prepared today collapse into a per-level toggle
         (spellEntries[l]||[]).forEach((m,i) => {
-          const named = (m.name||"").trim(), d = spellData(m.name), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
+          const named = (m.name||"").trim(), d = spellData(m.name);
           const mFree = isPrepCaster && ((!!m.free) || alwaysSet.has((m.name||"").toLowerCase()));
           const mLocked = mFree && alwaysSet.has((m.name||"").toLowerCase());
           const prepCell = l===0 ? `<td class="col-prep"></td>`
@@ -8373,7 +8378,7 @@
           const hide = isPrepCaster && l>0 && named && !(!!m.prep || mFree) && !(canRit && isRit);   // named spellbook spell, not prepared and not a ritual you can cast unprepared → collapsible
           const cls = [named ? "has-spell" : "", hide ? ("sp-unprep" + (open ? "" : " is-hidden")) : ""].filter(Boolean).join(" ");
           const castBtn = (named && l>0) ? castBtnHTML(l) : "";   // known/write-in spell → Cast button
-          const row = `<tr${cls ? ` class="${cls}"` : ""}${hide ? ` data-unprep="${inst}:${l}"` : ""}>${prepCell}<td class="col-name col-name-edit"${titleAttr}>${nameField}${editBtn}${delBtn}${castBtn}${spMobileMeta(d)}</td>${propArea}</tr>`;
+          const row = `<tr${cls ? ` class="${cls}"` : ""}${hide ? ` data-unprep="${inst}:${l}"` : ""}>${prepCell}<td class="col-name col-name-edit">${nameField}${editBtn}${delBtn}${castBtn}${spMobileMeta(d)}</td>${propArea}</tr>`;
           if(hide){ unprep += row; nUnprep++; } else prep += row;
         });
         body += prep + unprepToggle(inst, l, nUnprep, open) + unprep;
@@ -8755,7 +8760,7 @@
     rows.forEach(r => {
       if(r.kind !== lastKind){ lastKind = r.kind; body += `<tr class="sp-section"><td colspan="7">${esc(LABEL[r.kind])}</td></tr>`; }
       const isScroll = r.kind === "Scroll";
-      const d = spellData(r.spell), tt = spellTitle(d), titleAttr = tt ? ` title="${esc(tt)}"` : "";
+      const d = spellData(r.spell);
       const ui = isScroll ? null : grantedUpcastInfo(d), key = r.source + "|" + r.spell;   // scrolls cast at the spell's own level (no slot upcasting)
       const scrollOk = isScroll ? scrollSpellEligible(r.spell).ok : true;   // castable only if the spell is on one of your class lists
       const sub = [esc(r.source), (isScroll ? `${r.qty} left` : (r.use ? esc(r.use) : "")), (r.dc!=null ? `<span class="gs-dc">save DC ${r.dc}</span>` : ""), (isScroll && !scrollOk ? `<span class="gs-locked">not on your class spell list</span>` : "")];
@@ -8769,7 +8774,7 @@
       // Scroll rows get a Cast button. It sits AFTER the spell-name text node so refreshSpellDamageCells() still
       // reads the name from firstChild; clicking it depletes one from inventory (handled in the global click delegate).
       const castBtn = isScroll ? ` <button type="button" class="sp-cast noprint${scrollOk ? "" : " sp-cast-locked"}" data-scroll="${esc(r.item)}" tabindex="-1" title="${scrollOk ? "Cast this scroll; uses one from your inventory" : "Not on your class spell list; click to see why"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.4 3.7 2.3 5.6 6 6-3.7.4-5.6 2.3-6 6-.4-3.7-2.3-5.6-6-6 3.7-.4 5.6-2.3 6-6z"/></svg>Cast</button>` : "";
-      body += `<tr${d?' class="has-spell"':''}><td class="col-name"${titleAttr}>${esc(r.spell)}${castBtn}<span class="gs-src">${sub.filter(Boolean).join(" · ")}</span></td>${dmg}${propCellsRest(d)}</tr>`;
+      body += `<tr${d?' class="has-spell"':''}><td class="col-name"><span data-card="${esc(r.spell)}">${esc(r.spell)}</span>${castBtn}<span class="gs-src">${sub.filter(Boolean).join(" · ")}</span></td>${dmg}${propCellsRest(d)}</tr>`;
     });
     tbody.innerHTML = body;
   }
@@ -10150,7 +10155,7 @@
           const durc = tr.querySelector(".sp-dur"); if(durc) durc.innerHTML = durCell(dd);
           const rit = tr.querySelector(".sp-rit-slot"); if(rit) rit.innerHTML = ritualLeft(d);   // keep the left ritual tag in sync with the picked spell
         }
-        if(nameCell){ const tt = spellTitle(d); if(tt) nameCell.title = tt; else nameCell.removeAttribute("title"); }
+        if(nameCell) nameCell.removeAttribute("title");   // rich hover card owns spell hovers now — no native grey tooltip competing with it
         if(e.type === "change" && tr){   // on commit, rebuild the row if it just became (or stopped being) a custom spell — swaps the prop cells ↔ "Set properties" button
           const wasSetBtn = !!tr.querySelector(".prop-setbtn"), nowCustom = !!((t.value||"").trim() && !d);
           if(wasSetBtn !== nowCustom) renderSpellTable(inst);
