@@ -1292,6 +1292,13 @@
     .pagetabs{display:none !important}
     .page{display:block !important}                 /* print every page... */
     .page:not(#page-core){break-before:page}  /* ...each on its own sheet */
+    /* PAGE-BUDGET INVARIANT: Chromium funds the PDF's page count from the document's NATURAL layout height, while
+       the forced breaks above spread content across MORE sheets than that height pays for — any sheet past the
+       budget is SILENTLY TRUNCATED (trailing pages vanish from the PDF). So every printed page must occupy ~one
+       sheet of layout height (261mm < the 263.4mm printable area, so a floor never spills a blank sheet). Do NOT
+       "optimize" these floors away: shrinking a page's height below a sheet doesn't save paper, it deletes the
+       LAST pages of the printout. */
+    .page:not(.excluded){min-height:261mm}
     .page.excluded{display:none !important}          /* any page hidden via Settings (or mini w/o portrait) won't print */
     tr.pf-hide{display:none !important}               /* rows past the first sheet print on the continuation sheets, not the primary page */
     #page-mini .mini-wrap{gap:12mm}
@@ -1315,15 +1322,20 @@
     #page-feat:not(.excluded){display:flex !important; flex-direction:column; gap:8px}   /* feat page = a stack of per-feature cards that flow across sheets. :not(.excluded) so a hidden page stays hidden */
     #feat-cards{display:flex; flex-direction:column; gap:8px}
     #page-feat .feat-blank{display:block; min-height:247mm}   /* blank Features page prints one full-page write-in card */
+    #features + .ta-print{display:none !important}   /* #features is the hidden backing store; the cards render its content — its autoGrow mirror printed the whole raw text a second time above them */
     .feat-card{break-inside:avoid}                                        /* never split one feature across a page break */
     .feat-card-title{font-size:10px; font-weight:700; margin-bottom:1px; letter-spacing:.02em}
     .feat-card-body{font-size:8px; line-height:1.32; white-space:pre-wrap}
     #action-econ-card{break-inside:avoid}
     .ae-col h3{font-size:8px; margin-bottom:2px}
     .ae-col li{font-size:8px; line-height:1.28; padding:1px 0}
-    #page-story:not(.excluded),#page-notes:not(.excluded){display:block !important}   /* :not(.excluded) so a hidden page stays hidden (ID rule was overriding .page.excluded) */
-    #page-story .card.grow,#page-notes .card.grow{display:block; break-inside:auto}
-    #page-story .ta-print,#page-notes .ta-print{min-height:247mm; break-inside:auto}
+    #page-story:not(.excluded){display:block !important}   /* :not(.excluded) so a hidden page stays hidden (ID rule was overriding .page.excluded) */
+    /* Notes page holds Extra Equipment + Notes, so a fixed 247mm floor on the Notes mirror ALWAYS overflowed the sheet and fragmented mid-box (the "random page break"). Flex-fill one sheet like #page-inv; long notes still flow (break-inside:auto). */
+    #page-notes:not(.excluded){display:flex !important; flex-direction:column; gap:8px; min-height:261mm}
+    #page-notes .card.grow{flex:1 1 auto; display:flex; flex-direction:column; break-inside:auto}
+    #page-notes .ta-print{flex:1 1 auto; min-height:34px; break-inside:auto}
+    #page-story .card.grow{display:block; break-inside:auto}   /* (notes' grow card stays the flex column set above so its write-in box fills the sheet) */
+    #page-story .ta-print{min-height:247mm; break-inside:auto}
     .card{padding:3px 6px; margin:0; border-color:#999; break-inside:avoid}
     .card>h2, .atk-top h2{margin:0 0 2px; font-size:8px; letter-spacing:.07em}   /* Attacks h2 is inside .atk-top, not a direct card child — include it for header parity */
     input,select,textarea{background:#fff !important; padding:1px 3px}
@@ -1331,10 +1343,11 @@
     label.lbl{font-size:7px; margin-bottom:0}
     .charname input{font-size:15px; padding:0 1px; border-bottom-width:1px}
     .header-grid{gap:8px}
-    .portrait{width:110px; height:138px}
+    .portrait{width:96px; height:120px}
     .portrait-menu{display:none !important}
     input::placeholder, textarea::placeholder{color:transparent !important}  /* no hint text on a printed sheet */
-    .meta-grid{gap:3px; margin-top:5px}
+    .header-main{justify-content:flex-start}
+    .meta-grid{flex:1 1 auto; justify-content:space-evenly; gap:3px; margin-top:2px}   /* spread the two meta rows over the portrait's height instead of leaving a dead band under them */
     .meta-row{gap:3px 8px}
     /* Experience → one blank write-in box: drop the Add-XP controls and the "… / 300 XP to 2" status line */
     .xp-wrap{display:block}
@@ -1364,7 +1377,13 @@
     .passive .v{width:18px; height:18px; font-size:9px; border-width:1px}   /* match the ability boxes */
     .passive .k{font-size:8px}
 
-    .topblock{grid-template-columns:1fr 1fr; gap:8px}   /* on the narrow printed sheet the fixed 332px left squished Resistances to a sliver; rebalance ~1:1 like the tab view */
+    .topblock{grid-template-columns:1fr 1fr; gap:6px; grid-template-rows:auto auto 1fr}   /* 2-up packing; the last row stretches to the sheet bottom */
+    .topblock > .topblock-left{grid-column:1 / -1}   /* Combat spans the full width... */
+    .topblock-left{gap:6px}
+    .combat-row{flex-wrap:nowrap; gap:8px; margin-top:4px}   /* ...and lays out horizontally like the screen: HP+AC | Defenses | Conditions */
+    .combat-left{flex:1.2 1 0; min-width:0; gap:6px}
+    .combat-sub{flex:1 1 0; min-width:0}
+    #page-core .stack > .topblock{flex:1 1 auto}   /* fill the stack so the 1fr last row can reach the sheet bottom */
     .combat-top{gap:4px}
     .combat-top .stat, .hp-grid .stat{min-height:0; display:block}   /* compact natural size in print (screen uses 52px min) */
     .encgrid{gap:5px}                                                /* compact Carrying Capacity + Total Weight to fit the inventory on one page */
@@ -1403,6 +1422,7 @@
     .combat-sub h3{font-size:8px; margin:0 0 3px}
     .cond-box{padding:5px; gap:4px}
     .cond-active{min-height:12px; margin-bottom:0}
+    .cond-active:empty::before{content:none}   /* no "None active" placeholder on paper — the empty box IS the write-in space */
     .defenses-sub .ta-print{min-height:60px}   /* Defenses notes keeps write-in room without the 120px generic floor (was .defenses-card — a stale class that matched nothing, so the box printed at 120px) */
     #defmanual + .ta-print{display:none !important}   /* #defmanual is hidden storage for promoted defense badges; its mirror printed them a second time (also covers a mirror already serialized into an older saved copy) */
 
@@ -1446,6 +1466,11 @@
     html.mobile .page.spell-extra, html.mobile #page-companion,
     html.mobile .page[data-page^="overflow-"]{
       display:block !important; min-height:0 !important;   /* natural height + block flow paginates across sheets; the forced mm floors could exceed iOS's shorter printable area and clip */
+    }
+    html.mobile #page-core.excluded, html.mobile #page-inv.excluded, html.mobile #page-bg.excluded,
+    html.mobile #page-feat.excluded, html.mobile #page-spells.excluded, html.mobile .page.spell-extra.excluded,
+    html.mobile #page-companion.excluded{
+      display:none !important;   /* the ID selectors above out-specify .page.excluded (1,1,1 beats 0,2,0) and UN-HID excluded pages in print — and html.mobile is ON during EVERY print, desktop included (the print layout viewport is paper-width <820px, which flips the mobile matchMedia), so an excluded empty Companions page printed a phantom sheet. Worse than cosmetic: a printed sheet with zero layout height starves Chromium's page budget (see the PAGE-BUDGET INVARIANT above) and silently TRUNCATES the trailing pages of the PDF. */
     }
   }
 
@@ -3133,11 +3158,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v554 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v555 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.133.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.133.5";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3145,6 +3170,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v555", semver:"2.133.5", items:[
+      "Print layout, round two. The Combat block now prints HORIZONTALLY across the top (HP + AC beside Defenses and Conditions) with Attacks, Action Economy, Limited Features, and Proficiencies packed two-up beneath it — no more half-empty columns. Conditions no longer prints the \"None active\" placeholder (the empty box is your write-in space). The Features page prints just the feature cards, without the raw features text above them. Fixed the Notes page's random mid-box page break: Extra Equipment and Notes now share one sheet with the Notes box filling the rest of it (long notes still flow onto extra sheets). Also fixed an empty Companions page sneaking into every print, which could silently cut off the LAST pages of the printout.",
+    ]},
     {v:"v554", semver:"2.133.4", items:[
       "Print cleanup for the Core page. Death saves now ALWAYS print (blank bubbles to mark at the table). The HP readout fits the printed column instead of pushing the Temp box into the Attacks card, and a 3-digit Max HP no longer clips. Defense, sense, and condition chips print at table-row size instead of wrapping into giant pills. Fixed the Defenses notes printing at write-in-page height and the hidden defense-badge storage printing its contents a second time as a big empty-looking box. Cards, value boxes, and gaps tightened so a full character sheet fits the Core page on one printed sheet again.",
     ]},
