@@ -3166,11 +3166,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v562 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v564 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.134.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.134.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3178,6 +3178,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v564", semver:"2.134.4", items:[
+      "Pact Boon and Artificer Infusion descriptions now come verbatim from the sourcebook data instead of inline summaries — same model as invocations and fighting styles. Only the app-behavior hints (like which infusions auto-apply) remain as code text.",
+    ]},
     {v:"v562", semver:"2.134.3", items:[
       "Rune passives now apply on the sheet: Cloud, Frost, Stone, and Storm runes light up the advantage badges on their skills (Sleight of Hand/Deception, Animal Handling/Intimidation, Insight, Arcana), the Stone Rune adds a Darkvision 120 ft. sense chip, and the Hill and Storm runes add their poison resistance / can't-be-surprised defense chips. Everything clears itself if you swap the rune out. The Fire Rune's doubled tool proficiency stays text-only.",
     ]},
@@ -11192,23 +11195,25 @@
   // item, taken from the TCE rules — the 5etools optionalfeature doesn't store it), text: condensed effect from
   // optionalfeatures.json (type "AI")}. replicate/resist flag the two infusions that need an extra choice field.
   const ARTIFICER_INFUSIONS = [
-    {name:"Arcane Propulsion Armor", lvl:14, attune:true,  text:"Replaces the wearer's limbs as needed; walking speed +5 ft.; includes gauntlets that are 1d8-force magic melee weapons (returning when thrown); the armor can't be removed against your will."},
-    {name:"Armor of Magical Strength", lvl:1, attune:true, text:"Armor with 6 charges. Spend a charge to add your Int modifier to a Strength check or save, or to avoid being knocked prone. Regains 1d6 charges daily at dawn."},
-    {name:"Boots of the Winding Path", lvl:6, attune:true, text:"While wearing the boots, teleport up to 15 ft. as a bonus action to a space you occupied this turn."},
-    {name:"Enhanced Arcane Focus", lvl:1, attune:false, text:"While holding it: +1 to spell attack rolls (+2 at artificer 10) and you ignore half/three-quarters cover on spell attacks. (Auto-applied to your spell attack bonus when infused.)"},
-    {name:"Enhanced Defense", lvl:1, attune:false, text:"+1 AC (+2 at artificer 10) while wearing the infused armor or wielding the infused shield. (Auto-applied to AC when infused.)"},
-    {name:"Enhanced Weapon", lvl:1, attune:false, text:"+1 to attack and damage rolls with this magic weapon (+2 at artificer 10)."},
-    {name:"Helm of Awareness", lvl:10, attune:true, text:"While worn: advantage on initiative, and you can't be surprised unless incapacitated."},
-    {name:"Homunculus Servant", lvl:1, attune:false, text:"Creates a Homunculus Servant that obeys you. Add it on the Companions page (Homunculus Servant template) to track its stats."},
-    {name:"Mind Sharpener", lvl:1, attune:false, text:"Armor/clothing with 4 charges. When you fail a Constitution save to keep concentration, use a reaction to spend a charge and succeed instead. Regains 1d4 charges daily at dawn."},
-    {name:"Radiant Weapon", lvl:6, attune:true, text:"+1 magic weapon that can shed/extinguish bright light (bonus action). 4 charges: on a hit, spend a reaction + 1 charge to blind the attacker (Con save vs your spell DC). Regains 1d4 at dawn."},
-    {name:"Repeating Shot", lvl:1, attune:true, text:"+1 magic ranged weapon that ignores Loading and creates its own magic ammunition each shot."},
-    {name:"Replicate Magic Item", lvl:1, attune:false, replicate:true, text:"Replicate a specific common/uncommon (and later rare/very-rare) magic item from the Replicable Items tables. Learn it multiple times for different items. Attunement depends on the item you choose."},
-    {name:"Repulsion Shield", lvl:6, attune:true, text:"+1 shield with 4 charges. After being hit by a melee attack, spend a reaction + 1 charge to push the attacker up to 15 ft. Regains 1d4 at dawn."},
-    {name:"Resistant Armor", lvl:6, attune:true, resist:true, text:"While worn, you have resistance to one damage type you choose when you infuse it."},
-    {name:"Returning Weapon", lvl:1, attune:false, text:"+1 magic weapon with the thrown property that returns to your hand after a ranged attack."},
-    {name:"Spell-Refueling Ring", lvl:6, attune:true, text:"While worn, take an action to recover one expended spell slot of 3rd level or lower. Once used, it can't be used again until the next dawn."}
+    {name:"Arcane Propulsion Armor", lvl:14, attune:true},
+    {name:"Armor of Magical Strength", lvl:1, attune:true},
+    {name:"Boots of the Winding Path", lvl:6, attune:true},
+    {name:"Enhanced Arcane Focus", lvl:1, attune:false, note:"(Auto-applied to your spell attack bonus when infused.)"},
+    {name:"Enhanced Defense", lvl:1, attune:false, note:"(Auto-applied to AC when infused.)"},
+    {name:"Enhanced Weapon", lvl:1, attune:false},
+    {name:"Helm of Awareness", lvl:10, attune:true},
+    {name:"Homunculus Servant", lvl:1, attune:false, note:"(Add it on the Companions page, Homunculus Servant template, to track its stats.)"},
+    {name:"Mind Sharpener", lvl:1, attune:false},
+    {name:"Radiant Weapon", lvl:6, attune:true},
+    {name:"Repeating Shot", lvl:1, attune:true},
+    {name:"Replicate Magic Item", lvl:1, attune:false, replicate:true},
+    {name:"Repulsion Shield", lvl:6, attune:true},
+    {name:"Resistant Armor", lvl:6, attune:true, resist:true},
+    {name:"Returning Weapon", lvl:1, attune:false},
+    {name:"Spell-Refueling Ring", lvl:6, attune:true}
   ];
+  function infText(o){ const t = (typeof optfeatText === "function" && optfeatText(o.name)) || "";   // rules text lives in #source-data; only the app-behavior note is code
+    return o.note ? (t ? t + " " + o.note : o.note) : t; }
   const INF_RESIST_TYPES = ["acid","cold","fire","force","lightning","necrotic","poison","psychic","radiant","thunder"];
   function blankInfusion(){ return {known:"", replicate:"", resist:"", target:"", infused:false, attuned:false}; }
   function infusionByName(n){ return ARTIFICER_INFUSIONS.find(x => x.name === n) || null; }
@@ -11321,7 +11326,7 @@
       return `<div class="inf-up ${isKnown ? "chosen" : ""} ${locked ? "locked" : ""} ${open ? "open" : ""}">`+
         btn+
         `<div class="inf-up-main"><button type="button" class="inf-up-toggle" data-inf="${esc(o.name)}" title="Show description"><span class="inf-chev">▸</span><span class="inf-up-name">${esc(o.name)}</span></button>${badge}${rep}${cntBadge}${why}`+
-        `<div class="inf-up-text">${esc(o.text)}</div></div></div>`;
+        `<div class="inf-up-text">${esc(infText(o))}</div></div></div>`;
     }).join("");
   }
   // One management row per KNOWN infusion: infuse toggle, target picker (eligible inventory for slotted infusions), attune.
@@ -11338,7 +11343,7 @@
       ? `<span class="inf-att-fixed" title="This infusion requires attunement (counts against your 3-item limit).">req'd</span>`
       : `<input type="checkbox" class="inf-cb" data-ii="${i}" data-f="attuned"${x.attuned ? " checked" : ""} title="Mark if the item you replicate requires attunement.">`;
     return `<tr data-ii="${i}">`+
-      `<td class="inf-known-cell" title="${esc(inf.text)}"><b>${esc(x.known)}</b>${sub}</td>`+
+      `<td class="inf-known-cell" title="${esc(infText(inf))}"><b>${esc(x.known)}</b>${sub}</td>`+
       `<td class="inf-ctr"><input type="checkbox" class="inf-cb" data-ii="${i}" data-f="infused"${x.infused ? " checked" : ""} title="Currently infused into an item (counts against Infused Items)."></td>`+
       `<td>${targetCell}</td>`+
       `<td class="inf-ctr">${attuneCell}</td>`+
@@ -13335,15 +13340,10 @@
   // Warlock Pact Boon. It's a base CLASS feature (level 3) whose options are optional-features, so the
   // data extractor (which only builds choosers for SUBCLASS features) never turns it into a pending decision.
   // We surface it explicitly here, reusing the same classChoice plumbing as the Ranger picks.
-  const PACT_BOONS = {
-    "Pact of the Chain": "You learn the find familiar spell and can cast it as a ritual. When you cast it, you can choose one of the normal forms for your familiar or one of these special forms: imp, pseudodragon, quasit, or sprite. Additionally, when you take the Attack action, you can forgo one of your own attacks to let your familiar make one attack of its own with its reaction.",
-    "Pact of the Blade": "You can use your action to create a pact weapon in your empty hand. You choose its form each time, and you're proficient with it while you wield it. It counts as magical for overcoming resistance and immunity to nonmagical attacks. The weapon vanishes if it's more than 5 feet away for 1 minute or more, or if you use this feature again, dismiss it (no action), or die. You can also transform a magic weapon into your pact weapon with a 1-hour ritual during a short rest.",
-    "Pact of the Tome": "Your patron gives you a grimoire called a Book of Shadows. Choose three cantrips from any class's spell list; while the book is on your person, you can cast those cantrips at will. They don't count against your number of cantrips known. If you lose the book, you can perform a 1-hour ceremony during a short or long rest to receive a replacement, which destroys the previous book. The book turns to ash when you die.",
-    "Pact of the Talisman": "Your patron gives you an amulet. When the wearer fails an ability check, they can add a d4 to the roll (this can turn the failure into a success). Usable a number of times equal to your proficiency bonus; all uses return after a long rest. If you lose the talisman, a 1-hour ceremony conjures a replacement."
-  };
+  const PACT_BOON_NAMES = ["Pact of the Chain", "Pact of the Blade", "Pact of the Tome", "Pact of the Talisman"];   // text lives in #source-data (optfeatText); Talisman is TCE
   function pactChoicesFor(w){
     if(w.name !== "Warlock") return [];
-    return [{id:"pactBoon", level:3, prompt:"choose Pact Boon", options:Object.keys(PACT_BOONS).filter(n => n !== "Pact of the Talisman" || tashaEnabled()), kind:"feature"}];
+    return [{id:"pactBoon", level:3, prompt:"choose Pact Boon", options:PACT_BOON_NAMES.filter(n => n !== "Pact of the Talisman" || tashaEnabled()), kind:"feature"}];
   }
   function rangerChoicesFor(w){
     if(w.name !== "Ranger") return [];
@@ -13821,7 +13821,7 @@
         });
         pactChoicesFor(w).forEach(ch => {                                           // Warlock Pact Boon → a Features line with the chosen boon's rules
           const pick = (w.classChoices||{})[ch.id]; if(!pick) return;
-          featLines.push(`Pact Boon: ${pick} (${w.name} ${ch.level}). ${optfeatText(pick) || PACT_BOONS[pick] || ""}`.trim());
+          featLines.push(`Pact Boon: ${pick} (${w.name} ${ch.level}). ${optfeatText(pick) || ""}`.trim());
         });
         if(w.name === "Ranger" && tceOn("ranger-primal-awareness") && sInfo){      // Primal Awareness (TCE): always-prepared spells, once each per long rest
           const PA = [[3,"Speak with Animals",1],[5,"Beast Sense",2],[9,"Speak with Plants",3],[13,"Locate Creature",4],[17,"Commune with Nature",5]];
