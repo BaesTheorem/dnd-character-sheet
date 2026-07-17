@@ -1381,10 +1381,11 @@
     .topblock > .topblock-left{grid-column:1 / -1}   /* Combat spans the full width... */
     .topblock-left{gap:6px}
     .combat-row{flex-wrap:nowrap; gap:8px; margin-top:4px}   /* ...and lays out horizontally like the screen: HP+AC | Defenses | Conditions */
-    .combat-left{flex:1.2 1 0; min-width:0; gap:6px; position:relative; padding-bottom:54px}   /* reserve a strip at the column bottom for the absolutely-pinned death saves (see .deathsaves below) */
+    .combat-left{flex:1.2 1 0; min-width:0; gap:6px; padding-bottom:48px}   /* reserve a strip below the AC row for the death saves in case this column drives the card height (NOT position:relative — the death saves anchor to the combat CARD below) */
+    .card[data-csec="combat"]{position:relative}   /* anchor for the absolutely-pinned death saves */
     .combat-sub{flex:1 1 0; min-width:0}
     #page-core .stack > .topblock{flex:1 1 auto}   /* fill the stack so the 1fr last row can reach the sheet bottom */
-    .combat-top{gap:4px}
+    .combat-top{gap:4px; grid-template-columns:repeat(3,minmax(0,1fr))}   /* equal thirds — the nowrap ARMOR CLASS label otherwise inflates its column's min-content and squishes Speed */
     .combat-top .stat, .hp-grid .stat{min-height:0; display:block}   /* compact natural size in print (screen uses 52px min) */
     .encgrid{gap:5px}                                                /* compact Carrying Capacity + Total Weight to fit the inventory on one page */
     .encgrid .stat{padding:4px 3px 2px}
@@ -1410,7 +1411,7 @@
     .hp-slash{font-size:11px; padding-bottom:1px}
     .hp-tempcol{margin-left:2px}
     .hp-readout{position:static}   /* let the absolute death saves anchor to .combat-left, not the readout */
-    .deathsaves{display:flex !important; flex-direction:column; align-items:center; gap:1px; margin:0; position:absolute; left:2px; right:2px; bottom:3px}   /* pinned into the reserved strip at the bottom of the HP/AC column — inline in the readout it was wider than the narrow horizontal-combat column and bled into the Defenses card */   /* death saves ALWAYS print — blank bubbles to mark at the table (screen hides them above 0 HP via inline style; !important beats it) */
+    .deathsaves{display:flex !important; flex-direction:column; align-items:flex-start; gap:1px; margin:0; position:absolute; left:12px; right:auto; bottom:8px}   /* pinned to the combat card's bottom-left, in the open space under the HP/AC column */   /* pinned into the reserved strip at the bottom of the HP/AC column — inline in the readout it was wider than the narrow horizontal-combat column and bled into the Defenses card */   /* death saves ALWAYS print — blank bubbles to mark at the table (screen hides them above 0 HP via inline style; !important beats it) */
     .deathsaves .ds-title{font-size:7px; margin:0}
     .deathsaves .grp{gap:4px}
     .deathsaves .grp .k{font-size:6px}
@@ -1428,6 +1429,12 @@
     #defmanual + .ta-print{display:none !important}   /* #defmanual is hidden storage for promoted defense badges; its mirror printed them a second time (also covers a mirror already serialized into an older saved copy) */
 
     th{font-size:6px; padding:1px 3px}
+    .attacks th:nth-child(3){width:36px !important}   /* Bonus holds "+9" — shrink it (inline width:64px on the th) so the Name column stops truncating weapon names */
+    .attacks th:nth-child(4){width:78px}              /* Damage/Type: enough for "1d8+3 piercing" at 8px */
+    .attacks{table-layout:fixed}                      /* honor the th widths: under auto layout the Damage input's ~150px intrinsic width (or, with width:100% inputs, the name cell's zero min-content) starves the Name column. Safe here — no colspan section rows (do NOT do this to .spelltable). */
+    .attacks td input{width:100%}
+    .attacks td.has-fire input{padding-right:1px}     /* the ammo Fire button doesn't print, but its 52px keep-clear padding was still eating the name field — the REAL reason ranged/thrown weapon names truncated */
+    .combat-top .stat .k{font-size:5px; letter-spacing:.02em}   /* "ARMOR CLASS" must fit the equal-thirds column without clipping */
     td{padding:1px 2px}
     td input{font-size:8px; padding:1px 3px}
 
@@ -3159,11 +3166,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v556 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v558 (2026-07-16)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.133.6";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.133.7";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3171,6 +3178,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v558", semver:"2.133.7", items:[
+      "Print polish, continued. Armor Class / Initiative / Speed now print as equal-width boxes (AC was hogging the row and squishing Speed). Death saves moved down into the open bottom-left corner of the Combat card. Attack names no longer truncate: the Bonus column slimmed down, and the on-screen Fire button's keep-clear padding no longer eats the name field on ranged/thrown weapons in print.",
+    ]},
     {v:"v556", semver:"2.133.6", items:[
       "Print polish: the death saves now sit in their own strip below the AC / Initiative / Speed row instead of spilling out of the HP column into the Defenses card, and a 3-digit Max HP no longer clips on any font.",
     ]},
