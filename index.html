@@ -3166,11 +3166,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v561 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v562 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.134.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.134.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3178,6 +3178,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v562", semver:"2.134.3", items:[
+      "Rune passives now apply on the sheet: Cloud, Frost, Stone, and Storm runes light up the advantage badges on their skills (Sleight of Hand/Deception, Animal Handling/Intimidation, Insight, Arcana), the Stone Rune adds a Darkvision 120 ft. sense chip, and the Hill and Storm runes add their poison resistance / can't-be-surprised defense chips. Everything clears itself if you swap the rune out. The Fire Rune's doubled tool proficiency stays text-only.",
+    ]},
     {v:"v561", semver:"2.134.2", items:[
       "Pact of the Talisman (Tasha's) joins the Warlock Pact Boon choices, shown only when Tasha's Cauldron is enabled. Pact Boon feature text now comes from the sourcebook data when available, and the Talisman's proficiency-bonus uses track automatically in Limited Features.",
     ]},
@@ -4300,6 +4303,9 @@
     }
     featureBlocks().forEach(b => { if(/^integrated protection\b/i.test((b.name||"").trim())) return;   // its Stealth disadv is a mode option, applied live via featureAdvEntries
       scanDefenses(`${b.name}. ${b.text||""}`).forEach(l => add(l, b.name)); });
+    { const runes = (typeof optFeats !== "undefined" ? optFeats : []).filter(x => x.type === "Rune").map(x => (x.name||"").toLowerCase());   // Rune Knight rune passives
+      if(runes.includes("hill rune")){ add("Resistance: poison", "Hill Rune"); add("Adv. on saves vs. being poisoned", "Hill Rune"); }
+      if(runes.includes("storm rune")) add("Can't be surprised (while not incapacitated)", "Storm Rune"); }
     const txt = (DATA && DATA.itemAdvText) || {}, aset = attuneSet(), attd = attunedNames();
     for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = ($("invname-"+i).value||"").trim();
       if(!cb || !cb.checked || !nm) continue; const lc = nm.toLowerCase();
@@ -9063,6 +9069,12 @@
     if(has(/\bactor\b/)) out.push({kind:'adv', targets:['skill:deception','skill:performance'], note:'to pass as someone else (Actor)'});
     if(has(/dungeon delver/)) out.push({kind:'adv', targets:['skill:perception','skill:investigation'], note:'to detect secret doors (Dungeon Delver)'});
     if(has(/one with the word/)) out.push({kind:'adv', targets:['skill:arcana'], note:'Awakened Spellbook on your person (One with the Word)'});
+    // Rune Knight rune passives (each applies while wearing or carrying the rune-inscribed object)
+    { const runes = (typeof optFeats !== "undefined" ? optFeats : []).filter(x => x.type === "Rune").map(x => (x.name||"").toLowerCase());
+      if(runes.includes("cloud rune")) out.push({kind:'adv', targets:['skill:sleight','skill:deception'], note:'while wearing/carrying your Cloud Rune object'});
+      if(runes.includes("frost rune")) out.push({kind:'adv', targets:['skill:animal','skill:intimidation'], note:'while wearing/carrying your Frost Rune object'});
+      if(runes.includes("stone rune")) out.push({kind:'adv', targets:['skill:insight'], note:'while wearing/carrying your Stone Rune object'});
+      if(runes.includes("storm rune")) out.push({kind:'adv', targets:['skill:arcana'], note:'while wearing/carrying your Storm Rune object'}); }
     // Equipped armor whose Stealth penalty applies → disadvantage on Stealth (mithral removes it)
     try{ const sel = armorByName((($("armorsel")||{}).value) || ""); const mith = $("armormod") && $("armormod").value === "mithral";
       if(sel && sel.stealth && !mith) out.push({kind:'disadv', targets:['skill:stealth'], note:sel.name + ' imposes it'}); }catch(e){}
@@ -10213,6 +10225,7 @@
     if(typeof charRaceChoices === "object" && charRaceChoices && charRaceChoices.skillDv === "darkvision") add("Darkvision " + ((ro && ro.darkvision) || 60) + " ft.", rn || "Race");   // variable skill-or-darkvision race, chose darkvision
     (asiChoices||[]).forEach(s => { if(s.type === "feat" && s.feat && FEAT_SENSES[s.feat]) add(FEAT_SENSES[s.feat], s.feat); });
     featureBlocks().forEach(b => { const s = FEATURE_SENSES[(b.name||"").toLowerCase()]; if(s) add(s, b.name); });
+    if((typeof optFeats !== "undefined" ? optFeats : []).some(x => x.type === "Rune" && /^stone rune$/i.test(x.name||""))) add("Darkvision 120 ft.", "Stone Rune");
     const hi = (typeof hbActiveItems === "function") && hbActiveItems();
     const mods = [];   // conditional sense modifiers from equipped items, applied AFTER every base sense is known
     if(hi){ const aset = attuneSet(), attd = attunedNames();
