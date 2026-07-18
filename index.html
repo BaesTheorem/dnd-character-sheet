@@ -3166,11 +3166,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v566 (2026-07-17)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v567 (2026-07-18)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.135.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.135.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3178,6 +3178,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v567", semver:"2.135.2", items:[
+      "Equipped magic items that grant advantage on a skill check now show the green advantage die right on that skill's line, the same as class/race/feat advantages. Boots of Elvenkind and Cloak of Elvenkind mark Stealth, Eyes of the Eagle marks Perception, and so on — read straight from the item's own text, so it works for any such item and clears itself when you unequip. (These used to only appear as a Defenses note.)",
+    ]},
     {v:"v566", semver:"2.135.1", items:[
       "Spell hovers show the full spell card again, everywhere. Hovering any spell name — class lists, fixed lists, spellbook write-ins, and the Granted Spells table — now opens the rich preview card with the complete data line (level, school, casting time, range, components, duration, ritual, concentration) above the full description, material components, higher-level scaling, and any active spell changes. The old truncated grey browser tooltip is gone (it was competing with the card), and the card itself got taller so long spells fit.",
     ]},
@@ -9088,6 +9091,26 @@
   // character's race / class+level / Features text / equipped armor (the signals the sheet actually has). Targets use the
   // same tag space as conditions plus per-skill `skill:<key>`. Each carries a note (often a condition) for the tooltip,
   // since most of these apply only in a situation — the marker is a reminder, the note says when. Rules verified from 5etools.
+  function itemSkillAdvEntries(){   // equipped (+ attuned when required) magic items granting advantage/disadvantage on a specific skill CHECK → live d20 markers on that skill line (Boots/Cloak of Elvenkind → Stealth, Eyes of the Eagle → Perception, etc.), read verbatim from itemAdvText so it's source-driven, not a hardcoded list
+    const out = [];
+    try{
+      const txt = (DATA && DATA.itemAdvText) || {}, aset = attuneSet(), attd = attunedNames();
+      for(let i=0;i<NINV;i++){ const cb = $("invequip-"+i), nm = (($("invname-"+i)||{}).value||"").trim();
+        if(!cb || !cb.checked || !nm) continue; const lc = nm.toLowerCase();
+        if(aset.has(lc) && !attd.has(lc)) continue;                                // requires attunement but isn't attuned → grants nothing yet
+        const t = txt[nm]; if(!t) continue;
+        const re = /(advantage|disadvantage)\s+on\b([^.;]*?)\bchecks?\b([^.;]*)/gi; let m;
+        while(m = re.exec(t)){
+          const mid = m[1] + " " + (m[2]||""), cond = (m[3]||"").trim().replace(/[.,;]+$/, "");
+          const kind = /disadv/i.test(m[1]) ? "disadv" : "adv";
+          SKILLS.forEach(([k,disp]) => {                                           // any known skill named inside the advantage clause gets the marker
+            if(!new RegExp("\\b" + disp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i").test(mid)) return;
+            out.push({kind, targets:['skill:'+k], note: cond ? nm + " — " + cond : nm}); });
+        }
+      }
+    }catch(e){}
+    return out;
+  }
   function featureAdvEntries(){
     const out = [];
     const race = (($("race")||{}).value || "").toLowerCase();
@@ -9110,6 +9133,7 @@
       if(sel && sel.stealth && !mith) out.push({kind:'disadv', targets:['skill:stealth'], note:sel.name + ' imposes it'}); }catch(e){}
     // Warforged Integrated Protection modes aren't real armor (armorByName returns null), so catch a Stealth-penalty mode (Heavy Plating) here.
     { const ipm = ipModeByName((($("armorsel")||{}).value) || ""); if(ipm && ipm.stealth) out.push({kind:'disadv', targets:['skill:stealth'], note:ipm.name + ' imposes it'}); }
+    itemSkillAdvEntries().forEach(e => out.push(e));   // equipped magic items granting a skill-check advantage (Boots/Cloak of Elvenkind → Stealth, …)
     return out;
   }
   function gatherAdvSources(){   // target tag -> [{kind, note}] from conditions/exhaustion + features
