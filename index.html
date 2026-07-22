@@ -3171,11 +3171,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v575 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v576 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.140.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.140.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3183,6 +3183,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v576", semver:"2.140.1", items:[
+      "Fixed: the 3D dice animation silently never played on systems with Reduce Motion enabled (macOS Accessibility), even with the in-app toggle on. The “3D dice animation” checkbox is now the source of truth — your system's reduced-motion preference only chooses its starting default, and checking the box wins. If the box shows unchecked after this update, check it once and you're set.",
+    ]},
     {v:"v575", semver:"2.140.0", items:[
       "Dice materials: pick Plastic, Glass, Opalescent, or Metal for the 3D dice, plus any color, in Settings → General → Dice rolling. Applies from your next roll; the choice is remembered across characters.",
     ]},
@@ -16305,11 +16308,16 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     function ready(){ return typeof rollDie === "function"; }
     function die(sides){ return _rng ? _rng(sides) : rollDie(sides); }
     function isMobile(){ return document.documentElement.classList.contains("mobile"); }
+    // OS-level reduced-motion only picks the DEFAULT for the 3D pref (see prefs()) — the in-app
+    // "3D dice animation" checkbox is the source of truth, so explicitly turning it on beats the OS hint.
+    // (macOS Reduce Motion is common and silently ate the animation for a user who wanted it.)
+    function reducedMotion(){
+      try{ return !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(e){ return false; }
+    }
     // The 3D overlay is skipped and the result shown instantly when any of these hold.
     function instant(){
       if(!prefs().threeD) return true;
       if(document.body.classList.contains("no-animations")) return true;                       // Settings → Disable animations
-      try{ if(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return true; }catch(e){}
       if(!window.THREE || !window.CANNON) return true;                                         // vendor blocks failed to parse → sheet still fully works
       if(!Engine.supported()) return true;                                                     // no WebGL / context previously lost
       return false;
@@ -16329,7 +16337,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     function prefs(){
       if(_prefs) return _prefs;
       var p = {}; try{ p = JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; }catch(e){}
-      _prefs = { theme: p.theme || "plastic", color: p.color || "#b3282d", threeD: p.threeD !== false,
+      _prefs = { theme: p.theme || "plastic", color: p.color || "#b3282d",
+                 threeD: ("threeD" in p) ? p.threeD !== false : !reducedMotion(),   // stored choice wins; OS reduced-motion only sets the first-run default
                  rail: p.rail !== 0, railOpen: ("railOpen" in p) ? !!p.railOpen : !isMobile() };
       return _prefs;
     }
@@ -16939,7 +16948,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var host = el("dice-3d-settings");                        // static container; content rebuilt + rewired every load (no saved-copy corpse)
       if(host){
         host.innerHTML = '<label class="lay-row"><input type="checkbox" id="set-dice3d"> 3D dice animation</label>' +
-          '<p class="wiz-hint">Rolls tumble as 3D dice across the sheet before the result card appears. With this off — or with “Disable animations” on above — results appear instantly. Needs WebGL; if it isn’t available, rolls just show instantly.</p>' +
+          '<p class="wiz-hint">Rolls tumble as 3D dice across the sheet before the result card appears. With this off — or with “Disable animations” on above — results appear instantly. Needs WebGL; if it isn’t available, rolls just show instantly. If your system asks for reduced motion, this starts off, but checking it here wins.</p>' +
           '<label class="lay-row">Dice material&nbsp; <select id="set-dicetheme">' +
             '<option value="plastic">Plastic</option><option value="glass">Glass</option><option value="opal">Opalescent</option><option value="metal">Metal</option>' +
           '</select></label>' +
