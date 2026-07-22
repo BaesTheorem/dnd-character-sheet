@@ -2069,6 +2069,7 @@
         <button class="btn menu-item" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
         <button class="btn menu-item" id="btn-hb-studio-top" type="button" title="Create and manage your custom spells, items, feats, and more">Homebrew Studio</button>
         <button class="btn menu-item" id="btn-print">Print / PDF</button>
+        <button class="btn menu-item" id="btn-rolllog" type="button" title="Your recent dice rolls (last 50, across all characters)">Roll Log</button>
         <button class="btn menu-item" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
       </div>
     </div>
@@ -3007,7 +3008,11 @@
             <label class="lay-row"><input type="checkbox" id="set-dark"> Dark mode</label>
             <p class="wiz-hint" id="dark-hint">A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.</p>
             <label class="lay-row"><input type="checkbox" id="set-noanim"> Disable animations</label>
-            <p class="wiz-hint">Turns off all motion (like the shimmer on the level-up button) for a calmer, distraction-free sheet during play. This applies across all of your characters.</p>
+            <p class="wiz-hint">Turns off all motion (like the shimmer on the level-up button) for a calmer, distraction-free sheet during play. This applies across all of your characters. Dice rolls skip the rolling animation and show the result straight away.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Dice rolling</label>
+            <label class="lay-row"><input type="checkbox" id="set-dicerail" checked> Show the dice sidebar</label>
+            <p class="wiz-hint">A slim rail of plain dice (d4–d100) on the right edge of the screen. Click a die to roll it with no modifiers — for any roll the sheet doesn't wire up itself. You can also click ability modifiers, skills, saves, initiative, attack rows, and Cast buttons to roll them with their modifiers applied. Recent rolls live in the Roll Log (☰ menu).</p>
+            <div id="dice-3d-settings"></div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
             <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
             <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
@@ -3166,11 +3171,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v572 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v573 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.137.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.138.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3178,6 +3183,12 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v573", semver:"2.138.0", items:[
+      "Dice rolling! Click an ability modifier, skill, save, Initiative, an attack row's d20 button, or a Cast button to roll it — modifiers applied, advantage/disadvantage picked up automatically from the sheet (2d20, dropped die shown). Attack rolls flag natural 20s and 1s and offer a damage roll (doubled dice on a crit); damaging spells roll on cast, upcast dice included.",
+      "The ranged/thrown fire button now expends the ammo AND rolls the attack in one click, with remaining ammo shown on the result.",
+      "New plain-dice sidebar on the right edge: d4–d100 you can roll manually with no modifiers (set a count for multiple dice). Toggle it in Settings → General → Dice rolling.",
+      "New Roll Log in the ☰ menu: your last 50 rolls, kept across characters.",
+    ]},
     {v:"v572", semver:"2.137.2", items:[
       "Removed the experimental Material Design theme. Any character that had it selected falls back to the Universal Character Sheet.",
     ]},
@@ -4383,14 +4394,14 @@
     return out;
   }
   function hpAvg(die){ return Math.floor(die/2) + 1; }   // 5e fixed-HP average: d6→4, d8→5, d10→6, d12→7
-  function rollDie(die){ return 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % die); }
+  function rollHpDie(die){ return 1 + (crypto.getRandomValues(new Uint32Array(1))[0] % die); }   // HP-roll helper (renamed so the canonical crypto rollDie below is the only `rollDie`)
   function regenHp(mode, list, reroll){   // (re)build hpRolls for the given mode; level 1 is always max of the first class
     const dice = levelDiceFor(list); const prev = (reroll && mode === "rolled") ? [] : hpRolls.slice();
     hpRolls = dice.map((die,i) => {
       if(i === 0) return die;                                   // level 1 = max
       if(mode === "max") return die;
       if(mode === "average") return hpAvg(die);
-      if(mode === "rolled") return (prev[i] != null && hpMode === "rolled") ? prev[i] : rollDie(die);   // keep prior rolls unless re-rolling
+      if(mode === "rolled") return (prev[i] != null && hpMode === "rolled") ? prev[i] : rollHpDie(die);   // keep prior rolls unless re-rolling
       return prev[i] != null ? prev[i] : hpAvg(die);            // manual: keep what's there, seed new levels with average
     });
   }
@@ -8332,7 +8343,7 @@
         fbody += `<tr class="sp-section"><td colspan="8">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
         info.fixed[l].slice().sort((a,b)=>a.localeCompare(b)).forEach(name => {
           const d = spellData(name);
-          fbody += `<tr><td class="col-prep"></td><td class="col-name"><span data-card="${esc(name)}">${esc(name)}</span>${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;
+          fbody += `<tr><td class="col-prep"></td><td class="col-name"><span data-card="${esc(name)}">${esc(name)}</span>${castBtnHTML(0, name)}${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;   // fixed-list spells cast without slots — damaging ones get a roll-only Cast button
         });
       });
       sEl(inst,"spells").innerHTML = fbody;
@@ -8383,7 +8394,7 @@
           const isRit = !!(d && d.ritual);   // a spellbook ritual (Wizard-style) is castable WITHOUT preparing, so keep it visible even when unprepared
           const hide = isPrepCaster && l>0 && named && !(!!m.prep || mFree) && !(canRit && isRit);   // named spellbook spell, not prepared and not a ritual you can cast unprepared → collapsible
           const cls = [named ? "has-spell" : "", hide ? ("sp-unprep" + (open ? "" : " is-hidden")) : ""].filter(Boolean).join(" ");
-          const castBtn = (named && l>0) ? castBtnHTML(l) : "";   // known/write-in spell → Cast button
+          const castBtn = named ? castBtnHTML(l, m.name) : "";   // known/write-in spell → Cast button (cantrips with damage get a roll-only Cast)
           const row = `<tr${cls ? ` class="${cls}"` : ""}${hide ? ` data-unprep="${inst}:${l}"` : ""}>${prepCell}<td class="col-name col-name-edit">${nameField}${editBtn}${delBtn}${castBtn}${spMobileMeta(d)}</td>${propArea}</tr>`;
           if(hide){ unprep += row; nUnprep++; } else prep += row;
         });
@@ -8745,7 +8756,9 @@
     const target = String(itemName||"").trim().toLowerCase();
     for(let i=0;i<NINV;i++){ const lc = ($("invname-"+i).value||"").trim().toLowerCase();
       if(lc === target && rowQty(i) > 0){ $("invqty-"+i).value = Math.max(0, rowQty(i) - 1); refreshRowWeight(i); save(); compute(); renderGrantedSpells();
-        flashStatus(`Cast ${itemName}, ${rowQty(i)} left`); return; } }
+        flashStatus(`Cast ${itemName}, ${rowQty(i)} left`);
+        if(spell && window.DiceRoller) DiceRoller.rollScroll(spell);   // damage-only roll for a damaging scroll spell
+        return; } }
     flashStatus(`No ${itemName} left to cast`);
   }
   // allowUpCasting: a granted spell that scales by slot level (has DATA.spellUpcast and deals rolled, non-cantrip damage)
@@ -12503,22 +12516,37 @@
       if(thrown ? (lc === nm) : lc.includes(kind)){ $("invqty-"+i).value = Math.max(0, rowQty(i) - 1); refreshRowWeight(i); save(); compute(); return; } }
   }
   // ===== Cast: spend a spell slot from a spell row, prompting for the upcast level when higher slots are open =====
-  function castBtnHTML(l){ return l > 0 ? `<button type="button" class="sp-cast noprint" data-castlvl="${l}" tabindex="-1" title="Cast: expend a spell slot (asks which level if you can upcast)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.4 3.7 2.3 5.6 6 6-3.7.4-5.6 2.3-6 6-.4-3.7-2.3-5.6-6-6 3.7-.4 5.6-2.3 6-6z"/></svg>Cast</button>` : ""; }
+  function castBtnHTML(l, name){
+    if(l > 0) return `<button type="button" class="sp-cast noprint" data-castlvl="${l}" tabindex="-1" title="Cast: expend a spell slot (asks which level if you can upcast)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.4 3.7 2.3 5.6 6 6-3.7.4-5.6 2.3-6 6-.4-3.7-2.3-5.6-6-6 3.7-.4 5.6-2.3 6-6z"/></svg>Cast</button>`;
+    // Cantrips / no-slot spells: no slot to expend, but a damaging spell still gets a Cast button that just rolls its dice (data-roll → the click delegate skips slot logic).
+    const d = name ? spellData(name) : null;
+    if(!(d && spellDamage(d))) return "";
+    return `<button type="button" class="sp-cast noprint" data-roll="1" data-spell="${esc(name)}" tabindex="-1" title="Cast: roll this spell's damage (no slot needed)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.4 3.7 2.3 5.6 6 6-3.7.4-5.6 2.3-6 6-.4-3.7-2.3-5.6-6-6 3.7-.4 5.6-2.3 6-6z"/></svg>Cast</button>`;
+  }
   function slotRemaining(L){ const tot = num(($("slot"+L)||{}).value, 0), used = num(($("slot"+L+"u")||{}).value, 0); return Math.max(0, tot - used); }
   function expendSlot(L){ const tu = $("slot"+L+"u"), tot = num(($("slot"+L)||{}).value, 0); if(!tu) return;
     const used = num(tu.value, 0); if(used >= tot){ flashStatus(`No level ${L} spell slots left`); return; }
     tu.value = used + 1; save(); compute(); flashStatus(`Cast at level ${L} — ${tot - used - 1} slot${tot - used - 1 === 1 ? "" : "s"} left`); }
+  // Resolve the spell a Cast button belongs to (write-in rows keep the name in an input, catalog rows in a data-card span) + its sheet instance.
+  function castSpellName(btn){
+    const td = btn.closest("td"); if(!td) return "";
+    const inp = td.querySelector("input.sp-name"); if(inp) return (inp.value || "").trim();
+    const sp = td.querySelector("span[data-card]"); return sp ? (sp.getAttribute("data-card") || sp.textContent || "").trim() : "";
+  }
+  function castInst(btn){ const tb = btn.closest("tbody"); const m = tb && /^spells(?:__(\d+))?$/.exec(tb.id || ""); return (m && m[1]) ? +m[1] : 0; }
+  function castRoll(btn, lvl){ if(window.DiceRoller){ const nm = castSpellName(btn); if(nm) DiceRoller.rollSpell(nm, lvl, castInst(btn)); } }   // dice are optional chrome — casting works identically without the module
   function onCastClick(btn){
     const base = +btn.dataset.castlvl, avail = [];
     for(let L = base; L <= 9; L++) if(slotRemaining(L) > 0) avail.push(L);
     if(!avail.length){ flashStatus(`No level ${base} (or higher) spell slots available`); return; }
-    if(avail.length === 1){ expendSlot(avail[0]); return; }   // only one option → just cast it (no upcast choice)
+    if(avail.length === 1){ expendSlot(avail[0]); castRoll(btn, avail[0]); return; }   // only one option → just cast it (no upcast choice)
     openCastPop(btn, avail);                                   // higher slots open → prompt for the upcast level
   }
   function closeCastPop(){ const p = $("cast-pop"); if(p) p.remove(); }
   function openCastPop(btn, avail){
     closeCastPop();
     const pop = document.createElement("div"); pop.id = "cast-pop"; pop.className = "cast-pop noprint"; pop.dataset.transient = "1";
+    pop.dataset.spell = castSpellName(btn); pop.dataset.inst = String(castInst(btn));   // the level buttons roll the spell AFTER the upcast choice
     pop.innerHTML = `<div class="cast-pop-h">Cast at level</div>` + avail.map(L =>
       `<button type="button" class="cast-pop-lvl" data-lvl="${L}">Lv ${L} <span>${slotRemaining(L)} left</span></button>`).join("");
     document.body.appendChild(pop);
@@ -14053,9 +14081,16 @@
       const fire = e.target.closest(".atk-fire");
       if(fire && !fire.disabled){ fireAmmo(fire.dataset.kind); return; }
       const cast = e.target.closest(".sp-cast");
-      if(cast){ e.preventDefault(); if(cast.dataset.scroll != null) castScroll(cast.dataset.scroll); else onCastClick(cast); return; }
+      if(cast){ e.preventDefault();
+        if(cast.dataset.scroll != null) castScroll(cast.dataset.scroll);
+        else if(cast.dataset.roll != null){ if(window.DiceRoller) DiceRoller.rollSpell(cast.dataset.spell || castSpellName(cast), 0, castInst(cast)); }   // cantrip / no-slot spell: roll only, no slot logic
+        else onCastClick(cast);
+        return; }
       const lvlBtn = e.target.closest(".cast-pop-lvl");
-      if(lvlBtn){ expendSlot(+lvlBtn.dataset.lvl); closeCastPop(); return; }
+      if(lvlBtn){ const p = $("cast-pop"), sp = p ? p.dataset.spell : "", pinst = p ? +(p.dataset.inst || 0) : 0, L = +lvlBtn.dataset.lvl;
+        expendSlot(L); closeCastPop();
+        if(sp && window.DiceRoller) DiceRoller.rollSpell(sp, L, pinst);   // roll at the chosen upcast level
+        return; }
       if(!e.target.closest("#cast-pop")) closeCastPop();
     });
     window.addEventListener("storage", e => {   // sourcebooks are app-wide: a reload/clear in another tab re-applies here too
@@ -16198,6 +16233,403 @@
         if(e.key === "Enter" || e.key === " "){ e.preventDefault(); toggle(); }
       });
     });
+  })();
+  </script>
+
+  <script>
+  /* ===== Dice Roller (Phase A: instant rolls, result card, roll log, plain-dice sidebar) =====
+     Self-contained module: every call from the main sheet is guarded `window.DiceRoller && …`,
+     and every read of a sheet global here is typeof-guarded — if either script fails to parse,
+     the other keeps working exactly as before. Results always come from the sheet's crypto
+     rollDie (rejection-sampled, unbiased); the 3D overlay (Phase B) only ever animates a result
+     that has already been decided. */
+  (function(){
+    "use strict";
+    var LOG_KEY = "dnd-sheet-rolllog", PREF_KEY = "dnd-sheet-dice", LOG_MAX = 50;
+    var _last = null, _rng = null, _pendingDmg = null, _cardTimer = null, _railN = 1;
+    var AB_NAME = {str:"Strength", dex:"Dexterity", con:"Constitution", int:"Intelligence", wis:"Wisdom", cha:"Charisma"};
+    var DMG_TYPES = /\b(acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder)\b/i;
+    function el(id){ return document.getElementById(id); }
+    function hEsc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+    function ready(){ return typeof rollDie === "function"; }
+    function die(sides){ return _rng ? _rng(sides) : rollDie(sides); }
+    function isMobile(){ return document.documentElement.classList.contains("mobile"); }
+    // The 3D overlay (Phase B) is skipped and the result shown instantly when any of these hold.
+    function instant(){
+      if(!prefs().threeD) return true;
+      if(document.body.classList.contains("no-animations")) return true;                       // Settings → Disable animations
+      try{ if(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return true; }catch(e){}
+      return true;   // Phase A: no 3D engine yet — always instant
+    }
+
+    /* ---- prefs (app-level, like dark mode; never in character data) ---- */
+    var _prefs = null;
+    function prefs(){
+      if(_prefs) return _prefs;
+      var p = {}; try{ p = JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; }catch(e){}
+      _prefs = { theme: p.theme || "plastic", color: p.color || "#b3282d", threeD: p.threeD !== false,
+                 rail: p.rail !== 0, railOpen: ("railOpen" in p) ? !!p.railOpen : !isMobile() };
+      return _prefs;
+    }
+    function savePrefs(){ try{ localStorage.setItem(PREF_KEY, JSON.stringify(prefs())); }catch(e){} }
+
+    /* ---- roll log (global across characters; capped, localStorage only) ---- */
+    function logLoad(){ try{ var a = JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+    function logSave(a){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(a)); }catch(e){} }
+    function logDetail(res){
+      if(res.kind === "d20"){
+        var s = "d20 " + res.dice[0].v;
+        if(res.dice[1]) s += " (dropped " + res.dice[1].v + ")";
+        if(res.mod) s += (res.mod > 0 ? " +" : " ") + res.mod;
+        if(res.adv) s += res.adv.kind === "adv" ? " · advantage" : " · disadvantage";
+        return s;
+      }
+      return (res.parts || []).map(function(p){
+        var r = p.rolls.map(function(x){ return x.v; }).join("+") || "";
+        var m = p.mod ? ((p.mod > 0 && r ? "+" : "") + p.mod) : "";
+        return (p.label ? p.label + " " : "") + r + m + " = " + p.sum;
+      }).join("; ");
+    }
+    function logPush(res){
+      var ch = ""; try{ ch = ((el("charname") || {}).value || "").trim(); }catch(e){}
+      var a = logLoad();
+      a.unshift({ t: Date.now(), ch: ch, label: res.label, total: res.total, detail: logDetail(res) });
+      if(a.length > LOG_MAX) a.length = LOG_MAX;
+      logSave(a);
+    }
+
+    /* ---- damage-string parser (display strings only — never feeds upcast math; _parseDice stays untouched) ----
+       "1d8+3 slashing, range 30/120; Sneak Attack +2d6" → [{label:"slashing",type:"slashing",dice:[{n:1,d:8}],mod:3},
+       {label:"Sneak Attack",dice:[{n:2,d:6}],mod:0}]. Versatile/two-handed alternates in parentheses are ignored. */
+    function parseDamageParts(str){
+      var out = [];
+      var s0 = String(str || "").replace(/\([^)]*(?:versatile|two-handed)[^)]*\)/gi, " ");
+      s0.split(/[;,]/).forEach(function(seg){
+        var s = seg.trim(); if(!s) return;
+        var dice = [], m, re = /(\d+)\s*[dD](\d+)/g;
+        while((m = re.exec(s))) dice.push({n:+m[1], d:+m[2]});
+        var mod = 0, mre = /([+-])\s*(\d+)(?!\s*[dD]\d)(?!\d)/g, mm;
+        while((mm = mre.exec(s))) mod += (mm[1] === "-" ? -1 : 1) * +mm[2];
+        var ty = DMG_TYPES.exec(s);
+        if(!dice.length){                                     // no dice: keep a flat "3 bludgeoning" part, skip "range 30/120" etc.
+          var flat = /^\s*(\d+)\s*(?:[a-z]|$)/i.exec(s);
+          if(!(flat && ty)) return;
+          mod = +flat[1];
+        }
+        var lbl = s.replace(re, " ").replace(/([+-])\s*\d+/g, " ").replace(DMG_TYPES, " ")
+                   .replace(/\s+/g, " ").replace(/^[\s:+\-·]+|[\s:+\-·]+$/g, "");
+        out.push({ label: lbl || (ty ? ty[1].toLowerCase() : ""), type: ty ? ty[1].toLowerCase() : "", dice: dice, mod: mod });
+      });
+      return out;
+    }
+
+    /* ---- core rolls (results decided here; Phase B only animates them) ---- */
+    function resolveAdvSafe(keys){
+      try{ if(typeof resolveAdv === "function" && typeof gatherAdvSources === "function") return resolveAdv(gatherAdvSources(), keys); }catch(e){}
+      return null;
+    }
+    function finishRoll(res){ _last = res; logPush(res); showCard(res); }
+    function d20Roll(o){
+      if(!ready()) return;
+      var adv = o.advKeys ? resolveAdvSafe(o.advKeys) : null;
+      var r1 = die(20), r2 = adv ? die(20) : null, kept = r1, dropped = null;
+      if(adv){ var hi = Math.max(r1, r2), lo = Math.min(r1, r2); kept = adv.kind === "adv" ? hi : lo; dropped = adv.kind === "adv" ? lo : hi; }
+      var isAtk = !!(o.advKeys && o.advKeys.indexOf("attack") >= 0);
+      finishRoll({ kind:"d20", label:o.label, mod:o.mod || 0,
+        dice:[{d:20, v:kept}].concat(dropped != null ? [{d:20, v:dropped, dropped:true}] : []),
+        adv:adv, total: kept + (o.mod || 0), nat: isAtk ? (kept === 20 ? 20 : (kept === 1 ? 1 : null)) : null,
+        damage:o.damage || null, note:o.note || null, sub:o.sub || null });
+    }
+    function damageRoll(o){
+      if(!ready()) return;
+      var parts = (o.parts || []).map(function(p){
+        var rolls = [];
+        (p.dice || []).forEach(function(g){ var n = o.crit ? g.n * 2 : g.n; for(var j = 0; j < n; j++) rolls.push({d:g.d, v:die(g.d)}); });
+        return { label:p.label, type:p.type, rolls:rolls, mod:p.mod || 0, sum: rolls.reduce(function(a, r){ return a + r.v; }, 0) + (p.mod || 0) };
+      });
+      finishRoll({ kind:"dmg", label:o.label + (o.crit ? " — critical hit!" : ""), parts:parts,
+        total: parts.reduce(function(a, p){ return a + p.sum; }, 0), sub:o.sub || null, note:o.note || null });
+    }
+    function plainRoll(n, d){ n = Math.max(1, Math.min(20, n|0) || 1); damageRoll({ label: n + "d" + d, parts:[{label:"", type:"", dice:[{n:n, d:d}], mod:0}] }); }
+
+    /* ---- spell rolls (called from the cast flow) ---- */
+    function instEl(inst, base){ try{ if(typeof sEl === "function") return sEl(inst || 0, base); }catch(e){} return el(base); }
+    function isAttackSpell(name){
+      try{ var a = (typeof DATA !== "undefined" && DATA && DATA.attackSpells) || []; var lc = String(name).toLowerCase();
+        return a.some(function(n){ return String(n).toLowerCase() === lc; }); }catch(e){ return false; }
+    }
+    function rollSpell(name, castLevel, inst){
+      try{
+        if(typeof spellData !== "function") return;
+        var d = spellData(name); if(!d) return;
+        var s = spellDamage(d, castLevel || undefined); if(!s) return;      // non-damage spell → cast behaves exactly as before, nothing rolls
+        var parts = parseDamageParts(s); if(!parts.length) return;
+        var lbl = name + ((castLevel && d.level > 0 && castLevel > d.level) ? " (Lv " + castLevel + ")" : "");
+        if(isAttackSpell(name)){
+          var mod = parseModText(instEl(inst, "spellatk"));
+          d20Roll({ label:lbl, mod: mod == null ? 0 : mod, advKeys:["attack"], damage:{ label: lbl + " damage", parts: parts } });
+        } else {
+          var dcEl = instEl(inst, "spelldc"), dc = dcEl ? (dcEl.textContent || "").trim() : "";
+          damageRoll({ label:lbl, parts:parts, sub: dc ? "Save DC " + dc : null });
+        }
+      }catch(e){}
+    }
+    function rollScroll(name){
+      try{
+        if(typeof spellData !== "function") return;
+        var d = spellData(name); if(!d) return;
+        var s = spellDamage(d); if(!s) return;
+        var parts = parseDamageParts(s); if(!parts.length) return;
+        damageRoll({ label: name + " (scroll)", parts: parts });
+      }catch(e){}
+    }
+
+    /* ---- click wiring (capture phase: reads the fire button's ammo badge before compute() rebuilds it; never preventDefault) ---- */
+    function parseModText(node){
+      if(!node) return null;
+      var c = node.cloneNode(true);
+      Array.prototype.forEach.call(c.querySelectorAll ? c.querySelectorAll(".advmark") : [], function(x){ x.remove(); });
+      var m = /^([+-]?\d+)$/.exec((c.textContent || "").trim());
+      return m ? +m[1] : null;
+    }
+    function skillLabel(key){
+      try{ if(typeof SKILLS !== "undefined"){ var s = SKILLS.find(function(x){ return x[0] === key; }); if(s) return s[1]; } }catch(e){}
+      return key.charAt(0).toUpperCase() + key.slice(1);
+    }
+    function rollAttackRow(i, viaFire, ammoLeft){
+      var nm = el("atkname-" + i), name = nm ? (nm.value || "").trim() : ""; if(!name) return;
+      var bonusRaw = ((el("atkbonus-" + i) || {}).value || "").trim();
+      var parts = parseDamageParts((el("atkdmg-" + i) || {}).value || "");
+      var note = (viaFire && ammoLeft != null) ? (ammoLeft + " remaining") : null;
+      var m = /^([+-]?\d+)$/.exec(bonusRaw);
+      if(m) d20Roll({ label:name, mod:+m[1], advKeys:["attack"], damage: parts.length ? { label: name + " damage", parts: parts } : null, note: note });
+      else if(parts.length) damageRoll({ label:name, parts:parts, sub: bonusRaw || null, note: note });   // save-DC feature row (e.g. Breath Weapon) → no d20, damage + the DC shown
+    }
+    function onDiceClick(e){
+      if(e.altKey || e.detail > 1) return;                                        // Alt-click = pin revert; 2nd click of a double-click = pin editor
+      if(!e.target || !e.target.closest) return;
+      if(e.target.isContentEditable) return;                                      // a pinned value being edited in place
+      if(typeof _ovEditing !== "undefined" && _ovEditing) return;                  // an override-edit session is open
+      if(e.target.closest(".sk-tri")) return;                                     // the skill proficiency tri-state control
+      var fire = e.target.closest(".atk-fire");
+      if(fire){
+        if(fire.disabled) return;
+        var tr = fire.closest("tr"), inp = tr && tr.querySelector('input[id^="atkname-"]'); if(!inp) return;
+        var badge = fire.querySelector(".atk-fire-badge"), left = badge ? Math.max(0, (+badge.textContent || 0) - 1) : null;
+        rollAttackRow(+inp.id.slice(8), true, left);                               // the sheet's own handler expends the ammo right after (bubble phase)
+        return;
+      }
+      var ar = e.target.closest(".atk-roll");
+      if(ar){ rollAttackRow(+ar.dataset.a, false, null); return; }
+      var mod = e.target.closest('[id^="mod-"]');
+      if(mod && mod.classList.contains("mod")){
+        var k = mod.id.slice(4), v = parseModText(mod);
+        if(v != null && AB_NAME[k]) d20Roll({ label: AB_NAME[k] + " check", mod:v, advKeys:["check"] });
+        return;
+      }
+      var sk = e.target.closest('[id^="sktot-"]');
+      if(sk){ var sv = parseModText(sk); if(sv != null) d20Roll({ label: skillLabel(sk.id.slice(6)), mod:sv, advKeys:["check", "skill:" + sk.id.slice(6)] }); return; }
+      var sav = e.target.closest('[id^="savetot-"]');
+      if(sav){ var vv = parseModText(sav), ka = sav.id.slice(8); if(vv != null && AB_NAME[ka]) d20Roll({ label: AB_NAME[ka] + " save", mod:vv, advKeys:["save", "save:" + ka] }); return; }
+      var st = e.target.closest(".stat");
+      if(st && st.querySelector("#init")){ var iv = parseModText(el("init")); if(iv != null) d20Roll({ label:"Initiative", mod:iv, advKeys:["check"] }); return; }
+    }
+
+    /* ---- injected d20 button on each filled attack row's Bonus cell (idempotent; re-run after every compute) ---- */
+    var D20_SVG = '<svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><polygon points="10,1.5 17.5,6 17.5,14 10,18.5 2.5,14 2.5,6" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>';
+    function renderAtkRollButtons(){
+      if(typeof NATTACKS === "undefined") return;
+      for(var i = 0; i < NATTACKS; i++){
+        var b = el("atkbonus-" + i); if(!b) continue;
+        var td = b.closest("td"); if(!td) continue;
+        var nm = el("atkname-" + i), filled = !!(nm && (nm.value || "").trim());
+        var btn = td.querySelector(".atk-roll");
+        if(filled && !btn){
+          btn = document.createElement("button"); btn.type = "button"; btn.className = "atk-roll noprint"; btn.tabIndex = -1;
+          btn.dataset.a = String(i); btn.title = "Roll this attack"; btn.innerHTML = D20_SVG;
+          td.classList.add("atk-roll-host"); td.appendChild(btn);
+        } else if(!filled && btn){ btn.remove(); td.classList.remove("atk-roll-host"); }
+        else if(btn && btn.dataset.a !== String(i)) btn.dataset.a = String(i);
+      }
+    }
+    function wrapCompute(){
+      var orig = window.compute;
+      if(typeof orig !== "function") return;
+      window.compute = function(){ var r = orig.apply(this, arguments); try{ renderAtkRollButtons(); }catch(e){} return r; };
+    }
+
+    /* ---- result card ---- */
+    function closeCard(){ var c = el("dice-card"); if(c) c.remove(); if(_cardTimer){ clearTimeout(_cardTimer); _cardTimer = null; } _pendingDmg = null; }
+    function cardDismissLater(){ if(_cardTimer) clearTimeout(_cardTimer); _cardTimer = setTimeout(closeCard, 6000); }
+    function advChip(res){
+      if(!res.adv) return "";
+      var ic = ""; try{ if(typeof advIconSvg === "function") ic = advIconSvg(res.adv.kind); }catch(e){}
+      return '<div class="dc-adv">' + ic + '<span>' + (res.adv.kind === "adv" ? "Advantage" : "Disadvantage") + (res.adv.note ? " — " + hEsc(res.adv.note) : "") + "</span></div>";
+    }
+    function showCard(res){
+      closeCard();
+      var c = document.createElement("div");
+      c.id = "dice-card"; c.className = "noprint"; c.dataset.transient = "1";
+      if(res.nat === 20) c.classList.add("crit"); else if(res.nat === 1) c.classList.add("fumble");
+      var h = '<div class="dc-head"><span class="dc-label">' + hEsc(res.label) + '</span><button type="button" class="dc-x" aria-label="Dismiss">✕</button></div>' + advChip(res);
+      h += '<div class="dc-total">' + res.total + "</div>";
+      if(res.nat === 20) h += '<div class="dc-sub dc-crit">Natural 20 — critical hit!</div>';
+      else if(res.nat === 1) h += '<div class="dc-sub dc-fumble">Natural 1</div>';
+      if(res.sub) h += '<div class="dc-sub">' + hEsc(res.sub) + "</div>";
+      if(res.kind === "d20"){
+        h += '<div class="dc-dice">' + res.dice.map(function(x){ return '<span class="dc-die' + (x.dropped ? " drop" : "") + '">' + x.v + "</span>"; }).join("");
+        if(res.mod) h += '<span class="dc-die dc-mod">' + (res.mod > 0 ? "+" : "") + res.mod + "</span>";
+        h += "</div>";
+      } else {
+        (res.parts || []).forEach(function(p){
+          var r = p.rolls.map(function(x){ return x.v; }).join(" + ");
+          var mtxt = p.mod ? ((r ? (p.mod > 0 ? " + " : " − ") : "") + Math.abs(p.mod)) : "";
+          h += '<div class="dc-part"><span>' + hEsc(p.label || p.type || "damage") + (r || mtxt ? ": " + r + mtxt : "") + '</span><span class="pv">' + p.sum + "</span></div>";
+        });
+      }
+      if(res.note) h += '<div class="dc-note">' + hEsc(res.note) + "</div>";
+      if(res.damage && res.nat !== 1) h += '<button type="button" class="dc-dmgbtn">' + (res.nat === 20 ? "Roll damage (crit)" : "Roll damage") + "</button>";
+      c.innerHTML = h;
+      document.body.appendChild(c);
+      _pendingDmg = (res.damage && res.nat !== 1) ? { spec: res.damage, crit: res.nat === 20 } : null;
+      c.addEventListener("click", function(ev){
+        if(ev.target.closest(".dc-x")){ closeCard(); return; }
+        if(ev.target.closest(".dc-dmgbtn") && _pendingDmg){ var p = _pendingDmg; damageRoll({ label:p.spec.label, parts:p.spec.parts, crit:p.crit }); }
+      });
+      c.addEventListener("mouseenter", function(){ if(_cardTimer){ clearTimeout(_cardTimer); _cardTimer = null; } });
+      c.addEventListener("mouseleave", cardDismissLater);
+      cardDismissLater();
+    }
+
+    /* ---- roll log modal (lazy; data-transient + the _live corpse-heal idiom) ---- */
+    function buildLogModal(){
+      var m = el("rolllog-modal");
+      if(m && m._live) return m;
+      if(m) m.remove();                                       // listener-less corpse serialized into an old saved copy → rebuild
+      m = document.createElement("div");
+      m.id = "rolllog-modal"; m.className = "modal noprint"; m.dataset.transient = "1"; m._live = true;
+      m.innerHTML = '<div class="rl-card"><div class="modal-head"><h2>Roll Log</h2><span class="rl-acts">' +
+        '<button type="button" class="btn" id="rl-clear" title="Clear the whole roll history">Clear</button>' +
+        '<button type="button" class="btn" id="rl-close" aria-label="Close">✕</button></span></div><div class="rl-list" id="rl-list"></div></div>';
+      document.body.appendChild(m);
+      m.addEventListener("click", function(ev){
+        if(ev.target === m || ev.target.closest("#rl-close")){ m.classList.remove("open"); return; }
+        if(ev.target.closest("#rl-clear")){ logSave([]); renderLog(); }
+      });
+      return m;
+    }
+    function renderLog(){
+      var list = el("rl-list"); if(!list) return;
+      var a = logLoad();
+      if(!a.length){ list.innerHTML = '<div class="rl-empty">No rolls yet — click a skill, save, attack, Cast button, or a die in the sidebar.</div>'; return; }
+      list.innerHTML = a.map(function(r){
+        var t = "";
+        try{ t = new Date(r.t).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }catch(e){}
+        return '<div class="rl-row"><span class="rl-t">' + hEsc(t) + '</span><span class="rl-main"><span class="rl-lbl">' + hEsc(r.label) + "</span>" +
+          (r.ch ? ' <span class="rl-ch">· ' + hEsc(r.ch) + "</span>" : "") +
+          '<div class="rl-det">' + hEsc(r.detail || "") + '</div></span><span class="rl-tot">' + hEsc(r.total) + "</span></div>";
+      }).join("");
+    }
+    function openLog(){ buildLogModal().classList.add("open"); renderLog(); }
+
+    /* ---- plain-dice sidebar (modifier-free rolls; the "just let me roll dice" escape hatch) ---- */
+    var RAIL_DICE = [4, 6, 8, 10, 12, 20, 100];
+    function dieIconSvg(d){
+      var pts = { 4:"10,2.5 17.5,16.5 2.5,16.5", 6:"3.5,3.5 16.5,3.5 16.5,16.5 3.5,16.5", 8:"10,1.5 18,10 10,18.5 2,10",
+                  10:"10,1.5 17,7.5 14.2,17.5 5.8,17.5 3,7.5", 12:"10,1.5 18,7.8 15,17 5,17 2,7.8",
+                  20:"10,1.5 17.5,6 17.5,14 10,18.5 2.5,14 2.5,6", 100:"10,1.5 17,7.5 14.2,17.5 5.8,17.5 3,7.5" };
+      return '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><polygon points="' + pts[d] + '" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+    }
+    function applyRail(){
+      var r = el("dice-rail"); if(!r) return;
+      r.style.display = prefs().rail ? "" : "none";
+      r.classList.toggle("open", !!prefs().railOpen);
+    }
+    function buildRail(){
+      var old = el("dice-rail"); if(old) old.remove();        // serialized corpse from a saved copy (belt & suspenders; it's data-transient anyway)
+      var r = document.createElement("div");
+      r.id = "dice-rail"; r.className = "noprint"; r.dataset.transient = "1";
+      r.innerHTML = '<button type="button" class="dr-toggle" title="Dice — plain rolls, no modifiers">' + dieIconSvg(20) + "</button>" +
+        '<div class="dr-body"><div class="dr-count"><button type="button" class="dr-minus" title="Fewer dice">−</button>' +
+        '<span class="dr-n">1×</span><button type="button" class="dr-plus" title="More dice">+</button></div>' +
+        RAIL_DICE.map(function(d){ return '<button type="button" class="dr-die" data-d="' + d + '" title="Roll ' + "d" + d + '">' + dieIconSvg(d) + "<span>d" + d + "</span></button>"; }).join("") +
+        "</div>";
+      document.body.appendChild(r);
+      r.addEventListener("click", function(ev){
+        if(ev.target.closest(".dr-toggle")){ _prefs.railOpen = !_prefs.railOpen; savePrefs(); applyRail(); return; }
+        if(ev.target.closest(".dr-plus")){ _railN = Math.min(9, _railN + 1); el("dice-rail").querySelector(".dr-n").textContent = _railN + "×"; return; }
+        if(ev.target.closest(".dr-minus")){ _railN = Math.max(1, _railN - 1); el("dice-rail").querySelector(".dr-n").textContent = _railN + "×"; return; }
+        var d = ev.target.closest(".dr-die");
+        if(d) plainRoll(_railN, +d.dataset.d);
+      });
+      applyRail();
+    }
+
+    /* ---- settings + menu wiring (the controls are static HTML — safe to serialize; re-wired here every load) ---- */
+    function wireSettings(){
+      var cb = el("set-dicerail");
+      if(cb){ cb.checked = !!prefs().rail; cb.addEventListener("change", function(){ _prefs.rail = cb.checked; savePrefs(); applyRail(); }); }
+    }
+    function wireMenu(){ var b = el("btn-rolllog"); if(b) b.addEventListener("click", openLog); }
+
+    /* ---- styles (injected; data-transient so saved copies don't accumulate duplicates) ---- */
+    function injectStyle(){
+      var s = document.createElement("style");
+      s.dataset.transient = "1";
+      s.textContent =
+        "td.atk-roll-host{position:relative} td.atk-roll-host input{padding-right:24px}" +
+        ".atk-roll{position:absolute; right:2px; top:50%; transform:translateY(-50%); border:1px solid var(--line2); background:var(--card); color:var(--ink); cursor:pointer; padding:2px 3px; line-height:0}" +
+        ".atk-roll:hover{color:var(--accent)} html.mobile .atk-roll{padding:7px 5px}" +
+        "@media print{ td.atk-roll-host input{padding-right:1px} #dice-rail,#dice-card,#rolllog-modal{display:none !important} }" +
+        "#dice-card{position:fixed; right:14px; bottom:14px; z-index:60; width:272px; background:var(--card); border:1px solid var(--line2); color:var(--ink); font-family:var(--font); padding:10px 12px}" +
+        "#dice-card.crit{border:2px solid #c9a227} #dice-card.fumble{border:2px solid #c0392b}" +
+        ".dc-head{display:flex; justify-content:space-between; align-items:center; gap:8px}" +
+        ".dc-label{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}" +
+        ".dc-x{border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:12px; padding:2px}" +
+        ".dc-adv{display:flex; align-items:center; gap:5px; font-size:10px; color:var(--muted); margin-top:3px}" +
+        ".dc-total{font-size:34px; font-weight:900; text-align:center; margin:4px 0 2px; line-height:1.1}" +
+        ".dc-sub{font-size:10px; color:var(--muted); text-align:center} .dc-sub.dc-crit{color:#8a6d1a; font-weight:800} .dc-sub.dc-fumble{color:#c0392b; font-weight:800}" +
+        ".dc-dice{display:flex; flex-wrap:wrap; gap:4px; justify-content:center; margin-top:5px}" +
+        ".dc-die{border:1px solid var(--line2); padding:2px 7px; font-size:11px; font-weight:800; background:var(--field,#fff)} .dc-die.drop{opacity:.4; text-decoration:line-through} .dc-die.dc-mod{border-style:dashed}" +
+        ".dc-part{font-size:11px; margin-top:4px; display:flex; justify-content:space-between; gap:8px} .dc-part .pv{font-weight:800}" +
+        ".dc-note{font-size:10px; color:var(--muted); margin-top:4px; text-align:center}" +
+        ".dc-dmgbtn{display:block; width:100%; margin-top:8px; border:1px solid var(--line2); background:var(--field,#fff); color:var(--ink); cursor:pointer; padding:6px; font-weight:800; font-size:11px; text-transform:uppercase; letter-spacing:.06em}" +
+        ".dc-dmgbtn:hover{border-color:var(--accent); color:var(--accent)} #dice-card.crit .dc-dmgbtn{border-color:#c9a227; color:#8a6d1a}" +
+        "html.mobile #dice-card{left:10px; right:10px; width:auto; bottom:70px}" +
+        "body.dark #dice-card .dc-die, body.dark .dc-dmgbtn{background:var(--field) !important}" +
+        "#dice-rail{position:fixed; right:0; top:50%; transform:translateY(-50%); z-index:40; display:flex; align-items:center; font-family:var(--font); color:var(--ink)}" +
+        "#dice-rail .dr-toggle{border:1px solid var(--line2); border-right:none; background:var(--card); color:var(--ink); cursor:pointer; padding:9px 5px; line-height:0}" +
+        "#dice-rail .dr-body{display:none; flex-direction:column; gap:4px; background:var(--card); border:1px solid var(--line2); border-right:none; padding:6px; max-height:82vh; overflow:auto}" +
+        "#dice-rail.open .dr-body{display:flex}" +
+        ".dr-die{display:flex; flex-direction:column; align-items:center; gap:1px; border:1px solid var(--line2); background:var(--field,#fff); color:var(--ink); cursor:pointer; padding:5px 8px; font-size:9px; font-weight:800; letter-spacing:.04em}" +
+        ".dr-die:hover{color:var(--accent); border-color:var(--accent)}" +
+        ".dr-count{display:flex; align-items:center; justify-content:center; gap:3px; margin-bottom:2px}" +
+        ".dr-count button{border:1px solid var(--line2); background:var(--field,#fff); color:var(--ink); cursor:pointer; width:18px; height:18px; line-height:1; padding:0; font-size:12px}" +
+        ".dr-count .dr-n{font-size:10px; font-weight:800; min-width:22px; text-align:center}" +
+        "html.mobile #dice-rail .dr-toggle{padding:13px 6px} html.mobile .dr-die{min-height:44px; min-width:44px} html.mobile .dr-count button{width:26px; height:26px}" +
+        "body.dark .dr-die, body.dark .dr-count button{background:var(--field) !important}" +
+        ".rl-card{background:var(--card); color:var(--ink); width:min(560px,94vw); max-height:82vh; display:flex; flex-direction:column; border:1px solid var(--line2)}" +
+        ".rl-acts{display:flex; gap:6px} .rl-list{overflow:auto; padding:6px 16px 12px}" +
+        ".rl-row{display:flex; gap:10px; align-items:baseline; padding:7px 0; border-bottom:1px solid var(--line)} .rl-row:last-child{border-bottom:none}" +
+        ".rl-t{font-size:10px; color:var(--muted); white-space:nowrap} .rl-main{flex:1; min-width:0}" +
+        ".rl-lbl{font-size:12px; font-weight:700} .rl-ch{font-size:10px; color:var(--muted)} .rl-det{font-size:10px; color:var(--muted)}" +
+        ".rl-tot{font-size:16px; font-weight:900} .rl-empty{padding:20px; text-align:center; color:var(--muted); font-size:12px}";
+      document.head.appendChild(s);
+    }
+
+    /* ---- boot ---- */
+    try{
+      injectStyle();
+      buildRail();
+      wireSettings();
+      wireMenu();
+      wrapCompute();
+      renderAtkRollButtons();
+      document.addEventListener("click", function(e){ try{ onDiceClick(e); }catch(err){} }, true);
+      window.DiceRoller = { rollSpell: rollSpell, rollScroll: rollScroll, roll: plainRoll, d20: d20Roll, damage: damageRoll, prefs: prefs, savePrefs: savePrefs, applyRail: applyRail };
+      window.__diceTest = { last: function(){ return _last; }, setRoller: function(fn){ _rng = fn; }, instant: instant,
+                           engineActive: function(){ return false; }, log: logLoad, parseDamageParts: parseDamageParts };
+    }catch(e){}
   })();
   </script>
 

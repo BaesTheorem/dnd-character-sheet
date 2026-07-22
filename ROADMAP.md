@@ -5,7 +5,7 @@ The forward-looking work list for the sheet. Shipped work lives in the in-app ch
 ## Planned
 
 ### 3D dice rolling (D&D Beyond style)
-Full plan: [`plans/3d-dice-rolling.md`](plans/3d-dice-rolling.md). Click ability mods / skills / saves / initiative / attacks / Cast to roll; full-screen 3D tumbling dice overlay (three.js + cannon.js vendored inline, procedural materials — plastic/glass/opalescent/metal); auto-applied advantage/disadvantage from the existing `resolveAdv` engine; 50-roll history log; the ranged fire button expends ammo + rolls to-hit in one click. Ships in three phases (roll engine + log first, 3D second, materials third), each leaving the sheet fully working.
+Full plan: [`plans/3d-dice-rolling.md`](plans/3d-dice-rolling.md). Click ability mods / skills / saves / initiative / attacks / Cast to roll; full-screen 3D tumbling dice overlay (three.js + cannon.js vendored inline, procedural materials — plastic/glass/opalescent/metal); auto-applied advantage/disadvantage from the existing `resolveAdv` engine; 50-roll history log; the ranged fire button expends ammo + rolls to-hit in one click; a plain-dice sidebar (d4–d100) for manual modifier-free rolls. Ships in three phases (roll engine + log first, 3D second, materials third), each leaving the sheet fully working.
 
 ### Per-book source loading pipeline (MPMB-style, no server) — consumer shipped 2.132.0
 The stripped-file front door is live: an empty `#source-data` shows the sources flag in `mode="load"`, one click opens the native picker, per-book `source-data.json` files merge additively. **Do NOT strip the real `#source-data` until the owner has tested end-to-end and signed off.** Remaining polish once approved:

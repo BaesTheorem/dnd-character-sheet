@@ -7,6 +7,7 @@ Status: **planned, not started** · Target versions: 2.134.0 (Phase A) / 2.135.0
 Click a stat and 3D dice tumble across a full-screen transparent overlay on top of the sheet (D&D Beyond style — dice roll over the whole page, not in a tray), settle, and show a result card. Requirements:
 
 - Rollable targets: ability score modifiers, skill totals, saving throws, initiative, attack rows (including the ammo-expending fire button), and the Cast button on damage-dealing spells.
+- A **plain-dice sidebar**: a slim rail of virtual dice (d4 d6 d8 d10 d12 d20 d100) that can be rolled manually with **no modifiers** — just the raw dice, for any ad-hoc roll the sheet doesn't wire.
 - Multiple dice materials: plastic, glass, opalescent, metal (plus a color picker).
 - A roll log of the past ~50 rolls.
 - Advantage/disadvantage auto-applied when the sheet already knows it.
@@ -33,6 +34,15 @@ Three `<script>` blocks appended after the last mobile IIFE (~line 16121, before
 - Overlay: lazy `canvas#dice-canvas` — `position:fixed; inset:0; pointer-events:none; z-index:55`, `.noprint`, `data-transient="1"`; devicePixelRatio capped at 1.5, low-power preference; disposed after 60s idle; `webglcontextlost` → instant card (results are pre-computed, nothing is lost).
 - Result card `#dice-card` (transient, noprint, z-60, flat/sharp per app taste, `var(--card)` + dark twin): label, adv chip (reuse `advIconSvg`), big total, per-die chips with the dropped die struck through, per-part damage subtotals, contextual "Roll damage" button, auto-dismiss ~6s.
 - Roll log modal: lazy builder using the `.modal` pattern + `data-transient` + the `_live` corpse-heal idiom; opened from a new **static** `#btn-rolllog` menu item in `#app-menu` (~line 2064, between Print and Settings).
+
+## Plain-dice sidebar
+
+A fixed slim rail on the right edge of the viewport (`#dice-rail`, built once at init, `data-transient="1"`, `.noprint`, z-index below modals): one button per die — d4, d6, d8, d10, d12, d20, d100 — each drawn as a small inline SVG polygon (no emoji, per app taste) with the die name beneath. Clicking a die rolls it **immediately with zero modifiers** through the same `DiceRoller.roll` path (so it gets the 3D tumble when enabled, the result card, and a log entry labeled e.g. "d20"). A small count stepper at the top of the rail (`1×`–`9×`, default 1, sticky) makes the next click roll `N` of that die (e.g. `3×` + d6 → 3d6, summed on the card with per-die chips). No modifier field — by design; wired sheet stats already carry their own modifiers, and this rail is the "just let me roll dice" escape hatch.
+
+- Collapse/expand: a small dice-icon tab pinned to the rail's edge toggles it; collapsed state persists in the dice pref (`rail:0|1`). Collapsed by default on mobile (`html.mobile`), where the expanded rail overlays content; desktop default open.
+- Rail buttons are ≥44px tall on mobile.
+- The rail renders under UCS, canonical, and mobile layouts (it's a body-level fixed element, unaffected by page relocation); hidden in Classic print and all print via `.noprint`.
+- Multi-die rolls (count > 1) show each die as a chip on the result card and the sum as the total — same rendering as damage rolls, no adv/disadv logic.
 
 ## Wiring map
 
