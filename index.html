@@ -1921,105 +1921,65 @@
   body[data-theme="ucs"] table td{ border-color:var(--line); }
 
   /* ============================================================================
-     Theme: "Material Design" — Material 3 (Material You) palette on the CANONICAL
-     portrait layout (a non-ucs / non-classic theme renders the standard page/tab
-     sheet, same as mobile). The look is elevated + tonal with rounded corners, so
-     it deliberately opts BACK OUT of the global flat/sharp rules (line ~1259:
-     *{border-radius:0 !important; box-shadow:none !important}) via higher-specificity
-     !important overrides. Ships light + dark so the universal Dark-mode toggle
-     composes. Font prefers Roboto with a system fallback (no bundled assets).
+     Theme: "Material Design" — a FLAT / SHARP take on Material 3 (Material You):
+     the tonal-surface color language + Material typography, but with the app's
+     square corners, hairline borders and NO elevation (it rides WITH the global
+     flat/sharp block at line ~1259, not against it — no radius/shadow opt-outs).
+     Gold primary instead of purple. Canonical portrait layout (a non-ucs /
+     non-classic theme renders the standard page/tab sheet, same as mobile). Ships
+     light + dark so the universal Dark-mode toggle composes. Font prefers Roboto
+     with a system fallback (no bundled assets).
      ============================================================================ */
   body[data-theme="material"]{
-    --bg:#e7e0ec;            /* surface-dim desk so the elevated cards read */
-    --card:#fef7ff;          /* surface */
-    --ink:#1d1b20;           /* on-surface */
-    --muted:#49454f;         /* on-surface-variant (sublabels) */
-    --line:#cac4d0;          /* outline-variant (hairlines) */
-    --line2:#6750a4;         /* primary — emphasis rules */
-    --accent:#6750a4;        /* primary */
-    --accent-soft:#eaddff;   /* primary-container (tonal fills) */
-    --field:#f3edf7;         /* surface-container — filled fields/badges */
+    --bg:#eae6dc;            /* warm surface-dim desk */
+    --card:#fdfbf5;          /* surface */
+    --ink:#1c1a14;           /* on-surface */
+    --muted:#5c5749;         /* on-surface-variant (sublabels) */
+    --line:#ddd8ca;          /* outline-variant (hairlines) */
+    --line2:#9a7c33;         /* gold — emphasis rules / sharp borders */
+    --accent:#8a6d22;        /* gold primary */
+    --accent-soft:#efe3c0;   /* gold-container (tonal fills) */
+    --field:#f5f1e6;         /* surface-container — filled fields/badges */
     --radius:12px;
-    --md-e1:0 1px 2px rgba(16,20,40,.24), 0 1px 3px 1px rgba(16,20,40,.10);
-    --md-e3:0 4px 8px 3px rgba(16,20,40,.12), 0 1px 3px rgba(16,20,40,.26);
     --font:Roboto,"Helvetica Neue",-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,"Apple Color Emoji",sans-serif;
   }
   body[data-theme="material"].dark{
-    --bg:#0e0d12;
-    --card:#211f26;          /* surface-container */
-    --ink:#e6e0e9;
-    --muted:#cac4d0;
-    --line:#49454f;          /* outline-variant (dark) */
-    --line2:#d0bcff;         /* primary (dark) */
-    --accent:#d0bcff;
-    --accent-soft:#4f378b;   /* primary-container (dark) */
-    --field:#2b2930;         /* surface-container-high (dark) */
-    --md-e1:0 1px 2px rgba(0,0,0,.55), 0 1px 3px 1px rgba(0,0,0,.35);
-    --md-e3:0 4px 8px 3px rgba(0,0,0,.42), 0 1px 3px rgba(0,0,0,.6);
+    --bg:#0f0e0a;
+    --card:#1c1a15;          /* surface-container (dark) */
+    --ink:#e9e5d8;
+    --muted:#ada589;
+    --line:#383325;          /* outline-variant (dark) */
+    --line2:#c6a458;         /* gold (dark) */
+    --accent:#e2c477;        /* bright gold primary (dark) */
+    --accent-soft:#453a1c;   /* gold-container (dark) */
+    --field:#221f17;         /* surface-container-high (dark) */
   }
 
-  /* ---- Opt back into rounded corners (beats *{border-radius:0 !important}) ---- */
-  body[data-theme="material"] .card,
-  body[data-theme="material"] .modal-panel,
-  body[data-theme="material"] .cm-card,
-  body[data-theme="material"] .fd-card,
-  body[data-theme="material"] .item-results,
-  body[data-theme="material"] .ctx-menu,
-  body[data-theme="material"] .menu-pop,
-  body[data-theme="material"] .hpbox,
-  body[data-theme="material"] .cond-box,
-  body[data-theme="material"] .pc-pop{ border-radius:16px !important; }
-  body[data-theme="material"] .btn,
-  body[data-theme="material"] .chip,
-  body[data-theme="material"] .ptab,
-  body[data-theme="material"] .modes,
-  body[data-theme="material"] .mode-btn{ border-radius:20px !important; }
-  body[data-theme="material"] input,
-  body[data-theme="material"] select,
-  body[data-theme="material"] textarea,
-  body[data-theme="material"] .stat,
-  body[data-theme="material"] .score-out,
-  body[data-theme="material"] .ability .mod,
-  body[data-theme="material"] .row .total,
-  body[data-theme="material"] .sp-tag,
-  body[data-theme="material"] .conc-tag{ border-radius:8px !important; }
-  body[data-theme="material"] .passive,
-  body[data-theme="material"] .passive .v{ border-radius:50% !important; }
-
-  /* ---- Surfaces + elevation ---- */
+  /* ---- Surfaces — flat + sharp: hairline borders, no elevation (corners squared by the flat/sharp block) ---- */
   body[data-theme="material"]{ background:var(--bg); }
-  body[data-theme="material"] .card{
-    background:var(--card); border:none; padding:12px 16px;
-    box-shadow:var(--md-e1) !important;
-  }
-  body[data-theme="material"] .modal-panel,
-  body[data-theme="material"] .menu-pop,
-  body[data-theme="material"] .ctx-menu,
-  body[data-theme="material"] .item-results,
-  body[data-theme="material"] .fd-card,
-  body[data-theme="material"] .pc-pop{ background:var(--card); box-shadow:var(--md-e3) !important; }
+  body[data-theme="material"] .card{ background:var(--card); border:1px solid var(--line); padding:12px 16px; }
 
-  /* ---- Section headers — primary tone, Material title style (not letterspaced caps) ---- */
+  /* ---- Section headers — gold primary, Material title style (sentence case, not letterspaced caps) ---- */
   body[data-theme="material"] .card > h2,
   body[data-theme="material"] .atk-top h2{
     color:var(--accent); font-weight:600; font-size:13px; letter-spacing:.01em;
-    text-transform:none; margin:0 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line);
+    text-transform:none; margin:0 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line2);
   }
 
-  /* ---- Value badges — tonal containers (ability mod, save/skill totals, passive) ---- */
+  /* ---- Value badges — tonal gold containers, sharp-bordered ---- */
   body[data-theme="material"] .ability .mod,
   body[data-theme="material"] .row .total{
     background:var(--accent-soft) !important; color:var(--accent) !important;
-    border:none !important; font-weight:700;
+    border:1px solid var(--line2) !important; font-weight:700;
   }
   body[data-theme="material"] .score-out{
-    background:var(--field) !important; border:1px solid var(--line) !important; color:var(--ink); font-weight:700;
+    background:var(--field) !important; border:1px solid var(--line2) !important; color:var(--ink); font-weight:700;
   }
   body[data-theme="material"] .passive .v{
-    background:var(--accent-soft) !important; color:var(--accent) !important; border:none !important;
+    background:var(--accent-soft) !important; color:var(--accent) !important; border:1px solid var(--line2) !important;
   }
   body[data-theme="material"] .stat,
-  body[data-theme="material"] .chip{ background:var(--field) !important; border:1px solid var(--line) !important; }
+  body[data-theme="material"] .chip{ background:var(--field) !important; border:1px solid var(--line2) !important; }
   body[data-theme="material"] .stat .calc{ color:var(--accent); font-weight:700; }
   body[data-theme="material"] .stat.on,
   body[data-theme="material"] .chip.on{ background:var(--accent) !important; border-color:var(--accent) !important; }
@@ -2029,11 +1989,11 @@
   body[data-theme="material"].dark .ability .mod,
   body[data-theme="material"].dark .row .total{ background:var(--accent-soft) !important; }
 
-  /* ---- Text fields — outlined Material style ---- */
+  /* ---- Text fields — filled, sharp-bordered ---- */
   body[data-theme="material"] input,
   body[data-theme="material"] select,
   body[data-theme="material"] textarea{
-    background:var(--field) !important; border:1px solid var(--line) !important; color:var(--ink);
+    background:var(--field) !important; border:1px solid var(--line2) !important; color:var(--ink);
   }
   body[data-theme="material"] input:focus,
   body[data-theme="material"] select:focus,
@@ -2042,7 +2002,7 @@
   body[data-theme="material"] input[type=radio]{ accent-color:var(--accent); }
   body[data-theme="material"] .charname input{
     font-size:24px; font-weight:700; color:var(--ink);
-    background:transparent !important; border:none !important; border-bottom:2px solid var(--accent) !important; border-radius:0 !important;
+    background:transparent !important; border:none !important; border-bottom:2px solid var(--accent) !important;
   }
 
   /* ---- Labels ---- */
@@ -2050,19 +2010,18 @@
   body[data-theme="material"] .passive .k, body[data-theme="material"] .ability .name,
   body[data-theme="material"] .ability-head .col{ letter-spacing:.06em; color:var(--muted); text-transform:uppercase; }
 
-  /* ---- Buttons — Material tonal (filled for .primary) ---- */
-  body[data-theme="material"] .btn:not(.xp-levelup){ border:none !important; background:var(--accent-soft); color:var(--accent); font-weight:600; }
-  body[data-theme="material"] .btn:not(.xp-levelup):hover{ box-shadow:var(--md-e1) !important; }
-  body[data-theme="material"] .btn.primary{ background:var(--accent) !important; color:var(--card) !important; }
+  /* ---- Buttons — Material tonal + filled primary, flat (hairline border, no shadow) ---- */
+  body[data-theme="material"] .btn:not(.xp-levelup){ border:1px solid var(--line2) !important; background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  body[data-theme="material"] .btn.primary{ background:var(--accent) !important; color:var(--card) !important; border-color:var(--accent) !important; }
   body[data-theme="material"].dark .btn:not(.primary):not(.xp-levelup):not(.danger){ background:var(--accent-soft); color:var(--accent); }
   body[data-theme="material"] .mode-btn.active{ background:var(--accent) !important; color:var(--card) !important; }
 
   /* ---- Tables ---- */
-  body[data-theme="material"] table th{ color:var(--accent); text-transform:uppercase; font-size:9px; letter-spacing:.06em; border-bottom:1px solid var(--line); }
+  body[data-theme="material"] table th{ color:var(--accent); text-transform:uppercase; font-size:9px; letter-spacing:.06em; border-bottom:1px solid var(--line2); }
   body[data-theme="material"] table td{ border-color:var(--line); }
 
-  /* ---- Toolbar + page tabs ---- */
-  body[data-theme="material"] .toolbar{ background:var(--card) !important; box-shadow:var(--md-e1) !important; }
+  /* ---- Toolbar + page tabs (flat) ---- */
+  body[data-theme="material"] .toolbar{ background:var(--card) !important; }
   body[data-theme="material"] .ptab{ background:transparent; }
   body[data-theme="material"] .ptab.active{ background:var(--accent-soft) !important; color:var(--accent) !important; }
 
@@ -3312,11 +3271,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v568 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v569 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.136.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.136.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3324,6 +3283,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v569", semver:"2.136.1", items:[
+      "Reworked the Material Design theme to match the sheet's house style: flat and sharp (square corners, hairline borders, no drop shadows) instead of rounded/elevated, and a gold accent instead of purple. Both light and dark still ship.",
+    ]},
     {v:"v568", semver:"2.136.0", items:[
       "New \"Material Design\" theme (Settings → Character Settings → Theme). A Material 3 / Material You look — elevated rounded cards, a purple primary accent, tonal ability/skill badges, and outlined text fields — on the standard portrait layout. Ships both light and dark, so the Dark mode toggle works with it.",
     ]},
