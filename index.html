@@ -1921,121 +1921,6 @@
   body[data-theme="ucs"] table td{ border-color:var(--line); }
 
   /* ============================================================================
-     Theme: "Material Design" — a CLONE of the Universal Character Sheet (the same
-     landscape dashboard layout + #ucs-* scaffold), restyled with Material Design
-     principles: the tonal-surface color language + Material typography, in the
-     app's FLAT / SHARP house style (square corners, hairline borders, no elevation
-     — it rides WITH the global flat/sharp block at line ~1259). Gold primary
-     instead of purple. Shares the UCS layout engine (isUcs()/wantUcs() below treat
-     "material" like "ucs", so it activates the landscape scaffold on screen and
-     falls back to the portrait sheet on print). This block is only the PALETTE +
-     signatures (data-theme scoped); the layout CSS is the shared body.ucs-layout
-     block below, colored by these vars (incl. --ucs-gold for the tab bar). Ships
-     light + dark so the Dark-mode toggle composes. Font prefers Roboto (system
-     fallback, no bundled assets).
-     ============================================================================ */
-  body[data-theme="material"]{
-    --bg:#e9eaec;            /* neutral surface-dim desk (no parchment tint) */
-    --card:#ffffff;          /* surface */
-    --ink:#1b1c1e;           /* on-surface */
-    --muted:#5c5d63;         /* on-surface-variant (sublabels) */
-    --line:#dfe1e4;          /* outline-variant (hairlines) */
-    --line2:#9a7c33;         /* gold — emphasis rules / sharp borders */
-    --accent:#8a6d22;        /* gold primary */
-    --accent-soft:#efe3c0;   /* gold-container (tonal badge fills — the gold accent, not a surface) */
-    --field:#f4f5f7;         /* surface-container — filled fields */
-    --radius:12px;
-    --ucs-panel:#eef0f2;     /* neutral inset panels (rail/skills) — dashboard layout */
-    --ucs-gold:#8a6d22;      /* dashboard emphasis (active tab in the landscape tab bar) */
-    --ucs-hp:#9e2b25;        /* HP accent (semantic red) */
-    --font:Roboto,"Helvetica Neue",-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,"Apple Color Emoji",sans-serif;
-  }
-  body[data-theme="material"].dark{
-    --bg:#0e0f11;            /* neutral near-black desk */
-    --card:#1c1d21;          /* surface-container (dark) */
-    --ink:#e6e7ea;
-    --muted:#a4a6ac;
-    --line:#34363c;          /* outline-variant (dark) */
-    --line2:#c6a458;         /* gold (dark) */
-    --accent:#e2c477;        /* bright gold primary (dark) */
-    --accent-soft:#453a1c;   /* gold-container (dark) */
-    --field:#232529;         /* surface-container-high (dark) */
-    --ucs-panel:#141518;
-    --ucs-gold:#e2c477;
-    --ucs-hp:#d4534a;
-  }
-
-  /* ---- Surfaces — flat + sharp: hairline borders, no elevation (corners squared by the flat/sharp block) ---- */
-  body[data-theme="material"]{ background:var(--bg); }
-  body[data-theme="material"] .card{ background:var(--card); border:1px solid var(--line); padding:12px 16px; }
-
-  /* ---- Section headers — gold primary, Material title style (sentence case, not letterspaced caps) ---- */
-  body[data-theme="material"] .card > h2,
-  body[data-theme="material"] .atk-top h2{
-    color:var(--accent); font-weight:600; font-size:13px; letter-spacing:.01em;
-    text-transform:none; margin:0 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line2);
-  }
-
-  /* ---- Value badges — tonal gold containers, sharp-bordered ---- */
-  body[data-theme="material"] .ability .mod,
-  body[data-theme="material"] .row .total{
-    background:var(--accent-soft) !important; color:var(--accent) !important;
-    border:1px solid var(--line2) !important; font-weight:700;
-  }
-  body[data-theme="material"] .score-out{
-    background:var(--field) !important; border:1px solid var(--line2) !important; color:var(--ink); font-weight:700;
-  }
-  body[data-theme="material"] .passive .v{
-    background:var(--accent-soft) !important; color:var(--accent) !important; border:1px solid var(--line2) !important;
-  }
-  body[data-theme="material"] .stat,
-  body[data-theme="material"] .chip{ background:var(--field) !important; border:1px solid var(--line2) !important; }
-  body[data-theme="material"] .stat .calc{ color:var(--accent); font-weight:700; }
-  body[data-theme="material"] .stat.on,
-  body[data-theme="material"] .chip.on{ background:var(--accent) !important; border-color:var(--accent) !important; }
-  body[data-theme="material"] .stat.on .k, body[data-theme="material"] .stat.on .calc,
-  body[data-theme="material"] .chip.on .v, body[data-theme="material"] .chip.on .k{ color:var(--card) !important; }
-  /* keep the tonal badge fills under dark mode too (line ~50 forces --field on body.dark) */
-  body[data-theme="material"].dark .ability .mod,
-  body[data-theme="material"].dark .row .total{ background:var(--accent-soft) !important; }
-
-  /* ---- Text fields — filled, sharp-bordered ---- */
-  body[data-theme="material"] input,
-  body[data-theme="material"] select,
-  body[data-theme="material"] textarea{
-    background:var(--field) !important; border:1px solid var(--line2) !important; color:var(--ink);
-  }
-  body[data-theme="material"] input:focus,
-  body[data-theme="material"] select:focus,
-  body[data-theme="material"] textarea:focus{ border-color:var(--accent) !important; outline:none !important; }
-  body[data-theme="material"] input[type=checkbox],
-  body[data-theme="material"] input[type=radio]{ accent-color:var(--accent); }
-  body[data-theme="material"] .charname input{
-    font-size:24px; font-weight:700; color:var(--ink);
-    background:transparent !important; border:none !important; border-bottom:2px solid var(--accent) !important;
-  }
-
-  /* ---- Labels ---- */
-  body[data-theme="material"] label.lbl, body[data-theme="material"] .stat .k, body[data-theme="material"] .chip .k,
-  body[data-theme="material"] .passive .k, body[data-theme="material"] .ability .name,
-  body[data-theme="material"] .ability-head .col{ letter-spacing:.06em; color:var(--muted); text-transform:uppercase; }
-
-  /* ---- Buttons — Material tonal + filled primary, flat (hairline border, no shadow) ---- */
-  body[data-theme="material"] .btn:not(.xp-levelup){ border:1px solid var(--line2) !important; background:var(--accent-soft); color:var(--accent); font-weight:600; }
-  body[data-theme="material"] .btn.primary{ background:var(--accent) !important; color:var(--card) !important; border-color:var(--accent) !important; }
-  body[data-theme="material"].dark .btn:not(.primary):not(.xp-levelup):not(.danger){ background:var(--accent-soft); color:var(--accent); }
-  body[data-theme="material"] .mode-btn.active{ background:var(--accent) !important; color:var(--card) !important; }
-
-  /* ---- Tables ---- */
-  body[data-theme="material"] table th{ color:var(--accent); text-transform:uppercase; font-size:9px; letter-spacing:.06em; border-bottom:1px solid var(--line2); }
-  body[data-theme="material"] table td{ border-color:var(--line); }
-
-  /* ---- Toolbar + page tabs (flat) ---- */
-  body[data-theme="material"] .toolbar{ background:var(--card) !important; }
-  body[data-theme="material"] .ptab{ background:transparent; }
-  body[data-theme="material"] .ptab.active{ background:var(--accent-soft) !important; color:var(--accent) !important; }
-
-  /* ============================================================================
      LANDSCAPE LAYOUT — screen only. The #ucs-* scaffold is built + filled by the
      layout engine (JS below). The original #pagetabs and the (now-emptied) #page-core
      are hidden; every other .page renders into the centre "main" cell, shown one at
@@ -3281,11 +3166,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v571 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v572 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.137.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.137.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3293,17 +3178,8 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
-    {v:"v571", semver:"2.137.1", items:[
-      "Material Design theme: swapped the warm parchment surfaces for clean neutral ones (white/grey in light, charcoal in dark). The gold accent stays on the borders, headers, tabs, and ability/skill badges.",
-    ]},
-    {v:"v570", semver:"2.137.0", items:[
-      "Material Design is now a full clone of the Universal Character Sheet — the same landscape dashboard layout on screen (identity + abilities across the top, combat band, saving throws / skills / centre tab panel), just wearing the flat/sharp gold Material palette. Like the Universal sheet it prints as the standard portrait page. Both light and dark ship.",
-    ]},
-    {v:"v569", semver:"2.136.1", items:[
-      "Reworked the Material Design theme to match the sheet's house style: flat and sharp (square corners, hairline borders, no drop shadows) instead of rounded/elevated, and a gold accent instead of purple. Both light and dark still ship.",
-    ]},
-    {v:"v568", semver:"2.136.0", items:[
-      "New \"Material Design\" theme (Settings → Character Settings → Theme). A Material 3 / Material You look — elevated rounded cards, a purple primary accent, tonal ability/skill badges, and outlined text fields — on the standard portrait layout. Ships both light and dark, so the Dark mode toggle works with it.",
+    {v:"v572", semver:"2.137.2", items:[
+      "Removed the experimental Material Design theme. Any character that had it selected falls back to the Universal Character Sheet.",
     ]},
     {v:"v567", semver:"2.135.2", items:[
       "Equipped magic items that grant advantage on a skill check now show the green advantage die right on that skill's line, the same as class/race/feat advantages. Boots of Elvenkind and Cloak of Elvenkind mark Stealth, Eyes of the Eagle marks Perception, and so on — read straight from the item's own text, so it works for any such item and clears itself when you unequip. (These used to only appear as a Defenses note.)",
@@ -5175,7 +5051,6 @@
   const THEMES = [
     { id:"ucs", name:"Universal Character Sheet" },        // landscape on screen, portrait on print
     { id:"classic",   name:"Classic (Official 5e Sheet)" },     // WotC 2014 sheet look — ivory paper, black ruled frames
-    { id:"material",  name:"Material Design" },                  // Material 3 (Material You) palette — rounded, elevated, tonal; canonical portrait layout
   ];
   const DEFAULT_THEME = "ucs";
   let theme = DEFAULT_THEME;                     // Settings → Character Settings → Theme (per-character)
@@ -9881,7 +9756,7 @@
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
     theme = (data && typeof data.theme === "string" && data.theme) ? data.theme : DEFAULT_THEME;   // per-character; default Universal
-    if(theme === "universal" || theme === "dndbeyond") theme = "ucs";   // legacy theme ids migrate to the Universal Character Sheet
+    if(theme === "universal" || theme === "dndbeyond" || theme === "material") theme = "ucs";   // legacy theme ids (incl. the removed Material Design theme) migrate to the Universal Character Sheet
     // darkMode + noAnimations are global (localStorage), loaded once at startup — not per-character.
     variantEncumbrance = !!(data && data.variantEncumbrance);   // default off
     showFuturistic = !!(data && data.showFuturistic);   // default off
@@ -16103,7 +15978,7 @@
     function el(id){ return document.getElementById(id); }
     function sheet(){ return document.querySelector('.sheet'); }
     function active(){ return document.body.classList.contains('ucs-layout'); }
-    function isUcs(){ return (typeof theme!=='undefined' && (theme==='ucs' || theme==='material')); }   // Material Design is a UCS clone (same landscape dashboard), so it drives this layout engine too
+    function isUcs(){ return (typeof theme!=='undefined' && theme==='ucs'); }
     function findCard(key){
       if(key==='ident'){ var n=el('charname'); return n ? n.closest('.card') : null; }
       return document.querySelector('[data-csec="'+key+'"]');
@@ -16223,7 +16098,7 @@
       // → the Core page prints BLANK (the rest print fine). So only restore once printing has actually ended, i.e.
       // print media no longer matches. `afterprint` fires with media already back to screen, so it still restores.
       if(window.matchMedia && window.matchMedia('print').matches) return;
-      window.__ucsPrint=false; document.body.dataset.theme=(typeof theme!=='undefined' ? (theme||'ucs') : 'ucs'); if(isUcs()) activate();   // restore the ACTUAL dashboard theme (ucs OR material), not a hardcoded 'ucs'
+      window.__ucsPrint=false; document.body.dataset.theme='ucs'; if(isUcs()) activate();
     }
     window.addEventListener('beforeprint', function(){ if(active()){ window.__ucsPrint=true; deactivate(); document.body.dataset.theme='universal'; } });
     window.addEventListener('afterprint', _ucsAfterPrint);
