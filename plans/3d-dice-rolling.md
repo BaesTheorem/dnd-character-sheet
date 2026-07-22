@@ -1,6 +1,6 @@
 # 3D Dice Rolling — Planning Document
 
-Status: **planned, not started** · Target versions: 2.134.0 (Phase A) / 2.135.0 (Phase B) / 2.136.0 (Phase C)
+Status: **SHIPPED** — Phase A in 2.138.0, Phase B in 2.139.0, Phase C in 2.140.0 (2026-07-22). Kept for architecture notes. Implementation deltas from this plan: attack bonus/damage cells are editable inputs (not readOnly), so the to-hit trigger is the injected `.atk-roll` d20 button only and damage rolls come from the result card's button; cantrip Cast buttons ride `castBtnHTML(l, name)` with `data-roll`/`data-spell` (fixed-list casters get them too); d100 skips the 3D overlay (instant card); geometry derives logical faces from three.js primitives by outward-normal clustering (flip inward-wound triangles first — the d10's kites otherwise merge with the opposite side's faces).
 
 ## Goal
 
