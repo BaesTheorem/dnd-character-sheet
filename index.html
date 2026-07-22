@@ -1935,32 +1935,32 @@
      fallback, no bundled assets).
      ============================================================================ */
   body[data-theme="material"]{
-    --bg:#eae6dc;            /* warm surface-dim desk */
-    --card:#fdfbf5;          /* surface */
-    --ink:#1c1a14;           /* on-surface */
-    --muted:#5c5749;         /* on-surface-variant (sublabels) */
-    --line:#ddd8ca;          /* outline-variant (hairlines) */
+    --bg:#e9eaec;            /* neutral surface-dim desk (no parchment tint) */
+    --card:#ffffff;          /* surface */
+    --ink:#1b1c1e;           /* on-surface */
+    --muted:#5c5d63;         /* on-surface-variant (sublabels) */
+    --line:#dfe1e4;          /* outline-variant (hairlines) */
     --line2:#9a7c33;         /* gold — emphasis rules / sharp borders */
     --accent:#8a6d22;        /* gold primary */
-    --accent-soft:#efe3c0;   /* gold-container (tonal fills) */
-    --field:#f5f1e6;         /* surface-container — filled fields/badges */
+    --accent-soft:#efe3c0;   /* gold-container (tonal badge fills — the gold accent, not a surface) */
+    --field:#f4f5f7;         /* surface-container — filled fields */
     --radius:12px;
-    --ucs-panel:#f0ead9;     /* warm inset panels (rail/skills) — dashboard layout */
+    --ucs-panel:#eef0f2;     /* neutral inset panels (rail/skills) — dashboard layout */
     --ucs-gold:#8a6d22;      /* dashboard emphasis (active tab in the landscape tab bar) */
     --ucs-hp:#9e2b25;        /* HP accent (semantic red) */
     --font:Roboto,"Helvetica Neue",-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,"Apple Color Emoji",sans-serif;
   }
   body[data-theme="material"].dark{
-    --bg:#0f0e0a;
-    --card:#1c1a15;          /* surface-container (dark) */
-    --ink:#e9e5d8;
-    --muted:#ada589;
-    --line:#383325;          /* outline-variant (dark) */
+    --bg:#0e0f11;            /* neutral near-black desk */
+    --card:#1c1d21;          /* surface-container (dark) */
+    --ink:#e6e7ea;
+    --muted:#a4a6ac;
+    --line:#34363c;          /* outline-variant (dark) */
     --line2:#c6a458;         /* gold (dark) */
     --accent:#e2c477;        /* bright gold primary (dark) */
     --accent-soft:#453a1c;   /* gold-container (dark) */
-    --field:#221f17;         /* surface-container-high (dark) */
-    --ucs-panel:#161410;
+    --field:#232529;         /* surface-container-high (dark) */
+    --ucs-panel:#141518;
     --ucs-gold:#e2c477;
     --ucs-hp:#d4534a;
   }
@@ -3281,11 +3281,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v570 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v571 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.137.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.137.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3293,6 +3293,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v571", semver:"2.137.1", items:[
+      "Material Design theme: swapped the warm parchment surfaces for clean neutral ones (white/grey in light, charcoal in dark). The gold accent stays on the borders, headers, tabs, and ability/skill badges.",
+    ]},
     {v:"v570", semver:"2.137.0", items:[
       "Material Design is now a full clone of the Universal Character Sheet — the same landscape dashboard layout on screen (identity + abilities across the top, combat band, saving throws / skills / centre tab panel), just wearing the flat/sharp gold Material palette. Like the Universal sheet it prints as the standard portrait page. Both light and dark ship.",
     ]},
