@@ -3171,11 +3171,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v576 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v577 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.140.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.141.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3183,6 +3183,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v577", semver:"2.141.0", items:[
+      "d100 rolls now animate in 3D as the classic percentile pair — a tens d10 (00–90) and a ones d10 (0–9).",
+      "Dice numbers now sit correctly oriented on each face (pointing at a corner on triangle and pentagon faces, at the tip on d10s, edge-aligned on d6s) instead of at arbitrary rotations.",
+      "The landed face no longer visibly changes its number when the dice stop: the whole throw is physics-simulated invisibly first, faces get their final numbers before the first frame draws, and the recorded throw is played back. What you watch land is exactly what you get.",
+    ]},
     {v:"v576", semver:"2.140.1", items:[
       "Fixed: the 3D dice animation silently never played on systems with Reduce Motion enabled (macOS Accessibility), even with the in-app toggle on. The “3D dice animation” checkbox is now the source of truth — your system's reduced-motion preference only chooses its starting default, and checking the box wins. If the box shows unchecked after this update, check it once and you're set.",
     ]},
@@ -16322,14 +16327,24 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       if(!Engine.supported()) return true;                                                     // no WebGL / context previously lost
       return false;
     }
-    // The dice a result would animate: null → skip 3D (nothing rollable, more than 10 dice, or a die shape the overlay doesn't model, e.g. d100).
+    // The dice a result would animate: null → skip 3D (nothing rollable, more than 10 dice, or an
+    // unmodelled die shape). A d100 animates as the classic percentile PAIR of d10s (tens "00"–"90"
+    // + ones "0"–"9"; 00 + 0 reads as 100).
+    var PCT_TENS = ["00","10","20","30","40","50","60","70","80","90"], PCT_ONES = ["0","1","2","3","4","5","6","7","8","9"];
     function overlayDice(res){
-      var out = [];
-      if(res.kind === "d20") res.dice.forEach(function(x){ out.push({d:20, v:x.v}); });
-      else (res.parts || []).forEach(function(p){ p.rolls.forEach(function(r){ out.push({d:r.d, v:r.v}); }); });
-      if(!out.length || out.length > 10) return null;
-      for(var i = 0; i < out.length; i++) if([4,6,8,10,12,20].indexOf(out[i].d) < 0) return null;
-      return out;
+      var out = [], bad = false;
+      function push(d, v){
+        if(d === 100){
+          var ones = v % 10, tens = ((v - ones) % 100) / 10;                       // v=100 → tens "00" + ones "0"
+          out.push({d:10, labels:PCT_TENS, target:PCT_TENS[tens]});
+          out.push({d:10, labels:PCT_ONES, target:PCT_ONES[ones]});
+        }
+        else if([4,6,8,10,12,20].indexOf(d) < 0) bad = true;
+        else out.push({d:d, v:v});
+      }
+      if(res.kind === "d20") res.dice.forEach(function(x){ push(20, x.v); });
+      else (res.parts || []).forEach(function(p){ p.rolls.forEach(function(r){ push(r.d, r.v); }); });
+      return (bad || !out.length || out.length > 10) ? null : out;
     }
 
     /* ---- prefs (app-level, like dark mode; never in character data) ---- */
@@ -16619,7 +16634,19 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var u = uniqVerts(tris), faces = logicalFaces(u.verts, u.idx);
         var pos = [], uv = [], groups = [], gstart = 0;
         faces.forEach(function(f, fi){
-          var pts = f.poly.map(function(vi){ var p = new THREE.Vector3().subVectors(u.verts[vi], f.cen); return {vi: vi, x: p.dot(f.tanU), y: p.dot(f.tanW)}; });
+          // Digit orientation: "up" points at the polygon's farthest vertex (triangles/pentagons → a corner,
+          // d10 kites → the pole tip, matching real dice); cube faces align with their edges instead
+          // (corner-pointing reads as a 45° tilt on a square). right = up × n keeps the texture unmirrored.
+          var up;
+          if(sides === 6){
+            up = new THREE.Vector3().addVectors(u.verts[f.poly[0]], u.verts[f.poly[1]]).multiplyScalar(0.5).sub(f.cen).normalize();
+          } else {
+            var far = f.poly[0], fd = -1;
+            f.poly.forEach(function(vi){ var dd = u.verts[vi].distanceToSquared(f.cen); if(dd > fd){ fd = dd; far = vi; } });
+            up = new THREE.Vector3().subVectors(u.verts[far], f.cen).normalize();
+          }
+          var right = new THREE.Vector3().crossVectors(up, f.n).normalize();
+          var pts = f.poly.map(function(vi){ var p = new THREE.Vector3().subVectors(u.verts[vi], f.cen); return {vi: vi, x: p.dot(right), y: p.dot(up)}; });
           var m = 0; pts.forEach(function(p){ m = Math.max(m, Math.abs(p.x), Math.abs(p.y)); });
           var s = 0.44 / (m || 1), count = 0;
           for(var t = 1; t < pts.length - 1; t++){
@@ -16685,11 +16712,14 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           m = new THREE.MeshStandardMaterial({map: map, roughness: 0.35, metalness: 0});
         return (matCache[key] = m);
       }
-      function makeDie(d, v){
-        var bg = buildGeom(d), mats = [], vals = [], color = prefs().color;
-        for(var i = 0; i < bg.faces.length; i++){ vals.push(i + 1); mats.push(faceMat(String(i + 1), color, d)); }
+      function makeDie(spec){                                    // spec = {d, v} or {d, labels:[…], target:"label"} (percentile d10s)
+        var d = spec.d, bg = buildGeom(d), mats = [], vals = [], color = prefs().color;
+        for(var i = 0; i < bg.faces.length; i++){
+          var lab = spec.labels ? spec.labels[i] : String(i + 1);
+          vals.push(lab); mats.push(faceMat(lab, color, d));
+        }
         var mesh = new THREE.Mesh(bg.geom, mats);
-        mesh.userData = {vals: vals, target: v, faces: bg.faces};
+        mesh.userData = {vals: vals, target: String(spec.labels ? spec.target : spec.v), faces: bg.faces};
         var body = new CANNON.Body({mass: 1, shape: bg.shape, material: diceMat});
         body.linearDamping = 0.12; body.angularDamping = 0.12;
         return {mesh: mesh, body: body};
@@ -16761,7 +16791,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           var m = mesh.material, tm = m[fu]; m[fu] = m[fv]; m[fv] = tm;
           var tv = vals[fu]; vals[fu] = vals[fv]; vals[fv] = tv;
         }
-        return vals[fu];
+        return isNaN(+vals[fu]) ? vals[fu] : +vals[fu];
       }
       function clearDice(){
         dice.forEach(function(d){ try{ scene.remove(d.mesh); world.removeBody ? world.removeBody(d.body) : world.remove(d.body); }catch(e){} });
@@ -16770,8 +16800,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       }
       function settle(){
         if(raf){ cancelAnimationFrame(raf); raf = 0; }
-        _shown = dice.map(function(d){ try{ d.body.sleep(); }catch(e){} return remap(d); });
-        if(renderer) try{ renderer.render(scene, camera); }catch(e){}
         running = false;
         var cb = onDone; onDone = null; if(cb) cb();
         clearT = setTimeout(clearDice, 1800);
@@ -16785,28 +16813,34 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         if(cb) cb();
         if(lost) dispose();
       }
+      /* Playback: the physics ran invisibly in roll() and every frame was recorded; here we just replay
+         the recording in real time. Faces were already remapped before the first visible frame, so
+         nothing ever changes on screen after the dice stop. */
+      var playFrames = null, playStart = 0;
+      function poseFrame(idx){
+        var o = playFrames[idx];
+        dice.forEach(function(d, i){
+          var k = i * 7;
+          d.mesh.position.set(o[k], o[k+1], o[k+2]);
+          d.mesh.quaternion.set(o[k+3], o[k+4], o[k+5], o[k+6]);
+        });
+      }
       function step(){
         raf = requestAnimationFrame(step);
         try{
-          world.step(1 / 60);
-          var still = true;
-          dice.forEach(function(d){
-            d.mesh.position.copy(d.body.position);
-            d.mesh.quaternion.copy(d.body.quaternion);
-            if(d.body.velocity.length() > 0.3 || d.body.angularVelocity.length() > 0.3) still = false;
-          });
-          settleFrames = still ? settleFrames + 1 : 0;
+          var idx = Math.min(playFrames.length - 1, Math.floor((performance.now() - playStart) * 0.06));   // recorded at 60 steps/s
+          poseFrame(idx);
           renderer.render(scene, camera);
-          if(settleFrames >= 22 || (performance.now() - startT) > 6000) settle();
+          if(idx >= playFrames.length - 1) settle();
         }catch(e){ finishNow(); }
       }
       function roll(list, cb){
         if(!ensure()){ if(cb) cb(); return; }
         if(running) finishNow();                                   // a new roll interrupts the previous tumble (its card shows immediately)
         clearTimeout(clearT); clearTimeout(idleT); clearDice();
-        onDone = cb; running = true; settleFrames = 0; _shown = null; startT = performance.now();
+        onDone = cb; running = true; _shown = null;
         list.forEach(function(spec, k){
-          var die = makeDie(spec.d, spec.v);
+          var die = makeDie(spec);
           die.body.position.set(-ext.hw + 1.4, 3.2 + (k % 3) * 2.4, -ext.hh + 2.5 + ((k * 2.1) % (ext.hh * 1.4)));
           die.body.velocity.set(19 + Math.random() * 11, -2, (Math.random() - 0.5) * 12);
           die.body.angularVelocity.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
@@ -16814,6 +16848,24 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           scene.add(die.mesh); world.addBody(die.body);
           dice.push(die);
         });
+        // Pre-simulate the entire throw invisibly (a few ms of CPU), recording every body pose,
+        // so the landed faces are known — and remapped — BEFORE anything is drawn.
+        playFrames = [];
+        var still = 0;
+        for(var f = 0; f < 420 && still < 22; f++){               // 7s hard cap
+          world.step(1 / 60);
+          var snap = [], quiet = true;
+          dice.forEach(function(d){
+            var p = d.body.position, q = d.body.quaternion;
+            snap.push(p.x, p.y, p.z, q.x, q.y, q.z, q.w);
+            if(d.body.velocity.length() > 0.3 || d.body.angularVelocity.length() > 0.3) quiet = false;
+          });
+          playFrames.push(snap);
+          still = quiet ? still + 1 : 0;
+        }
+        poseFrame(playFrames.length - 1);                          // final pose → find each landed face
+        _shown = dice.map(remap);                                  // …and swap its number to the true result, pre-render
+        playStart = performance.now();
         step();
       }
       function dispose(){
