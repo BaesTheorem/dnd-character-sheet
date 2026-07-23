@@ -3171,11 +3171,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v578 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v579 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.142.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.143.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3183,6 +3183,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v579", semver:"2.143.0", items:[
+      "Gem dice (Emerald, Sapphire, Amethyst) now look like polished stone: deep saturated bodies with a bright core glow, crystalline facet striations, and a hint of translucency instead of flat marbled plastic.",
+      "Metal dice (Gold, Steel) traded the CGI chrome look for brushed, machined metal — fine grain lines, tarnish flecks, and a duller, more honest finish.",
+      "Glass and Opalescent are back as real themes: Glass is genuinely see-through (you can see the die's own back faces and numbers through the body, with solid painted numerals), and Opalescent is a pearl body with pastel play-of-color fire that shifts with viewing angle.",
+    ]},
     {v:"v578", semver:"2.142.0", items:[
       "Dice looks are now ten pre-made themes — Crimson, Onyx & Gold, Ivory, Emerald, Sapphire, Amethyst, Nebula, Obsidian Flame, Gold, and Steel — with marbling, speckles, and metal finishes, replacing the material dropdown + colour picker (flat solid colours looked lame, and glass/opalescent never read right on the transparent overlay). Your old choice maps to the closest theme.",
       "Fixed: double-digit faces (the percentile d10's 00–90, and 10 on a d10) overflowed the face — numbers now measure themselves and shrink to fit, with a contrast halo so they stay readable on busy faces.",
@@ -16358,7 +16363,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var p = {}; try{ p = JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; }catch(e){}
       // Theme = a curated DICE_THEMES id. Old material ids (pre-2.142.0, when a colour picker existed) migrate
       // to the closest theme; anything unknown falls back to the default.
-      var t = {plastic:"crimson", glass:"sapphire", opal:"amethyst", metal:"steel"}[p.theme] || p.theme || "crimson";
+      var t = {plastic:"crimson", metal:"steel"}[p.theme] || p.theme || "crimson";   // "glass"/"opal" are real theme ids again (2.143.0)
       try{ if(!(Engine && Engine.themeById(t))) t = "crimson"; }catch(e){ t = "crimson"; }
       _prefs = { theme: t,
                  threeD: ("threeD" in p) ? p.threeD !== false : !reducedMotion(),   // stored choice wins; OS reduced-motion only sets the first-run default
@@ -16692,7 +16697,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         for(var i = 0; i < n; i++){ x.globalAlpha = 0.3 + Math.random() * 0.7; x.beginPath(); x.arc(Math.random() * 128, Math.random() * 128, 0.4 + Math.random() * rmax, 0, 6.29); x.fill(); }
         x.globalAlpha = 1;
       }
-      function pBlotch(x, cols, n){                                // soft glowing clouds (nebula)
+      function pBlotch(x, cols, n){                                // soft glowing clouds (nebula, opal fire)
         for(var i = 0; i < n; i++){
           var cx = Math.random() * 128, cy = Math.random() * 128, r = 18 + Math.random() * 30;
           var g = x.createRadialGradient(cx, cy, 1, cx, cy, r);
@@ -16701,9 +16706,32 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         }
         x.globalAlpha = 1;
       }
+      function pStria(x, cols, n){                                 // straight crystalline striations (gem facets), all near one shared angle
+        var a0 = Math.random() * Math.PI;
+        for(var i = 0; i < n; i++){
+          var a = a0 + (Math.random() - 0.5) * 0.5, r = 95 + Math.random() * 40, cx = Math.random() * 128, cy = Math.random() * 128;
+          x.strokeStyle = cols[i % cols.length]; x.globalAlpha = 0.1 + Math.random() * 0.2;
+          x.lineWidth = 0.6 + Math.random() * 2.2; x.beginPath();
+          x.moveTo(cx - Math.cos(a) * r, cy - Math.sin(a) * r); x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); x.stroke();
+        }
+        x.globalAlpha = 1;
+      }
+      function pBrush(x, cols, n){                                 // fine parallel grain (brushed / machined metal)
+        for(var i = 0; i < n; i++){
+          var y = Math.random() * 128;
+          x.strokeStyle = cols[i % cols.length]; x.globalAlpha = 0.05 + Math.random() * 0.12;
+          x.lineWidth = 0.5 + Math.random(); x.beginPath();
+          x.moveTo(-4, y); x.lineTo(132, y + (Math.random() - 0.5) * 6); x.stroke();
+        }
+        x.globalAlpha = 1;
+      }
       /* ---- pre-made dice themes (Alex's call: curated looks, no color picker — a flat solid tint looked lame
               and glass/opal never read right on a transparent overlay). ink = number colour, stroke = contrast
               halo, kind = material (gloss | matte | metal). Keep ids stable: they persist in the dice pref. ---- */
+      /* Gem/glass/opal faces are painted with PER-PIXEL ALPHA (rgba fills on the transparent canvas) and
+         rendered DoubleSide with depthWrite off — the page showing through plus the die's own back faces
+         is what actually reads as translucent stone/glass. Numbers are painted opaque so they stay solid.
+         Metals get brushed grain + tarnish in the map and a duller finish so they don't read as CGI chrome. */
       var DICE_THEMES = [
         {id:"crimson", name:"Crimson", ink:"#ffffff", stroke:"rgba(60,0,0,.45)", kind:"gloss",
          paint:function(x){ pRadial(x, "#d4403f", "#8c1d24"); }},
@@ -16711,20 +16739,24 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
          paint:function(x){ pRadial(x, "#2c2c31", "#0f0f13"); pVeins(x, ["#3d3d46","#191920"], 5, 0.5); }},
         {id:"ivory", name:"Ivory", ink:"#46331d", stroke:"rgba(255,255,255,.35)", kind:"matte",
          paint:function(x){ pRadial(x, "#f5eddb", "#d8caa6"); pVeins(x, ["#c8b88c","#e8dcbc"], 4, 0.35); }},
-        {id:"emerald", name:"Emerald", ink:"#f3e7bd", stroke:"rgba(0,40,20,.55)", kind:"gloss",
-         paint:function(x){ pRadial(x, "#1f7a4d", "#0c3f26"); pVeins(x, ["#7fd6a6","#0a2e1c"], 6, 0.45); }},
-        {id:"sapphire", name:"Sapphire", ink:"#eef4ff", stroke:"rgba(5,15,50,.55)", kind:"gloss",
-         paint:function(x){ pRadial(x, "#2b5fb8", "#122a5c"); pVeins(x, ["#9db8e8","#0d1d40"], 6, 0.45); }},
-        {id:"amethyst", name:"Amethyst", ink:"#ffffff", stroke:"rgba(30,5,55,.55)", kind:"gloss",
-         paint:function(x){ pRadial(x, "#8a4fc8", "#3d1d6e"); pVeins(x, ["#c9a7ee","#2a1150"], 5, 0.4); pSpeck(x, "#ffffff", 34, 0.9); }},
+        {id:"emerald", name:"Emerald", ink:"#f6f0d8", stroke:"rgba(0,40,20,.6)", kind:"gem",
+         paint:function(x){ pRadial(x, "rgba(16,120,70,.95)", "rgba(3,34,19,.98)"); pStria(x, ["rgba(255,255,255,.6)","rgba(0,34,18,.6)"], 11); pSpeck(x, "rgba(255,255,255,.8)", 8, 0.7); }},
+        {id:"sapphire", name:"Sapphire", ink:"#f0f6ff", stroke:"rgba(5,15,50,.6)", kind:"gem",
+         paint:function(x){ pRadial(x, "rgba(38,88,190,.95)", "rgba(6,14,52,.98)"); pStria(x, ["rgba(255,255,255,.6)","rgba(6,12,50,.6)"], 11); pSpeck(x, "rgba(255,255,255,.8)", 8, 0.7); }},
+        {id:"amethyst", name:"Amethyst", ink:"#ffffff", stroke:"rgba(30,5,55,.6)", kind:"gem",
+         paint:function(x){ pRadial(x, "rgba(118,64,185,.95)", "rgba(30,10,60,.98)"); pStria(x, ["rgba(255,255,255,.55)","rgba(30,8,60,.6)"], 10); pSpeck(x, "rgba(255,255,255,.85)", 16, 0.8); }},
+        {id:"glass", name:"Glass", ink:"#1d4a66", stroke:"rgba(255,255,255,.8)", kind:"glass",
+         paint:function(x){ pRadial(x, "rgba(210,232,246,.4)", "rgba(110,150,185,.62)"); pStria(x, ["rgba(255,255,255,.5)"], 4); }},
+        {id:"opal", name:"Opalescent", ink:"#5b4a72", stroke:"rgba(255,255,255,.55)", kind:"opal",
+         paint:function(x){ pRadial(x, "#eee8e2", "#b9b1ac"); pBlotch(x, ["rgba(255,110,170,.8)","rgba(80,205,225,.8)","rgba(110,245,150,.75)","rgba(170,130,255,.8)"], 9); pSpeck(x, "rgba(255,255,255,.9)", 24, 0.5); }},
         {id:"nebula", name:"Nebula", ink:"#ffffff", stroke:"rgba(0,0,20,.6)", kind:"gloss",
          paint:function(x){ pRadial(x, "#241b4d", "#0b0820"); pBlotch(x, ["#c33bb0","#2fb3c9","#5b3bd6"], 6); pSpeck(x, "#ffffff", 60, 0.8); }},
         {id:"lava", name:"Obsidian Flame", ink:"#ffb454", stroke:"rgba(0,0,0,.7)", kind:"gloss",
          paint:function(x){ pRadial(x, "#221713", "#070505"); pVeins(x, ["#ff7a1a","#e8420e","#ffb154"], 7, 0.6); }},
         {id:"gold", name:"Gold", ink:"#241a05", stroke:"rgba(255,240,200,.35)", kind:"metal",
-         paint:function(x){ pRadial(x, "#f2cd6a", "#a87d1f"); }},
+         paint:function(x){ pRadial(x, "#e8c261", "#8f6a1c"); pBrush(x, ["#fff2c9","#6b4e12"], 40); pSpeck(x, "rgba(90,60,10,.5)", 6, 0.6); }},
         {id:"steel", name:"Steel", ink:"#14181d", stroke:"rgba(255,255,255,.4)", kind:"metal",
-         paint:function(x){ pRadial(x, "#dde1e6", "#8d959d"); pVeins(x, ["#ffffff","#767c83"], 8, 0.22); }}
+         paint:function(x){ pRadial(x, "#d3d7dc", "#82898f"); pBrush(x, ["#ffffff","#5c6167"], 46); pSpeck(x, "rgba(40,44,48,.5)", 5, 0.5); }}
       ];
       function themeById(id){ for(var i = 0; i < DICE_THEMES.length; i++) if(DICE_THEMES[i].id === id) return DICE_THEMES[i]; return null; }
       function faceTex(theme, label, sides){
@@ -16769,8 +16801,14 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var key = theme.id + "|" + sides + "|" + label;
         if(matCache[key]) return matCache[key];
         var map = faceTex(theme, label, sides), m;
-        if(theme.kind === "metal")
-          m = new THREE.MeshPhysicalMaterial({map: map, metalness: 1, roughness: 0.25, envMap: envTex(), envMapIntensity: 1.15});   // env map is mandatory here or metal renders black
+        if(theme.kind === "metal")   // brushed, not chrome: partial metalness + real roughness reads far less CGI than a perfect mirror
+          m = new THREE.MeshPhysicalMaterial({map: map, metalness: 0.85, roughness: 0.4, envMap: envTex(), envMapIntensity: 0.8});   // env map still mandatory or metal renders black
+        else if(theme.kind === "gem")   // deep polished stone: near-opaque saturated body (front-side — DoubleSide washed it out), bright core glow, hard clearcoat sparkle, a whisper of page-through at the map's alpha
+          m = new THREE.MeshPhysicalMaterial({map: map, transparent: true, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.04, envMap: envTex(), envMapIntensity: 0.6});
+        else if(theme.kind === "glass")   // see-through body, hard specular; DoubleSide + no depth write means the die's own back faces show through — the glass cue. Numbers are painted opaque (dark ink; white vanished against the page)
+          m = new THREE.MeshPhysicalMaterial({map: map, transparent: true, side: THREE.DoubleSide, depthWrite: false, roughness: 0.02, clearcoat: 1, clearcoatRoughness: 0.02, envMap: envTex(), envMapIntensity: 1.35});
+        else if(theme.kind === "opal")   // OPAQUE pearl (a translucent white body just melted into the page): pastel fire lives in the map; iridescence + sheen shift it with viewing angle
+          m = new THREE.MeshPhysicalMaterial({map: map, iridescence: 1, iridescenceIOR: 1.3, clearcoat: 0.6, clearcoatRoughness: 0.12, roughness: 0.25, envMap: envTex(), envMapIntensity: 0.5});
         else if(theme.kind === "matte")
           m = new THREE.MeshStandardMaterial({map: map, roughness: 0.6, metalness: 0});
         else   // gloss: clearcoated plastic/resin
