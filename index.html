@@ -3171,11 +3171,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v580 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v581 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.144.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.145.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3183,10 +3183,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
-    {v:"v580", semver:"2.144.0", items:[
-      "Photoreal dice pass: filmic tone mapping and correct colour management, a studio-style lighting environment (overhead softbox, warm key, cool fill), and soft contact shadows under every die — no more floating shadowless CGI dice.",
-      "Every face now has a baked bevel: a bright rim and soft edge shading traced along the face's actual outline, so edges catch light like real rounded dice edges. Face textures doubled in resolution.",
-      "Glass is less see-through (frosted body you can actually see), and Opalescent got the real aurora treatment — pearl body with a diagonal rainbow sheen that shifts with the light.",
+    {v:"v581", semver:"2.145.0", items:[
+      "Reverted the photoreal dice pass — the dice are back to the 2.143 look (no shadows/tone-mapping pipeline), keeping the denser glass body and the Opalescent rainbow sheen.",
+      "Dice numbers no longer get squished: each face's digits now measure themselves against the face's actual outline and sit on its widest band, shrinking only as much as truly needed — d10s especially get noticeably larger numbers.",
+      "The roll log now tags every entry with what kind of roll it was — Check, Skill check, Save, Initiative, Attack, Damage, Spell, Scroll, or Manual (sidebar dice).",
     ]},
     {v:"v579", semver:"2.143.0", items:[
       "Gem dice (Emerald, Sapphire, Amethyst) now look like polished stone: deep saturated bodies with a bright core glow, crystalline facet striations, and a hint of translucency instead of flat marbled plastic.",
@@ -16397,7 +16397,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     function logPush(res){
       var ch = ""; try{ ch = ((el("charname") || {}).value || "").trim(); }catch(e){}
       var a = logLoad();
-      a.unshift({ t: Date.now(), ch: ch, label: res.label, total: res.total, detail: logDetail(res) });
+      a.unshift({ t: Date.now(), ch: ch, k: res.rt || "", label: res.label, total: res.total, detail: logDetail(res) });
       if(a.length > LOG_MAX) a.length = LOG_MAX;
       logSave(a);
     }
@@ -16444,7 +16444,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var r1 = die(20), r2 = adv ? die(20) : null, kept = r1, dropped = null;
       if(adv){ var hi = Math.max(r1, r2), lo = Math.min(r1, r2); kept = adv.kind === "adv" ? hi : lo; dropped = adv.kind === "adv" ? lo : hi; }
       var isAtk = !!(o.advKeys && o.advKeys.indexOf("attack") >= 0);
-      finishRoll({ kind:"d20", label:o.label, mod:o.mod || 0,
+      finishRoll({ kind:"d20", rt: o.rollType || "Roll", label:o.label, mod:o.mod || 0,
         dice:[{d:20, v:kept}].concat(dropped != null ? [{d:20, v:dropped, dropped:true}] : []),
         adv:adv, total: kept + (o.mod || 0), nat: isAtk ? (kept === 20 ? 20 : (kept === 1 ? 1 : null)) : null,
         damage:o.damage || null, note:o.note || null, sub:o.sub || null });
@@ -16456,10 +16456,10 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         (p.dice || []).forEach(function(g){ var n = o.crit ? g.n * 2 : g.n; for(var j = 0; j < n; j++) rolls.push({d:g.d, v:die(g.d)}); });
         return { label:p.label, type:p.type, rolls:rolls, mod:p.mod || 0, sum: rolls.reduce(function(a, r){ return a + r.v; }, 0) + (p.mod || 0) };
       });
-      finishRoll({ kind:"dmg", label:o.label + (o.crit ? " — critical hit!" : ""), parts:parts,
+      finishRoll({ kind:"dmg", rt: o.rollType || "Damage", label:o.label + (o.crit ? " — critical hit!" : ""), parts:parts,
         total: parts.reduce(function(a, p){ return a + p.sum; }, 0), sub:o.sub || null, note:o.note || null });
     }
-    function plainRoll(n, d){ n = Math.max(1, Math.min(20, n|0) || 1); damageRoll({ label: n + "d" + d, parts:[{label:"", type:"", dice:[{n:n, d:d}], mod:0}] }); }
+    function plainRoll(n, d){ n = Math.max(1, Math.min(20, n|0) || 1); damageRoll({ label: n + "d" + d, rollType:"Manual", parts:[{label:"", type:"", dice:[{n:n, d:d}], mod:0}] }); }
 
     /* ---- spell rolls (called from the cast flow) ---- */
     function instEl(inst, base){ try{ if(typeof sEl === "function") return sEl(inst || 0, base); }catch(e){} return el(base); }
@@ -16476,10 +16476,10 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var lbl = name + ((castLevel && d.level > 0 && castLevel > d.level) ? " (Lv " + castLevel + ")" : "");
         if(isAttackSpell(name)){
           var mod = parseModText(instEl(inst, "spellatk"));
-          d20Roll({ label:lbl, mod: mod == null ? 0 : mod, advKeys:["attack"], damage:{ label: lbl + " damage", parts: parts } });
+          d20Roll({ label:lbl, rollType:"Spell attack", mod: mod == null ? 0 : mod, advKeys:["attack"], damage:{ label: lbl + " damage", parts: parts } });
         } else {
           var dcEl = instEl(inst, "spelldc"), dc = dcEl ? (dcEl.textContent || "").trim() : "";
-          damageRoll({ label:lbl, parts:parts, sub: dc ? "Save DC " + dc : null });
+          damageRoll({ label:lbl, rollType:"Spell", parts:parts, sub: dc ? "Save DC " + dc : null });
         }
       }catch(e){}
     }
@@ -16489,7 +16489,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var d = spellData(name); if(!d) return;
         var s = spellDamage(d); if(!s) return;
         var parts = parseDamageParts(s); if(!parts.length) return;
-        damageRoll({ label: name + " (scroll)", parts: parts });
+        damageRoll({ label: name + " (scroll)", rollType:"Scroll", parts: parts });
       }catch(e){}
     }
 
@@ -16511,7 +16511,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var parts = parseDamageParts((el("atkdmg-" + i) || {}).value || "");
       var note = (viaFire && ammoLeft != null) ? (ammoLeft + " remaining") : null;
       var m = /^([+-]?\d+)$/.exec(bonusRaw);
-      if(m) d20Roll({ label:name, mod:+m[1], advKeys:["attack"], damage: parts.length ? { label: name + " damage", parts: parts } : null, note: note });
+      if(m) d20Roll({ label:name, rollType:"Attack", mod:+m[1], advKeys:["attack"], damage: parts.length ? { label: name + " damage", parts: parts } : null, note: note });
       else if(parts.length) damageRoll({ label:name, parts:parts, sub: bonusRaw || null, note: note });   // save-DC feature row (e.g. Breath Weapon) → no d20, damage + the DC shown
     }
     function onDiceClick(e){
@@ -16533,15 +16533,15 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var mod = e.target.closest('[id^="mod-"]');
       if(mod && mod.classList.contains("mod")){
         var k = mod.id.slice(4), v = parseModText(mod);
-        if(v != null && AB_NAME[k]) d20Roll({ label: AB_NAME[k] + " check", mod:v, advKeys:["check"] });
+        if(v != null && AB_NAME[k]) d20Roll({ label: AB_NAME[k] + " check", rollType:"Check", mod:v, advKeys:["check"] });
         return;
       }
       var sk = e.target.closest('[id^="sktot-"]');
-      if(sk){ var sv = parseModText(sk); if(sv != null) d20Roll({ label: skillLabel(sk.id.slice(6)), mod:sv, advKeys:["check", "skill:" + sk.id.slice(6)] }); return; }
+      if(sk){ var sv = parseModText(sk); if(sv != null) d20Roll({ label: skillLabel(sk.id.slice(6)), rollType:"Skill check", mod:sv, advKeys:["check", "skill:" + sk.id.slice(6)] }); return; }
       var sav = e.target.closest('[id^="savetot-"]');
-      if(sav){ var vv = parseModText(sav), ka = sav.id.slice(8); if(vv != null && AB_NAME[ka]) d20Roll({ label: AB_NAME[ka] + " save", mod:vv, advKeys:["save", "save:" + ka] }); return; }
+      if(sav){ var vv = parseModText(sav), ka = sav.id.slice(8); if(vv != null && AB_NAME[ka]) d20Roll({ label: AB_NAME[ka] + " save", rollType:"Save", mod:vv, advKeys:["save", "save:" + ka] }); return; }
       var st = e.target.closest(".stat");
-      if(st && st.querySelector("#init")){ var iv = parseModText(el("init")); if(iv != null) d20Roll({ label:"Initiative", mod:iv, advKeys:["check"] }); return; }
+      if(st && st.querySelector("#init")){ var iv = parseModText(el("init")); if(iv != null) d20Roll({ label:"Initiative", rollType:"Initiative", mod:iv, advKeys:["check"] }); return; }
     }
 
     /* ---- injected d20 button on each filled attack row's Bonus cell (idempotent; re-run after every compute) ---- */
@@ -16575,7 +16575,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
        triangles with matching normals (d10 is a hand-built pentagonal trapezohedron), each face gets
        its own CanvasTexture number — zero binary assets. */
     var Engine = (function(){
-      var renderer = null, scene = null, camera = null, world = null, diceMat = null, walls = [], keyLight = null, shadowFloor = null;
+      var renderer = null, scene = null, camera = null, world = null, diceMat = null, walls = [];
       var dice = [], raf = 0, idleT = 0, clearT = 0, running = false, lost = false, unsupported = false;
       var onDone = null, settleFrames = 0, startT = 0, ext = {hw: 12, hh: 8};
       var geomCache = {}, texCache = {}, matCache = {}, _shown = null;
@@ -16667,7 +16667,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           var pts = f.poly.map(function(vi){ var p = new THREE.Vector3().subVectors(u.verts[vi], f.cen); return {vi: vi, x: p.dot(right), y: p.dot(up)}; });
           var m = 0; pts.forEach(function(p){ m = Math.max(m, Math.abs(p.x), Math.abs(p.y)); });
           var s = 0.44 / (m || 1), count = 0;
-          if(fi === 0) uvPoly = pts.map(function(p){ return {x: 64 + p.x * s * 128, y: 64 - p.y * s * 128}; });   // face outline in 128px texture space (all faces congruent + same up-rule) — drives the baked bevel shading
+          if(fi === 0) uvPoly = pts.map(function(p){ return {x: 64 + p.x * s * 128, y: 64 - p.y * s * 128}; });   // face outline in 128px texture space (faces congruent + same up-rule) — drives the digit fit
           for(var t = 1; t < pts.length - 1; t++){
             [pts[0], pts[t], pts[t + 1]].forEach(function(p){
               var v = u.verts[p.vi]; pos.push(v.x, v.y, v.z); uv.push(0.5 + p.x * s, 0.5 + p.y * s);
@@ -16760,7 +16760,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
          paint:function(x){ pRadial(x, "rgba(118,64,185,.95)", "rgba(30,10,60,.98)"); pStria(x, ["rgba(255,255,255,.55)","rgba(30,8,60,.6)"], 10); pSpeck(x, "rgba(255,255,255,.85)", 16, 0.8); }},
         {id:"glass", name:"Glass", ink:"#1d4a66", stroke:"rgba(255,255,255,.8)", kind:"glass",
          paint:function(x){ pRadial(x, "rgba(205,228,242,.55)", "rgba(105,145,180,.8)"); pStria(x, ["rgba(255,255,255,.5)"], 4); }},
-        {id:"opal", name:"Opalescent", ink:"#5b4a72", stroke:"rgba(255,255,255,.6)", kind:"opal",
+        {id:"opal", name:"Opalescent", ink:"#5b4a72", stroke:"rgba(255,255,255,.55)", kind:"opal",
          paint:function(x){ pRadial(x, "#f0eae4", "#c6bdb6"); pRainbow(x, 0.42); pBlotch(x, ["rgba(255,120,180,.45)","rgba(90,210,230,.45)","rgba(160,130,255,.4)"], 4); pSpeck(x, "rgba(255,255,255,.9)", 26, 0.5); }},
         {id:"nebula", name:"Nebula", ink:"#ffffff", stroke:"rgba(0,0,20,.6)", kind:"gloss",
          paint:function(x){ pRadial(x, "#241b4d", "#0b0820"); pBlotch(x, ["#c33bb0","#2fb3c9","#5b3bd6"], 6); pSpeck(x, "#ffffff", 60, 0.8); }},
@@ -16775,39 +16775,49 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       function faceTex(theme, label, sides){
         var key = theme.id + "|" + sides + "|" + label;
         if(texCache[key]) return texCache[key];
-        var c = document.createElement("canvas"); c.width = c.height = 256;   // 256px, painters keep working in 128-space via the scale
+        var c = document.createElement("canvas"); c.width = c.height = 128;
         var x = c.getContext("2d");
-        x.scale(2, 2);
         theme.paint(x);
-        // Baked bevel: real dice have rounded edges that catch light and gather shade. Trace the face's ACTUAL
-        // polygon (from the geometry, same UV frame) with a wide soft occlusion band + a narrow bright rim.
-        try{
-          var poly = buildGeom(sides).uvPoly;
-          if(poly && poly.length){
-            x.save(); x.lineJoin = "round";
-            x.beginPath(); x.moveTo(poly[0].x, poly[0].y);
-            for(var pi = 1; pi < poly.length; pi++) x.lineTo(poly[pi].x, poly[pi].y);
-            x.closePath();
-            x.strokeStyle = "rgba(0,0,0,.20)"; x.lineWidth = 16; x.stroke();
-            x.strokeStyle = "rgba(0,0,0,.14)"; x.lineWidth = 8; x.stroke();
-            x.strokeStyle = theme.kind === "metal" ? "rgba(255,255,255,.5)" : "rgba(255,255,255,.32)"; x.lineWidth = 3.5; x.stroke();
-            x.restore();
-          }
-        }catch(e){}
         x.textAlign = "center"; x.textBaseline = "middle";
         var small = (sides === 4 || sides === 8 || sides === 20);                  // triangle faces get a smaller digit
-        var fs = small ? 40 : 56;
-        // Shrink-to-fit: multi-digit labels ("00"–"90", "10"+) must stay inside the face's usable width —
-        // kite (d10) faces are the narrowest, triangles next; measure and scale the font down when needed.
-        var maxW = sides === 10 ? 48 : (small ? 56 : 74);
+        var fs = small ? 40 : 56, cy = 62;
         x.font = "800 " + fs + "px system-ui, Arial, sans-serif";
         var tw = x.measureText(label).width;
-        if(tw > maxW){ fs = Math.max(18, Math.floor(fs * maxW / tw)); x.font = "800 " + fs + "px system-ui, Arial, sans-serif"; }
-        if(theme.stroke){ x.strokeStyle = theme.stroke; x.lineWidth = Math.max(2, fs / 14); x.strokeText(label, 64, 62); }   // contrast halo so numbers read on busy faces
-        x.fillStyle = theme.ink; x.fillText(label, 64, 62);
-        if(label === "6" || label === "9"){ var w2 = Math.round(fs * 0.36); x.fillRect(64 - w2, 62 + Math.round(fs * 0.62), w2 * 2, Math.max(3, Math.round(fs / 11))); }   // underline so they can't be misread
-        var t = new THREE.CanvasTexture(c); t.anisotropy = 8;
-        t.encoding = THREE.sRGBEncoding;                                       // must match renderer.outputEncoding or every colour washes out
+        // Fit the digits to the face's ACTUAL polygon (exported by buildGeom in the same UV frame): centre the
+        // text on the band where the polygon is widest over the digit's full height (underline included), and
+        // shrink only as far as that band truly requires — the old fixed per-shape width guess left d10
+        // numbers needlessly small. Faces are symmetric about x=64, so only y needs choosing.
+        var poly = null; try{ poly = buildGeom(sides).uvPoly; }catch(e){}
+        function bandW(y){
+          if(!poly) return 0;
+          var xs = [];
+          for(var i2 = 0; i2 < poly.length; i2++){
+            var a2 = poly[i2], b2 = poly[(i2 + 1) % poly.length];
+            if((a2.y <= y && b2.y >= y) || (b2.y <= y && a2.y >= y)){ var tt = (y - a2.y) / ((b2.y - a2.y) || 1e-9); xs.push(a2.x + tt * (b2.x - a2.x)); }
+          }
+          if(xs.length < 2) return 0;
+          xs.sort(function(p2, q2){ return p2 - q2; });
+          return xs[xs.length - 1] - xs[0];
+        }
+        if(poly){
+          for(var pass = 0; pass < 2; pass++){                                     // shrinking the font narrows the needed band → settle in two passes
+            var hh2 = fs * 0.36, ul2 = (label === "6" || label === "9") ? fs * 0.38 : 0;
+            var bestY = 62, bestU = 0;
+            for(var yy = 44; yy <= 84; yy += 2){
+              var u2 = Math.min(bandW(yy - hh2), bandW(yy), bandW(yy + hh2 + ul2)) - 10;
+              if(u2 > bestU){ bestU = u2; bestY = yy; }
+            }
+            cy = bestY;
+            if(tw > bestU && bestU > 0){ fs = Math.max(20, Math.floor(fs * bestU / tw)); x.font = "800 " + fs + "px system-ui, Arial, sans-serif"; tw = x.measureText(label).width; }
+          }
+        } else {
+          var maxW = sides === 10 ? 48 : (small ? 56 : 74);
+          if(tw > maxW){ fs = Math.max(18, Math.floor(fs * maxW / tw)); x.font = "800 " + fs + "px system-ui, Arial, sans-serif"; }
+        }
+        if(theme.stroke){ x.strokeStyle = theme.stroke; x.lineWidth = Math.max(2, fs / 14); x.strokeText(label, 64, cy); }   // contrast halo so numbers read on busy faces
+        x.fillStyle = theme.ink; x.fillText(label, 64, cy);
+        if(label === "6" || label === "9"){ var w2 = Math.round(fs * 0.36); x.fillRect(64 - w2, cy + Math.round(fs * 0.62), w2 * 2, Math.max(3, Math.round(fs / 11))); }   // underline so they can't be misread
+        var t = new THREE.CanvasTexture(c); t.anisotropy = 4;
         return (texCache[key] = t);
       }
       var _env = null;
@@ -16818,19 +16828,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         try{
           var pm = new THREE.PMREMGenerator(renderer);
           var room = new THREE.Scene();
-          // Studio look: graded walls (bright up top, dark floor line), one big overhead softbox, a tall warm
-          // strip and a cool strip — gives reflective materials structured highlights instead of a flat grey wash.
-          room.add(new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), new THREE.MeshBasicMaterial({color: 0x3c3c40, side: THREE.BackSide})));
-          [[0, 3.4, 0, 9.6, 2.6, 9.6, 0x8a8a90, true],                             // upper wall band (lighter)
-           [0, -4.6, 0, 9.4, 0.2, 9.4, 0x141416, false],                           // dark floor card
-           [0, 4.7, 0, 5.5, 0.1, 5.5, 0xffffff, false],                            // overhead softbox
-           [-4.7, 1.2, 0.5, 0.1, 5.2, 2.2, 0xfff1d8, false],                       // tall warm strip (key side)
-           [4.7, 0.8, -1.2, 0.1, 3.4, 1.6, 0xd8e4ff, false],                       // cool strip (fill side)
-           [0, 1.4, -4.7, 3.6, 2.2, 0.1, 0xf0f0f2, false]]                         // back panel
-            .forEach(function(d){
-              var mt = new THREE.MeshBasicMaterial({color: d[6]}); if(d[7]) mt.side = THREE.BackSide;
-              var pnl = new THREE.Mesh(new THREE.BoxGeometry(d[3], d[4], d[5]), mt); pnl.position.set(d[0], d[1], d[2]); room.add(pnl);
-            });
+          room.add(new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), new THREE.MeshBasicMaterial({color: 0x5a5a5a, side: THREE.BackSide})));
+          [[0, 4.8, 0, 6, 0.1, 6, 0xffffff], [-4.8, 1, 0, 0.1, 4, 4, 0xcfd8ff], [4.8, 1, 1, 0.1, 3, 3, 0xfff3d0], [0, 1, -4.8, 4, 3, 0.1, 0xe8e8e8]]
+            .forEach(function(d){ var pnl = new THREE.Mesh(new THREE.BoxGeometry(d[3], d[4], d[5]), new THREE.MeshBasicMaterial({color: d[6]})); pnl.position.set(d[0], d[1], d[2]); room.add(pnl); });
           _env = pm.fromScene(room, 0.04).texture;
           pm.dispose();
         }catch(e){ _env = null; }
@@ -16862,7 +16862,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           vals.push(lab); mats.push(faceMat(lab, d));
         }
         var mesh = new THREE.Mesh(bg.geom, mats);
-        mesh.castShadow = true;
         mesh.userData = {vals: vals, target: String(spec.labels ? spec.target : spec.v), faces: bg.faces};
         var body = new CANNON.Body({mass: 1, shape: bg.shape, material: diceMat});
         body.linearDamping = 0.12; body.angularDamping = 0.12;
@@ -16877,26 +16876,11 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           document.body.appendChild(cv);
           renderer = new THREE.WebGLRenderer({canvas: cv, alpha: true, antialias: true, powerPreference: "low-power"});
           renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-          // Photoreal pipeline: filmic tone mapping + sRGB output (face textures are tagged sRGB to match),
-          // soft shadow maps for grounded contact shadows — floating shadowless dice are the loudest CGI tell.
-          renderer.outputEncoding = THREE.sRGBEncoding;
-          renderer.toneMapping = THREE.ACESFilmicToneMapping;
-          renderer.toneMappingExposure = 1.0;
-          renderer.shadowMap.enabled = true;
-          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
           scene = new THREE.Scene();
           camera = new THREE.PerspectiveCamera(FOV, 1, 1, 100);
           camera.position.set(0, CAM_Y, 0); camera.up.set(0, 0, -1); camera.lookAt(0, 0, 0);
-          scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b0a4, 0.62));         // sky + warm ground bounce instead of flat ambient
-          keyLight = new THREE.DirectionalLight(0xfff6e8, 1.15);
-          keyLight.position.set(-10, 26, 8); keyLight.castShadow = true;
-          keyLight.shadow.mapSize.width = keyLight.shadow.mapSize.height = 2048;
-          keyLight.shadow.radius = 7; keyLight.shadow.bias = -0.0004;
-          scene.add(keyLight);
-          var fill = new THREE.DirectionalLight(0xdfe8ff, 0.35); fill.position.set(12, 14, -9); scene.add(fill);   // cool fill from the far side
-          shadowFloor = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.ShadowMaterial({opacity: 0.26}));
-          shadowFloor.rotation.x = -Math.PI / 2; shadowFloor.receiveShadow = true;
-          scene.add(shadowFloor);
+          scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+          var dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(-8, 20, 6); scene.add(dl);
           world = new CANNON.World();
           world.gravity.set(0, -60, 0);
           world.solver.iterations = 16;
@@ -16922,11 +16906,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         renderer.setSize(W, H, false);
         camera.aspect = W / H; camera.updateProjectionMatrix();
         ext.hh = Math.tan(FOV * Math.PI / 360) * CAM_Y; ext.hw = ext.hh * camera.aspect;
-        if(keyLight){                                              // shadow camera must cover the whole visible floor or shadows clip at the edges
-          var sc = keyLight.shadow.camera, r = Math.max(ext.hw, ext.hh) + 6;
-          sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r; sc.near = 1; sc.far = 60;
-          sc.updateProjectionMatrix();
-        }
         // 4 invisible walls just inside the viewport edges, normals pointing inward
         var q = CANNON.Quaternion, defs = [
           {p: [-ext.hw, 0, 0], ax: [0, 1, 0], an: Math.PI / 2},     // left → +X
@@ -17040,7 +17019,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           try{ renderer.dispose(); }catch(e){}
           var cv = renderer.domElement; if(cv && cv.parentNode) cv.parentNode.removeChild(cv);
         }
-        renderer = null; scene = null; camera = null; world = null; walls = []; keyLight = null; shadowFloor = null;
+        renderer = null; scene = null; camera = null; world = null; walls = [];
       }
       return { supported: supported, roll: roll, dispose: dispose,
                active: function(){ return running; }, shown: function(){ return _shown; },
@@ -17119,6 +17098,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var t = "";
         try{ t = new Date(r.t).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }catch(e){}
         return '<div class="rl-row"><span class="rl-t">' + hEsc(t) + '</span><span class="rl-main"><span class="rl-lbl">' + hEsc(r.label) + "</span>" +
+          (r.k ? ' <span class="rl-kind">' + hEsc(r.k) + "</span>" : "") +
           (r.ch ? ' <span class="rl-ch">· ' + hEsc(r.ch) + "</span>" : "") +
           '<div class="rl-det">' + hEsc(r.detail || "") + '</div></span><span class="rl-tot">' + hEsc(r.total) + "</span></div>";
       }).join("");
@@ -17222,6 +17202,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         ".rl-row{display:flex; gap:10px; align-items:baseline; padding:7px 0; border-bottom:1px solid var(--line)} .rl-row:last-child{border-bottom:none}" +
         ".rl-t{font-size:10px; color:var(--muted); white-space:nowrap} .rl-main{flex:1; min-width:0}" +
         ".rl-lbl{font-size:12px; font-weight:700} .rl-ch{font-size:10px; color:var(--muted)} .rl-det{font-size:10px; color:var(--muted)}" +
+        ".rl-kind{font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); border:1px solid var(--line2); padding:1px 4px; margin-left:6px; vertical-align:1px; white-space:nowrap}" +
         ".rl-tot{font-size:16px; font-weight:900} .rl-empty{padding:20px; text-align:center; color:var(--muted); font-size:12px}";
       document.head.appendChild(s);
     }
