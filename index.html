@@ -3171,11 +3171,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v577 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v578 (2026-07-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.141.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.142.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3183,6 +3183,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v578", semver:"2.142.0", items:[
+      "Dice looks are now ten pre-made themes — Crimson, Onyx & Gold, Ivory, Emerald, Sapphire, Amethyst, Nebula, Obsidian Flame, Gold, and Steel — with marbling, speckles, and metal finishes, replacing the material dropdown + colour picker (flat solid colours looked lame, and glass/opalescent never read right on the transparent overlay). Your old choice maps to the closest theme.",
+      "Fixed: double-digit faces (the percentile d10's 00–90, and 10 on a d10) overflowed the face — numbers now measure themselves and shrink to fit, with a contrast halo so they stay readable on busy faces.",
+    ]},
     {v:"v577", semver:"2.141.0", items:[
       "d100 rolls now animate in 3D as the classic percentile pair — a tens d10 (00–90) and a ones d10 (0–9).",
       "Dice numbers now sit correctly oriented on each face (pointing at a corner on triangle and pentagon faces, at the tip on d10s, edge-aligned on d6s) instead of at arbitrary rotations.",
@@ -16352,7 +16356,11 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     function prefs(){
       if(_prefs) return _prefs;
       var p = {}; try{ p = JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; }catch(e){}
-      _prefs = { theme: p.theme || "plastic", color: p.color || "#b3282d",
+      // Theme = a curated DICE_THEMES id. Old material ids (pre-2.142.0, when a colour picker existed) migrate
+      // to the closest theme; anything unknown falls back to the default.
+      var t = {plastic:"crimson", glass:"sapphire", opal:"amethyst", metal:"steel"}[p.theme] || p.theme || "crimson";
+      try{ if(!(Engine && Engine.themeById(t))) t = "crimson"; }catch(e){ t = "crimson"; }
+      _prefs = { theme: t,
                  threeD: ("threeD" in p) ? p.threeD !== false : !reducedMotion(),   // stored choice wins; OS reduced-motion only sets the first-run default
                  rail: p.rail !== 0, railOpen: ("railOpen" in p) ? !!p.railOpen : !isMobile() };
       return _prefs;
@@ -16667,16 +16675,76 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           faces.map(function(f){ return f.poly.slice(); }));
         return (geomCache[sides] = {geom: geom, faces: faces, shape: shape});
       }
-      function faceTex(label, color, small){
-        var key = color + "|" + (small ? "s" : "b") + "|" + label;
+      /* ---- face painters: everything procedural, no assets. Each theme paints its own background. ---- */
+      function pRadial(x, c0, c1){ var g = x.createRadialGradient(64, 56, 10, 64, 66, 96); g.addColorStop(0, c0); g.addColorStop(1, c1); x.fillStyle = g; x.fillRect(0, 0, 128, 128); }
+      function pVeins(x, cols, n, a){                              // curvy translucent marble veins edge to edge
+        for(var i = 0; i < n; i++){
+          x.strokeStyle = cols[i % cols.length]; x.globalAlpha = a * (0.5 + Math.random() * 0.5);
+          x.lineWidth = 1 + Math.random() * 3; x.beginPath();
+          x.moveTo(-10, Math.random() * 128);
+          x.bezierCurveTo(Math.random() * 128, Math.random() * 128, Math.random() * 128, Math.random() * 128, 138, Math.random() * 128);
+          x.stroke();
+        }
+        x.globalAlpha = 1;
+      }
+      function pSpeck(x, col, n, rmax){                            // glitter / star specks
+        x.fillStyle = col;
+        for(var i = 0; i < n; i++){ x.globalAlpha = 0.3 + Math.random() * 0.7; x.beginPath(); x.arc(Math.random() * 128, Math.random() * 128, 0.4 + Math.random() * rmax, 0, 6.29); x.fill(); }
+        x.globalAlpha = 1;
+      }
+      function pBlotch(x, cols, n){                                // soft glowing clouds (nebula)
+        for(var i = 0; i < n; i++){
+          var cx = Math.random() * 128, cy = Math.random() * 128, r = 18 + Math.random() * 30;
+          var g = x.createRadialGradient(cx, cy, 1, cx, cy, r);
+          g.addColorStop(0, cols[i % cols.length]); g.addColorStop(1, "rgba(0,0,0,0)");
+          x.globalAlpha = 0.35 + Math.random() * 0.3; x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+        }
+        x.globalAlpha = 1;
+      }
+      /* ---- pre-made dice themes (Alex's call: curated looks, no color picker — a flat solid tint looked lame
+              and glass/opal never read right on a transparent overlay). ink = number colour, stroke = contrast
+              halo, kind = material (gloss | matte | metal). Keep ids stable: they persist in the dice pref. ---- */
+      var DICE_THEMES = [
+        {id:"crimson", name:"Crimson", ink:"#ffffff", stroke:"rgba(60,0,0,.45)", kind:"gloss",
+         paint:function(x){ pRadial(x, "#d4403f", "#8c1d24"); }},
+        {id:"onyx", name:"Onyx & Gold", ink:"#e5c15c", stroke:"rgba(0,0,0,.6)", kind:"gloss",
+         paint:function(x){ pRadial(x, "#2c2c31", "#0f0f13"); pVeins(x, ["#3d3d46","#191920"], 5, 0.5); }},
+        {id:"ivory", name:"Ivory", ink:"#46331d", stroke:"rgba(255,255,255,.35)", kind:"matte",
+         paint:function(x){ pRadial(x, "#f5eddb", "#d8caa6"); pVeins(x, ["#c8b88c","#e8dcbc"], 4, 0.35); }},
+        {id:"emerald", name:"Emerald", ink:"#f3e7bd", stroke:"rgba(0,40,20,.55)", kind:"gloss",
+         paint:function(x){ pRadial(x, "#1f7a4d", "#0c3f26"); pVeins(x, ["#7fd6a6","#0a2e1c"], 6, 0.45); }},
+        {id:"sapphire", name:"Sapphire", ink:"#eef4ff", stroke:"rgba(5,15,50,.55)", kind:"gloss",
+         paint:function(x){ pRadial(x, "#2b5fb8", "#122a5c"); pVeins(x, ["#9db8e8","#0d1d40"], 6, 0.45); }},
+        {id:"amethyst", name:"Amethyst", ink:"#ffffff", stroke:"rgba(30,5,55,.55)", kind:"gloss",
+         paint:function(x){ pRadial(x, "#8a4fc8", "#3d1d6e"); pVeins(x, ["#c9a7ee","#2a1150"], 5, 0.4); pSpeck(x, "#ffffff", 34, 0.9); }},
+        {id:"nebula", name:"Nebula", ink:"#ffffff", stroke:"rgba(0,0,20,.6)", kind:"gloss",
+         paint:function(x){ pRadial(x, "#241b4d", "#0b0820"); pBlotch(x, ["#c33bb0","#2fb3c9","#5b3bd6"], 6); pSpeck(x, "#ffffff", 60, 0.8); }},
+        {id:"lava", name:"Obsidian Flame", ink:"#ffb454", stroke:"rgba(0,0,0,.7)", kind:"gloss",
+         paint:function(x){ pRadial(x, "#221713", "#070505"); pVeins(x, ["#ff7a1a","#e8420e","#ffb154"], 7, 0.6); }},
+        {id:"gold", name:"Gold", ink:"#241a05", stroke:"rgba(255,240,200,.35)", kind:"metal",
+         paint:function(x){ pRadial(x, "#f2cd6a", "#a87d1f"); }},
+        {id:"steel", name:"Steel", ink:"#14181d", stroke:"rgba(255,255,255,.4)", kind:"metal",
+         paint:function(x){ pRadial(x, "#dde1e6", "#8d959d"); pVeins(x, ["#ffffff","#767c83"], 8, 0.22); }}
+      ];
+      function themeById(id){ for(var i = 0; i < DICE_THEMES.length; i++) if(DICE_THEMES[i].id === id) return DICE_THEMES[i]; return null; }
+      function faceTex(theme, label, sides){
+        var key = theme.id + "|" + sides + "|" + label;
         if(texCache[key]) return texCache[key];
         var c = document.createElement("canvas"); c.width = c.height = 128;
         var x = c.getContext("2d");
-        x.fillStyle = color; x.fillRect(0, 0, 128, 128);
-        x.fillStyle = "#fff"; x.textAlign = "center"; x.textBaseline = "middle";
-        x.font = "800 " + (small ? 40 : 56) + "px system-ui, Arial, sans-serif";
-        x.fillText(label, 64, 62);
-        if(label === "6" || label === "9"){ var w2 = small ? 15 : 20; x.fillRect(64 - w2, small ? 88 : 96, w2 * 2, small ? 4 : 5); }   // underline so they can't be misread
+        theme.paint(x);
+        x.textAlign = "center"; x.textBaseline = "middle";
+        var small = (sides === 4 || sides === 8 || sides === 20);                  // triangle faces get a smaller digit
+        var fs = small ? 40 : 56;
+        // Shrink-to-fit: multi-digit labels ("00"–"90", "10"+) must stay inside the face's usable width —
+        // kite (d10) faces are the narrowest, triangles next; measure and scale the font down when needed.
+        var maxW = sides === 10 ? 48 : (small ? 56 : 74);
+        x.font = "800 " + fs + "px system-ui, Arial, sans-serif";
+        var tw = x.measureText(label).width;
+        if(tw > maxW){ fs = Math.max(18, Math.floor(fs * maxW / tw)); x.font = "800 " + fs + "px system-ui, Arial, sans-serif"; }
+        if(theme.stroke){ x.strokeStyle = theme.stroke; x.lineWidth = Math.max(2, fs / 14); x.strokeText(label, 64, 62); }   // contrast halo so numbers read on busy faces
+        x.fillStyle = theme.ink; x.fillText(label, 64, 62);
+        if(label === "6" || label === "9"){ var w2 = Math.round(fs * 0.36); x.fillRect(64 - w2, 62 + Math.round(fs * 0.62), w2 * 2, Math.max(3, Math.round(fs / 11))); }   // underline so they can't be misread
         var t = new THREE.CanvasTexture(c); t.anisotropy = 4;
         return (texCache[key] = t);
       }
@@ -16696,27 +16764,24 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         }catch(e){ _env = null; }
         return _env;
       }
-      function faceMat(label, color, sides){
-        var theme = prefs().theme;
-        var small = (sides === 4 || sides === 8 || sides === 20);                 // triangle faces get a smaller digit so it stays inside the face
-        var key = theme + "|" + color + "|" + sides + "|" + label;
+      function faceMat(label, sides){
+        var theme = themeById(prefs().theme) || DICE_THEMES[0];
+        var key = theme.id + "|" + sides + "|" + label;
         if(matCache[key]) return matCache[key];
-        var map = faceTex(label, color, small), m;
-        if(theme === "glass")                                                     // the overlay is transparent — nothing sits behind a die to refract, so the see-through read comes from blended opacity
-          m = new THREE.MeshPhysicalMaterial({map: map, transparent: true, opacity: 0.74, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.06, envMap: envTex(), envMapIntensity: 0.9});
-        else if(theme === "opal")
-          m = new THREE.MeshPhysicalMaterial({map: map, iridescence: 1, iridescenceIOR: 1.35, sheen: 0.6, clearcoat: 0.6, clearcoatRoughness: 0.15, roughness: 0.25, envMap: envTex(), envMapIntensity: 0.8});
-        else if(theme === "metal")
-          m = new THREE.MeshPhysicalMaterial({map: map, metalness: 1, roughness: 0.22, envMap: envTex(), envMapIntensity: 1.15});   // env map is mandatory here or metal renders black
-        else
-          m = new THREE.MeshStandardMaterial({map: map, roughness: 0.35, metalness: 0});
+        var map = faceTex(theme, label, sides), m;
+        if(theme.kind === "metal")
+          m = new THREE.MeshPhysicalMaterial({map: map, metalness: 1, roughness: 0.25, envMap: envTex(), envMapIntensity: 1.15});   // env map is mandatory here or metal renders black
+        else if(theme.kind === "matte")
+          m = new THREE.MeshStandardMaterial({map: map, roughness: 0.6, metalness: 0});
+        else   // gloss: clearcoated plastic/resin
+          m = new THREE.MeshPhysicalMaterial({map: map, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08, envMap: envTex(), envMapIntensity: 0.55});
         return (matCache[key] = m);
       }
       function makeDie(spec){                                    // spec = {d, v} or {d, labels:[…], target:"label"} (percentile d10s)
-        var d = spec.d, bg = buildGeom(d), mats = [], vals = [], color = prefs().color;
+        var d = spec.d, bg = buildGeom(d), mats = [], vals = [];
         for(var i = 0; i < bg.faces.length; i++){
           var lab = spec.labels ? spec.labels[i] : String(i + 1);
-          vals.push(lab); mats.push(faceMat(lab, color, d));
+          vals.push(lab); mats.push(faceMat(lab, d));
         }
         var mesh = new THREE.Mesh(bg.geom, mats);
         mesh.userData = {vals: vals, target: String(spec.labels ? spec.target : spec.v), faces: bg.faces};
@@ -16881,8 +16946,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       return { supported: supported, roll: roll, dispose: dispose,
                active: function(){ return running; }, shown: function(){ return _shown; },
                canvas: function(){ return renderer ? renderer.domElement : null; },
-               clearMats: function(){ matCache = {}; texCache = {}; },            // theme/color changed → rebuild on next roll
-               mat: function(label, sides){ return ensure() ? faceMat(String(label), prefs().color, sides) : null; },
+               clearMats: function(){ matCache = {}; texCache = {}; },            // theme changed → rebuild on next roll
+               mat: function(label, sides){ return ensure() ? faceMat(String(label), sides) : null; },
+               themes: DICE_THEMES, themeById: themeById,
                faceCount: function(sides){ return window.THREE ? buildGeom(sides).faces.length : 0; } };
     })();
 
@@ -17001,20 +17067,16 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       if(host){
         host.innerHTML = '<label class="lay-row"><input type="checkbox" id="set-dice3d"> 3D dice animation</label>' +
           '<p class="wiz-hint">Rolls tumble as 3D dice across the sheet before the result card appears. With this off — or with “Disable animations” on above — results appear instantly. Needs WebGL; if it isn’t available, rolls just show instantly. If your system asks for reduced motion, this starts off, but checking it here wins.</p>' +
-          '<label class="lay-row">Dice material&nbsp; <select id="set-dicetheme">' +
-            '<option value="plastic">Plastic</option><option value="glass">Glass</option><option value="opal">Opalescent</option><option value="metal">Metal</option>' +
+          '<label class="lay-row">Dice theme&nbsp; <select id="set-dicetheme">' +
+            Engine.themes.map(function(t){ return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('') +
           '</select></label>' +
-          '<label class="lay-row">Dice color&nbsp; <input type="color" id="set-dicecolor"></label>' +
-          '<p class="wiz-hint">The look of the 3D dice. Applies from your next roll.</p>';
+          '<p class="wiz-hint">Pre-made looks for the 3D dice — marbles, gems, metals, a nebula. Applies from your next roll.</p>';
         var c3 = el("set-dice3d");
         c3.checked = !!prefs().threeD;
         c3.addEventListener("change", function(){ _prefs.threeD = c3.checked; savePrefs(); });
         var th = el("set-dicetheme");
         th.value = prefs().theme;
         th.addEventListener("change", function(){ _prefs.theme = th.value; savePrefs(); Engine.clearMats(); });
-        var col = el("set-dicecolor");
-        col.value = prefs().color;
-        col.addEventListener("change", function(){ _prefs.color = col.value; savePrefs(); Engine.clearMats(); });
       }
     }
     function wireMenu(){ var b = el("btn-rolllog"); if(b) b.addEventListener("click", openLog); }
