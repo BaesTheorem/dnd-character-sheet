@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Character Sheet">
 <title>Character Sheet</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHBhdGggZmlsbD0iIzNiNGE2MyIgZD0iTTE2IDQuNSAyNS45NiAxMC4yNVYyMS43NUwxNiAyNy41IDYuMDQgMjEuNzVWMTAuMjVaIi8+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZWVmMGYzIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNMTYgMTEuNSAxMCAyMC41SDIyWiIvPjxwYXRoIGQ9Ik0xNiAxMS41VjQuNU0xMCAyMC41IDYuMDQgMjEuNzVNMjIgMjAuNSAyNS45NiAyMS43NSIvPjwvZz48L3N2Zz4=">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHN0eWxlPi5ie2ZpbGw6IzNiNGE2M30ubHtmaWxsOm5vbmU7c3Ryb2tlOiNlZWYwZjM7c3Ryb2tlLXdpZHRoOjEuNTtzdHJva2UtbGluZWpvaW46cm91bmQ7c3Ryb2tlLWxpbmVjYXA6cm91bmR9QG1lZGlhIChwcmVmZXJzLWNvbG9yLXNjaGVtZTpkYXJrKXsuYntmaWxsOiNlN2VhZjF9Lmx7c3Ryb2tlOiMyZjNiNTB9fTwvc3R5bGU+PHBhdGggY2xhc3M9ImIiIGQ9Ik0xNiA0LjUgMjUuOTYgMTAuMjVWMjEuNzVMMTYgMjcuNSA2LjA0IDIxLjc1VjEwLjI1WiIvPjxnIGNsYXNzPSJsIj48cGF0aCBkPSJNMTYgMTEuNSAxMCAyMC41SDIyWiIvPjxwYXRoIGQ9Ik0xNiAxMS41VjQuNU0xMCAyMC41IDYuMDQgMjEuNzVNMjIgMjAuNSAyNS45NiAyMS43NSIvPjwvZz48L3N2Zz4=">
 <style>
   /* ---- Clean minimal modern, fully self-contained (no external assets) ---- */
   /* Theme: "Universal 5e Character Sheet" (default) — light palette. Each theme is a swap of these vars;
@@ -3173,11 +3173,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v585 (2026-07-24)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v586 (2026-07-24)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.145.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.145.5";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3185,6 +3185,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v586", semver:"2.145.5", items:[
+      "Favicon now adapts to the browser theme (dark navy die on light tabs, light die on dark tabs) so the bare silhouette stays visible instead of blending into a dark tab bar. Installed-app icon uses a solid navy tile so it stays visible on any home screen.",
+    ]},
     {v:"v585", semver:"2.145.4", items:[
       "Gave the toolbar d20 logo the same even margins as the favicon so it no longer crowds its frame.",
     ]},
