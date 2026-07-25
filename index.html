@@ -3174,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v596 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v597 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.151.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.151.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3186,6 +3186,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v597", semver:"2.151.3", items:[
+      "Dropped the floating sidebar's separate grip strip — drag the dice icon itself to move it, tap it to open. A small wobble still counts as a tap, and finishing a drag no longer opens the drawer.",
+    ]},
     {v:"v596", semver:"2.151.2", items:[
       "The floating dice sidebar is much easier to move, especially on a phone: it now has its own grip handle down its left side, so dragging it and tapping it no longer fight each other, and a touch-drag is no longer mistaken for scrolling the page.",
       "A floating sidebar can no longer end up hanging off the screen. It pulls itself back into view whenever it grows — opening the dice list or the settings panel — and when you rotate the phone.",
@@ -17423,10 +17426,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       p.railXY = c;
       try{ Engine.syncRail(); }catch(e){}
     }
-    function gripSvg(){ var d = "", i, j;
-      for(i = 0; i < 2; i++) for(j = 0; j < 3; j++) d += '<circle cx="' + (4 + i * 4) + '" cy="' + (5 + j * 5) + '" r="1.3"/>';
-      return '<svg viewBox="0 0 12 20" width="12" height="20" aria-hidden="true" fill="currentColor">' + d + '</svg>';
-    }
     function chevSvg(){ return '<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
     function applyRail(){
       var r = el("dice-rail"); if(!r) return;
@@ -17434,6 +17433,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       r.style.display = p.rail ? "" : "none";
       r.classList.toggle("open", !!p.railOpen);
       r.dataset.pos = pos;
+      var tg = r.querySelector(".dr-toggle");
+      if(tg) tg.title = (pos === "float") ? "Dice — drag to move, tap to open" : "Dice — plain rolls, no modifiers";
       if(pos === "float"){
         var xy = p.railXY || {x: (window.innerWidth || 900) - 240, y: 100};
         var c = clampFloat(xy.x, xy.y, r);                        // a stored spot can fall off-screen after a resize or rotation
@@ -17448,8 +17449,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var old = el("dice-rail"); if(old) old.remove();        // serialized corpse from a saved copy (belt & suspenders; it's data-transient anyway)
       var r = document.createElement("div");
       r.id = "dice-rail"; r.className = "noprint"; r.dataset.transient = "1";
-      r.innerHTML = '<button type="button" class="dr-grip" aria-label="Move the dice sidebar" title="Drag to move">' + gripSvg() + '</button>' +
-        '<button type="button" class="dr-toggle" title="Dice — plain rolls, no modifiers">' + dieIconSvg(20) + "</button>" +
+      r.innerHTML = '<button type="button" class="dr-toggle" title="Dice — plain rolls, no modifiers">' + dieIconSvg(20) + "</button>" +
         '<div class="dr-body"><div class="dr-count"><button type="button" class="dr-minus" title="Fewer dice">−</button>' +
         '<span class="dr-n">1×</span><button type="button" class="dr-plus" title="More dice">+</button></div>' +
         RAIL_DICE.map(function(d){ return '<button type="button" class="dr-die" data-d="' + d + '" title="Roll ' + "d" + d + '">' + dieIconSvg(d) + "<span>d" + d + "</span></button>"; }).join("") +
@@ -17486,39 +17486,47 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     }
 
     function railDrag(r){
-      // Floating rail drag. Three things make this behave on a phone:
-      //   1. its OWN handle (a full-height grip strip), so dragging and tapping never fight over one control —
-      //      that ambiguity, on a finger-sized target, was most of the jank;
-      //   2. `touch-action:none` on the grip (CSS). Without it the browser claims the gesture as a page scroll
-      //      and fires pointercancel mid-drag; preventDefault() in pointermove CANNOT win it back once claimed;
-      //   3. the rail's size is measured ONCE at grab, not per move — re-measuring every pointermove is a
+      // Floating rail drag, on the dice icon itself: drag to move, tap to open. Making one control carry both
+      // gestures rests on four things:
+      //   1. `touch-action:none` on it (CSS) — without it the browser claims a touch-drag as a page scroll and
+      //      fires pointercancel mid-drag; preventDefault() in pointermove CANNOT win it back once claimed;
+      //   2. a movement THRESHOLD (8px) before anything moves, so a tap with a wobbly finger stays a tap, and a
+      //      capture-phase click swallow so the end of a drag doesn't also toggle the drawer;
+      //   3. pointerdown must NOT preventDefault and must NOT flag .dragging — either would break the tap;
+      //   4. the rail's size is measured ONCE at grab, not per move — re-measuring every pointermove is a
       //      layout read/write per frame, which is the rest of the stutter.
-      var h = r.querySelector(".dr-grip"), sx = 0, sy = 0, ox = 0, oy = 0, cw = 0, ch = 0, on = false;
+      var h = r.querySelector(".dr-toggle"), sx = 0, sy = 0, ox = 0, oy = 0, cw = 0, ch = 0, on = false, moved = false;
       if(!h) return;
-      function stop(ev, keep){
+      function stop(ev, cancelled){
         if(!on) return;
         on = false; r.classList.remove("dragging");
         try{ h.releasePointerCapture(ev.pointerId); }catch(e){}
-        if(keep){ saveLocalPrefs(); try{ Engine.syncRail(); }catch(e){} }   // pixels are device state, not character data
+        if(moved){ saveLocalPrefs(); try{ Engine.syncRail(); }catch(e){} }   // pixels are device state, not character data
+        if(cancelled) moved = false;                              // no click will follow a cancel, so don't strand the swallow
       }
       h.addEventListener("pointerdown", function(ev){
         if(railPosEff() !== "float" || ev.button) return;
         var b = r.getBoundingClientRect();
-        on = true; sx = ev.clientX; sy = ev.clientY; ox = b.left; oy = b.top; cw = b.width; ch = b.height;
-        r.classList.add("dragging");
-        try{ h.setPointerCapture(ev.pointerId); }catch(e){}
-        ev.preventDefault();
+        on = true; moved = false; sx = ev.clientX; sy = ev.clientY; ox = b.left; oy = b.top; cw = b.width; ch = b.height;
+        try{ h.setPointerCapture(ev.pointerId); }catch(e){}       // no preventDefault / no .dragging yet — this might still be a tap
       });
       h.addEventListener("pointermove", function(ev){
         if(!on) return;
-        var c = clampXY(ox + (ev.clientX - sx), oy + (ev.clientY - sy), cw, ch);
+        var dx = ev.clientX - sx, dy = ev.clientY - sy;
+        if(!moved){
+          if(Math.abs(dx) + Math.abs(dy) < 8) return;             // still within tap slop
+          moved = true; r.classList.add("dragging");
+        }
+        var c = clampXY(ox + dx, oy + dy, cw, ch);
         r.style.left = c.x + "px"; r.style.top = c.y + "px";
         prefs().railXY = c;
         ev.preventDefault();
       });
-      h.addEventListener("pointerup", function(ev){ stop(ev, true); });
-      h.addEventListener("pointercancel", function(ev){ stop(ev, true); });   // browser stole the gesture — keep where it got to, never leave the drag stuck on
-      h.addEventListener("click", function(ev){ ev.stopPropagation(); ev.preventDefault(); });   // the grip is not a button
+      h.addEventListener("pointerup", function(ev){ stop(ev, false); });
+      h.addEventListener("pointercancel", function(ev){ stop(ev, true); });   // browser stole the gesture — never leave the drag stuck on
+      h.addEventListener("click", function(ev){
+        if(moved){ ev.stopPropagation(); ev.preventDefault(); moved = false; }   // that was a drop, not a tap
+      }, true);
       window.addEventListener("resize", reclampFloat);
     }
 
@@ -17676,14 +17684,12 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         '#dice-rail[data-pos="right"] .dr-body,#dice-rail[data-pos="left"] .dr-body,#dice-rail[data-pos="float"] .dr-body{flex-direction:column; max-height:calc(100vh - 8px)}' +
         '#dice-rail[data-pos="right"] .dr-toggle,#dice-rail[data-pos="right"] .dr-body{border-right:none}' +
         '#dice-rail[data-pos="left"] .dr-toggle,#dice-rail[data-pos="left"] .dr-body{border-left:none}' +
-        /* Floating: a full-height grip strip is the ONLY drag handle, so the toggle stays a clean tap target.
-           touch-action:none is load-bearing — without it a touch-drag is claimed by the browser as a page scroll. */
-        '.dr-grip{display:none}' +
-        '#dice-rail[data-pos="float"] .dr-grip{display:flex; align-items:center; justify-content:center; align-self:stretch; width:24px; padding:0; touch-action:none; cursor:grab; border:1px solid var(--line2); border-right:none; background:var(--card); color:var(--muted)}' +
-        '#dice-rail[data-pos="float"].dragging .dr-grip{cursor:grabbing; background:var(--accent-soft); color:var(--accent)}' +
-        '#dice-rail[data-pos="float"] .dr-toggle{border-left:none}' +
+        /* Floating: the dice icon IS the handle — drag it to move, tap it to open. touch-action:none is
+           load-bearing; without it a touch-drag is claimed by the browser as a page scroll and cancelled. */
+        '#dice-rail[data-pos="float"] .dr-toggle{touch-action:none; cursor:grab}' +
+        '#dice-rail[data-pos="float"].dragging .dr-toggle{cursor:grabbing; background:var(--accent-soft); color:var(--accent)}' +
         '#dice-rail[data-pos="float"] .dr-body{max-height:calc(100vh - 24px)}' +
-        'html.mobile #dice-rail[data-pos="float"] .dr-grip{width:38px}' +
+        'html.mobile #dice-rail[data-pos="float"] .dr-toggle{padding:15px 11px}' +
         'html.mobile #dice-rail[data-pos="float"] .dr-body{max-height:calc(100vh - 120px)}' +
         /* horizontal docks: a wrapping row, bounded by viewport width */
         '#dice-rail[data-pos="top"],#dice-rail[data-pos="bottom"]{left:0; right:0; transform:none; flex-direction:column}' +
