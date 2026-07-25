@@ -3011,10 +3011,6 @@
             <p class="wiz-hint" id="dark-hint">A dark colour theme for low-light play. This applies across all of your characters. Printing always uses the light theme.</p>
             <label class="lay-row"><input type="checkbox" id="set-noanim"> Disable animations</label>
             <p class="wiz-hint">Turns off all motion (like the shimmer on the level-up button) for a calmer, distraction-free sheet during play. This applies across all of your characters. Dice rolls skip the rolling animation and show the result straight away.</p>
-            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Dice rolling</label>
-            <label class="lay-row"><input type="checkbox" id="set-dicerail" checked> Show the dice sidebar</label>
-            <p class="wiz-hint">A slim rail of plain dice (d4–d100) on the right edge of the screen. Click a die to roll it with no modifiers — for any roll the sheet doesn't wire up itself. You can also click ability modifiers, skills, saves, initiative, attack rows, and Cast buttons to roll them with their modifiers applied. Recent rolls live in the Roll Log (☰ menu).</p>
-            <div id="dice-3d-settings"></div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
             <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
             <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
@@ -3038,6 +3034,11 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Encumbrance</label>
             <label class="lay-row"><input type="checkbox" id="set-variant-enc"> Use the variant Encumbrance rule</label>
             <p class="wiz-hint">Off by default. When on, the Carrying Capacity card adds the Encumbered (×5) and Heavily Encumbered (×10) thresholds and applies their speed penalties. When off, only your Max Carry (×15) and Push/Drag/Lift (×30) are shown.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Dice rolling</label>
+            <p class="wiz-hint" style="margin-top:0">How <strong>this character's</strong> dice look and behave — each character keeps its own set, so your paladin can roll gold and your warlock can roll obsidian. Whatever you pick here also becomes the starting look for new characters. Every one of these settings is also in the dice sidebar itself, under Setup.</p>
+            <label class="lay-row"><input type="checkbox" id="set-dicerail" checked> Show the dice sidebar</label>
+            <p class="wiz-hint">A slim rail of plain dice (d4–d100) on the right edge of the screen. Click a die to roll it with no modifiers — for any roll the sheet doesn't wire up itself. You can also click ability modifiers, skills, saves, initiative, attack rows, and Cast buttons to roll them with their modifiers applied. The sidebar also holds your Roll Log and these settings.</p>
+            <div id="dice-3d-settings"></div>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Item filters</label>
             <label class="lay-row"><input type="checkbox" id="set-renaissance"> Show Renaissance items</label>
             <p class="wiz-hint">Off by default. When off, Renaissance gear (muskets, pistols, bombs, gunpowder, etc.) is hidden from the item search and the per-row item autocomplete.</p>
@@ -3173,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v589 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v590 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.146.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.147.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3185,6 +3186,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v590", semver:"2.147.0", items:[
+      "Dice settings are now per character, in Settings → Character Settings → Dice rolling. Each character keeps its own dice look and 3D setting, so your paladin can roll gold while your warlock rolls obsidian. Whatever you pick also becomes the starting look for new characters, and characters made before this just keep your current settings.",
+      "The dice sidebar now holds everything dice: your Roll Log and all the dice settings live in it under Setup, so you never have to open Settings mid-session to change them.",
+    ]},
     {v:"v589", semver:"2.146.0", items:[
       "Dice numbers now sit dead centre on their face. They were anchored to the widest part of the face rather than its middle, which pushed triangle digits down toward the base, and they were centred on the text's advance width instead of the ink, so digits like 1 sat a couple of pixels off. Each number is now ink-centred on the face's true centre at the largest size that actually fits inside it.",
       "The d4 is now numbered like a real one: a digit at each corner of every face, read at the top point. A tetrahedron lands on a face, so nothing points up, and the old \"highest face\" reading was a three-way tie decided by rounding noise, which is why the d4 looked wrong when it landed.",
@@ -4085,6 +4090,7 @@
   const HOMEBREW_KEY = "dnd-sheet-homebrew";   // homebrew saved as SOURCE MATERIAL — browser-wide, survives character clears, managed in Settings
   const AW_ENABLED_KEY = "dnd-sheet-aw-enabled";   // Ancestral Weapons rules module on/off (browser-wide, like a togglable sourcebook)
   let awEnabled = true;
+  let charDicePrefs = null;   // this character's dice settings ({theme, threeD, rail}); the dice module owns the live copy, this is just what collect() writes back if the module is absent
   function loadAwEnabled(){ try{ const v = localStorage.getItem(AW_ENABLED_KEY); awEnabled = (v === null) ? true : v !== "0"; }catch(e){ awEnabled = true; } }
   function saveAwEnabled(){ try{ localStorage.setItem(AW_ENABLED_KEY, awEnabled ? "1" : "0"); }catch(e){} }
   function setAwEnabled(on){ awEnabled = !!on; saveAwEnabled(); if(typeof save === "function") save(); if(typeof refreshHbItems==="function") refreshHbItems(); if($("hb-studio")) renderHbStudio(); flashStatus("Ancestral Weapons " + (awEnabled ? "enabled" : "disabled") + " for this character"); }   // per-character (collect() persists data.awEnabled); localStorage keeps the default for characters without a record
@@ -9724,6 +9730,7 @@
     data.companions = companions;
     data.disabledSources = Array.isArray(charSrcOff) ? charSrcOff.slice() : Array.from(disabledBooks());   // per-character source enablement (Settings → Character Settings → Enabled sources)
     data.awEnabled = awEnabled;   // Ancestral Weapons rules module — per-character too
+    data.dice = (window.DiceRoller && window.DiceRoller.charPrefs) ? window.DiceRoller.charPrefs() : charDicePrefs;   // dice look/behaviour is per-character (Settings → Character Settings → Dice rolling)
     data.awOverrides = awOverrides;   // per-character Ancestral Weapon SP/upgrade tuning (source item untouched)
     data.infusions = infusions;
     data.arcaneArmor = arcaneArmor;
@@ -9829,6 +9836,8 @@
     showModern = !!(data && data.showModern);           // default off
     showRenaissance = !!(data && data.showRenaissance); // default off
     awEnabled = (data && ("awEnabled" in data)) ? !!data.awEnabled : awEnabled;   // per-character AW module; a character with no record keeps the browser-wide value
+    charDicePrefs = (data && data.dice && typeof data.dice === "object") ? data.dice : null;   // per-character dice; no record → the browser-wide default stands
+    if(window.DiceRoller && window.DiceRoller.adoptCharPrefs) window.DiceRoller.adoptCharPrefs(charDicePrefs);
     charSrcOff = (data && Array.isArray(data.disabledSources)) ? data.disabledSources.map(String)
       : Array.from(new Set([ ...disabledBooks(), ...homebrewSources.filter(s => s.enabled === false).map(s => String(s.name)) ]));   // legacy character: adopt the current browser-wide choices as its starting per-character record
     const srcChanged = applyCharSources();   // project this character's source choices into the live stores (DATA rebuild if they differ)
@@ -16385,7 +16394,12 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       return (bad || !out.length || out.length > 10) ? null : out;
     }
 
-    /* ---- prefs (app-level, like dark mode; never in character data) ---- */
+    /* ---- prefs ----
+       PER-CHARACTER as of 2.147.0 (each character keeps its own dice), with localStorage as the DEFAULT for a
+       character that has no record yet — the same rule the Ancestral Weapons module follows. `theme`/`threeD`/
+       `rail` ride character data (collect/applyAll); `railOpen` stays browser-level because it's drawer state,
+       not a setting, and a character switch is a full reload so `_prefs` is rebuilt from localStorage first. ---- */
+    var CHAR_PREF_KEYS = ["theme", "threeD", "rail"];
     var _prefs = null;
     function prefs(){
       if(_prefs) return _prefs;
@@ -16399,7 +16413,28 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
                  rail: p.rail !== 0, railOpen: ("railOpen" in p) ? !!p.railOpen : !isMobile() };
       return _prefs;
     }
-    function savePrefs(){ try{ localStorage.setItem(PREF_KEY, JSON.stringify(prefs())); }catch(e){} }
+    function saveLocalPrefs(){ try{ localStorage.setItem(PREF_KEY, JSON.stringify(prefs())); }catch(e){} }
+    function savePrefs(){
+      saveLocalPrefs();                                                           // …also the default for the next character
+      try{ if(typeof save === "function") save(); }catch(e){}                     // dice settings live in character data now
+      syncDiceUI();
+    }
+    function charPrefs(){                                        // the slice that rides character data
+      var p = prefs(), o = {};
+      CHAR_PREF_KEYS.forEach(function(k){ o[k] = p[k]; });
+      return o;
+    }
+    function adoptCharPrefs(rec){                                // called by applyAll on load / character switch
+      var p = prefs();
+      if(rec && typeof rec === "object"){
+        if(typeof rec.threeD === "boolean") p.threeD = rec.threeD;
+        if(typeof rec.rail === "boolean") p.rail = rec.rail;
+        var t = {plastic:"crimson", metal:"steel"}[rec.theme] || rec.theme;       // same migration the stored pref gets
+        try{ if(t && Engine && Engine.themeById(t)) p.theme = t; }catch(e){}
+      }
+      try{ Engine.clearMats(); }catch(e){}                                        // theme may have changed → rebuild on next roll
+      applyRail(); syncDiceUI();
+    }
 
     /* ---- roll log (global across characters; capped, localStorage only) ---- */
     function logLoad(){ try{ var a = JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
@@ -17239,10 +17274,20 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         '<div class="dr-body"><div class="dr-count"><button type="button" class="dr-minus" title="Fewer dice">−</button>' +
         '<span class="dr-n">1×</span><button type="button" class="dr-plus" title="More dice">+</button></div>' +
         RAIL_DICE.map(function(d){ return '<button type="button" class="dr-die" data-d="' + d + '" title="Roll ' + "d" + d + '">' + dieIconSvg(d) + "<span>d" + d + "</span></button>"; }).join("") +
-        "</div>";
+        '<div class="dr-sep"></div>' +
+        '<button type="button" class="dr-act dr-log" title="Your recent rolls (last 50, across all characters)">Log</button>' +
+        '<button type="button" class="dr-act dr-gear" title="Dice settings for this character">Setup</button>' +
+        '<div class="dr-settings" hidden>' + diceSettingsHTML({ids: false, hints: false}) +
+          '<button type="button" class="dr-act dr-hide" title="Hide the dice sidebar">Hide sidebar</button>' +
+          '<p class="dr-note">These are this character\'s dice. Bring the sidebar back in Settings → Character Settings → Dice rolling.</p>' +
+        "</div></div>";
       document.body.appendChild(r);
+      r.addEventListener("change", onDiceSettingChange);
       r.addEventListener("click", function(ev){
-        if(ev.target.closest(".dr-toggle")){ _prefs.railOpen = !_prefs.railOpen; savePrefs(); applyRail(); return; }
+        if(ev.target.closest(".dr-toggle")){ _prefs.railOpen = !_prefs.railOpen; saveLocalPrefs(); applyRail(); return; }   // drawer state is browser-level, not character data
+        if(ev.target.closest(".dr-log")){ openLog(); return; }
+        if(ev.target.closest(".dr-gear")){ var sp = r.querySelector(".dr-settings"); sp.hidden = !sp.hidden; return; }
+        if(ev.target.closest(".dr-hide")){ prefs().rail = false; savePrefs(); applyRail(); return; }
         if(ev.target.closest(".dr-plus")){ _railN = Math.min(9, _railN + 1); el("dice-rail").querySelector(".dr-n").textContent = _railN + "×"; return; }
         if(ev.target.closest(".dr-minus")){ _railN = Math.max(1, _railN - 1); el("dice-rail").querySelector(".dr-n").textContent = _railN + "×"; return; }
         var d = ev.target.closest(".dr-die");
@@ -17251,25 +17296,47 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       applyRail();
     }
 
-    /* ---- settings + menu wiring (the controls are static HTML — safe to serialize; re-wired here every load) ---- */
+    /* ---- settings + menu wiring (the controls are static HTML — safe to serialize; re-wired here every load) ----
+       The same controls render in TWO places (Settings → Character Settings, and the sidebar's Setup panel), so
+       each one carries a `data-dice` key rather than relying on its id: one change handler and one sync repaint
+       serve both copies and they can never drift apart. The Settings copies keep their documented ids too. ---- */
+    function diceSettingsHTML(opts){
+      var i3 = opts.ids ? ' id="set-dice3d"' : '', it = opts.ids ? ' id="set-dicetheme"' : '';
+      return '<label class="lay-row"><input type="checkbox"' + i3 + ' data-dice="threeD"> 3D dice animation</label>' +
+        (opts.hints ? '<p class="wiz-hint">Rolls tumble as 3D dice across the sheet before the result card appears. With this off — or with “Disable animations” on (Settings → General) — results appear instantly. Needs WebGL; if it isn’t available, rolls just show instantly. If your system asks for reduced motion, this starts off, but checking it here wins.</p>' : "") +
+        '<label class="lay-row">' + (opts.hints ? "Dice theme" : "Theme") + '&nbsp; <select' + it + ' data-dice="theme">' +   // the rail is narrow — "Dice theme" wraps there
+          Engine.themes.map(function(t){ return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('') +
+        '</select></label>' +
+        (opts.hints ? '<p class="wiz-hint">Pre-made looks for the 3D dice — marbles, gems, metals, a nebula. Applies from your next roll.</p>' : "");
+    }
+    function onDiceSettingChange(ev){
+      var t = ev.target, k = t && t.getAttribute && t.getAttribute("data-dice");
+      if(!k) return;
+      var p = prefs();
+      if(k === "theme"){ p.theme = t.value; savePrefs(); try{ Engine.clearMats(); }catch(e){} return; }
+      p[k] = !!t.checked; savePrefs();
+      if(k === "rail") applyRail();
+    }
+    function syncDiceUI(){                                      // repaint every copy of every control from the live prefs
+      try{
+        var p = prefs();
+        var list = document.querySelectorAll("[data-dice]");
+        for(var i = 0; i < list.length; i++){
+          var c = list[i], k = c.getAttribute("data-dice");
+          if(k === "theme"){ if(c.value !== p.theme) c.value = p.theme; }
+          else c.checked = !!p[k];
+        }
+      }catch(e){}
+    }
     function wireSettings(){
       var cb = el("set-dicerail");
-      if(cb){ cb.checked = !!prefs().rail; cb.addEventListener("change", function(){ _prefs.rail = cb.checked; savePrefs(); applyRail(); }); }
+      if(cb){ cb.setAttribute("data-dice", "rail"); cb.checked = !!prefs().rail; cb.addEventListener("change", onDiceSettingChange); }
       var host = el("dice-3d-settings");                        // static container; content rebuilt + rewired every load (no saved-copy corpse)
       if(host){
-        host.innerHTML = '<label class="lay-row"><input type="checkbox" id="set-dice3d"> 3D dice animation</label>' +
-          '<p class="wiz-hint">Rolls tumble as 3D dice across the sheet before the result card appears. With this off — or with “Disable animations” on above — results appear instantly. Needs WebGL; if it isn’t available, rolls just show instantly. If your system asks for reduced motion, this starts off, but checking it here wins.</p>' +
-          '<label class="lay-row">Dice theme&nbsp; <select id="set-dicetheme">' +
-            Engine.themes.map(function(t){ return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('') +
-          '</select></label>' +
-          '<p class="wiz-hint">Pre-made looks for the 3D dice — marbles, gems, metals, a nebula. Applies from your next roll.</p>';
-        var c3 = el("set-dice3d");
-        c3.checked = !!prefs().threeD;
-        c3.addEventListener("change", function(){ _prefs.threeD = c3.checked; savePrefs(); });
-        var th = el("set-dicetheme");
-        th.value = prefs().theme;
-        th.addEventListener("change", function(){ _prefs.theme = th.value; savePrefs(); Engine.clearMats(); });
+        host.innerHTML = diceSettingsHTML({ids: true, hints: true});
+        host.addEventListener("change", onDiceSettingChange);
       }
+      syncDiceUI();
     }
     function wireMenu(){ var b = el("btn-rolllog"); if(b) b.addEventListener("click", openLog); }
 
@@ -17308,7 +17375,17 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         ".dr-count{display:flex; align-items:center; justify-content:center; gap:3px; margin-bottom:2px}" +
         ".dr-count button{border:1px solid var(--line2); background:var(--field,#fff); color:var(--ink); cursor:pointer; width:18px; height:18px; line-height:1; padding:0; font-size:12px}" +
         ".dr-count .dr-n{font-size:10px; font-weight:800; min-width:22px; text-align:center}" +
+        ".dr-sep{height:1px; background:var(--line2); margin:3px 0; flex:none}" +
+        ".dr-act{border:1px solid var(--line2); background:var(--field,#fff); color:var(--ink); cursor:pointer; padding:5px 6px; font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; font-family:inherit}" +
+        ".dr-act:hover{color:var(--accent); border-color:var(--accent)}" +
+        ".dr-settings{display:flex; flex-direction:column; gap:6px; width:186px; padding:6px 2px 0}" +
+        ".dr-settings[hidden]{display:none}" +                  // the hidden attribute alone loses to display:flex
+        ".dr-settings .lay-row{font-size:11px; display:flex; align-items:center; gap:5px}" +
+        ".dr-settings select{width:100%; font-size:11px}" +
+        ".dr-note{font-size:9px; line-height:1.35; color:var(--muted); margin:0}" +
         "html.mobile #dice-rail .dr-toggle{padding:13px 6px} html.mobile .dr-die{min-height:44px; min-width:44px} html.mobile .dr-count button{width:26px; height:26px}" +
+        "html.mobile .dr-act{min-height:44px}" +
+        "body.dark .dr-act{background:var(--field) !important}" +
         "body.dark .dr-die, body.dark .dr-count button{background:var(--field) !important}" +
         ".rl-card{background:var(--card); color:var(--ink); width:min(560px,94vw); max-height:82vh; display:flex; flex-direction:column; border:1px solid var(--line2)}" +
         ".rl-acts{display:flex; gap:6px} .rl-list{overflow:auto; padding:6px 16px 12px}" +
@@ -17329,7 +17406,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       wrapCompute();
       renderAtkRollButtons();
       document.addEventListener("click", function(e){ try{ onDiceClick(e); }catch(err){} }, true);
-      window.DiceRoller = { rollSpell: rollSpell, rollScroll: rollScroll, roll: plainRoll, d20: d20Roll, damage: damageRoll, prefs: prefs, savePrefs: savePrefs, applyRail: applyRail };
+      window.DiceRoller = { rollSpell: rollSpell, rollScroll: rollScroll, roll: plainRoll, d20: d20Roll, damage: damageRoll, prefs: prefs, savePrefs: savePrefs, applyRail: applyRail,
+                            charPrefs: charPrefs, adoptCharPrefs: adoptCharPrefs, openLog: openLog };
       window.__diceTest = { last: function(){ return _last; }, setRoller: function(fn){ _rng = fn; }, instant: instant,
                            engineActive: function(){ return Engine.active(); }, shown: function(){ return Engine.shown(); },
                            engine: Engine, log: logLoad, parseDamageParts: parseDamageParts };
