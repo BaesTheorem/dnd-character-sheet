@@ -2071,7 +2071,7 @@
         <button class="btn menu-item" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
         <button class="btn menu-item" id="btn-hb-studio-top" type="button" title="Create and manage your custom spells, items, feats, and more">Homebrew Studio</button>
         <button class="btn menu-item" id="btn-print">Print / PDF</button>
-        <button class="btn menu-item" id="btn-rolllog" type="button" title="Your recent dice rolls (last 50, across all characters)">Roll Log</button>
+        <button class="btn menu-item" id="btn-rolllog" type="button" title="This character's recent dice rolls (last 50)">Roll Log</button>
         <button class="btn menu-item" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
       </div>
     </div>
@@ -3174,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v590 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v591 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.147.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.148.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3186,6 +3186,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v591", semver:"2.148.0", items:[
+      "The Roll Log is per character now, so each one keeps its own dice history instead of sharing a single list. Your existing rolls are carried over to whichever character made them.",
+      "The installed-app icon is now the same d20 as the browser-tab favicon, at the same size. Installing to a home screen also gets a properly inset version so the die isn't clipped by round icon masks.",
+    ]},
     {v:"v590", semver:"2.147.0", items:[
       "Dice settings are now per character, in Settings → Character Settings → Dice rolling. Each character keeps its own dice look and 3D setting, so your paladin can roll gold while your warlock rolls obsidian. Whatever you pick also becomes the starting look for new characters, and characters made before this just keep your current settings.",
       "The dice sidebar now holds everything dice: your Roll Log and all the dice settings live in it under Setup, so you never have to open Settings mid-session to change them.",
@@ -4091,6 +4095,7 @@
   const AW_ENABLED_KEY = "dnd-sheet-aw-enabled";   // Ancestral Weapons rules module on/off (browser-wide, like a togglable sourcebook)
   let awEnabled = true;
   let charDicePrefs = null;   // this character's dice settings ({theme, threeD, rail}); the dice module owns the live copy, this is just what collect() writes back if the module is absent
+  let charRollLog = null;     // …same deal for this character's roll log
   function loadAwEnabled(){ try{ const v = localStorage.getItem(AW_ENABLED_KEY); awEnabled = (v === null) ? true : v !== "0"; }catch(e){ awEnabled = true; } }
   function saveAwEnabled(){ try{ localStorage.setItem(AW_ENABLED_KEY, awEnabled ? "1" : "0"); }catch(e){} }
   function setAwEnabled(on){ awEnabled = !!on; saveAwEnabled(); if(typeof save === "function") save(); if(typeof refreshHbItems==="function") refreshHbItems(); if($("hb-studio")) renderHbStudio(); flashStatus("Ancestral Weapons " + (awEnabled ? "enabled" : "disabled") + " for this character"); }   // per-character (collect() persists data.awEnabled); localStorage keeps the default for characters without a record
@@ -9731,6 +9736,7 @@
     data.disabledSources = Array.isArray(charSrcOff) ? charSrcOff.slice() : Array.from(disabledBooks());   // per-character source enablement (Settings → Character Settings → Enabled sources)
     data.awEnabled = awEnabled;   // Ancestral Weapons rules module — per-character too
     data.dice = (window.DiceRoller && window.DiceRoller.charPrefs) ? window.DiceRoller.charPrefs() : charDicePrefs;   // dice look/behaviour is per-character (Settings → Character Settings → Dice rolling)
+    data.rollLog = (window.DiceRoller && window.DiceRoller.charLog) ? window.DiceRoller.charLog() : charRollLog;      // …and so is the roll log
     data.awOverrides = awOverrides;   // per-character Ancestral Weapon SP/upgrade tuning (source item untouched)
     data.infusions = infusions;
     data.arcaneArmor = arcaneArmor;
@@ -9838,6 +9844,8 @@
     awEnabled = (data && ("awEnabled" in data)) ? !!data.awEnabled : awEnabled;   // per-character AW module; a character with no record keeps the browser-wide value
     charDicePrefs = (data && data.dice && typeof data.dice === "object") ? data.dice : null;   // per-character dice; no record → the browser-wide default stands
     if(window.DiceRoller && window.DiceRoller.adoptCharPrefs) window.DiceRoller.adoptCharPrefs(charDicePrefs);
+    charRollLog = (data && Array.isArray(data.rollLog)) ? data.rollLog : null;                 // per-character roll log; no record → migrate this character's rolls out of the old shared log
+    if(window.DiceRoller && window.DiceRoller.adoptCharLog) window.DiceRoller.adoptCharLog(charRollLog, data && data.charname);
     charSrcOff = (data && Array.isArray(data.disabledSources)) ? data.disabledSources.map(String)
       : Array.from(new Set([ ...disabledBooks(), ...homebrewSources.filter(s => s.enabled === false).map(s => String(s.name)) ]));   // legacy character: adopt the current browser-wide choices as its starting per-character record
     const srcChanged = applyCharSources();   // project this character's source choices into the live stores (DATA rebuild if they differ)
@@ -16436,9 +16444,23 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       applyRail(); syncDiceUI();
     }
 
-    /* ---- roll log (global across characters; capped, localStorage only) ---- */
-    function logLoad(){ try{ var a = JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
-    function logSave(a){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(a)); }catch(e){} }
+    /* ---- roll log (PER-CHARACTER since 2.148.0; capped at LOG_MAX, rides character data like the dice prefs) ----
+       `_log` is the live array for the open character: `collect()` writes it as `data.rollLog` and `applyAll`
+       hands it back through `adoptCharLog`. The old browser-wide `dnd-sheet-rolllog` key is kept, read-only, as
+       a one-time migration source — a character with no record adopts the legacy rolls that carry ITS name. ---- */
+    var _log = [];
+    function legacyLog(){ try{ var a = JSON.parse(localStorage.getItem(LOG_KEY) || "[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+    function logLoad(){ return _log; }
+    function logSave(a){
+      _log = Array.isArray(a) ? a : [];
+      try{ if(typeof save === "function") save(); }catch(e){}
+    }
+    function charLog(){ return _log.slice(0, LOG_MAX); }        // what collect() persists
+    function adoptCharLog(rec, name){
+      if(Array.isArray(rec)){ _log = rec.slice(0, LOG_MAX); return; }
+      var nm = String(name || "").trim();                        // no record yet → inherit this character's rolls from the old shared log
+      _log = nm ? legacyLog().filter(function(r){ return r && String(r.ch || "").trim() === nm; }).slice(0, LOG_MAX) : [];
+    }
     function logDetail(res){
       if(res.kind === "d20"){
         var s = "d20 " + res.dice[0].v;
@@ -16454,9 +16476,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       }).join("; ");
     }
     function logPush(res){
-      var ch = ""; try{ ch = ((el("charname") || {}).value || "").trim(); }catch(e){}
-      var a = logLoad();
-      a.unshift({ t: Date.now(), ch: ch, k: res.rt || "", label: res.label, total: res.total, detail: logDetail(res) });
+      var a = logLoad();                                        // no `ch` any more — the log belongs to one character now
+      a.unshift({ t: Date.now(), k: res.rt || "", label: res.label, total: res.total, detail: logDetail(res) });
       if(a.length > LOG_MAX) a.length = LOG_MAX;
       logSave(a);
     }
@@ -17247,7 +17268,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         try{ t = new Date(r.t).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); }catch(e){}
         return '<div class="rl-row"><span class="rl-t">' + hEsc(t) + '</span><span class="rl-main"><span class="rl-lbl">' + hEsc(r.label) + "</span>" +
           (r.k ? ' <span class="rl-kind">' + hEsc(r.k) + "</span>" : "") +
-          (r.ch ? ' <span class="rl-ch">· ' + hEsc(r.ch) + "</span>" : "") +
           '<div class="rl-det">' + hEsc(r.detail || "") + '</div></span><span class="rl-tot">' + hEsc(r.total) + "</span></div>";
       }).join("");
     }
@@ -17275,7 +17295,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         '<span class="dr-n">1×</span><button type="button" class="dr-plus" title="More dice">+</button></div>' +
         RAIL_DICE.map(function(d){ return '<button type="button" class="dr-die" data-d="' + d + '" title="Roll ' + "d" + d + '">' + dieIconSvg(d) + "<span>d" + d + "</span></button>"; }).join("") +
         '<div class="dr-sep"></div>' +
-        '<button type="button" class="dr-act dr-log" title="Your recent rolls (last 50, across all characters)">Log</button>' +
+        '<button type="button" class="dr-act dr-log" title="Recent rolls for this character (last 50)">Log</button>' +
         '<button type="button" class="dr-act dr-gear" title="Dice settings for this character">Setup</button>' +
         '<div class="dr-settings" hidden>' + diceSettingsHTML({ids: false, hints: false}) +
           '<button type="button" class="dr-act dr-hide" title="Hide the dice sidebar">Hide sidebar</button>' +
@@ -17391,7 +17411,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         ".rl-acts{display:flex; gap:6px} .rl-list{overflow:auto; padding:6px 16px 12px}" +
         ".rl-row{display:flex; gap:10px; align-items:baseline; padding:7px 0; border-bottom:1px solid var(--line)} .rl-row:last-child{border-bottom:none}" +
         ".rl-t{font-size:10px; color:var(--muted); white-space:nowrap} .rl-main{flex:1; min-width:0}" +
-        ".rl-lbl{font-size:12px; font-weight:700} .rl-ch{font-size:10px; color:var(--muted)} .rl-det{font-size:10px; color:var(--muted)}" +
+        ".rl-lbl{font-size:12px; font-weight:700} .rl-det{font-size:10px; color:var(--muted)}" +
         ".rl-kind{font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); border:1px solid var(--line2); padding:1px 4px; margin-left:6px; vertical-align:1px; white-space:nowrap}" +
         ".rl-tot{font-size:16px; font-weight:900} .rl-empty{padding:20px; text-align:center; color:var(--muted); font-size:12px}";
       document.head.appendChild(s);
@@ -17411,6 +17431,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       window.__diceTest = { last: function(){ return _last; }, setRoller: function(fn){ _rng = fn; }, instant: instant,
                            engineActive: function(){ return Engine.active(); }, shown: function(){ return Engine.shown(); },
                            engine: Engine, log: logLoad, parseDamageParts: parseDamageParts };
+      window.DiceRoller.charLog = charLog; window.DiceRoller.adoptCharLog = adoptCharLog;
     }catch(e){}
   })();
   </script>
