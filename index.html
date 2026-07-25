@@ -3174,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v594 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v595 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.151.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.151.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3186,6 +3186,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v595", semver:"2.151.1", items:[
+      "The dice sidebar's Settings button now looks like a switch: it carries a caret showing it opens, and while the panel is open the button fills in and the panel is tinted to match, so it is obvious what is open and how to close it.",
+    ]},
     {v:"v594", semver:"2.151.0", items:[
       "Dice are now thrown in from the near edge of the screen, the way you would pitch them onto a table, instead of sliding in from the side.",
       "You can put the dice sidebar wherever you like: top, bottom, either side, or floating where you can drag it around by its handle. It defaults to the right on a computer and along the bottom on a phone, where your thumb can reach it.",
@@ -17404,6 +17407,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       return {x: Math.max(2, Math.min((window.innerWidth || 320) - w - 2, x)),
               y: Math.max(2, Math.min((window.innerHeight || 320) - h - 2, y))};
     }
+    function chevSvg(){ return '<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
     function applyRail(){
       var r = el("dice-rail"); if(!r) return;
       var p = prefs(), pos = railPosEff();
@@ -17430,7 +17434,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         RAIL_DICE.map(function(d){ return '<button type="button" class="dr-die" data-d="' + d + '" title="Roll ' + "d" + d + '">' + dieIconSvg(d) + "<span>d" + d + "</span></button>"; }).join("") +
         '<div class="dr-sep"></div>' +
         '<button type="button" class="dr-act dr-log" title="Recent rolls for this character (last 50)">Log</button>' +
-        '<button type="button" class="dr-act dr-gear" title="Dice settings for this character">Settings</button>' +
+        '<button type="button" class="dr-act dr-gear" aria-expanded="false" title="Dice settings for this character">Settings<span class="dr-chev">' + chevSvg() + '</span></button>' +
         '<div class="dr-settings" hidden>' + diceSettingsHTML({ids: false, hints: false}) +
           '<button type="button" class="dr-act dr-hide" title="Hide the dice sidebar">Hide sidebar</button>' +
           '<p class="dr-note">These are this character\'s dice. Bring the sidebar back in Settings → Character Settings → Dice rolling.</p>' +
@@ -17442,7 +17446,13 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         if(onDiceActionClick(ev)) return;
         if(ev.target.closest(".dr-toggle")){ _prefs.railOpen = !_prefs.railOpen; saveLocalPrefs(); applyRail(); return; }   // drawer state is browser-level, not character data
         if(ev.target.closest(".dr-log")){ openLog(); return; }
-        if(ev.target.closest(".dr-gear")){ var sp = r.querySelector(".dr-settings"); sp.hidden = !sp.hidden; return; }
+        if(ev.target.closest(".dr-gear")){
+          var sp = r.querySelector(".dr-settings"), g = r.querySelector(".dr-gear"), open = sp.hidden;
+          sp.hidden = !open;
+          g.classList.toggle("on", open);                          // filled + caret flipped while the panel is showing
+          g.setAttribute("aria-expanded", open ? "true" : "false");
+          return;
+        }
         if(ev.target.closest(".dr-hide")){ prefs().rail = false; savePrefs(); applyRail(); return; }
         if(ev.target.closest(".dr-plus")){ _railN = Math.min(9, _railN + 1); el("dice-rail").querySelector(".dr-n").textContent = _railN + "×"; return; }
         if(ev.target.closest(".dr-minus")){ _railN = Math.max(1, _railN - 1); el("dice-rail").querySelector(".dr-n").textContent = _railN + "×"; return; }
@@ -17659,7 +17669,11 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         ".dr-sep{height:1px; background:var(--line2); margin:3px 0; flex:none}" +
         ".dr-act{border:1px solid var(--line2); background:var(--field,#fff); color:var(--ink); cursor:pointer; padding:5px 6px; font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; font-family:inherit}" +
         ".dr-act:hover{color:var(--accent); border-color:var(--accent)}" +
-        ".dr-settings{display:flex; flex-direction:column; gap:6px; width:186px; padding:6px 2px 0}" +
+        ".dr-settings{display:flex; flex-direction:column; gap:6px; width:186px; padding:7px; background:var(--accent-soft)}" +
+        ".dr-gear{display:flex; align-items:center; justify-content:center; gap:5px}" +
+        ".dr-chev{display:inline-flex; line-height:0}" +
+        ".dr-act.on{background:var(--accent); border-color:var(--accent); color:#fff}" +
+        ".dr-act.on .dr-chev{transform:rotate(180deg)}" +
         ".dr-settings[hidden]{display:none}" +                  // the hidden attribute alone loses to display:flex
         ".dr-settings .lay-row{font-size:11px; display:flex; align-items:center; gap:5px}" +
         ".dr-settings select{width:100%; font-size:11px}" +
@@ -17669,6 +17683,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         "html.mobile #dice-rail .dr-toggle{padding:13px 6px} html.mobile .dr-die{min-height:44px; min-width:44px} html.mobile .dr-count button{width:26px; height:26px}" +
         "html.mobile .dr-act{min-height:44px}" +
         "body.dark .dr-act{background:var(--field) !important}" +
+        "body.dark .dr-act.on{background:var(--accent) !important; color:#17191e}" +   /* the dark palette's accent is a LIGHT gold — white on it is unreadable */
         "body.dark .dr-die, body.dark .dr-count button{background:var(--field) !important}" +
         ".rl-card{background:var(--card); color:var(--ink); width:min(560px,94vw); max-height:82vh; display:flex; flex-direction:column; border:1px solid var(--line2)}" +
         ".rl-acts{display:flex; gap:6px} .rl-list{overflow:auto; padding:6px 16px 12px}" +
