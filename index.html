@@ -3173,11 +3173,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v588 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v589 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.145.6";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.146.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3185,6 +3185,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v589", semver:"2.146.0", items:[
+      "Dice numbers now sit dead centre on their face. They were anchored to the widest part of the face rather than its middle, which pushed triangle digits down toward the base, and they were centred on the text's advance width instead of the ink, so digits like 1 sat a couple of pixels off. Each number is now ink-centred on the face's true centre at the largest size that actually fits inside it.",
+      "The d4 is now numbered like a real one: a digit at each corner of every face, read at the top point. A tetrahedron lands on a face, so nothing points up, and the old \"highest face\" reading was a three-way tie decided by rounding noise, which is why the d4 looked wrong when it landed.",
+    ]},
     {v:"v588", semver:"2.145.6", items:[
       "Bigger d20 favicon: the die now fills the browser-tab icon instead of sitting inside a wide margin, so it reads better at 16px.",
     ]},
@@ -16687,7 +16691,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           var pts = f.poly.map(function(vi){ var p = new THREE.Vector3().subVectors(u.verts[vi], f.cen); return {vi: vi, x: p.dot(right), y: p.dot(up)}; });
           var m = 0; pts.forEach(function(p){ m = Math.max(m, Math.abs(p.x), Math.abs(p.y)); });
           var s = 0.44 / (m || 1), count = 0;
-          if(fi === 0) uvPoly = pts.map(function(p){ return {x: 64 + p.x * s * 128, y: 64 - p.y * s * 128}; });   // face outline in 128px texture space (faces congruent + same up-rule) — drives the digit fit
+          f.uvPts = pts.map(function(p){ return {vi: p.vi, x: 64 + p.x * s * 128, y: 64 - p.y * s * 128}; });      // this face's own corners in 128px texture space (the d4 numbers each corner separately)
+          if(fi === 0) uvPoly = f.uvPts.map(function(p){ return {x: p.x, y: p.y}; });   // face outline (faces congruent + same up-rule) — drives the digit fit
           for(var t = 1; t < pts.length - 1; t++){
             [pts[0], pts[t], pts[t + 1]].forEach(function(p){
               var v = u.verts[p.vi]; pos.push(v.x, v.y, v.z); uv.push(0.5 + p.x * s, 0.5 + p.y * s);
@@ -16704,7 +16709,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var shape = new CANNON.ConvexPolyhedron(
           u.verts.map(function(v){ return new CANNON.Vec3(v.x, v.y, v.z); }),
           faces.map(function(f){ return f.poly.slice(); }));
-        return (geomCache[sides] = {geom: geom, faces: faces, shape: shape, uvPoly: uvPoly});
+        return (geomCache[sides] = {geom: geom, faces: faces, shape: shape, uvPoly: uvPoly, verts: u.verts});
       }
       /* ---- face painters: everything procedural, no assets. Each theme paints its own background. ---- */
       function pRadial(x, c0, c1){ var g = x.createRadialGradient(64, 56, 10, 64, 66, 96); g.addColorStop(0, c0); g.addColorStop(1, c1); x.fillStyle = g; x.fillRect(0, 0, 128, 128); }
@@ -16792,6 +16797,73 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
          paint:function(x){ pRadial(x, "#d3d7dc", "#82898f"); pBrush(x, ["#ffffff","#5c6167"], 46); pSpeck(x, "rgba(40,44,48,.5)", 5, 0.5); }}
       ];
       function themeById(id){ for(var i = 0; i < DICE_THEMES.length; i++) if(DICE_THEMES[i].id === id) return DICE_THEMES[i]; return null; }
+      /* ---- digit placement ----
+         Two things have to be right or a number reads as off-centre once its face lands at an angle.
+         (1) ANCHOR: the polygon's own centre, not the widest horizontal band. The band heuristic maximised
+         size but parked triangle digits down near the base, so a landed d4/d8/d20 showed its number shoved
+         toward a corner. (2) INK, not advance box: canvas textAlign:"center" centres the ADVANCE width, and
+         a bold "1" carries very different side bearings, which left digits 1-3px off. We measure the real ink
+         bounds and offset by them. Size is then an exact convex fit — the largest font whose ink box (6/9
+         underline included) keeps all four corners inside the face. ---- */
+      function polyCentre(poly){
+        var cx = 0, cy = 0;
+        for(var i = 0; i < poly.length; i++){ cx += poly[i].x; cy += poly[i].y; }
+        return {x: cx / poly.length, y: cy / poly.length};
+      }
+      function ptInPoly(poly, px, py){                              // faces are convex: every edge cross-product must share a sign
+        var sign = 0;
+        for(var i = 0; i < poly.length; i++){
+          var a = poly[i], b = poly[(i + 1) % poly.length];
+          var cr = (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x);
+          if(Math.abs(cr) < 1e-9) continue;
+          var s = cr > 0 ? 1 : -1;
+          if(!sign) sign = s; else if(s !== sign) return false;
+        }
+        return true;
+      }
+      function inkOf(x, label){                                     // ink extents around an (align:centre, baseline:middle) anchor
+        var m = x.measureText(label), fs = parseFloat(x.font) || 10;
+        var l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight, a = m.actualBoundingBoxAscent, d = m.actualBoundingBoxDescent;
+        if(typeof l !== "number" || isNaN(l)){ l = m.width / 2; r = m.width / 2; }            // ancient engines: fall back to the advance box
+        if(typeof a !== "number" || isNaN(a)){ a = fs * 0.36; d = fs * 0.36; }
+        return {l: l, r: r, a: a, d: d, w: l + r, h: a + d, dx: (r - l) / 2, dy: (d - a) / 2};
+      }
+      function setFont(x, fs){ x.font = "800 " + fs.toFixed(1) + "px system-ui, Arial, sans-serif"; }
+      function rotPoly(poly, cx, cy, rot){                          // spin the face into the digit's own frame so the fit test stays axis-aligned
+        var c = Math.cos(-rot), s = Math.sin(-rot);
+        return poly.map(function(p){
+          var dx = p.x - cx, dy = p.y - cy;
+          return {x: cx + dx * c - dy * s, y: cy + dx * s + dy * c};
+        });
+      }
+      function drawDigit(x, theme, label, poly, cx, cy, baseFs, rot){
+        var ulF = (label === "6" || label === "9") ? 0.34 : 0;       // 6/9 underline, sized off the font
+        var fs = baseFs;
+        if(poly){                                                   // binary-search the largest font that still fits the face
+          if(rot) poly = rotPoly(poly, cx, cy, rot);
+          var lo = 9, hi = baseFs;
+          for(var i = 0; i < 9; i++){
+            var mid = (lo + hi) / 2; setFont(x, mid);
+            var ibm = inkOf(x, label);
+            if(boxIn(poly, cx, cy, ibm.w + 7, ibm.h + mid * ulF + 7)) lo = mid; else hi = mid;
+          }
+          fs = lo;
+        }
+        setFont(x, fs);
+        var ib = inkOf(x, label), ulH = fs * ulF;
+        x.save();
+        x.translate(cx, cy);
+        if(rot) x.rotate(rot);
+        var tx = -ib.dx, ty = -ib.dy - ulH / 2;                     // ink centred on the anchor; underline shares the block
+        if(theme.stroke){ x.strokeStyle = theme.stroke; x.lineWidth = Math.max(2, fs / 14); x.strokeText(label, tx, ty); }   // contrast halo so numbers read on busy faces
+        x.fillStyle = theme.ink; x.fillText(label, tx, ty);
+        if(ulF){ var w2 = Math.round(fs * 0.34); x.fillRect(-w2, ty + ib.d + Math.round(fs * 0.14), w2 * 2, Math.max(3, Math.round(fs / 11))); }   // so 6 and 9 can't be misread
+        x.restore();
+      }
+      function boxIn(poly, cx, cy, w, h){
+        return ptInPoly(poly, cx - w / 2, cy - h / 2) && ptInPoly(poly, cx + w / 2, cy - h / 2)
+            && ptInPoly(poly, cx - w / 2, cy + h / 2) && ptInPoly(poly, cx + w / 2, cy + h / 2);
+      }
       function faceTex(theme, label, sides){
         var key = theme.id + "|" + sides + "|" + label;
         if(texCache[key]) return texCache[key];
@@ -16799,44 +16871,30 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var x = c.getContext("2d");
         theme.paint(x);
         x.textAlign = "center"; x.textBaseline = "middle";
-        var small = (sides === 4 || sides === 8 || sides === 20);                  // triangle faces get a smaller digit
-        var fs = small ? 40 : 56, cy = 62;
-        x.font = "800 " + fs + "px system-ui, Arial, sans-serif";
-        var tw = x.measureText(label).width;
-        // Fit the digits to the face's ACTUAL polygon (exported by buildGeom in the same UV frame): centre the
-        // text on the band where the polygon is widest over the digit's full height (underline included), and
-        // shrink only as far as that band truly requires — the old fixed per-shape width guess left d10
-        // numbers needlessly small. Faces are symmetric about x=64, so only y needs choosing.
         var poly = null; try{ poly = buildGeom(sides).uvPoly; }catch(e){}
-        function bandW(y){
-          if(!poly) return 0;
-          var xs = [];
-          for(var i2 = 0; i2 < poly.length; i2++){
-            var a2 = poly[i2], b2 = poly[(i2 + 1) % poly.length];
-            if((a2.y <= y && b2.y >= y) || (b2.y <= y && a2.y >= y)){ var tt = (y - a2.y) / ((b2.y - a2.y) || 1e-9); xs.push(a2.x + tt * (b2.x - a2.x)); }
-          }
-          if(xs.length < 2) return 0;
-          xs.sort(function(p2, q2){ return p2 - q2; });
-          return xs[xs.length - 1] - xs[0];
-        }
-        if(poly){
-          for(var pass = 0; pass < 2; pass++){                                     // shrinking the font narrows the needed band → settle in two passes
-            var hh2 = fs * 0.36, ul2 = (label === "6" || label === "9") ? fs * 0.38 : 0;
-            var bestY = 62, bestU = 0;
-            for(var yy = 44; yy <= 84; yy += 2){
-              var u2 = Math.min(bandW(yy - hh2), bandW(yy), bandW(yy + hh2 + ul2)) - 10;
-              if(u2 > bestU){ bestU = u2; bestY = yy; }
-            }
-            cy = bestY;
-            if(tw > bestU && bestU > 0){ fs = Math.max(20, Math.floor(fs * bestU / tw)); x.font = "800 " + fs + "px system-ui, Arial, sans-serif"; tw = x.measureText(label).width; }
-          }
-        } else {
-          var maxW = sides === 10 ? 48 : (small ? 56 : 74);
-          if(tw > maxW){ fs = Math.max(18, Math.floor(fs * maxW / tw)); x.font = "800 " + fs + "px system-ui, Arial, sans-serif"; }
-        }
-        if(theme.stroke){ x.strokeStyle = theme.stroke; x.lineWidth = Math.max(2, fs / 14); x.strokeText(label, 64, cy); }   // contrast halo so numbers read on busy faces
-        x.fillStyle = theme.ink; x.fillText(label, 64, cy);
-        if(label === "6" || label === "9"){ var w2 = Math.round(fs * 0.36); x.fillRect(64 - w2, cy + Math.round(fs * 0.62), w2 * 2, Math.max(3, Math.round(fs / 11))); }   // underline so they can't be misread
+        var ctr = poly ? polyCentre(poly) : {x: 64, y: 64};
+        drawDigit(x, theme, label, poly, ctr.x, ctr.y, (sides === 4 || sides === 8 || sides === 20) ? 44 : 58, 0);
+        var t = new THREE.CanvasTexture(c); t.anisotropy = 4;
+        return (texCache[key] = t);
+      }
+      /* ---- d4: numbered by VERTEX and read at the apex, like a real one ----
+         A tetrahedron lands ON a face, so nothing points up — "the face whose normal is most upward" was a
+         three-way tie between the three tilted sides, so the result landed on a slanted face picked by
+         floating-point noise. Real d4s print a number at each corner of every face and you read the apex, so
+         each face here carries its three corners' digits (each rotated to stand upright when ITS corner is
+         the apex) and the result is the value on whichever vertex ends up highest. ---- */
+      function d4Tex(theme, corners){                               // corners = [{v, x, y}] in this face's texture space
+        var key = theme.id + "|4v|" + corners.map(function(cn){ return cn.v; }).join("-");
+        if(texCache[key]) return texCache[key];
+        var c = document.createElement("canvas"); c.width = c.height = 128;
+        var x = c.getContext("2d");
+        theme.paint(x);
+        x.textAlign = "center"; x.textBaseline = "middle";
+        var ctr = polyCentre(corners), poly = corners.map(function(cn){ return {x: cn.x, y: cn.y}; });
+        corners.forEach(function(cn){
+          var dx = cn.x - ctr.x, dy = cn.y - ctr.y;
+          drawDigit(x, theme, cn.v, poly, ctr.x + dx * 0.5, ctr.y + dy * 0.5, 30, Math.atan2(dx, -dy));   // glyph "up" points at its own corner; fit keeps it off the edges
+        });
         var t = new THREE.CanvasTexture(c); t.anisotropy = 4;
         return (texCache[key] = t);
       }
@@ -16858,9 +16916,11 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       }
       function faceMat(label, sides){
         var theme = themeById(prefs().theme) || DICE_THEMES[0];
-        var key = theme.id + "|" + sides + "|" + label;
+        return matFor(theme, theme.id + "|" + sides + "|" + label, function(){ return faceTex(theme, label, sides); });
+      }
+      function matFor(theme, key, mkTex){
         if(matCache[key]) return matCache[key];
-        var map = faceTex(theme, label, sides), m;
+        var map = mkTex(), m;
         if(theme.kind === "metal")   // brushed, not chrome: partial metalness + real roughness reads far less CGI than a perfect mirror
           m = new THREE.MeshPhysicalMaterial({map: map, metalness: 0.85, roughness: 0.4, envMap: envTex(), envMapIntensity: 0.8});   // env map still mandatory or metal renders black
         else if(theme.kind === "gem")   // deep polished stone: near-opaque saturated body (front-side — DoubleSide washed it out), bright core glow, hard clearcoat sparkle, a whisper of page-through at the map's alpha
@@ -16875,8 +16935,24 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           m = new THREE.MeshPhysicalMaterial({map: map, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08, envMap: envTex(), envMapIntensity: 0.55});
         return (matCache[key] = m);
       }
+      function d4Mats(bg, vertVals){                             // one texture per face, carrying that face's three corner digits
+        var theme = themeById(prefs().theme) || DICE_THEMES[0];
+        return bg.faces.map(function(f){
+          var corners = f.uvPts.map(function(p){ return {v: vertVals[p.vi], x: p.x, y: p.y}; });
+          var key = theme.id + "|4v|" + corners.map(function(cn){ return cn.v; }).join("-");
+          return matFor(theme, key, function(){ return d4Tex(theme, corners); });
+        });
+      }
       function makeDie(spec){                                    // spec = {d, v} or {d, labels:[…], target:"label"} (percentile d10s)
         var d = spec.d, bg = buildGeom(d), mats = [], vals = [];
+        if(d === 4){                                             // vertex-numbered: the apex is the result, so labels ride the corners
+          var vv = ["1", "2", "3", "4"];
+          var m4 = new THREE.Mesh(bg.geom, d4Mats(bg, vv));
+          m4.userData = {d4: true, vertVals: vv, target: String(spec.v), faces: bg.faces, bg: bg};
+          var b4 = new CANNON.Body({mass: 1, shape: bg.shape, material: diceMat});
+          b4.linearDamping = 0.12; b4.angularDamping = 0.12;
+          return {mesh: m4, body: b4};
+        }
         for(var i = 0; i < bg.faces.length; i++){
           var lab = spec.labels ? spec.labels[i] : String(i + 1);
           vals.push(lab); mats.push(faceMat(lab, d));
@@ -16947,8 +17023,25 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         });
         return bi;
       }
+      function upVertexIndex(mesh, bg){                            // a tetrahedron rests on a face, so the RESULT is the apex vertex
+        var best = -2, bi = 0;
+        bg.verts.forEach(function(v, i){
+          var y = v.clone().applyQuaternion(mesh.quaternion).y;
+          if(y > best){ best = y; bi = i; }
+        });
+        return bi;
+      }
       function remap(die){
-        var mesh = die.mesh, vals = mesh.userData.vals, t = mesh.userData.target;
+        var mesh = die.mesh, ud = mesh.userData;
+        if(ud.d4){
+          var iu = upVertexIndex(mesh, ud.bg), iv = ud.vertVals.indexOf(ud.target);
+          if(iv >= 0 && iu !== iv){
+            var sw = ud.vertVals[iu]; ud.vertVals[iu] = ud.vertVals[iv]; ud.vertVals[iv] = sw;
+            mesh.material = d4Mats(ud.bg, ud.vertVals);            // corner digits moved → repaint all four faces (still pre-render)
+          }
+          return isNaN(+ud.vertVals[iu]) ? ud.vertVals[iu] : +ud.vertVals[iu];
+        }
+        var vals = ud.vals, t = ud.target;
         var fu = upFaceIndex(mesh), fv = vals.indexOf(t);
         if(fv >= 0 && fu !== fv){
           var m = mesh.material, tm = m[fu]; m[fu] = m[fv]; m[fv] = tm;
