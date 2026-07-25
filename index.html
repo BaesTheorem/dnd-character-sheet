@@ -3174,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v593 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v594 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.150.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.151.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3186,6 +3186,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v594", semver:"2.151.0", items:[
+      "Dice are now thrown in from the near edge of the screen, the way you would pitch them onto a table, instead of sliding in from the side.",
+      "You can put the dice sidebar wherever you like: top, bottom, either side, or floating where you can drag it around by its handle. It defaults to the right on a computer and along the bottom on a phone, where your thumb can reach it.",
+      "Save your dice: once you have a theme, font and colour you like, save them under a name and they join the theme list under “Saved dice”, ready to use on any character.",
+    ]},
     {v:"v593", semver:"2.150.0", items:[
       "Dice now bounce off the dice sidebar instead of tumbling over it — it is solid furniture on the table, and the collision follows it as it opens, closes and resizes.",
       "New per-character dice setting: the colour of the numbers, with a colour picker. Picking a dice theme resets it to that theme's own colour, so choose the theme first and then tune the numbers.",
@@ -16369,7 +16374,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
      that has already been decided. */
   (function(){
     "use strict";
-    var LOG_KEY = "dnd-sheet-rolllog", PREF_KEY = "dnd-sheet-dice", LOG_MAX = 50;
+    var LOG_KEY = "dnd-sheet-rolllog", PREF_KEY = "dnd-sheet-dice", CUSTOM_KEY = "dnd-sheet-dice-custom", LOG_MAX = 50;
     var _last = null, _rng = null, _pendingDmg = null, _cardTimer = null, _railN = 1;
     var AB_NAME = {str:"Strength", dex:"Dexterity", con:"Constitution", int:"Intelligence", wis:"Wisdom", cha:"Charisma"};
     var DMG_TYPES = /\b(acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder)\b/i;
@@ -16417,7 +16422,16 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
        character that has no record yet — the same rule the Ancestral Weapons module follows. `theme`/`threeD`/
        `rail` ride character data (collect/applyAll); `railOpen` stays browser-level because it's drawer state,
        not a setting, and a character switch is a full reload so `_prefs` is rebuilt from localStorage first. ---- */
-    var CHAR_PREF_KEYS = ["theme", "font", "ink", "threeD", "rail"];
+    /* ---- saved dice: theme + font + colour captured under a name, listed alongside the built-in themes.
+       Browser-level (not character data) because it is a LIBRARY — you design a die once and pick it for any
+       character. A saved die stores the BASE theme id, so it keeps that theme's paint/finish and only overrides
+       the number font and colour. ---- */
+    function customDice(){ try{ var a = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "[]"); return Array.isArray(a) ? a : []; }catch(e){ return []; } }
+    function saveCustomDice(a){ try{ localStorage.setItem(CUSTOM_KEY, JSON.stringify(a)); }catch(e){} }
+    function customById(id){ var a = customDice(); for(var i = 0; i < a.length; i++) if(a[i].id === id) return a[i]; return null; }
+    function isCustomTheme(id){ return typeof id === "string" && id.indexOf("custom:") === 0; }
+    var RAIL_POS = ["auto", "top", "right", "bottom", "left", "float"];
+    var CHAR_PREF_KEYS = ["theme", "font", "ink", "threeD", "rail", "railPos"];
     var _prefs = null;
     function prefs(){
       if(_prefs) return _prefs;
@@ -16431,7 +16445,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       _prefs = { theme: t, font: fid, ink: (typeof p.ink === "string" ? p.ink : ""),   // "" = follow the theme's own number colour
                  
                  threeD: ("threeD" in p) ? p.threeD !== false : !reducedMotion(),   // stored choice wins; OS reduced-motion only sets the first-run default
-                 rail: p.rail !== 0, railOpen: ("railOpen" in p) ? !!p.railOpen : !isMobile() };
+                 rail: p.rail !== 0, railOpen: ("railOpen" in p) ? !!p.railOpen : !isMobile(),
+                 railPos: (RAIL_POS.indexOf(p.railPos) >= 0 ? p.railPos : "auto"),
+                 railXY: (p.railXY && typeof p.railXY.x === "number" && typeof p.railXY.y === "number") ? {x: p.railXY.x, y: p.railXY.y} : null };
       return _prefs;
     }
     function saveLocalPrefs(){ try{ localStorage.setItem(PREF_KEY, JSON.stringify(prefs())); }catch(e){} }
@@ -16451,6 +16467,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         if(typeof rec.threeD === "boolean") p.threeD = rec.threeD;
         try{ if(rec.font && Engine && Engine.fontById(rec.font)) p.font = rec.font; }catch(e){}
         if(typeof rec.ink === "string") p.ink = rec.ink;
+        if(RAIL_POS.indexOf(rec.railPos) >= 0) p.railPos = rec.railPos;
         if(typeof rec.rail === "boolean") p.rail = rec.rail;
         var t = {plastic:"crimson", metal:"steel"}[rec.theme] || rec.theme;       // same migration the stored pref gets
         try{ if(t && Engine && Engine.themeById(t)) p.theme = t; }catch(e){}
@@ -16670,7 +16687,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
        triangles with matching normals (d10 is a hand-built pentagonal trapezohedron), each face gets
        its own CanvasTexture number — zero binary assets. */
     var Engine = (function(){
-      var renderer = null, scene = null, camera = null, world = null, diceMat = null, tableMat = null, walls = [], keyLight = null, shadowFloor = null, railBody = null;
+      var renderer = null, scene = null, camera = null, world = null, diceMat = null, tableMat = null, walls = [], keyLight = null, shadowFloor = null, railBody = null, railRect = null;
       var dice = [], raf = 0, idleT = 0, clearT = 0, running = false, lost = false, unsupported = false;
       var onDone = null, settleFrames = 0, startT = 0, ext = {hw: 12, hh: 8};
       var geomCache = {}, texCache = {}, matCache = {}, _shown = null;
@@ -16880,7 +16897,16 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         {id:"steel", name:"Steel", ink:"#14181d", stroke:"rgba(255,255,255,.4)", kind:"metal",
          paint:function(x){ pRadial(x, "#d3d7dc", "#82898f"); pBrush(x, ["#ffffff","#5c6167"], 46); pSpeck(x, "rgba(40,44,48,.5)", 5, 0.5); }}
       ];
-      function themeById(id){ for(var i = 0; i < DICE_THEMES.length; i++) if(DICE_THEMES[i].id === id) return DICE_THEMES[i]; return null; }
+      function baseThemeById(id){ for(var i = 0; i < DICE_THEMES.length; i++) if(DICE_THEMES[i].id === id) return DICE_THEMES[i]; return null; }
+      function customTheme(c){                                    // a saved die renders as its base theme with the saved number colour
+        var b = baseThemeById(c.base) || DICE_THEMES[0];
+        return {id: c.id, name: c.name, custom: true, base: c.base, font: c.font, ink: c.ink || b.ink, stroke: b.stroke, kind: b.kind, paint: b.paint};
+      }
+      function themeById(id){
+        if(isCustomTheme(id)){ var c = customById(id); return c ? customTheme(c) : null; }
+        return baseThemeById(id);
+      }
+      function allThemes(){ return DICE_THEMES.concat(customDice().map(customTheme)); }
       /* ---- digit placement ----
          Two things have to be right or a number reads as off-centre once its face lands at an angle.
          (1) ANCHOR: the polygon's own centre, not the widest horizontal band. The band heuristic maximised
@@ -17121,6 +17147,18 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         });
         syncRailCollider();
       }
+      function playArea(){
+        // The table minus whatever edge the sidebar is docked against, so dice are never thrown into it.
+        // Only an edge the rail actually TOUCHES is inset — a floating rail doesn't shrink the table.
+        var a = {x0: -ext.hw, x1: ext.hw, z0: -ext.hh, z1: ext.hh};
+        if(railRect){
+          if(railRect.x1 >= a.x1 - 0.2) a.x1 = Math.min(a.x1, railRect.x0);
+          else if(railRect.x0 <= a.x0 + 0.2) a.x0 = Math.max(a.x0, railRect.x1);
+          if(railRect.z1 >= a.z1 - 0.2) a.z1 = Math.min(a.z1, railRect.z0);
+          else if(railRect.z0 <= a.z0 + 0.2) a.z0 = Math.max(a.z0, railRect.z1);
+        }
+        return a;
+      }
       function syncRailCollider(){
         // The dice sidebar is real furniture on the table: give it a static box matching its on-screen rect so
         // dice bounce off instead of rolling beneath it. Screen→world: the camera looks straight down with up
@@ -17132,6 +17170,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         // (same trap as the detached prep-stat chip; applyRail() is what sets display:none when it is hidden).
         if(r && getComputedStyle(r).display !== "none"){ var b = r.getBoundingClientRect(); if(b.width > 2 && b.height > 2) rect = b; }
         if(railBody){ try{ world.removeBody ? world.removeBody(railBody) : world.remove(railBody); }catch(e){} railBody = null; }
+        railRect = null;
         if(!rect) return;                                          // sidebar hidden → no collider
         var W = window.innerWidth || 1, H = window.innerHeight || 1;
         var sx = (2 * ext.hw) / W, sz = (2 * ext.hh) / H;
@@ -17139,6 +17178,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         railBody = new CANNON.Body({mass: 0, material: tableMat,
           shape: new CANNON.Box(new CANNON.Vec3(Math.max(0.05, (rect.width / 2 + pad) * sx), 20, Math.max(0.05, (rect.height / 2 + pad) * sz)))});
         railBody.position.set((rect.left + rect.width / 2 - W / 2) * sx, 0, (rect.top + rect.height / 2 - H / 2) * sz);
+        railRect = {x0: (rect.left - W / 2) * sx, x1: (rect.right - W / 2) * sx,
+                    z0: (rect.top - H / 2) * sz,  z1: (rect.bottom - H / 2) * sz};
         world.addBody(railBody);
       }
       function upFaceIndex(mesh){
@@ -17224,8 +17265,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         onDone = cb; running = true; _shown = null;
         list.forEach(function(spec, k){
           var die = makeDie(spec);
-          die.body.position.set(-ext.hw + 1.4, 3.2 + (k % 3) * 2.4, -ext.hh + 2.5 + ((k * 2.1) % (ext.hh * 1.4)));
-          die.body.velocity.set(19 + Math.random() * 11, -2, (Math.random() - 0.5) * 12);
+          var pa = playArea(), spanX = Math.max(3.4, pa.x1 - pa.x0 - 3.2);
+          die.body.position.set(pa.x0 + 1.6 + ((k * 2.1) % spanX), 3.2 + (k % 3) * 2.4, pa.z1 - 1.4);   // near (bottom) edge of the table
+          die.body.velocity.set((Math.random() - 0.5) * 12, -2, -(19 + Math.random() * 11));            // screen-up is -z, so a throw AWAY from the player
           die.body.angularVelocity.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
           die.body.quaternion.setFromEuler(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
           scene.add(die.mesh); world.addBody(die.body);
@@ -17266,7 +17308,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
                canvas: function(){ return renderer ? renderer.domElement : null; },
                clearMats: function(){ matCache = {}; texCache = {}; },            // theme changed → rebuild on next roll
                mat: function(label, sides){ return ensure() ? faceMat(String(label), sides) : null; },
-               themes: DICE_THEMES, themeById: themeById, fonts: DICE_FONTS, fontById: fontById,
+               themes: allThemes, builtinThemes: DICE_THEMES, themeById: themeById, fonts: DICE_FONTS, fontById: fontById,
+               syncRail: function(){ try{ syncRailCollider(); }catch(e){} },
                faceCount: function(sides){ return window.THREE ? buildGeom(sides).faces.length : 0; } };
     })();
 
@@ -17352,10 +17395,30 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
                   20:"10,1.5 17.5,6 17.5,14 10,18.5 2.5,14 2.5,6", 100:"10,1.5 17,7.5 14.2,17.5 5.8,17.5 3,7.5" };
       return '<svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><polygon points="' + pts[d] + '" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
     }
+    function railPosEff(){                                      // "auto" = out of the way: down the side on a desktop, along the bottom on a phone
+      var v = prefs().railPos;
+      return (!v || v === "auto") ? (isMobile() ? "bottom" : "right") : v;
+    }
+    function clampFloat(x, y, r){
+      var w = r.offsetWidth || 60, h = r.offsetHeight || 60;
+      return {x: Math.max(2, Math.min((window.innerWidth || 320) - w - 2, x)),
+              y: Math.max(2, Math.min((window.innerHeight || 320) - h - 2, y))};
+    }
     function applyRail(){
       var r = el("dice-rail"); if(!r) return;
-      r.style.display = prefs().rail ? "" : "none";
-      r.classList.toggle("open", !!prefs().railOpen);
+      var p = prefs(), pos = railPosEff();
+      r.style.display = p.rail ? "" : "none";
+      r.classList.toggle("open", !!p.railOpen);
+      r.dataset.pos = pos;
+      if(pos === "float"){
+        var xy = p.railXY || {x: (window.innerWidth || 900) - 240, y: 100};
+        var c = clampFloat(xy.x, xy.y, r);                        // a stored spot can fall off-screen after a resize or rotation
+        r.style.left = c.x + "px"; r.style.top = c.y + "px"; r.style.right = "auto"; r.style.bottom = "auto";
+        p.railXY = c;
+      } else {
+        r.style.left = ""; r.style.top = ""; r.style.right = ""; r.style.bottom = "";
+      }
+      try{ Engine.syncRail(); }catch(e){}                         // the collider follows the rail wherever it goes
     }
     function buildRail(){
       var old = el("dice-rail"); if(old) old.remove();        // serialized corpse from a saved copy (belt & suspenders; it's data-transient anyway)
@@ -17373,8 +17436,10 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           '<p class="dr-note">These are this character\'s dice. Bring the sidebar back in Settings → Character Settings → Dice rolling.</p>' +
         "</div></div>";
       document.body.appendChild(r);
+      railDrag(r);
       r.addEventListener("change", onDiceSettingChange);
       r.addEventListener("click", function(ev){
+        if(onDiceActionClick(ev)) return;
         if(ev.target.closest(".dr-toggle")){ _prefs.railOpen = !_prefs.railOpen; saveLocalPrefs(); applyRail(); return; }   // drawer state is browser-level, not character data
         if(ev.target.closest(".dr-log")){ openLog(); return; }
         if(ev.target.closest(".dr-gear")){ var sp = r.querySelector(".dr-settings"); sp.hidden = !sp.hidden; return; }
@@ -17387,6 +17452,39 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       applyRail();
     }
 
+    function railDrag(r){
+      // Floating rail: the toggle doubles as the drag handle. A few px of slop separates a drag from a click,
+      // and the capture-phase click swallow stops the drag-release from also toggling the drawer.
+      var h = r.querySelector(".dr-toggle"), sx = 0, sy = 0, ox = 0, oy = 0, moved = false, on = false;
+      if(!h) return;
+      h.addEventListener("pointerdown", function(ev){
+        if(railPosEff() !== "float" || ev.button) return;
+        var b = r.getBoundingClientRect();
+        on = true; moved = false; sx = ev.clientX; sy = ev.clientY; ox = b.left; oy = b.top;
+        try{ h.setPointerCapture(ev.pointerId); }catch(e){}
+      });
+      h.addEventListener("pointermove", function(ev){
+        if(!on) return;
+        var dx = ev.clientX - sx, dy = ev.clientY - sy;
+        if(!moved && Math.abs(dx) + Math.abs(dy) < 5) return;
+        if(!moved){ moved = true; r.classList.add("dragging"); }
+        var c = clampFloat(ox + dx, oy + dy, r);
+        r.style.left = c.x + "px"; r.style.top = c.y + "px";
+        prefs().railXY = c;
+        ev.preventDefault();
+      });
+      h.addEventListener("pointerup", function(ev){
+        if(!on) return;
+        on = false; r.classList.remove("dragging");
+        try{ h.releasePointerCapture(ev.pointerId); }catch(e){}
+        if(moved){ saveLocalPrefs(); try{ Engine.syncRail(); }catch(e){} }   // pixels are device state, not character data
+      });
+      h.addEventListener("click", function(ev){
+        if(moved){ ev.stopPropagation(); ev.preventDefault(); moved = false; }   // that pointerup was a drop, not a tap
+      }, true);
+      window.addEventListener("resize", function(){ if(railPosEff() === "float") applyRail(); });
+    }
+
     /* ---- settings + menu wiring (the controls are static HTML — safe to serialize; re-wired here every load) ----
        The same controls render in TWO places (Settings → Character Settings, and the sidebar's Setup panel), so
        each one carries a `data-dice` key rather than relying on its id: one change handler and one sync repaint
@@ -17396,7 +17494,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       return '<label class="lay-row"><input type="checkbox"' + i3 + ' data-dice="threeD"> 3D dice animation</label>' +
         (opts.hints ? '<p class="wiz-hint">Rolls tumble as 3D dice across the sheet before the result card appears. With this off — or with “Disable animations” on (Settings → General) — results appear instantly. Needs WebGL; if it isn’t available, rolls just show instantly. If your system asks for reduced motion, this starts off, but checking it here wins.</p>' : "") +
         '<label class="lay-row">' + (opts.hints ? "Dice theme" : "Theme") + '&nbsp; <select' + it + ' data-dice="theme">' +   // the rail is narrow — "Dice theme" wraps there
-          Engine.themes.map(function(t){ return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('') +
+          themeOptionsHTML() +
         '</select></label>' +
         (opts.hints ? '<p class="wiz-hint">Pre-made looks for the 3D dice — marbles, gems, metals, a nebula. Applies from your next roll.</p>' : "") +
         '<label class="lay-row">' + (opts.hints ? "Number font" : "Font") + '&nbsp; <select' + (opts.ids ? ' id="set-dicefont"' : '') + ' data-dice="font">' +
@@ -17404,15 +17502,69 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         '</select></label>' +
         (opts.hints ? '<p class="wiz-hint">The typeface for the numbers on the dice. Each one is re-fitted to the face, so a wider font just prints a little smaller. Applies from your next roll.</p>' : "") +
         '<label class="lay-row">' + (opts.hints ? "Number colour" : "Colour") + '&nbsp; <input type="color"' + (opts.ids ? ' id="set-diceink"' : '') + ' data-dice="ink"></label>' +
+        '<label class="lay-row">' + (opts.hints ? "Sidebar position" : "Position") + '&nbsp; <select' + (opts.ids ? ' id="set-dicerailpos"' : '') + ' data-dice="railPos">' +
+          '<option value="auto">Automatic</option><option value="right">Right edge</option><option value="left">Left edge</option>' +
+          '<option value="top">Top edge</option><option value="bottom">Bottom edge</option><option value="float">Floating</option>' +
+        '</select></label>' +
+        (opts.hints ? '<p class="wiz-hint">Where the dice sidebar sits. Automatic puts it down the right on a computer and along the bottom on a phone, where it is easier to reach. Floating lets you drag it anywhere by its handle. Dice bounce off it wherever it is.</p>' : "") +
+        '<div class="dr-dieacts"><button type="button" class="dr-act" data-dice-act="save">Save these dice</button>' +
+        '<button type="button" class="dr-act" data-dice-act="del" hidden>Delete</button></div>' +
+        (opts.hints ? '<p class="wiz-hint">Saves the current theme, font and colour together under a name. It joins the list above under “Saved dice”, so you can give it to any character. Delete removes the saved die you have selected.</p>' : "") +
         (opts.hints ? '<p class="wiz-hint">The colour of the numbers themselves. Picking a dice theme resets this to the colour that theme ships with, so choose the theme first and then tune the numbers.</p>' : "");
+    }
+    function themeOptionsHTML(){
+      var built = Engine.builtinThemes.map(function(x){ return '<option value="' + x.id + '">' + hEsc(x.name) + '</option>'; }).join('');
+      var mine = customDice().map(function(c){ return '<option value="' + hEsc(c.id) + '">' + hEsc(c.name) + '</option>'; }).join('');
+      return mine ? ('<optgroup label="Themes">' + built + '</optgroup><optgroup label="Saved dice">' + mine + '</optgroup>') : built;
+    }
+    function refreshThemeOptions(){                               // saved dice changed → repaint every theme picker, keeping the selection
+      var sel = prefs().theme, html = themeOptionsHTML();
+      var list = document.querySelectorAll('[data-dice="theme"]');
+      for(var i = 0; i < list.length; i++){ list[i].innerHTML = html; list[i].value = sel; }
+    }
+    function saveCurrentDie(){
+      var p = prefs(), th = null;
+      try{ th = Engine.themeById(p.theme); }catch(e){}
+      var base = isCustomTheme(p.theme) ? ((customById(p.theme) || {}).base || "crimson") : p.theme;
+      var suggested = (th && th.name ? th.name : "My dice");
+      var name = "";
+      try{ name = (window.prompt("Name these dice", suggested) || "").trim(); }catch(e){ name = suggested; }
+      if(!name) return;
+      var list = customDice();
+      var id = "custom:" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      list.push({id: id, name: name, base: base, font: p.font, ink: (p.ink || (th && th.ink) || "")});
+      saveCustomDice(list);
+      p.theme = id; savePrefs(); refreshThemeOptions(); syncDiceUI();
+    }
+    function deleteCurrentDie(){
+      var p = prefs();
+      if(!isCustomTheme(p.theme)) return;
+      var c = customById(p.theme);
+      saveCustomDice(customDice().filter(function(x){ return x.id !== p.theme; }));
+      p.theme = (c && c.base) || "crimson";                       // fall back to whatever it was built on
+      savePrefs(); try{ Engine.clearMats(); }catch(e){}
+      refreshThemeOptions(); syncDiceUI();
+    }
+    function onDiceActionClick(ev){
+      var b = ev.target && ev.target.closest && ev.target.closest("[data-dice-act]");
+      if(!b) return false;
+      var a = b.getAttribute("data-dice-act");
+      if(a === "save") saveCurrentDie();
+      else if(a === "del") deleteCurrentDie();
+      return true;
     }
     function onDiceSettingChange(ev){
       var t = ev.target, k = t && t.getAttribute && t.getAttribute("data-dice");
       if(!k) return;
       var p = prefs();
       if(t.type === "color"){ p.ink = t.value; savePrefs(); try{ Engine.clearMats(); }catch(e){} return; }
+      if(k === "railPos"){ p.railPos = t.value; savePrefs(); applyRail(); return; }
       if(t.tagName === "SELECT"){                                 // theme + font both re-paint every face
-        if(k === "theme") p.ink = "";                             // a new theme brings its own number colour; keeping the old override hides it
+        if(k === "theme"){
+          var c = customById(t.value);
+          if(c){ p.font = c.font || p.font; p.ink = c.ink || ""; }  // a saved die carries its own font + colour
+          else p.ink = "";                                          // a plain theme brings its own number colour; keeping the old override would hide it
+        }
         p[k] = t.value; savePrefs(); try{ Engine.clearMats(); }catch(e){} return;
       }
       p[k] = !!t.checked; savePrefs();
@@ -17430,6 +17582,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           else if(c.tagName === "SELECT"){ if(c.value !== p[k]) c.value = p[k]; }
           else c.checked = !!p[k];
         }
+        var del = document.querySelectorAll('[data-dice-act="del"]');
+        for(var j = 0; j < del.length; j++) del[j].hidden = !isCustomTheme(p.theme);   // only a saved die can be deleted
       }catch(e){}
     }
     function wireSettings(){
@@ -17439,6 +17593,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       if(host){
         host.innerHTML = diceSettingsHTML({ids: true, hints: true});
         host.addEventListener("change", onDiceSettingChange);
+        host.addEventListener("click", onDiceActionClick);
       }
       syncDiceUI();
     }
@@ -17470,10 +17625,32 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         ".dc-dmgbtn:hover{border-color:var(--accent); color:var(--accent)} #dice-card.crit .dc-dmgbtn{border-color:#c9a227; color:#8a6d1a}" +
         "html.mobile #dice-card{left:10px; right:10px; width:auto; bottom:70px}" +
         "body.dark #dice-card .dc-die, body.dark .dc-dmgbtn{background:var(--field) !important}" +
-        "#dice-rail{position:fixed; right:0; top:50%; transform:translateY(-50%); z-index:40; display:flex; align-items:center; font-family:var(--font); color:var(--ink)}" +
-        "#dice-rail .dr-toggle{border:1px solid var(--line2); border-right:none; background:var(--card); color:var(--ink); cursor:pointer; padding:9px 5px; line-height:0}" +
-        "#dice-rail .dr-body{display:none; flex-direction:column; gap:4px; background:var(--card); border:1px solid var(--line2); border-right:none; padding:6px; max-height:calc(100vh - 8px); overflow:auto}" +
+        // The rail docks to any edge (or floats) — `data-pos` drives it. Base rules are position-agnostic;
+        // each dock then sets its own anchor, flex direction and which border is dropped against the screen.
+        "#dice-rail{position:fixed; z-index:40; display:flex; align-items:center; font-family:var(--font); color:var(--ink)}" +
+        "#dice-rail .dr-toggle{border:1px solid var(--line2); background:var(--card); color:var(--ink); cursor:pointer; padding:9px 5px; line-height:0}" +
+        "#dice-rail .dr-body{display:none; gap:4px; background:var(--card); border:1px solid var(--line2); padding:6px; overflow:auto}" +
         "#dice-rail.open .dr-body{display:flex}" +
+        /* vertical docks: a column of dice, bounded by viewport height */
+        '#dice-rail[data-pos="right"],#dice-rail[data-pos="left"],#dice-rail[data-pos="float"]{top:50%; transform:translateY(-50%)}' +
+        '#dice-rail[data-pos="right"]{right:0}' +
+        '#dice-rail[data-pos="left"]{left:0; flex-direction:row-reverse}' +
+        '#dice-rail[data-pos="float"]{transform:none; box-shadow:none}' +
+        '#dice-rail[data-pos="right"] .dr-body,#dice-rail[data-pos="left"] .dr-body,#dice-rail[data-pos="float"] .dr-body{flex-direction:column; max-height:calc(100vh - 8px)}' +
+        '#dice-rail[data-pos="right"] .dr-toggle,#dice-rail[data-pos="right"] .dr-body{border-right:none}' +
+        '#dice-rail[data-pos="left"] .dr-toggle,#dice-rail[data-pos="left"] .dr-body{border-left:none}' +
+        '#dice-rail[data-pos="float"] .dr-toggle{cursor:grab}' +
+        '#dice-rail[data-pos="float"].dragging .dr-toggle{cursor:grabbing}' +
+        /* horizontal docks: a wrapping row, bounded by viewport width */
+        '#dice-rail[data-pos="top"],#dice-rail[data-pos="bottom"]{left:0; right:0; transform:none; flex-direction:column}' +
+        '#dice-rail[data-pos="top"]{top:0; flex-direction:column-reverse}' +
+        '#dice-rail[data-pos="bottom"]{bottom:0}' +
+        '#dice-rail[data-pos="top"] .dr-body,#dice-rail[data-pos="bottom"] .dr-body{flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; width:100%; box-sizing:border-box; border-left:none; border-right:none; max-height:calc(100vh - 8px)}' +
+        '#dice-rail[data-pos="top"] .dr-toggle,#dice-rail[data-pos="bottom"] .dr-toggle{padding:5px 14px}' +
+        '#dice-rail[data-pos="top"] .dr-toggle,#dice-rail[data-pos="top"] .dr-body{border-top:none}' +
+        '#dice-rail[data-pos="bottom"] .dr-toggle,#dice-rail[data-pos="bottom"] .dr-body{border-bottom:none}' +
+        '#dice-rail[data-pos="top"] .dr-sep,#dice-rail[data-pos="bottom"] .dr-sep{width:1px; height:26px; margin:0 3px}' +
+        '#dice-rail[data-pos="top"] .dr-settings,#dice-rail[data-pos="bottom"] .dr-settings{flex-basis:100%; width:auto; max-width:420px; margin:0 auto}' +
         ".dr-die{display:flex; flex-direction:column; align-items:center; gap:1px; border:1px solid var(--line2); background:var(--field,#fff); color:var(--ink); cursor:pointer; padding:5px 8px; font-size:9px; font-weight:800; letter-spacing:.04em}" +
         ".dr-die:hover{color:var(--accent); border-color:var(--accent)}" +
         ".dr-count{display:flex; align-items:center; justify-content:center; gap:3px; margin-bottom:2px}" +
@@ -17488,6 +17665,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         ".dr-settings select{width:100%; font-size:11px}" +
         ".dr-settings input[type=color]{width:100%; height:22px; padding:0; border:1px solid var(--line2); background:var(--field,#fff); cursor:pointer}" +
         ".dr-note{font-size:9px; line-height:1.35; color:var(--muted); margin:0}" +
+        ".dr-dieacts{display:flex; gap:4px} .dr-dieacts .dr-act{flex:1}" +
         "html.mobile #dice-rail .dr-toggle{padding:13px 6px} html.mobile .dr-die{min-height:44px; min-width:44px} html.mobile .dr-count button{width:26px; height:26px}" +
         "html.mobile .dr-act{min-height:44px}" +
         "body.dark .dr-act{background:var(--field) !important}" +
