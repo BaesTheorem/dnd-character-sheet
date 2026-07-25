@@ -3174,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v591 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v592 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.148.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.149.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3186,6 +3186,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v592", semver:"2.149.0", items:[
+      "The 3D dice cast soft shadows now, so they sit on the sheet instead of floating above it.",
+      "New per-character dice setting: the font for the numbers on the dice. Six to pick from (Sans, Serif, Typewriter, Condensed, Mono, Fantasy), in Settings → Character Settings → Dice rolling and in the sidebar under Setup. Each number is re-fitted to its face, so a wider font just prints a little smaller.",
+    ]},
     {v:"v591", semver:"2.148.0", items:[
       "The Roll Log is per character now, so each one keeps its own dice history instead of sharing a single list. Your existing rolls are carried over to whichever character made them.",
       "The installed-app icon is now the same d20 as the browser-tab favicon, at the same size. Installing to a home screen also gets a properly inset version so the die isn't clipped by round icon masks.",
@@ -16407,7 +16411,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
        character that has no record yet — the same rule the Ancestral Weapons module follows. `theme`/`threeD`/
        `rail` ride character data (collect/applyAll); `railOpen` stays browser-level because it's drawer state,
        not a setting, and a character switch is a full reload so `_prefs` is rebuilt from localStorage first. ---- */
-    var CHAR_PREF_KEYS = ["theme", "threeD", "rail"];
+    var CHAR_PREF_KEYS = ["theme", "font", "threeD", "rail"];
     var _prefs = null;
     function prefs(){
       if(_prefs) return _prefs;
@@ -16416,7 +16420,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       // to the closest theme; anything unknown falls back to the default.
       var t = {plastic:"crimson", metal:"steel"}[p.theme] || p.theme || "crimson";   // "glass"/"opal" are real theme ids again (2.143.0)
       try{ if(!(Engine && Engine.themeById(t))) t = "crimson"; }catch(e){ t = "crimson"; }
-      _prefs = { theme: t,
+      var fid = p.font;
+      try{ if(!(Engine && Engine.fontById(fid))) fid = "sans"; }catch(e){ fid = "sans"; }
+      _prefs = { theme: t, font: fid,
                  threeD: ("threeD" in p) ? p.threeD !== false : !reducedMotion(),   // stored choice wins; OS reduced-motion only sets the first-run default
                  rail: p.rail !== 0, railOpen: ("railOpen" in p) ? !!p.railOpen : !isMobile() };
       return _prefs;
@@ -16436,6 +16442,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var p = prefs();
       if(rec && typeof rec === "object"){
         if(typeof rec.threeD === "boolean") p.threeD = rec.threeD;
+        try{ if(rec.font && Engine && Engine.fontById(rec.font)) p.font = rec.font; }catch(e){}
         if(typeof rec.rail === "boolean") p.rail = rec.rail;
         var t = {plastic:"crimson", metal:"steel"}[rec.theme] || rec.theme;       // same migration the stored pref gets
         try{ if(t && Engine && Engine.themeById(t)) p.theme = t; }catch(e){}
@@ -16655,7 +16662,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
        triangles with matching normals (d10 is a hand-built pentagonal trapezohedron), each face gets
        its own CanvasTexture number — zero binary assets. */
     var Engine = (function(){
-      var renderer = null, scene = null, camera = null, world = null, diceMat = null, walls = [];
+      var renderer = null, scene = null, camera = null, world = null, diceMat = null, walls = [], keyLight = null, shadowFloor = null;
       var dice = [], raf = 0, idleT = 0, clearT = 0, running = false, lost = false, unsupported = false;
       var onDone = null, settleFrames = 0, startT = 0, ext = {hw: 12, hh: 8};
       var geomCache = {}, texCache = {}, matCache = {}, _shown = null;
@@ -16826,6 +16833,18 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
          rendered DoubleSide with depthWrite off — the page showing through plus the die's own back faces
          is what actually reads as translucent stone/glass. Numbers are painted opaque so they stay solid.
          Metals get brushed grain + tarnish in the map and a duller finish so they don't read as CGI chrome. */
+      /* ---- number fonts (system stacks only -- nothing bundled or fetched, per the self-contained rule).
+              `w` is the weight each face carries: the display faces already read heavy, so they don't take 800. ---- */
+      var DICE_FONTS = [
+        {id:"sans",    name:"Sans",      w:800, f:'system-ui, "Helvetica Neue", Arial, sans-serif'},
+        {id:"serif",   name:"Serif",     w:700, f:'Georgia, "Times New Roman", Times, serif'},
+        {id:"typewriter", name:"Typewriter", w:700, f:'"American Typewriter", "Courier New", Courier, serif'},
+        {id:"narrow",  name:"Condensed", w:700, f:'"Avenir Next Condensed", "Arial Narrow", Impact, sans-serif'},
+        {id:"mono",    name:"Mono",      w:700, f:'ui-monospace, Menlo, Consolas, "Courier New", monospace'},
+        {id:"fantasy", name:"Fantasy",   w:700, f:'Luminari, Papyrus, Copperplate, fantasy'}
+      ];
+      function fontById(id){ for(var i = 0; i < DICE_FONTS.length; i++) if(DICE_FONTS[i].id === id) return DICE_FONTS[i]; return null; }
+      function activeFont(){ return fontById(prefs().font) || DICE_FONTS[0]; }
       var DICE_THEMES = [
         {id:"crimson", name:"Crimson", ink:"#ffffff", stroke:"rgba(60,0,0,.45)", kind:"gloss",
          paint:function(x){ pRadial(x, "#d4403f", "#8c1d24"); }},
@@ -16877,14 +16896,15 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         }
         return true;
       }
-      function inkOf(x, label){                                     // ink extents around an (align:centre, baseline:middle) anchor
-        var m = x.measureText(label), fs = parseFloat(x.font) || 10;
+      function inkOf(x, label, fs){                                 // ink extents around an (align:centre, baseline:middle) anchor
+        var m = x.measureText(label);
+        fs = fs || 10;                                              // passed in, never parsed: parseFloat on the font shorthand reads the WEIGHT, not the px size
         var l = m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight, a = m.actualBoundingBoxAscent, d = m.actualBoundingBoxDescent;
         if(typeof l !== "number" || isNaN(l)){ l = m.width / 2; r = m.width / 2; }            // ancient engines: fall back to the advance box
         if(typeof a !== "number" || isNaN(a)){ a = fs * 0.36; d = fs * 0.36; }
         return {l: l, r: r, a: a, d: d, w: l + r, h: a + d, dx: (r - l) / 2, dy: (d - a) / 2};
       }
-      function setFont(x, fs){ x.font = "800 " + fs.toFixed(1) + "px system-ui, Arial, sans-serif"; }
+      function setFont(x, fs){ var f = activeFont(); x.font = f.w + " " + fs.toFixed(1) + "px " + f.f; }
       function rotPoly(poly, cx, cy, rot){                          // spin the face into the digit's own frame so the fit test stays axis-aligned
         var c = Math.cos(-rot), s = Math.sin(-rot);
         return poly.map(function(p){
@@ -16900,13 +16920,13 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           var lo = 9, hi = baseFs;
           for(var i = 0; i < 9; i++){
             var mid = (lo + hi) / 2; setFont(x, mid);
-            var ibm = inkOf(x, label);
+            var ibm = inkOf(x, label, mid);
             if(boxIn(poly, cx, cy, ibm.w + 7, ibm.h + mid * ulF + 7)) lo = mid; else hi = mid;
           }
           fs = lo;
         }
         setFont(x, fs);
-        var ib = inkOf(x, label), ulH = fs * ulF;
+        var ib = inkOf(x, label, fs), ulH = fs * ulF;
         x.save();
         x.translate(cx, cy);
         if(rot) x.rotate(rot);
@@ -16921,7 +16941,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
             && ptInPoly(poly, cx - w / 2, cy + h / 2) && ptInPoly(poly, cx + w / 2, cy + h / 2);
       }
       function faceTex(theme, label, sides){
-        var key = theme.id + "|" + sides + "|" + label;
+        var key = theme.id + "|" + activeFont().id + "|" + sides + "|" + label;
         if(texCache[key]) return texCache[key];
         var c = document.createElement("canvas"); c.width = c.height = 128;
         var x = c.getContext("2d");
@@ -16940,7 +16960,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
          each face here carries its three corners' digits (each rotated to stand upright when ITS corner is
          the apex) and the result is the value on whichever vertex ends up highest. ---- */
       function d4Tex(theme, corners){                               // corners = [{v, x, y}] in this face's texture space
-        var key = theme.id + "|4v|" + corners.map(function(cn){ return cn.v; }).join("-");
+        var key = theme.id + "|" + activeFont().id + "|4v|" + corners.map(function(cn){ return cn.v; }).join("-");
         if(texCache[key]) return texCache[key];
         var c = document.createElement("canvas"); c.width = c.height = 128;
         var x = c.getContext("2d");
@@ -16972,7 +16992,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       }
       function faceMat(label, sides){
         var theme = themeById(prefs().theme) || DICE_THEMES[0];
-        return matFor(theme, theme.id + "|" + sides + "|" + label, function(){ return faceTex(theme, label, sides); });
+        return matFor(theme, theme.id + "|" + activeFont().id + "|" + sides + "|" + label, function(){ return faceTex(theme, label, sides); });
       }
       function matFor(theme, key, mkTex){
         if(matCache[key]) return matCache[key];
@@ -16995,7 +17015,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var theme = themeById(prefs().theme) || DICE_THEMES[0];
         return bg.faces.map(function(f){
           var corners = f.uvPts.map(function(p){ return {v: vertVals[p.vi], x: p.x, y: p.y}; });
-          var key = theme.id + "|4v|" + corners.map(function(cn){ return cn.v; }).join("-");
+          var key = theme.id + "|" + activeFont().id + "|4v|" + corners.map(function(cn){ return cn.v; }).join("-");
           return matFor(theme, key, function(){ return d4Tex(theme, corners); });
         });
       }
@@ -17004,6 +17024,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         if(d === 4){                                             // vertex-numbered: the apex is the result, so labels ride the corners
           var vv = ["1", "2", "3", "4"];
           var m4 = new THREE.Mesh(bg.geom, d4Mats(bg, vv));
+          m4.castShadow = true;
           m4.userData = {d4: true, vertVals: vv, target: String(spec.v), faces: bg.faces, bg: bg};
           var b4 = new CANNON.Body({mass: 1, shape: bg.shape, material: diceMat});
           b4.linearDamping = 0.12; b4.angularDamping = 0.12;
@@ -17014,6 +17035,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           vals.push(lab); mats.push(faceMat(lab, d));
         }
         var mesh = new THREE.Mesh(bg.geom, mats);
+        mesh.castShadow = true;
         mesh.userData = {vals: vals, target: String(spec.labels ? spec.target : spec.v), faces: bg.faces};
         var body = new CANNON.Body({mass: 1, shape: bg.shape, material: diceMat});
         body.linearDamping = 0.12; body.angularDamping = 0.12;
@@ -17028,11 +17050,24 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           document.body.appendChild(cv);
           renderer = new THREE.WebGLRenderer({canvas: cv, alpha: true, antialias: true, powerPreference: "low-power"});
           renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+          // Soft contact shadows so the dice sit ON the sheet instead of floating. This is ONLY the shadow half
+          // of the reverted 2.144.0 photoreal pass (commit 789149a) — the tone mapping, studio rig and sRGB
+          // pipeline stay out, since the flat look is the one Alex kept. Lighting below is unchanged; the same
+          // directional light just casts now.
+          renderer.shadowMap.enabled = true;
+          renderer.shadowMap.type = THREE.PCFSoftShadowMap;
           scene = new THREE.Scene();
           camera = new THREE.PerspectiveCamera(FOV, 1, 1, 100);
           camera.position.set(0, CAM_Y, 0); camera.up.set(0, 0, -1); camera.lookAt(0, 0, 0);
           scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-          var dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(-8, 20, 6); scene.add(dl);
+          keyLight = new THREE.DirectionalLight(0xffffff, 0.9); keyLight.position.set(-8, 20, -7);   // pulled to -z so the shadow falls DOWN-screen (camera up is -z); behind-the-die shadows read as floating
+          keyLight.castShadow = true;
+          keyLight.shadow.mapSize.width = keyLight.shadow.mapSize.height = 2048;
+          keyLight.shadow.radius = 7; keyLight.shadow.bias = -0.0004;                 // radius softens the edge; bias kills the self-shadow acne on flat faces
+          scene.add(keyLight);
+          shadowFloor = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.ShadowMaterial({opacity: 0.26}));
+          shadowFloor.rotation.x = -Math.PI / 2; shadowFloor.receiveShadow = true;     // ShadowMaterial paints ONLY the shadow, so the overlay stays transparent over the sheet
+          scene.add(shadowFloor);
           world = new CANNON.World();
           world.gravity.set(0, -60, 0);
           world.solver.iterations = 16;
@@ -17058,6 +17093,11 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         renderer.setSize(W, H, false);
         camera.aspect = W / H; camera.updateProjectionMatrix();
         ext.hh = Math.tan(FOV * Math.PI / 360) * CAM_Y; ext.hw = ext.hh * camera.aspect;
+        if(keyLight){                                              // shadow camera must cover the whole visible floor or shadows clip at the viewport edges
+          var sc = keyLight.shadow.camera, sr = Math.max(ext.hw, ext.hh) + 6;
+          sc.left = -sr; sc.right = sr; sc.top = sr; sc.bottom = -sr; sc.near = 1; sc.far = 60;
+          sc.updateProjectionMatrix();
+        }
         // 4 invisible walls just inside the viewport edges, normals pointing inward
         var q = CANNON.Quaternion, defs = [
           {p: [-ext.hw, 0, 0], ax: [0, 1, 0], an: Math.PI / 2},     // left → +X
@@ -17188,14 +17228,14 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           try{ renderer.dispose(); }catch(e){}
           var cv = renderer.domElement; if(cv && cv.parentNode) cv.parentNode.removeChild(cv);
         }
-        renderer = null; scene = null; camera = null; world = null; walls = [];
+        renderer = null; scene = null; camera = null; world = null; walls = []; keyLight = null; shadowFloor = null;
       }
       return { supported: supported, roll: roll, dispose: dispose,
                active: function(){ return running; }, shown: function(){ return _shown; },
                canvas: function(){ return renderer ? renderer.domElement : null; },
                clearMats: function(){ matCache = {}; texCache = {}; },            // theme changed → rebuild on next roll
                mat: function(label, sides){ return ensure() ? faceMat(String(label), sides) : null; },
-               themes: DICE_THEMES, themeById: themeById,
+               themes: DICE_THEMES, themeById: themeById, fonts: DICE_FONTS, fontById: fontById,
                faceCount: function(sides){ return window.THREE ? buildGeom(sides).faces.length : 0; } };
     })();
 
@@ -17327,13 +17367,17 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         '<label class="lay-row">' + (opts.hints ? "Dice theme" : "Theme") + '&nbsp; <select' + it + ' data-dice="theme">' +   // the rail is narrow — "Dice theme" wraps there
           Engine.themes.map(function(t){ return '<option value="' + t.id + '">' + t.name + '</option>'; }).join('') +
         '</select></label>' +
-        (opts.hints ? '<p class="wiz-hint">Pre-made looks for the 3D dice — marbles, gems, metals, a nebula. Applies from your next roll.</p>' : "");
+        (opts.hints ? '<p class="wiz-hint">Pre-made looks for the 3D dice — marbles, gems, metals, a nebula. Applies from your next roll.</p>' : "") +
+        '<label class="lay-row">' + (opts.hints ? "Number font" : "Font") + '&nbsp; <select' + (opts.ids ? ' id="set-dicefont"' : '') + ' data-dice="font">' +
+          Engine.fonts.map(function(f){ return '<option value="' + f.id + '">' + f.name + '</option>'; }).join('') +
+        '</select></label>' +
+        (opts.hints ? '<p class="wiz-hint">The typeface for the numbers on the dice. Each one is re-fitted to the face, so a wider font just prints a little smaller. Applies from your next roll.</p>' : "");
     }
     function onDiceSettingChange(ev){
       var t = ev.target, k = t && t.getAttribute && t.getAttribute("data-dice");
       if(!k) return;
       var p = prefs();
-      if(k === "theme"){ p.theme = t.value; savePrefs(); try{ Engine.clearMats(); }catch(e){} return; }
+      if(t.tagName === "SELECT"){ p[k] = t.value; savePrefs(); try{ Engine.clearMats(); }catch(e){} return; }   // theme + font both re-paint every face
       p[k] = !!t.checked; savePrefs();
       if(k === "rail") applyRail();
     }
@@ -17343,7 +17387,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         var list = document.querySelectorAll("[data-dice]");
         for(var i = 0; i < list.length; i++){
           var c = list[i], k = c.getAttribute("data-dice");
-          if(k === "theme"){ if(c.value !== p.theme) c.value = p.theme; }
+          if(c.tagName === "SELECT"){ if(c.value !== p[k]) c.value = p[k]; }
           else c.checked = !!p[k];
         }
       }catch(e){}
