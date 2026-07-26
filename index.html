@@ -3174,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v598 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v599 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.151.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.151.5";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3186,6 +3186,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v599", semver:"2.151.5", items:[
+      "Dice now leave from the centre of the screen's bottom edge. They only shift aside if the dice sidebar actually covers the middle, so a sidebar down one side no longer pulls the throw off-centre.",
+    ]},
     {v:"v598", semver:"2.151.4", items:[
       "Every dice throw now starts from the bottom of the screen, centred, and lands around the middle of the table instead of flying to the far edge. With the sidebar along the bottom or the top, throws were also being crammed into the bottom-left corner.",
     ]},
@@ -17289,7 +17292,11 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         // on a tall phone as well as a wide desktop — a flat speed sent them clear across and piled them
         // against the far edge, so what you saw at rest was dice at the TOP of the screen.
         var depth = Math.max(4, pa.z1 - pa.z0), n = list.length;
-        var spanX = Math.max(0, Math.min(pa.x1 - pa.x0 - 3.2, (n - 1) * 2.1)), cx = (pa.x0 + pa.x1) / 2;
+        var spanX = Math.max(0, Math.min(pa.x1 - pa.x0 - 3.2, (n - 1) * 2.1));
+        // Centre of the SCREEN (x = 0), not of the play area — a side-docked rail shouldn't drag the throw
+        // off-centre when the bottom edge is clear. Nudged only if the rail genuinely covers the middle.
+        var lo = pa.x0 + 1.2 + spanX / 2, hi = pa.x1 - 1.2 - spanX / 2;
+        var cx = (lo > hi) ? (pa.x0 + pa.x1) / 2 : Math.max(lo, Math.min(hi, 0));
         list.forEach(function(spec, k){
           var die = makeDie(spec);
           var x = cx + (n > 1 ? (k / (n - 1) - 0.5) * spanX : 0), z = pa.z1 - 1.4;
