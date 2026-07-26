@@ -8,6 +8,25 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Character Sheet">
 <title>Character Sheet</title>
+<!-- Link preview (Open Graph / Twitter card). Kept right at the top of <head> on purpose: this document is
+     ~15MB, and a crawler that reads only the first chunk before giving up still gets everything it needs.
+     og:image must be an ABSOLUTE url — a relative one is ignored by most scrapers. Scrapers cache the image
+     hard, so if og-image.png is ever redrawn, add a ?v=N to bust them. -->
+<meta name="description" content="A free, fully automated D&amp;D 5e character sheet that runs entirely in your browser. No account, no install, and it works offline.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="D&amp;D 5e Character Sheet">
+<meta property="og:url" content="https://baestheorem.github.io/dnd-character-sheet/">
+<meta property="og:title" content="D&amp;D 5e Character Sheet">
+<meta property="og:description" content="A free, fully automated D&amp;D 5e character sheet that runs entirely in your browser. No account, no install, and it works offline.">
+<meta property="og:image" content="https://baestheorem.github.io/dnd-character-sheet/og-image.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A twenty-sided die beside the words D&amp;D 5e Character Sheet.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="D&amp;D 5e Character Sheet">
+<meta name="twitter:description" content="A free, fully automated D&amp;D 5e character sheet that runs entirely in your browser. No account, no install, and it works offline.">
+<meta name="twitter:image" content="https://baestheorem.github.io/dnd-character-sheet/og-image.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjMuNyAzLjUgMjQuNiAyNC42Ij48c3R5bGU+LmJ7ZmlsbDojM2I0YTYzfS5se2ZpbGw6bm9uZTtzdHJva2U6I2VlZjBmMztzdHJva2Utd2lkdGg6MS41O3N0cm9rZS1saW5lam9pbjpyb3VuZDtzdHJva2UtbGluZWNhcDpyb3VuZH1AbWVkaWEgKHByZWZlcnMtY29sb3Itc2NoZW1lOmRhcmspey5ie2ZpbGw6I2U3ZWFmMX0ubHtzdHJva2U6IzJmM2I1MH19PC9zdHlsZT48cGF0aCBjbGFzcz0iYiIgZD0iTTE2IDQuNSAyNS45NiAxMC4yNVYyMS43NUwxNiAyNy41IDYuMDQgMjEuNzVWMTAuMjVaIi8+PGcgY2xhc3M9ImwiPjxwYXRoIGQ9Ik0xNiAxMS41IDEwIDIwLjVIMjJaIi8+PHBhdGggZD0iTTE2IDExLjVWNC41TTEwIDIwLjUgNi4wNCAyMS43NU0yMiAyMC41IDI1Ljk2IDIxLjc1Ii8+PC9nPjwvc3ZnPg==">
 <style>
   /* ---- Clean minimal modern, fully self-contained (no external assets) ---- */
@@ -3174,11 +3193,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v601 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v602 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.151.7";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.151.8";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
