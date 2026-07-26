@@ -3174,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v597 (2026-07-25)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v598 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.151.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.151.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3186,6 +3186,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v598", semver:"2.151.4", items:[
+      "Every dice throw now starts from the bottom of the screen, centred, and lands around the middle of the table instead of flying to the far edge. With the sidebar along the bottom or the top, throws were also being crammed into the bottom-left corner.",
+    ]},
     {v:"v597", semver:"2.151.3", items:[
       "Dropped the floating sidebar's separate grip strip — drag the dice icon itself to move it, tap it to open. A small wobble still counts as a tap, and finishing a drag no longer opens the drawer.",
     ]},
@@ -17159,13 +17162,20 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       }
       function playArea(){
         // The table minus whatever edge the sidebar is docked against, so dice are never thrown into it.
-        // Only an edge the rail actually TOUCHES is inset — a floating rail doesn't shrink the table.
+        // Exactly ONE edge is inset — the edge the rail is docked to, which is the one it reaches least far
+        // from. A full-width bottom rail also touches the left and right edges, and insetting those too
+        // collapsed the table to a sliver in the corner (every die then spawned there, not along the edge).
+        // A floating rail touches nothing, so it doesn't shrink the table at all.
         var a = {x0: -ext.hw, x1: ext.hw, z0: -ext.hh, z1: ext.hh};
         if(railRect){
-          if(railRect.x1 >= a.x1 - 0.2) a.x1 = Math.min(a.x1, railRect.x0);
-          else if(railRect.x0 <= a.x0 + 0.2) a.x0 = Math.max(a.x0, railRect.x1);
-          if(railRect.z1 >= a.z1 - 0.2) a.z1 = Math.min(a.z1, railRect.z0);
-          else if(railRect.z0 <= a.z0 + 0.2) a.z0 = Math.max(a.z0, railRect.z1);
+          var sides = [
+            {gap: railRect.x0 - a.x0, depth: railRect.x1 - a.x0, cut: function(){ a.x0 = Math.min(a.x1, Math.max(a.x0, railRect.x1)); }},
+            {gap: a.x1 - railRect.x1, depth: a.x1 - railRect.x0, cut: function(){ a.x1 = Math.max(a.x0, Math.min(a.x1, railRect.x0)); }},
+            {gap: railRect.z0 - a.z0, depth: railRect.z1 - a.z0, cut: function(){ a.z0 = Math.min(a.z1, Math.max(a.z0, railRect.z1)); }},
+            {gap: a.z1 - railRect.z1, depth: a.z1 - railRect.z0, cut: function(){ a.z1 = Math.max(a.z0, Math.min(a.z1, railRect.z0)); }}
+          ], dock = null;
+          sides.forEach(function(s){ if(s.gap <= 0.2 && (!dock || s.depth < dock.depth)) dock = s; });
+          if(dock) dock.cut();
         }
         return a;
       }
@@ -17273,11 +17283,20 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         clearTimeout(clearT); clearTimeout(idleT); clearDice();
         syncRailCollider();                                        // the sidebar may have opened/closed/resized since the last throw
         onDone = cb; running = true; _shown = null;
+        var pa = playArea();
+        // Every throw starts at the NEAR (bottom) edge, centred, and is aimed up-screen just far enough to
+        // land the dice around the middle of the table. Scaling the speed to the table depth keeps that true
+        // on a tall phone as well as a wide desktop — a flat speed sent them clear across and piled them
+        // against the far edge, so what you saw at rest was dice at the TOP of the screen.
+        var depth = Math.max(4, pa.z1 - pa.z0), n = list.length;
+        var spanX = Math.max(0, Math.min(pa.x1 - pa.x0 - 3.2, (n - 1) * 2.1)), cx = (pa.x0 + pa.x1) / 2;
         list.forEach(function(spec, k){
           var die = makeDie(spec);
-          var pa = playArea(), spanX = Math.max(3.4, pa.x1 - pa.x0 - 3.2);
-          die.body.position.set(pa.x0 + 1.6 + ((k * 2.1) % spanX), 3.2 + (k % 3) * 2.4, pa.z1 - 1.4);   // near (bottom) edge of the table
-          die.body.velocity.set((Math.random() - 0.5) * 12, -2, -(19 + Math.random() * 11));            // screen-up is -z, so a throw AWAY from the player
+          var x = cx + (n > 1 ? (k / (n - 1) - 0.5) * spanX : 0), z = pa.z1 - 1.4;
+          if(railRect && x > railRect.x0 - 0.9 && x < railRect.x1 + 0.9 && z > railRect.z0 - 0.9 && z < railRect.z1 + 0.9)
+            z = Math.max(pa.z0 + 1.4, railRect.z0 - 1.4);          // a FLOATING rail parked on the throw line: start just above it
+          die.body.position.set(x, 3.2 + (k % 3) * 2.4, z);        // near (bottom) edge of the table
+          die.body.velocity.set((Math.random() - 0.5) * 8, -2, -depth * (0.55 + Math.random() * 0.25));  // screen-up is -z, so a throw AWAY from the player
           die.body.angularVelocity.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
           die.body.quaternion.setFromEuler(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
           scene.add(die.mesh); world.addBody(die.body);
