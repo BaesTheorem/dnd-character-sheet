@@ -3174,11 +3174,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v600 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v601 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.151.6";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.151.7";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3186,6 +3186,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v601", semver:"2.151.7", items:[
+      "Dice now cycle through eight different throws: straight, angled, scattered wide, gathered in, lobbed, and hard off either side. They all still leave from the centre of the bottom edge, and the cycle runs in order so two rolls in a row never look the same.",
+    ]},
     {v:"v599", semver:"2.151.5", items:[
       "Dice now leave from the centre of the screen's bottom edge. They only shift aside if the dice sidebar actually covers the middle, so a sidebar down one side no longer pulls the throw off-centre.",
     ]},
@@ -17280,6 +17283,21 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           if(idx >= playFrames.length - 1) settle();
         }catch(e){ finishNow(); }
       }
+      /* Eight throws off the same centre-bottom spot, CYCLED in order rather than picked at random, so two
+         rolls in a row never look alike (random picks repeat themselves and read as a stuck animation).
+         ang = lateral aim in radians (+ is screen-right), fan = how much the dice spread apart across the
+         handful (negative gathers them inward), sp = speed multiplier on the -(19..30) band, vy = launch
+         pitch (the default -2 skims the table, a positive value lofts it). */
+      var THROWS = [
+        {ang:  0.00, fan:  0.00, sp: 1.00, vy: -2},   // straight up the table
+        {ang: -0.28, fan:  0.00, sp: 0.98, vy: -2},   // angled left
+        {ang:  0.28, fan:  0.00, sp: 0.98, vy: -2},   // angled right
+        {ang:  0.00, fan:  0.55, sp: 0.95, vy: -2},   // scattered wide
+        {ang:  0.00, fan: -0.50, sp: 0.95, vy: -2},   // gathered inward
+        {ang:  0.12, fan:  0.20, sp: 0.80, vy: 11},   // lobbed
+        {ang: -0.52, fan:  0.15, sp: 1.06, vy: -2},   // hard off the left
+        {ang:  0.52, fan:  0.15, sp: 1.06, vy: -2}    // hard off the right
+      ], throwIx = 0;
       function roll(list, cb){
         if(!ensure()){ if(cb) cb(); return; }
         if(running) finishNow();                                   // a new roll interrupts the previous tumble (its card shows immediately)
@@ -17294,13 +17312,19 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         // off-centre when the bottom edge is clear. Nudged only if the rail genuinely covers the middle.
         var lo = pa.x0 + 1.2 + spanX / 2, hi = pa.x1 - 1.2 - spanX / 2;
         var cx = (lo > hi) ? (pa.x0 + pa.x1) / 2 : Math.max(lo, Math.min(hi, 0));
+        var t = THROWS[throwIx++ % THROWS.length];                 // next throw in the cycle
+        var lat = Math.min(1, (pa.x1 - pa.x0) / 14);               // a narrow table (phone, or a side dock) gets shallower angles so the dice don't just slam the wall
         list.forEach(function(spec, k){
           var die = makeDie(spec);
           var x = cx + (n > 1 ? (k / (n - 1) - 0.5) * spanX : 0), z = pa.z1 - 1.4;
           if(railRect && x > railRect.x0 - 0.9 && x < railRect.x1 + 0.9 && z > railRect.z0 - 0.9 && z < railRect.z1 + 0.9)
             z = Math.max(pa.z0 + 1.4, railRect.z0 - 1.4);          // a FLOATING rail parked on the throw line: start just above it
           die.body.position.set(x, 3.2 + (k % 3) * 2.4, z);        // near (bottom) edge of the table
-          die.body.velocity.set((Math.random() - 0.5) * 12, -2, -(19 + Math.random() * 11));   // screen-up is -z, so a throw AWAY from the player
+          // Same spot, different throw each time. Screen-up is -z, so every angle is a rotation off a
+          // straight pitch AWAY from the player; speed stays in the original -(19..30) band.
+          var ang = (t.ang + t.fan * (n > 1 ? (k / (n - 1) - 0.5) * 2 : 0)) * lat + (Math.random() - 0.5) * 0.14;
+          var sp = (19 + Math.random() * 11) * t.sp;
+          die.body.velocity.set(Math.sin(ang) * sp, t.vy, -Math.cos(ang) * sp);
           die.body.angularVelocity.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
           die.body.quaternion.setFromEuler(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
           scene.add(die.mesh); world.addBody(die.body);
