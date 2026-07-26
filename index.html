@@ -3193,11 +3193,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v602 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v603 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.151.8";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.151.9";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3205,6 +3205,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v603", semver:"2.151.9", items:[
+      "3D dice animations are now on by default. They used to switch themselves off when your operating system had reduced motion turned on, which quietly took the animation away from people who wanted it. If you had it off for that reason it will come back on once; turning it off yourself still sticks. Settings has a Disable animations option that turns off animation everywhere.",
+    ]},
     {v:"v601", semver:"2.151.7", items:[
       "Dice now cycle through eight different throws: straight, angled, scattered wide, gathered in, lobbed, and hard off either side. They all still leave from the centre of the bottom edge, and the cycle runs in order so two rolls in a row never look the same.",
     ]},
@@ -16421,12 +16424,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     function ready(){ return typeof rollDie === "function"; }
     function die(sides){ return _rng ? _rng(sides) : rollDie(sides); }
     function isMobile(){ return document.documentElement.classList.contains("mobile"); }
-    // OS-level reduced-motion only picks the DEFAULT for the 3D pref (see prefs()) — the in-app
-    // "3D dice animation" checkbox is the source of truth, so explicitly turning it on beats the OS hint.
-    // (macOS Reduce Motion is common and silently ate the animation for a user who wanted it.)
-    function reducedMotion(){
-      try{ return !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(e){ return false; }
-    }
     // The 3D overlay is skipped and the result shown instantly when any of these hold.
     function instant(){
       if(!prefs().threeD) return true;
@@ -16470,7 +16467,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     function isCustomTheme(id){ return typeof id === "string" && id.indexOf("custom:") === 0; }
     var RAIL_POS = ["auto", "top", "right", "bottom", "left", "float"];
     var CHAR_PREF_KEYS = ["theme", "font", "ink", "threeD", "rail", "railPos"];
-    var _prefs = null;
+    var _prefs = null, _d3Forced = false;   // _d3Forced: this load is doing the one-time "3D on by default" flip
     function prefs(){
       if(_prefs) return _prefs;
       var p = {}; try{ p = JSON.parse(localStorage.getItem(PREF_KEY) || "{}") || {}; }catch(e){}
@@ -16480,9 +16477,14 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       try{ if(!(Engine && Engine.themeById(t))) t = "crimson"; }catch(e){ t = "crimson"; }
       var fid = p.font;
       try{ if(!(Engine && Engine.fontById(fid))) fid = "sans"; }catch(e){ fid = "sans"; }
+      // 3D dice are ON by default (2.151.9). They used to default off under OS reduced-motion, which is common
+      // on a Mac and silently ate the animation, so anyone carrying that stored `false` is flipped on ONCE:
+      // `d3on` marks that it has happened, after which a deliberate turn-off sticks like any other choice.
+      // The accessibility escape hatch is still there and still honoured: Settings → Disable animations.
+      _d3Forced = !p.d3on;
       _prefs = { theme: t, font: fid, ink: (typeof p.ink === "string" ? p.ink : ""),   // "" = follow the theme's own number colour
-                 
-                 threeD: ("threeD" in p) ? p.threeD !== false : !reducedMotion(),   // stored choice wins; OS reduced-motion only sets the first-run default
+                 d3on: 1,
+                 threeD: (!_d3Forced && "threeD" in p) ? p.threeD !== false : true,
                  rail: p.rail !== 0, railOpen: ("railOpen" in p) ? !!p.railOpen : !isMobile(),
                  railPos: (RAIL_POS.indexOf(p.railPos) >= 0 ? p.railPos : "auto"),
                  railXY: (p.railXY && typeof p.railXY.x === "number" && typeof p.railXY.y === "number") ? {x: p.railXY.x, y: p.railXY.y} : null };
@@ -16502,7 +16504,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     function adoptCharPrefs(rec){                                // called by applyAll on load / character switch
       var p = prefs();
       if(rec && typeof rec === "object"){
-        if(typeof rec.threeD === "boolean") p.threeD = rec.threeD;
+        // …except a stored `false` on the one load that flips 3D on by default, or the character record would
+        // just hand back the old OS-reduced-motion answer. After that a per-character choice rules again.
+        if(typeof rec.threeD === "boolean" && !(_d3Forced && rec.threeD === false)) p.threeD = rec.threeD;
         try{ if(rec.font && Engine && Engine.fontById(rec.font)) p.font = rec.font; }catch(e){}
         if(typeof rec.ink === "string") p.ink = rec.ink;
         if(RAIL_POS.indexOf(rec.railPos) >= 0) p.railPos = rec.railPos;
