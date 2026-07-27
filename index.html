@@ -3193,11 +3193,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v604 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v605 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.152.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.152.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3205,6 +3205,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v605", semver:"2.152.1", items:[
+      "Fixed a subrace whose own walking speed is faster than its parent race getting reset to the parent's. This affected Warforged (Skirmisher) and Genasi (Air), both of which are 35 ft but were being loaded as 30 ft.",
+      "Existing characters built with one of those races are corrected automatically the next time you open them, and any race movement modes (fly, swim, climb, burrow) that went missing are restored at the same time. If you'd typed your own number into the Speed box, that's left alone."
+    ]},
     {v:"v604", semver:"2.152.0", items:[
       "The Mobile feat now adds its +10 ft to your Speed. Before this it was listed in your Features and did nothing to the number in the Speed box. It applies whatever you're wearing, so an armored Monk still gets the feat's +10 even though Unarmored Movement switches off."
     ]},
@@ -5789,7 +5793,7 @@
       r.traits = (p.traits||[]).filter(t => !have.has(tname(t))).concat(r.traits||[]);   // parent traits the subrace LACKS, first, then the subrace's own — skip ones it already lists (some imported subraces redundantly carry the full inherited set, which would otherwise duplicate every shared trait)
       const haveAbil = new Set((r.ability||[]).flatMap(o => Object.keys(o||{})));
       (p.ability||[]).forEach(o => { if(!Object.keys(o||{}).some(k => haveAbil.has(k))) (r.ability = r.ability||[]).push(o); });   // add parent ability bonuses the subrace doesn't already grant (no double-count)
-      r.speed = p.speed;                                            // delta-only subraces captured a wrong default speed → take the parent's
+      if(r.speed == null || r.speed === 30) r.speed = p.speed;      // delta-only subraces captured the generic 30 ft default → take the parent's, but a subrace that declares its OWN faster speed keeps it (Warforged (Skirmisher) and Genasi (Air) are both 35; this used to overwrite them with the parent's 30)
       if(!r.speedExtra) r.speedExtra = p.speedExtra || "";
       r.prof = etMergeProf(p.prof, r.prof);                         // parent languages/proficiencies + the subrace's
       r.resist = [...new Set((p.resist||[]).concat(r.resist||[]))];   // dedup — a subrace that already lists the parent's resistance must not show it twice ("poison, poison")
@@ -9975,6 +9979,7 @@
     applyDarkSetting();
     compute();
     if(srcChanged) refreshAfterData();   // this character's enabled sources differ from the previous projection — re-render everything that reads DATA (wizard/item/spell/monster lists were populated before applyAll)
+    if(migrateRaceSpeed()){ compute(); save(); }   // re-derive race speeds a stale/unresolved race left wrong (recompute so the Speed box picks it up), then persist
     if(migrateStaleToolProse()) save();   // repair pre-2.122.1 garbled class tool-prof text, then persist the cleanup
     if(promoteDefNotes()) save();   // promote any player-typed defense lines already in the notes box into badges (migrates existing characters)
   }
@@ -11244,6 +11249,27 @@
       .replace(/\b(?:any )?one type of (.+?) of your choice/gi, (m,a) => _staleToolTok(a))
       // Bard: "Three Musical Instruments Of Your Choice" → clean 3-pick loader phrasing
       .replace(/\bthree musical instruments? of your choice/gi, "3 musical instrument of your choice");
+  }
+  // Re-derive the race-given speeds for a character whose race didn't fully resolve when it was built
+  // (e.g. a WGtE Warforged subrace picked before those races were baked in, which left the walking speed
+  // at the 30 ft default instead of the subrace's own). Returns true if anything was corrected.
+  function migrateRaceSpeed(){
+    if(!DATA || !Array.isArray(DATA.races)) return false;
+    const nm = (($("race")||{}).value || "").trim();
+    if(!nm) return false;
+    const r = resolveEnt(DATA.races, nm, (($("race-src")||{}).value) || "");
+    if(!r) return false;                       // the race's book isn't loaded — leave the character's own numbers alone
+    let changed = false;
+    const ex = r.speedExtra || "";             // fly/swim/climb/burrow is purely race-derived (nothing in the UI writes it), so just keep it in sync
+    if(speedExtra !== ex){ speedExtra = ex; changed = true; }
+    // speedBase IS player-editable (typing in the Speed box sets it), so only correct a value that a stale or
+    // incomplete race application would have left behind: never applied at all, the 30 ft default, or the parent's
+    // speed from a subrace that didn't resolve at build time. A deliberately typed speed is left alone.
+    if(typeof r.speed === "number" && speedBase !== r.speed){
+      const parent = r.subraceOf ? findBy(DATA.races, r.subraceOf) : null;
+      if(speedBase == null || speedBase === 30 || (parent && speedBase === parent.speed)){ speedBase = r.speed; changed = true; }
+    }
+    return changed;
   }
   function migrateStaleToolProse(){   // returns true if the Proficiencies box was changed
     const p = $("proficiencies"); if(!p) return false;
