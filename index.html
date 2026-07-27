@@ -3193,11 +3193,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v603 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v604 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.151.9";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.152.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3205,6 +3205,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v604", semver:"2.152.0", items:[
+      "The Mobile feat now adds its +10 ft to your Speed. Before this it was listed in your Features and did nothing to the number in the Speed box. It applies whatever you're wearing, so an armored Monk still gets the feat's +10 even though Unarmored Movement switches off."
+    ]},
     {v:"v603", semver:"2.151.9", items:[
       "3D dice animations are now on by default. They used to switch themselves off when your operating system had reduced motion turned on, which quietly took the animation away from people who wanted it. If you had it off for that reason it will come back on once; turning it off yourself still sticks. Settings has a Disable animations option that turns off animation everywhere.",
     ]},
@@ -4764,6 +4767,9 @@
     "Alert": "Alert (+5 initiative; can't be surprised while conscious; hidden attackers gain no advantage)" };
   // Feats that add a flat bonus to Initiative (5etools has no structured field for these — hardcode the known ones).
   const FEAT_INIT = { "Alert": 5 };
+  // Feats that add a flat bonus to walking speed. Mobile is the only feat in the whole catalogue that does this
+  // (verified against feats.json), but it's a registry so a homebrew/UA one can be added without touching compute.
+  const FEAT_SPEED = { "Mobile": 10 };
   // skillstxt: feats that grant a player-chosen skill proficiency (count, and an optional restricted list).
   // The chosen skills are checked on the skill section by applyAsiBonuses (idempotent). Tools/languages/expertise
   // those feats also grant are out of scope here — this covers the skill-proficiency choice.
@@ -4866,6 +4872,7 @@
     return { armor:armor.size?[...armor]:null, weapons:weapons.size?[...weapons]:null, tools:tools.size?[...tools]:null };
   }
   function featInitBonus(){ let b = 0; (asiChoices||[]).forEach(s => { if(s.type === "feat" && s.feat && FEAT_INIT[s.feat]) b += FEAT_INIT[s.feat]; }); return b; }
+  function featSpeedBonus(){ let b = 0; (asiChoices||[]).forEach(s => { if(s.type === "feat" && s.feat && FEAT_SPEED[s.feat]) b += FEAT_SPEED[s.feat]; }); return b; }
   // The attention flag: shown until every owed ASI / racial feat has a complete choice.
   function updateAsiFlag(){
     syncAsiSlots();
@@ -9502,6 +9509,7 @@
       if(mlvl >= 2) speedBonus = Math.min(30, Math.floor((mlvl - 2) / 4) * 5 + 10);
     }
     speedBonus += awEff.speed;   // Ancestral Weapon Mobile upgrade
+    speedBonus += featSpeedBonus();   // Mobile feat (+10 ft) — walking only, so it rides speedBonus like Unarmored Movement
     // Combat Speed (page 1): box shows base − encumbrance penalty + Unarmored Movement, then condition effects (not while editing)
     if(document.activeElement !== $("speed")){
       let effSpeed = (baseSpeed == null) ? null : Math.max(0, baseSpeed - speedPenalty + speedBonus);
