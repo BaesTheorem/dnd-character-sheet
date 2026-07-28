@@ -3226,11 +3226,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v609 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v610 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.156.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.156.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3238,6 +3238,13 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v610", semver:"2.156.1", items:[
+      "FIX: 2.155.0 changed the storage version, which broke this sheet and every older copy of it on the same machine. Characters appeared to vanish and the menu stopped responding. Nothing was ever deleted — the characters were in storage the whole time, and this build reads them again.",
+      "Two faults, one cause. A copy asking for the older storage version was refused outright, so it opened with no characters; and because all local copies of this file share one storage area, that hit older copies too. Separately, the upgrade stalled whenever another copy was open, and since the sheet waits for characters before wiring up the rest of the page, the menu never got connected.",
+      "This build never changes the storage version again, and new installs land on the version older copies expect, so old and new can be used side by side in any order.",
+      "If storage genuinely can't be reached, the sheet now says so plainly instead of opening blank, and tells you nothing has been lost.",
+      "Version history from 2.155/2.156 is carried over automatically."
+    ]},
     {v:"v609", semver:"2.156.0", items:[
       "Removed the Owlbear Rodeo integration. An extension has to be reachable over the web, and browser storage is tied to where a page is served from, so a sheet embedded in a room could never see the characters in your local copy of this file. Better to drop it than to ship a panel that opens empty.",
       "The other integrations are untouched: live rolls, the Discord webhook, Foundry export, and both importers."
@@ -10688,14 +10695,50 @@
   // Portraits live in IndexedDB, NOT localStorage: a multi-MB image overflows the ~5MB localStorage cap,
   // which silently dropped the save so the portrait vanished on the next reload/update. Only a small
   // thumbnail (<key>_thumb) still rides in localStorage, for the Character Manager cards.
-  let _idb = null;
+  let _idb = null, _idbFailed = false;   // _idbFailed: storage was unreachable, so say so rather than open blank
+  /* NEVER open this database with a hard-coded version number, and never add an object store to it.
+     Two things bite, and 2.155.0 hit both by bumping the version from 2 to 3:
+       • A build that asks for a LOWER version than the database already has fails outright with a
+         VersionError, so every older copy of this file on the machine stops seeing its characters —
+         and `file://` shares one storage origin, so "older copy" means all of them.
+       • An upgrade blocks while any other copy holds the database open, and `onblocked` fires instead
+         of `onsuccess`. Unhandled, the promise never settles, and since init awaits the character load,
+         everything after it — including wiring the menu — silently never runs.
+     So: open with no version at all (never triggers an upgrade), create the stores only when the
+     database is genuinely new, and guarantee the promise settles come what may. Anything that needs
+     new storage goes in the existing `chars` store under its own key prefix, not a new store. */
   function idb(){
     if(_idb) return _idb;
-    _idb = new Promise((resolve, reject) => {
-      let req; try{ req = indexedDB.open("dnd-sheet", 3); }catch(e){ reject(e); return; }
-      req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains("portraits")) db.createObjectStore("portraits"); if(!db.objectStoreNames.contains("chars")) db.createObjectStore("chars"); if(!db.objectStoreNames.contains("versions")) db.createObjectStore("versions", {keyPath:"id"}); };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+    _idb = new Promise(resolve => {
+      let done = false;
+      const finish = db => { if(!done){ done = true; if(!db) _idbFailed = true; resolve(db || null); } };
+      setTimeout(() => finish(null), 4000);              // a blocked or wedged open must not stall the app
+      const makeStores = db => {
+        if(!db.objectStoreNames.contains("portraits")) db.createObjectStore("portraits");
+        if(!db.objectStoreNames.contains("chars")) db.createObjectStore("chars");
+      };
+      let req;
+      try{ req = indexedDB.open("dnd-sheet"); }catch(e){ finish(null); return; }
+      req.onupgradeneeded = () => { try{ makeStores(req.result); }catch(e){} };   // only fires on a brand-new db
+      req.onblocked = () => finish(null);
+      req.onerror = () => finish(null);
+      req.onsuccess = () => {
+        const db = req.result;
+        const hasStores = db.objectStoreNames.contains("chars") && db.objectStoreNames.contains("portraits");
+        // Land a NEW database on version 2 — the version every build before 2.155.0 asks for by name.
+        // Leaving it at 1 would make those builds upgrade it themselves, which blocks (and hangs them)
+        // whenever this copy is open in another tab. At 2, nobody ever needs an upgrade in either
+        // direction. A database already past 2 is left exactly as it is.
+        if(hasStores && db.version >= 2) return finish(db);
+        const next = Math.max(2, db.version + (hasStores ? 0 : 1));
+        db.close();
+        let up;
+        try{ up = indexedDB.open("dnd-sheet", next); }catch(e){ return finish(null); }
+        up.onupgradeneeded = () => { try{ makeStores(up.result); }catch(e){} };
+        up.onsuccess = () => finish(up.result);
+        up.onerror = () => finish(null);
+        up.onblocked = () => finish(null);
+      };
     });
     return _idb;
   }
@@ -10719,7 +10762,7 @@
   function csKeys(){ return [..._cs.keys()]; }
   async function csInit(){
     let all = {}; try{ all = await idbCharsAll(); }catch(e){}
-    for(const k in all) _cs.set(k, all[k]);
+    for(const k in all){ if(k.indexOf(VER_PREFIX) === 0) continue; _cs.set(k, all[k]); }   // snapshots stay on disk
     try{
       const move = [];
       for(let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); if(k && _isCharKey(k)) move.push(k); }
@@ -14241,7 +14284,14 @@
     if(tb && tb.parentNode) tb.parentNode.insertBefore(bar, tb.nextSibling); else document.body.appendChild(bar);
   }
   async function init(){
-    await csInit();   // load characters from IndexedDB (+ migrate any from localStorage) before anything reads them
+    try{ await csInit(); }catch(e){}   // storage trouble must never stop the rest of init (menu wiring lives below)
+    if(_idbFailed) setTimeout(() => showNotice("Your characters are still here",
+      "<p>This copy of the sheet couldn't reach its storage, so it has opened without your characters. "
+      + "<strong>Nothing has been deleted.</strong></p>"
+      + "<p>That usually means another copy of the sheet is open in a different tab or window, holding storage "
+      + "open. Close the other copies and reload this page.</p>"
+      + "<p class='wiz-hint'>Until then, anything you type here will not be saved.</p>"), 800);
+    // load characters from IndexedDB (+ migrate any from localStorage) before anything reads them
     try{ localStorage.removeItem(STORE_PROBE_KEY); }catch(e){}   // sweep a probe temp key if a prior probe was ever interrupted
     buildStatic();
     buildConditionsPanel();   // build the conditions/exhaustion controls (with their data-save inputs) BEFORE applyAll restores them
@@ -15687,33 +15737,65 @@
   let _verPrev = null;                         // {json, level} from the previous save — the "before" source
   let _verLastAuto = 0, _verLastJson = "", _verSeeded = false;
 
+  /* Snapshots live in the EXISTING `chars` store under their own key prefix — deliberately not in a
+     store of their own, because adding one means an upgrade, and an upgrade is what broke every older
+     copy of this file in 2.155.0. They're read straight from IndexedDB rather than through the `_cs`
+     cache so a long history never sits in memory (csInit skips these keys when it hydrates). */
+  const VER_PREFIX = "dnd-ver::";
   function verSlot(){ return SLOT || ""; }
+  function verKeyPrefix(){ return VER_PREFIX + verSlot() + "::"; }
   function idbVersAll(){
     return idb().then(db => new Promise(res => {
-      const out = [], slot = verSlot();
-      const tx = db.transaction("versions", "readonly");
-      const cur = tx.objectStore("versions").openCursor();
+      if(!db) return res([]);
+      const out = [], pre = verKeyPrefix();
+      const tx = db.transaction("chars", "readonly");
+      const cur = tx.objectStore("chars").openCursor();
       cur.onsuccess = e => {
         const c = e.target.result;
-        if(c){ if(c.value && c.value.slot === slot) out.push(c.value); c.continue(); }
-        else res(out.sort((a, b) => b.t - a.t));                       // newest first
+        if(c){
+          if(typeof c.key === "string" && c.key.indexOf(pre) === 0){
+            try{ const v = JSON.parse(c.value); if(v) out.push(v); }catch(err){}
+          }
+          c.continue();
+        } else res(out.sort((a, b) => b.t - a.t));                     // newest first
       };
       cur.onerror = () => res(out);
     })).catch(() => []);
   }
   function idbVersPut(rec){
     return idb().then(db => new Promise((res, rej) => {
-      const tx = db.transaction("versions", "readwrite");
-      tx.objectStore("versions").put(rec);
+      if(!db) return res();
+      const tx = db.transaction("chars", "readwrite");
+      tx.objectStore("chars").put(JSON.stringify(rec), VER_PREFIX + rec.slot + "::" + rec.id);
       tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
     })).catch(() => {});
   }
   function idbVersDel(ids){
     if(!ids || !ids.length) return Promise.resolve();
     return idb().then(db => new Promise(res => {
-      const tx = db.transaction("versions", "readwrite"), st = tx.objectStore("versions");
-      ids.forEach(id => st.delete(id));
+      if(!db) return res();
+      const tx = db.transaction("chars", "readwrite"), st = tx.objectStore("chars"), pre = verKeyPrefix();
+      ids.forEach(id => st.delete(pre + id));
       tx.oncomplete = () => res(); tx.onerror = () => res();
+    })).catch(() => {});
+  }
+  // One-time rescue for anyone who ran 2.155.0/2.156.0: their snapshots are in the short-lived
+  // `versions` store, which this build no longer opens. Copy them across, best effort, then forget it.
+  let _verMigrated = false;
+  function migrateVersionStore(){
+    if(_verMigrated) return Promise.resolve();
+    _verMigrated = true;
+    return idb().then(db => new Promise(res => {
+      if(!db || !db.objectStoreNames.contains("versions")) return res();
+      const found = [];
+      const tx = db.transaction("versions", "readonly");
+      const cur = tx.objectStore("versions").openCursor();
+      cur.onsuccess = e => {
+        const c = e.target.result;
+        if(c){ if(c.value && c.value.id) found.push(c.value); c.continue(); }
+        else Promise.all(found.map(idbVersPut)).then(() => res(), () => res());
+      };
+      cur.onerror = () => res();
     })).catch(() => {});
   }
   // Only automatic snapshots are ever pruned — level-up boundaries and pre-restore states are permanent.
@@ -15753,6 +15835,7 @@
   function seedVersions(){
     if(_verSeeded || !characterCreated) return;
     _verSeeded = true;
+    migrateVersionStore();
     idbVersAll().then(list => {
       if(list.length) return;
       const json = csGet(KEY);
