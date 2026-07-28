@@ -3012,6 +3012,7 @@
         <nav class="settings-nav" id="settings-nav">
           <button class="set-tab active" data-sec="general" type="button">General</button>
           <button class="set-tab" data-sec="pages" type="button">Character Settings</button>
+          <button class="set-tab" data-sec="integrations" type="button">Integrations</button>
           <button class="set-tab" data-sec="advanced" type="button">Advanced</button>
         </nav>
         <div class="settings-content">
@@ -3094,6 +3095,9 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Spell sheets</label>
             <label class="lay-row"><input type="checkbox" id="set-addspell"> Show the "+ Add spell sheet" button</label>
             <p class="wiz-hint">The button (on every Spells page) creates extra, independent spell sheets — handy for another class's spell list. Turning this off only hides the button; any spell sheets you've already created stay exactly as they are.</p>
+          </section>
+          <section class="set-sec" data-sec="integrations">
+            <div id="intg-body"></div>
           </section>
         </div>
       </div>
@@ -3193,11 +3197,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v605 (2026-07-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v606 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.152.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.153.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3205,6 +3209,16 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v606", semver:"2.153.0", items:[
+      "New Settings → Integrations tab, connecting the sheet to the tools other tables already use.",
+      "Live rolls: with the Beyond20 browser extension installed, every roll you make here can appear in Roll20, Foundry VTT or Discord. Choose whether to send the result this sheet's dice produced, or just the formula so the VTT rolls its own.",
+      "Discord webhook: paste a channel webhook URL and your rolls post straight there, no extension needed. Rolls are spaced out so a busy fight can't trip Discord's rate limit.",
+      "Export to Foundry VTT: writes a dnd5e actor file. In Foundry, right-click an actor and choose Import Data. Abilities, skills, saves, HP, AC, speed, currency, spell slots, attacks, inventory and spells come across.",
+      "Owlbear Rodeo: the sheet now ships an extension manifest, so you can add it to a room and use it in a panel beside the map.",
+      "Import from D&D Beyond: paste a character's JSON and it lands here as a new character, leaving whatever you have open untouched.",
+      "Import from MPMB: export your old sheet's form data from Acrobat and pick the file to bring the character across.",
+      "Your Discord webhook is stored in this browser only. It is never written into a character, an exported sheet or a shared copy."
+    ]},
     {v:"v605", semver:"2.152.1", items:[
       "Fixed a subrace whose own walking speed is faster than its parent race getting reset to the parent's. This affected Warforged (Skirmisher) and Genasi (Air), both of which are 35 ft but were being loaded as 30 ft.",
       "Existing characters built with one of those races are corrected automatically the next time you open them, and any race movement modes (fly, swim, climb, burrow) that went missing are restored at the same time. If you'd typed your own number into the Speed box, that's left alone."
@@ -16622,6 +16636,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     }
     function finishRoll(res){
       _last = res; logPush(res);
+      // One outbound announcement per roll — the Integrations module listens for this and relays it
+      // to Beyond20 / Discord. Fired here because finishRoll is the single funnel every roll passes.
+      try{ document.dispatchEvent(new CustomEvent("dnd-sheet:roll", {detail:{res:res, text:logDetail(res)}})); }catch(e){}
       var list = overlayDice(res);
       if(list && !instant()) Engine.roll(list, function(){ showCard(res); });   // result already decided — the overlay just performs it
       else showCard(res);
@@ -17854,6 +17871,874 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
                            engineActive: function(){ return Engine.active(); }, shown: function(){ return Engine.shown(); },
                            engine: Engine, log: logLoad, parseDamageParts: parseDamageParts };
       window.DiceRoller.charLog = charLog; window.DiceRoller.adoptCharLog = adoptCharLog;
+    }catch(e){}
+  })();
+  </script>
+
+  <script>
+  /* ================================================================================================
+     INTEGRATIONS — live rolls out to other tables, exports to other tools, and importers in.
+       • Beyond20 bridge   → Roll20 / Foundry VTT / Discord, live, using Beyond20's documented DOM API
+       • Discord webhook   → posts rolls straight to a channel, no extension needed
+       • Foundry export    → a dnd5e actor JSON the GM drops on an Actor (right-click → Import Data)
+       • Owlbear Rodeo     → detects being embedded, and hands over the manifest URL to install
+       • D&D Beyond import → paste (or fetch) a character JSON, land it as a new character here
+       • MPMB import       → read an MPMB sheet's form data (.xfdf / .fdf / .pdf) into a new character
+
+     Self-contained: no dependencies, no build step. Every read of a main-script global is guarded, so
+     nothing in here can take the sheet down. Settings → Integrations is rendered from this module
+     (the static section holds an empty container only) — same pattern as the dice settings block.
+     ================================================================================================ */
+  (function(){
+    "use strict";
+
+    /* ---- prefs. BROWSER-LEVEL, deliberately NOT character data: a webhook URL is a secret, and
+       character data rides shared/exported copies of this sheet. Nothing here is ever baked. ---- */
+    var PREFS_KEY = "dnd-sheet-integrations";
+    var DEF = { b20:false, b20mode:"result", discord:false, webhook:"", discordName:"" };
+    var _p = null;
+    function prefs(){
+      if(_p) return _p;
+      _p = {}; for(var k in DEF) _p[k] = DEF[k];
+      try{
+        var raw = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
+        for(var j in DEF) if(raw && typeof raw[j] === typeof DEF[j]) _p[j] = raw[j];
+      }catch(e){}
+      return _p;
+    }
+    function savePrefs(){ try{ localStorage.setItem(PREFS_KEY, JSON.stringify(prefs())); }catch(e){} }
+
+    /* ---- small helpers (all main-script reads guarded) ---- */
+    var ABIL = ["str","dex","con","int","wis","cha"];
+    function $i(id){ return document.getElementById(id); }
+    function fv(id){ var e = $i(id); return e ? String(e.value == null ? "" : e.value) : ""; }
+    function fc(id){ var e = $i(id); return !!(e && e.checked); }
+    function ftext(id){ var e = $i(id); return e ? String(e.textContent || "").trim() : ""; }
+    function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+    function num(v){
+      var n = parseInt(String(v == null ? "" : v).replace(/[^0-9.+-]/g, ""), 10);
+      return isNaN(n) ? null : n;
+    }
+    function say(msg){ try{ if(typeof flashStatus === "function") flashStatus(msg); }catch(e){} }
+    function charName(){ var n = fv("charname").trim(); return n || "Character"; }
+    function saveFile(text, name, mime){
+      try{ if(typeof download === "function"){ download(text, name, mime || "application/json"); return; } }catch(e){}
+      try{
+        var b = new Blob([text], {type: mime || "application/json"}), u = URL.createObjectURL(b);
+        var a = document.createElement("a"); a.href = u; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(u); }, 1000);
+      }catch(e){}
+    }
+    function abilityScore(k){
+      try{ if(typeof finalScore === "function"){ var v = finalScore(k); if(v != null) return v; } }catch(e){}
+      return null;
+    }
+    function abilityMod(k){
+      try{ if(typeof modOf === "function") return modOf(k); }catch(e){}
+      var s = abilityScore(k); return s == null ? 0 : Math.floor((s - 10) / 2);
+    }
+    function profB(){
+      try{ if(typeof profBonus === "function"){ var v = profBonus(); if(v != null) return v; } }catch(e){}
+      return num(ftext("pb")) || 2;
+    }
+
+    /* ================================================================================================
+       1. BEYOND20 BRIDGE — one adapter, three destinations (Roll20, Foundry VTT, Discord).
+       Beyond20 is a browser extension that relays rolls from a "character sheet" tab to a VTT tab. Its
+       DOM API: it fires `Beyond20_Loaded` when it wakes up on the page, and listens for
+       `Beyond20_SendMessage` carrying a message whose `action` is one of roll / rendered-roll /
+       hp-update / conditions-update / update-combat.
+
+       Two send modes, because they answer different questions about whose dice are real:
+         "result"  → a `chat-message` (roll:0, name+message). OUR dice already rolled, and this posts
+                     that exact result. What the 3D dice showed is what the table sees.
+         "formula" → a `custom` roll carrying the dice formula, so the VTT rolls it with everyone
+                     else's dice (and its own crit/fumble handling).
+
+       Beyond20 only injects on sites it knows, so the user must add this sheet's domain under its
+       advanced options ("custom domains") for any of this to reach a VTT.
+       ================================================================================================ */
+    var _b20 = false;
+
+    function b20Send(msg){
+      try{ document.dispatchEvent(new CustomEvent("Beyond20_SendMessage", {detail:[msg]})); return true; }
+      catch(e){ return false; }
+    }
+    function b20Character(){
+      return { name: charName(), type:"Character", source:"D&D 5e Character Sheet",
+               url: location.href.split("#")[0] };
+    }
+    /* Rebuild a dice formula from a finished roll, for the "let the VTT roll it" mode. */
+    function b20Formula(res){
+      if(res.kind === "d20"){
+        var base = res.adv ? (res.adv.kind === "adv" ? "2d20kh1" : "2d20kl1") : "1d20";
+        return base + (res.mod ? (res.mod > 0 ? "+" + res.mod : String(res.mod)) : "");
+      }
+      var out = [];
+      (res.parts || []).forEach(function(p){
+        var counts = {}, faces = [];
+        (p.rolls || []).forEach(function(r){ if(!counts[r.d]){ counts[r.d] = 0; faces.push(r.d); } counts[r.d]++; });
+        var s = faces.map(function(d){ return counts[d] + "d" + d; }).join("+");
+        if(p.mod) s += (p.mod > 0 ? "+" : "") + p.mod;
+        if(s) out.push(s);
+      });
+      return out.join("+") || "0";
+    }
+    /* One-line human summary of a finished roll — used by both the chat-message and Discord paths. */
+    function rollText(res, detail){
+      var head = ((res.rt ? res.rt + ": " : "") + (res.label || "")).trim();
+      var line = (head || "Roll") + " → " + res.total;
+      if(detail) line += "  [" + detail + "]";
+      if(res.nat === 20) line += "  ·  natural 20!";
+      else if(res.nat === 1) line += "  ·  natural 1";
+      if(res.sub) line += "  ·  " + res.sub;
+      return line;
+    }
+    function b20Roll(res, detail){
+      var p = prefs();
+      if(!p.b20 || !_b20) return;
+      var label = (res.label || res.rt || "Roll");
+      if(p.b20mode === "formula"){
+        b20Send({ action:"roll", type:"custom", character:b20Character(), roll:b20Formula(res),
+                  name:label, description:(res.sub || ""), advantage:0, whisper:0 });
+      } else {
+        b20Send({ action:"roll", type:"chat-message", character:b20Character(), roll:0,
+                  name:label, message:rollText(res, detail), advantage:0, whisper:0 });
+      }
+    }
+    function b20Test(){
+      if(!_b20){ say("Beyond20 isn't loaded on this page."); return; }
+      var ok = b20Send({ action:"roll", type:"chat-message", character:b20Character(), roll:0,
+                         name:"Test", message:charName() + " is connected from the D&D 5e character sheet.",
+                         advantage:0, whisper:0 });
+      say(ok ? "Test sent to Beyond20." : "Couldn't reach Beyond20.");
+    }
+
+    /* ================================================================================================
+       2. DISCORD WEBHOOK — no extension, no VTT: post rolls straight into a channel.
+       Discord's webhook endpoint allows cross-origin POSTs, so this works from the hosted sheet and
+       from a local file alike. Sends are queued and spaced out so a burst of rolls can't trip the
+       rate limit; a 429 puts the message back at the front of the queue once.
+       ================================================================================================ */
+    var WEBHOOK_RE = /^https:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+/;
+    var _dq = [], _dbusy = false;
+
+    function webhookOk(u){ return WEBHOOK_RE.test(String(u || "").trim()); }
+    function queueDiscord(body){
+      if(!webhookOk(prefs().webhook)) return;
+      if(_dq.length > 20) _dq.shift();                 // never let a stuck queue grow without bound
+      _dq.push({ body: body, tries: 0 });
+      drainDiscord();
+    }
+    function drainDiscord(){
+      if(_dbusy || !_dq.length) return;
+      var item = _dq.shift(), url = prefs().webhook;
+      if(!webhookOk(url)){ _dq.length = 0; return; }
+      _dbusy = true;
+      fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(item.body) })
+        .then(function(r){ if(r.status === 429 && item.tries < 2){ item.tries++; _dq.unshift(item); } })
+        .catch(function(){})
+        .then(function(){ setTimeout(function(){ _dbusy = false; drainDiscord(); }, 1100); });
+    }
+    function discordRoll(res, detail){
+      var p = prefs();
+      if(!p.discord || !webhookOk(p.webhook)) return;
+      var colour = res.nat === 20 ? 0x2e9e4f : (res.nat === 1 ? 0xc0392b : 0x9a7b4f);
+      var body = "**" + res.total + "**";
+      if(detail) body += "\n" + detail;
+      if(res.sub) body += "\n" + res.sub;
+      if(res.nat === 20) body += "\nNatural 20!";
+      else if(res.nat === 1) body += "\nNatural 1.";
+      queueDiscord({ username: (prefs().discordName || charName()),
+                     embeds: [{ title: ((res.rt ? res.rt + " · " : "") + (res.label || "Roll")).slice(0, 250),
+                                description: body.slice(0, 3900), color: colour }] });
+    }
+    function discordTest(){
+      var p = prefs();
+      if(!webhookOk(p.webhook)){ say("That doesn't look like a Discord webhook URL."); return; }
+      _dq.length = 0;
+      queueDiscord({ username: (p.discordName || charName()),
+                     embeds:[{ title:"Connected", color:0x9a7b4f,
+                               description: charName() + "'s character sheet is now posting rolls here." }] });
+      say("Test message sent to Discord.");
+    }
+
+    /* ---- the one hook: every finished roll arrives here from the dice module ---- */
+    function onRoll(e){
+      var d = (e && e.detail) || {}, res = d.res;
+      if(!res) return;
+      try{ b20Roll(res, d.text); }catch(err){}
+      try{ discordRoll(res, d.text); }catch(err){}
+    }
+
+    /* ================================================================================================
+       3. FOUNDRY VTT EXPORT — a dnd5e system actor JSON.
+       Foundry imports this by right-clicking an actor in the sidebar → Import Data, which overwrites
+       that actor with the file's contents. Skill/ability keys follow the dnd5e system's own config
+       (itm = Intimidation, prc = Perception, prf = Performance, per = Persuasion, slt = Sleight of Hand).
+       AC is exported as a flat value: this sheet has already done the armour maths, and re-deriving it
+       inside Foundry from equipment we didn't send would only produce a different, wronger number.
+       ================================================================================================ */
+    var FOUNDRY_SKILL = { acrobatics:"acr", animal:"ani", arcana:"arc", athletics:"ath", deception:"dec",
+      history:"his", insight:"ins", intimidation:"itm", investigation:"inv", medicine:"med", nature:"nat",
+      perception:"prc", performance:"prf", persuasion:"per", religion:"rel", sleight:"slt", stealth:"ste",
+      survival:"sur" };
+    var FOUNDRY_SKILL_ABIL = { acr:"dex", ani:"wis", arc:"int", ath:"str", dec:"cha", his:"int", ins:"wis",
+      itm:"cha", inv:"int", med:"wis", nat:"int", prc:"wis", prf:"cha", per:"cha", rel:"int", slt:"dex",
+      ste:"dex", sur:"wis" };
+
+    function rowsOf(prefix){                            // walk invname-0.. / atkname-0.. until they run out
+      var out = [], i = 0, miss = 0;
+      while(miss < 8 && i < 400){
+        var el = $i(prefix + i);
+        if(el){ out.push({ i: i, el: el }); miss = 0; } else miss++;
+        i++;
+      }
+      return out;
+    }
+    function foundryActor(){
+      var sys = { abilities:{}, skills:{}, attributes:{}, details:{}, traits:{}, currency:{}, spells:{}, bonuses:{} };
+      ABIL.forEach(function(k){
+        var prof = fc("savep-" + k) ? 1 : 0;
+        sys.abilities[k] = { value: abilityScore(k) == null ? 10 : abilityScore(k), proficient: prof,
+                             bonuses:{ check:"", save:"" } };
+      });
+      var skills = [];
+      try{ if(typeof SKILLS !== "undefined") skills = SKILLS; }catch(e){}
+      skills.forEach(function(row){
+        var key = row[0], fk = FOUNDRY_SKILL[key];
+        if(!fk) return;
+        sys.skills[fk] = { value: fc("ske-" + key) ? 2 : (fc("skp-" + key) ? 1 : 0),
+                           ability: FOUNDRY_SKILL_ABIL[fk], bonuses:{ check:"", passive:"" } };
+      });
+      var hpMax = num(fv("hpmax")), hpCur = num(fv("hpcur")), hpTmp = num(fv("hptmp"));
+      var ac = num(ftext("ac-calc")), speed = num(fv("speed")), init = num(ftext("init"));
+      sys.attributes = {
+        ac: { flat: ac == null ? 10 : ac, calc: "flat", formula: "" },
+        hp: { value: hpCur == null ? (hpMax || 0) : hpCur, max: hpMax || 0, temp: hpTmp || 0, tempmax: 0 },
+        init: { ability: "dex", bonus: String(init == null ? 0 : init - abilityMod("dex")) },
+        movement: { burrow:0, climb:0, fly:0, swim:0, walk: speed == null ? 30 : speed, units:"ft", hover:false },
+        attunement: { max: 3 }, senses: { units:"ft" }, spellcasting: "", exhaustion: 0, concentration: { limit: 1 },
+        death: { success: 0, failure: 0 }, inspiration: false, prof: profB()
+      };
+      var lvl = 0;
+      try{ if(typeof charLevel === "function") lvl = charLevel() || 0; }catch(e){}
+      sys.details = {
+        biography: { value: bioHTML(), public: "" },
+        alignment: fv("alignment"), race: fv("race"), background: fv("background"),
+        originalClass: "", xp: { value: num(fv("xp")) || 0 }, level: lvl,
+        appearance: "", trait: "", ideal: "", bond: "", flaw: ""
+      };
+      sys.traits = { size:"med", di:{value:[],bypasses:[],custom:""}, dr:{value:[],bypasses:[],custom:""},
+                     dv:{value:[],bypasses:[],custom:""}, ci:{value:[],custom:""},
+                     languages:{value:[],custom:""}, weaponProf:{value:[],custom:""}, armorProf:{value:[],custom:""} };
+      var defn = fv("defnotes").trim(); if(defn) sys.traits.dr.custom = defn.replace(/\n+/g, "; ");
+      ["cp","sp","ep","gp","pp"].forEach(function(c){ sys.currency[c] = num(fv(c)) || 0; });
+      for(var l = 1; l <= 9; l++){
+        var tot = num(fv("slots-total-" + l)), used = num(fv("slots-used-" + l));
+        sys.spells["spell" + l] = { value: Math.max(0, (tot || 0) - (used || 0)), override: tot == null ? null : tot };
+      }
+      var items = foundryItems();
+      var actor = { name: charName(), type: "character", img: "icons/svg/mystery-man.svg",
+                    system: sys, items: items, effects: [],
+                    prototypeToken: { name: charName(), actorLink: true, disposition: 1, sight: { enabled: true } },
+                    flags: { "dnd-5e-character-sheet": { exportedAt: new Date().toISOString(),
+                                                         version: (typeof APP_SEMVER !== "undefined" ? APP_SEMVER : "") } } };
+      return actor;
+    }
+    function bioHTML(){
+      var bits = [];
+      var cl = fv("classlevel").trim(); if(cl) bits.push("<p><strong>" + esc(cl) + "</strong></p>");
+      ["senses","proficiencies","features","notes"].forEach(function(id){
+        var v = fv(id).trim(); if(!v) return;
+        bits.push("<p>" + esc(v).replace(/\n/g, "<br>") + "</p>");
+      });
+      return bits.join("\n");
+    }
+    function foundryItems(){
+      var out = [];
+      rowsOf("atkname-").forEach(function(r){
+        var name = String(r.el.value || "").trim(); if(!name) return;
+        var dmg = fv("atkdmg-" + r.i), bonus = num(fv("atkbonus-" + r.i));
+        var m = dmg.match(/(\d*d\d+(?:\s*[+-]\s*\d+)?)\s*([a-z]+)?/i);
+        out.push({ name: name, type: "weapon",
+          system: { description:{ value:"" }, quantity:1, equipped:true, proficient:null,
+                    activation:{ type:"action", cost:1 },
+                    damage: { parts: m ? [[m[1].replace(/\s+/g, ""), (m[2] || "").toLowerCase()]] : [], versatile:"" },
+                    attack: { bonus: bonus == null ? "" : String(bonus), flat: bonus != null } } });
+      });
+      rowsOf("invname-").forEach(function(r){
+        var name = String(r.el.value || "").trim(); if(!name) return;
+        out.push({ name: name, type: "loot",
+          system: { description:{ value:"" }, quantity: num(fv("invqty-" + r.i)) || 1,
+                    weight: { value: parseFloat(fv("invwt-" + r.i)) || 0, units:"lb" } } });
+      });
+      spellNames().forEach(function(s){
+        out.push({ name: s.name, type: "spell", system: { description:{ value:"" }, level: s.level,
+                   preparation: { mode:"prepared", prepared: !!s.prep } } });
+      });
+      return out;
+    }
+    /* Every spell written on any spell sheet, with its level. */
+    function spellNames(){
+      var out = [], seen = {};
+      try{
+        if(typeof spellEntriesByInst === "undefined") return out;
+        for(var inst in spellEntriesByInst){
+          var byLevel = spellEntriesByInst[inst] || {};
+          for(var l in byLevel){
+            (byLevel[l] || []).forEach(function(e){
+              var n = String((e && e.name) || "").trim();
+              if(!n || seen[n.toLowerCase()]) return;
+              seen[n.toLowerCase()] = 1;
+              out.push({ name:n, level: parseInt(l, 10) || 0, prep: !!(e && e.prep) });
+            });
+          }
+        }
+      }catch(e){}
+      return out;
+    }
+    function exportFoundry(){
+      var a;
+      try{ a = foundryActor(); }
+      catch(e){ say("Couldn't build the Foundry actor."); return; }
+      var safe = charName().replace(/[^\w\- ]+/g, "").trim() || "character";
+      saveFile(JSON.stringify(a, null, 2), "fvtt-Actor-" + safe + ".json", "application/json");
+      say("Foundry actor exported.");
+    }
+
+    /* ================================================================================================
+       4. OWLBEAR RODEO — an extension is a hosted manifest.json describing a page Owlbear embeds in an
+       iframe. The sheet already IS a self-contained page, so the wrapper is: ship a manifest at the
+       site root pointing back at index.html, and notice when we're the embedded one so the chrome can
+       get out of the way. (Manifest fields follow Owlbear's own first-party extensions.)
+       ================================================================================================ */
+    function obrManifestUrl(){
+      if(location.protocol === "file:") return "https://baestheorem.github.io/dnd-character-sheet/manifest.json";
+      return location.href.split("#")[0].replace(/[^/]*$/, "") + "manifest.json";
+    }
+    function inOwlbear(){
+      try{ return window.self !== window.top && /owlbear\.rodeo/i.test(document.referrer || ""); }
+      catch(e){ return window.self !== window.top; }
+    }
+    function applyOwlbear(){
+      if(!inOwlbear()) return;
+      document.documentElement.classList.add("in-owlbear");
+      try{ document.body.classList.add("in-owlbear"); }catch(e){}
+    }
+
+    /* ================================================================================================
+       5+6. IMPORTERS. Both land in the same normalised shape and go through one applier, so the two
+       front doors share every mapping decision:
+         { name, classlevel, race, background, alignment, player, xp, abilities{}, hp{}, ac, speed,
+           init, skills{}, saves{}, attacks[], inventory[], spells[], coins{}, senses, proficiencies,
+           features, notes }
+       An imported character is a RECREATED one: scores land as manual scores and the text fields are
+       filled verbatim, rather than trying to replay a level-by-level build we don't have the choices
+       for. Nothing is guessed — a field the source doesn't carry is simply left blank.
+       ================================================================================================ */
+    function blankImport(){
+      return { name:"", classlevel:"", race:"", background:"", alignment:"", player:"", xp:null,
+               abilities:{}, hp:{}, ac:null, speed:null, init:null, skills:{}, saves:{},
+               attacks:[], inventory:[], spells:[], coins:{}, senses:"", proficiencies:"", features:"", notes:"" };
+    }
+    var SKILL_BY_NAME = null;
+    function skillKeyFor(label){
+      if(!SKILL_BY_NAME){
+        SKILL_BY_NAME = {};
+        try{
+          (typeof SKILLS !== "undefined" ? SKILLS : []).forEach(function(r){
+            SKILL_BY_NAME[String(r[1]).toLowerCase()] = r[0];
+            SKILL_BY_NAME[String(r[0]).toLowerCase()] = r[0];
+          });
+        }catch(e){}
+        SKILL_BY_NAME["animal handling"] = SKILL_BY_NAME["animal handling"] || "animal";
+        SKILL_BY_NAME["sleight of hand"] = SKILL_BY_NAME["sleight of hand"] || "sleight";
+      }
+      return SKILL_BY_NAME[String(label || "").trim().toLowerCase()] || null;
+    }
+
+    /* Build this sheet's character record from the normalised import. */
+    function importToCharData(x){
+      var d = {};
+      d.charname     = x.name || "Imported character";
+      d.classlevel   = x.classlevel || "";
+      d.race         = x.race || "";
+      d.background   = x.background || "";
+      d.alignment    = x.alignment || "";
+      d.player       = x.player || "";
+      if(x.xp != null) d.xp = String(x.xp);
+
+      d.genMode = "manual";
+      d.manualScores = { str:"", dex:"", con:"", int:"", wis:"", cha:"" };
+      ABIL.forEach(function(k){ if(x.abilities[k] != null) d.manualScores[k] = String(x.abilities[k]); });
+      d.baseVals   = { str:null, dex:null, con:null, int:null, wis:null, cha:null };
+      d.rolledArray = null;
+      d.created = true;
+      d.createdAt = d.savedAt = Date.now();
+
+      if(x.hp.max != null){ d["hpmax-base"] = String(x.hp.max); d.hpmax = String(x.hp.max); }
+      if(x.hp.cur != null) d.hpcur = String(x.hp.cur);
+      if(x.hp.temp != null) d.hptmp = String(x.hp.temp);
+      if(x.speed != null){ d.speed = String(x.speed); d.speedBase = x.speed; }
+
+      ABIL.forEach(function(k){ if(x.saves[k]) d["savep-" + k] = true; });
+      for(var sk in x.skills){
+        if(x.skills[sk] >= 1) d["skp-" + sk] = true;
+        if(x.skills[sk] >= 2) d["ske-" + sk] = true;
+      }
+      x.attacks.forEach(function(a, i){
+        if(i > 40) return;
+        d["atkname-" + i] = a.name || "";
+        if(a.bonus != null) d["atkbonus-" + i] = String(a.bonus);
+        if(a.damage) d["atkdmg-" + i] = a.damage;
+      });
+      x.inventory.forEach(function(it, i){
+        if(i > 120) return;
+        d["invname-" + i] = it.name || "";
+        if(it.qty != null) d["invqty-" + i] = String(it.qty);
+        if(it.wt != null) d["invwt-" + i] = String(it.wt);
+      });
+      ["cp","sp","ep","gp","pp"].forEach(function(c){ if(x.coins[c] != null) d[c] = String(x.coins[c]); });
+      if(x.senses) d.senses = x.senses;
+      if(x.proficiencies) d.proficiencies = x.proficiencies;
+      if(x.features) d.features = x.features;
+      if(x.notes) d.notes = x.notes;
+
+      if(x.spells.length){
+        var byLevel = {};
+        for(var l = 0; l <= 9; l++) byLevel[l] = [];
+        x.spells.forEach(function(s){
+          var lv = Math.max(0, Math.min(9, s.level == null ? 0 : s.level));
+          if(byLevel[lv].length < 40) byLevel[lv].push({ name: s.name, prep: !!s.prep });
+        });
+        d.spellEntriesByInst = { 0: byLevel };
+        d.spellEntries = byLevel;
+      }
+      return d;
+    }
+    /* Write the imported character to its own slot and hand back the slot id (never touches the open one). */
+    function landImport(x, sourceLabel){
+      var d;
+      try{ d = importToCharData(x); }
+      catch(e){ say("Couldn't build a character from that file."); return null; }
+      var slot = null;
+      try{
+        slot = newSlotId();
+        csSet(BASE_KEY + "::" + slot, JSON.stringify(d));
+      }catch(e){
+        say("Not enough browser storage to import that character.");
+        return null;
+      }
+      say("Imported " + (d.charname || "character") + " from " + sourceLabel + ".");
+      return slot;
+    }
+    function offerOpen(slot, label){
+      if(!slot) return;
+      var el = $i("intg-import-result");
+      if(!el) return;
+      el.innerHTML = '<p class="wiz-hint" style="margin-top:8px">Imported <strong>' + esc(label) +
+        '</strong> as a new character. <button class="btn" id="intg-open-import" type="button" ' +
+        'style="margin-left:6px">Open it</button></p>';
+      var b = $i("intg-open-import");
+      if(b) b.addEventListener("click", function(){
+        try{ gotoSlot(slot); }catch(e){ say("Open it from Manage Characters."); }
+      });
+    }
+
+    /* ---- 5. D&D BEYOND ----------------------------------------------------------------------------
+       D&D Beyond has no public write API, and its character-service endpoint sends no CORS headers, so
+       a browser on this origin cannot fetch it directly. The reliable path is therefore paste-first:
+       open the JSON URL (a public character serves it straight to a browser tab), copy, paste here.
+       The Fetch button still tries — if they ever open CORS up, or the sheet runs somewhere without
+       the restriction, it just works — and says plainly what happened when it can't.
+       Ability ids in that JSON are 1..6 = STR, DEX, CON, INT, WIS, CHA.                              */
+    var DDB_URL = "https://character-service.dndbeyond.com/character/v5/character/";
+    function ddbId(s){
+      var m = String(s || "").match(/(\d{5,})/);
+      return m ? m[1] : null;
+    }
+    function ddbStat(list, id){
+      var hit = (list || []).filter(function(s){ return s && s.id === id; })[0];
+      return hit && hit.value != null ? hit.value : null;
+    }
+    function ddbParse(raw){
+      var j = raw;
+      if(typeof raw === "string") j = JSON.parse(raw);
+      var c = (j && (j.data || j.character || (j.ddb && j.ddb.character))) || j;
+      if(!c || typeof c !== "object" || (!c.name && !c.stats)) throw new Error("not a D&D Beyond character");
+      var x = blankImport();
+      x.name = c.name || "";
+      x.player = c.username || "";
+      x.xp = c.currentXp != null ? c.currentXp : null;
+      x.race = (c.race && (c.race.fullName || c.race.baseName)) || "";
+      x.background = (c.background && c.background.definition && c.background.definition.name) ||
+                     (c.background && c.background.customBackground && c.background.customBackground.name) || "";
+      x.classlevel = (c.classes || []).map(function(cl){
+        var nm = (cl.definition && cl.definition.name) || "";
+        var sub = (cl.subclassDefinition && cl.subclassDefinition.name) || "";
+        return (nm + (sub ? " (" + sub + ")" : "") + " " + (cl.level || "")).trim();
+      }).filter(Boolean).join(", ");
+
+      ABIL.forEach(function(k, idx){
+        var id = idx + 1;
+        var over = ddbStat(c.overrideStats, id);
+        if(over != null){ x.abilities[k] = over; return; }
+        var base = ddbStat(c.stats, id), bonus = ddbStat(c.bonusStats, id);
+        if(base != null) x.abilities[k] = base + (bonus || 0);
+      });
+
+      var conMod = x.abilities.con != null ? Math.floor((x.abilities.con - 10) / 2) : 0;
+      var lvl = (c.classes || []).reduce(function(a, cl){ return a + (cl.level || 0); }, 0);
+      if(c.overrideHitPoints != null) x.hp.max = c.overrideHitPoints;
+      else if(c.baseHitPoints != null) x.hp.max = c.baseHitPoints + (c.bonusHitPoints || 0) + conMod * lvl;
+      if(x.hp.max != null) x.hp.cur = Math.max(0, x.hp.max - (c.removedHitPoints || 0));
+      if(c.temporaryHitPoints) x.hp.temp = c.temporaryHitPoints;
+
+      if(c.currencies) ["cp","sp","ep","gp","pp"].forEach(function(k){
+        if(c.currencies[k] != null) x.coins[k] = c.currencies[k];
+      });
+
+      (c.inventory || []).forEach(function(it){
+        var def = it && it.definition;
+        if(!def || !def.name) return;
+        x.inventory.push({ name: def.name, qty: it.quantity || 1,
+                           wt: def.weight != null ? def.weight : null });
+      });
+
+      var spellBags = (c.spells && typeof c.spells === "object") ? c.spells : {};
+      Object.keys(spellBags).forEach(function(bag){
+        (spellBags[bag] || []).forEach(function(s){
+          var def = s && s.definition;
+          if(def && def.name) x.spells.push({ name: def.name, level: def.level || 0, prep: !!s.prepared });
+        });
+      });
+      (c.classSpells || []).forEach(function(cs){
+        (cs.spells || []).forEach(function(s){
+          var def = s && s.definition;
+          if(def && def.name) x.spells.push({ name: def.name, level: def.level || 0, prep: !!s.prepared });
+        });
+      });
+
+      var feats = (c.feats || []).map(function(f){ return f.definition && f.definition.name; }).filter(Boolean);
+      if(feats.length) x.features = feats.join("\n\n");
+      var notes = [];
+      if(c.notes) for(var nk in c.notes){ if(c.notes[nk]) notes.push(c.notes[nk]); }
+      if(notes.length) x.notes = notes.join("\n\n");
+      return x;
+    }
+    function ddbImportFromText(){
+      var raw = fv("intg-ddb-json").trim();
+      if(!raw){ say("Paste the character JSON first."); return; }
+      var x;
+      try{ x = ddbParse(raw); }
+      catch(e){ say("That JSON isn't a D&D Beyond character."); return; }
+      var slot = landImport(x, "D&D Beyond");
+      offerOpen(slot, x.name || "character");
+    }
+    function ddbFetch(){
+      var id = ddbId(fv("intg-ddb-id"));
+      if(!id){ say("Paste a D&D Beyond character URL or id."); return; }
+      var btn = $i("intg-ddb-fetch");
+      if(btn) btn.disabled = true;
+      fetch(DDB_URL + id, { mode: "cors" })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          var x = ddbParse(j);
+          var slot = landImport(x, "D&D Beyond");
+          offerOpen(slot, x.name || "character");
+        })
+        .catch(function(){
+          say("D&D Beyond blocked the direct fetch — use the paste box below.");
+          var box = $i("intg-ddb-json");
+          if(box){
+            var url = DDB_URL + id;
+            var hint = $i("intg-ddb-hint");
+            if(hint) hint.innerHTML = 'Open <a href="' + esc(url) + '" target="_blank" rel="noopener">' +
+              esc(url) + '</a> in a new tab, copy everything, and paste it below.';
+            box.focus();
+          }
+        })
+        .then(function(){ if(btn) btn.disabled = false; });
+    }
+
+    /* ---- 6. MPMB -----------------------------------------------------------------------------------
+       MPMB's sheet is an Acrobat form, so the character lives in AcroForm fields. Acrobat's own
+       "Export Data" writes .xfdf (XML) or .fdf (plain text) — both parse here with no dependency. A
+       .pdf is accepted too and scanned for uncompressed field values, which works on some saves and
+       not others; the UI says so rather than pretending.
+       Field names below are MPMB's own (read off the sheet), used purely to line the two sheets up.  */
+    var MPMB_SKILL_FIELD = { Acr:"acrobatics", Ani:"animal", Arc:"arcana", Ath:"athletics", Dec:"deception",
+      His:"history", Ins:"insight", Inti:"intimidation", Inv:"investigation", Med:"medicine", Nat:"nature",
+      Perc:"perception", Perf:"performance", Pers:"persuasion", Rel:"religion", Sle:"sleight", Ste:"stealth",
+      Sur:"survival" };
+    var MPMB_ABIL_FIELD = { Str:"str", Dex:"dex", Con:"con", Int:"int", Wis:"wis", Cha:"cha" };
+
+    function parseXfdf(text){
+      var out = {};
+      var doc = new DOMParser().parseFromString(text, "application/xml");
+      if(doc.getElementsByTagName("parsererror").length) return out;
+      var fields = doc.getElementsByTagName("field");
+      for(var i = 0; i < fields.length; i++){
+        var name = fields[i].getAttribute("name");
+        if(!name) continue;
+        var v = fields[i].getElementsByTagName("value")[0];
+        if(v) out[name] = String(v.textContent || "").trim();
+      }
+      return out;
+    }
+    function parseFdf(text){
+      var out = {}, re = /\/T\s*\(((?:\\.|[^)\\])*)\)\s*(?:\/V\s*\(((?:\\.|[^)\\])*)\))?/g, m;
+      function unesc(s){ return String(s || "").replace(/\\([()\\])/g, "$1"); }
+      while((m = re.exec(text))){
+        var k = unesc(m[1]);
+        if(m[2] != null) out[k] = unesc(m[2]).trim();
+      }
+      return out;
+    }
+    function parseFormBytes(text){
+      var a = parseXfdf(text);
+      if(Object.keys(a).length > 4) return a;
+      return parseFdf(text);
+    }
+    function mpmbParse(fields){
+      var x = blankImport();
+      function f(name){ return String(fields[name] == null ? "" : fields[name]).trim(); }
+      x.name        = f("PC Name");
+      x.classlevel  = f("Class and Levels");
+      x.race        = f("Race");
+      x.background  = f("Background");
+      x.alignment   = f("Alignment");
+      x.player      = f("Player Name");
+      x.xp          = num(f("Total Experience"));
+      x.ac          = num(f("AC"));
+      x.speed       = num(f("Speed"));
+      x.init        = num(f("Init Bonus"));
+      x.hp.max      = num(f("HP Max"));
+      x.hp.cur      = num(f("HP Current"));
+      x.hp.temp     = num(f("HP Temp"));
+      x.senses      = f("Vision");
+
+      for(var af in MPMB_ABIL_FIELD){
+        var v = num(f(af));
+        if(v != null) x.abilities[MPMB_ABIL_FIELD[af]] = v;
+        if(f(af + " ST Prof")) x.saves[MPMB_ABIL_FIELD[af]] = true;
+      }
+      for(var sf in MPMB_SKILL_FIELD){
+        var key = MPMB_SKILL_FIELD[sf];
+        if(f(sf + " Exp")) x.skills[key] = 2;
+        else if(f(sf + " Prof")) x.skills[key] = 1;
+      }
+      for(var i = 1; i <= 12; i++){
+        var nm = f("Attack." + i + ".Weapon");
+        if(!nm) continue;
+        x.attacks.push({ name: nm, bonus: num(f("Attack." + i + ".To Hit")),
+                         damage: [f("Attack." + i + ".Damage"), f("Attack." + i + ".Damage Type")]
+                                   .filter(Boolean).join(" ") });
+      }
+      [["Adventuring Gear", 60], ["Extra.Gear", 30]].forEach(function(src){
+        for(var g = 1; g <= src[1]; g++){
+          var row = f(src[0] + " Row " + g);
+          if(!row) continue;
+          var wt = parseFloat(f(src[0] + " Weight " + g));
+          x.inventory.push({ name: row, qty: num(f(src[0] + " Amount " + g)),
+                             wt: isNaN(wt) ? null : wt });
+        }
+      });
+      var coins = { cp:"Copper Pieces", sp:"Silver Pieces", ep:"Electrum Pieces", gp:"Gold Pieces", pp:"Platinum Pieces" };
+      for(var ck in coins){ var cv = num(f(coins[ck])); if(cv != null) x.coins[ck] = cv; }
+      for(var s = 0; s < 200; s++){
+        var sn = f("spells.name." + s);
+        if(sn) x.spells.push({ name: sn, level: num(f("spells.level." + s)) || 0, prep: !!f("spells.prepared." + s) });
+      }
+      var langs = [];
+      for(var L = 1; L <= 8; L++){ var lg = f("Language " + L); if(lg) langs.push(lg); }
+      if(langs.length) x.proficiencies = "Languages: " + langs.join(", ");
+      var feat = f("Background Feature Description");
+      if(feat) x.features = feat;
+      if(!x.name && !x.classlevel && !Object.keys(x.abilities).length) throw new Error("no MPMB fields found");
+      return x;
+    }
+    function mpmbImportFile(file){
+      if(!file) return;
+      var reader = new FileReader();
+      reader.onerror = function(){ say("Couldn't read that file."); };
+      reader.onload = function(){
+        var text = String(reader.result || ""), x;
+        try{ x = mpmbParse(parseFormBytes(text)); }
+        catch(e){
+          say(/\.pdf$/i.test(file.name)
+              ? "That PDF's fields are compressed — export it from Acrobat as .xfdf instead."
+              : "No MPMB character fields in that file.");
+          return;
+        }
+        var slot = landImport(x, "MPMB");
+        offerOpen(slot, x.name || "character");
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    /* ================================================================================================
+       SETTINGS → INTEGRATIONS. Rendered here so the static section stays an empty container: no secret
+       ever ends up in the document markup, which matters because Save-a-copy serialises the live DOM.
+       Input values are set as PROPERTIES (never value="…" attributes) for exactly that reason.
+       ================================================================================================ */
+    function injectStyle(){
+      if($i("intg-style")) return;
+      var s = document.createElement("style");
+      s.id = "intg-style"; s.setAttribute("data-transient", "1");
+      s.textContent =
+        ".intg-sec{border-top:1px solid var(--line); padding-top:14px; margin-top:16px}" +
+        ".intg-sec:first-child{border-top:none; padding-top:0; margin-top:0}" +
+        ".intg-status{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); margin:0 0 8px}" +
+        ".intg-dot{width:8px; height:8px; flex:none; background:var(--muted); display:inline-block}" +
+        ".intg-dot.on{background:#2e9e4f}" +
+        ".intg-row{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:8px 0 0}" +
+        ".intg-row input[type=text],.intg-row input[type=url]{flex:1; min-width:180px}" +
+        "#intg-body textarea{width:100%; min-height:74px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px}" +
+        "#intg-body .btn{margin:0}" +
+        ".intg-mono{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; word-break:break-all}" +
+        "html.in-owlbear .toolbar .brand{display:none}";
+      document.head.appendChild(s);
+    }
+    function bodyHTML(){
+      return '' +
+      '<div class="intg-sec">' +
+        '<label class="lbl" style="display:block; margin-bottom:6px">Live rolls · Roll20, Foundry VTT, Discord</label>' +
+        '<p class="intg-status"><span class="intg-dot" id="intg-b20-dot"></span><span id="intg-b20-status">Beyond20 not detected on this page</span></p>' +
+        '<label class="lay-row"><input type="checkbox" id="intg-b20-on"> Send my rolls through Beyond20</label>' +
+        '<div class="intg-row"><label class="lbl" for="intg-b20-mode" style="margin:0">Send</label>' +
+          '<select id="intg-b20-mode">' +
+            '<option value="result">my result (the dice this sheet rolled)</option>' +
+            '<option value="formula">the formula (the VTT rolls its own dice)</option>' +
+          '</select>' +
+          '<button class="btn" id="intg-b20-test" type="button">Send a test</button></div>' +
+        '<p class="wiz-hint">Beyond20 is a browser extension that relays rolls into a Roll20 or Foundry tab (and on to Discord if you set that up inside Beyond20). Install it, open your VTT in another tab, then add this sheet\'s address to Beyond20\'s <strong>custom domains</strong> list under its advanced options — it only injects itself into sites it knows about.</p>' +
+      '</div>' +
+
+      '<div class="intg-sec">' +
+        '<label class="lbl" style="display:block; margin-bottom:6px">Discord webhook</label>' +
+        '<label class="lay-row"><input type="checkbox" id="intg-discord-on"> Post my rolls to a Discord channel</label>' +
+        '<div class="intg-row"><input type="url" id="intg-webhook" placeholder="https://discord.com/api/webhooks/…" spellcheck="false" autocomplete="off"></div>' +
+        '<div class="intg-row"><input type="text" id="intg-discord-name" placeholder="Post as (defaults to the character name)" spellcheck="false" autocomplete="off">' +
+          '<button class="btn" id="intg-discord-test" type="button">Send a test</button></div>' +
+        '<p class="wiz-hint">In Discord: Channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL. Rolls are queued and spaced out so a flurry of them can\'t hit the rate limit. The URL is stored in this browser only — it is never saved into a character, an exported sheet, or a shared copy, so treat it like a password and re-enter it on each device.</p>' +
+      '</div>' +
+
+      '<div class="intg-sec">' +
+        '<label class="lbl" style="display:block; margin-bottom:6px">Export to Foundry VTT</label>' +
+        '<div class="intg-row"><button class="btn" id="intg-foundry" type="button">Export this character as a Foundry actor</button></div>' +
+        '<p class="wiz-hint">Writes a <code>dnd5e</code> actor JSON. In Foundry: make (or pick) an actor in the sidebar, right-click it → <strong>Import Data</strong>, choose the file. That overwrites the actor you picked, so import onto a fresh one. Abilities, skills, saves, HP, AC, speed, currency, spell slots, attacks, inventory and spells come across; class features and item mechanics do not — Foundry rebuilds those from its own compendium.</p>' +
+      '</div>' +
+
+      '<div class="intg-sec">' +
+        '<label class="lbl" style="display:block; margin-bottom:6px">Owlbear Rodeo</label>' +
+        '<p class="intg-status"><span class="intg-dot" id="intg-obr-dot"></span><span id="intg-obr-status">Not running inside Owlbear Rodeo</span></p>' +
+        '<div class="intg-row"><input type="text" id="intg-obr-url" spellcheck="false" readonly>' +
+          '<button class="btn" id="intg-obr-copy" type="button">Copy</button></div>' +
+        '<p class="wiz-hint">In an Owlbear Rodeo room: <strong>Extensions → Add Extension</strong>, paste that manifest URL. The sheet then opens in a panel inside the room, sharing the same characters as the tab you use now. Only works from the hosted copy (an extension has to be reachable over the web), so the URL above always points at the published sheet.</p>' +
+      '</div>' +
+
+      '<div class="intg-sec">' +
+        '<label class="lbl" style="display:block; margin-bottom:6px">Import from D&amp;D Beyond</label>' +
+        '<div class="intg-row"><input type="text" id="intg-ddb-id" placeholder="Character URL or id" spellcheck="false">' +
+          '<button class="btn" id="intg-ddb-fetch" type="button">Fetch</button></div>' +
+        '<p class="wiz-hint" id="intg-ddb-hint">D&amp;D Beyond has no public API and blocks cross-site reads, so Fetch usually can\'t reach it. When it can\'t, it hands you the direct link: open that, copy the whole page, and paste it below. The character has to be public for this to work at all.</p>' +
+        '<textarea id="intg-ddb-json" placeholder="…or paste the character JSON here" spellcheck="false"></textarea>' +
+        '<div class="intg-row"><button class="btn" id="intg-ddb-import" type="button">Import pasted JSON</button></div>' +
+      '</div>' +
+
+      '<div class="intg-sec">' +
+        '<label class="lbl" style="display:block; margin-bottom:6px">Import from MPMB</label>' +
+        '<div class="intg-row"><input type="file" id="intg-mpmb-file" accept=".xfdf,.fdf,.pdf,application/pdf,application/vnd.adobe.xfdf"></div>' +
+        '<p class="wiz-hint">In Acrobat, with the MPMB sheet open: <strong>Tools → Prepare Form → More → Export Data</strong>, save as <code>.xfdf</code>, then pick that file here. A <code>.pdf</code> often works too, but Acrobat compresses the form data on some saves and there is nothing readable to pull out when it does.</p>' +
+      '</div>' +
+
+      '<div id="intg-import-result"></div>' +
+
+      '<p class="wiz-hint" style="margin-top:16px">Everything on this tab is per-browser, not per-character, and none of it is written into an exported or shared sheet.</p>';
+    }
+    function renderB20(){
+      var dot = $i("intg-b20-dot"), st = $i("intg-b20-status");
+      if(!dot || !st) return;
+      dot.classList.toggle("on", _b20);
+      st.textContent = _b20 ? "Beyond20 detected" : "Beyond20 not detected on this page";
+    }
+    function renderObr(){
+      var dot = $i("intg-obr-dot"), st = $i("intg-obr-status"), url = $i("intg-obr-url");
+      if(url) url.value = obrManifestUrl();
+      if(!dot || !st) return;
+      var inside = inOwlbear();
+      dot.classList.toggle("on", inside);
+      st.textContent = inside ? "Running inside Owlbear Rodeo" : "Not running inside Owlbear Rodeo";
+    }
+    function syncUI(){
+      var p = prefs();
+      var on = $i("intg-b20-on"); if(on) on.checked = !!p.b20;
+      var md = $i("intg-b20-mode"); if(md) md.value = p.b20mode;
+      var dc = $i("intg-discord-on"); if(dc) dc.checked = !!p.discord;
+      var wh = $i("intg-webhook"); if(wh) wh.value = p.webhook || "";      // property, never an attribute
+      var dn = $i("intg-discord-name"); if(dn) dn.value = p.discordName || "";
+      renderB20(); renderObr();
+    }
+    function wire(){
+      var host = $i("intg-body");
+      if(!host) return;
+      host.innerHTML = bodyHTML();
+
+      host.addEventListener("change", function(e){
+        var t = e.target, p = prefs();
+        if(t.id === "intg-b20-on"){ p.b20 = t.checked; savePrefs(); }
+        else if(t.id === "intg-b20-mode"){ p.b20mode = t.value === "formula" ? "formula" : "result"; savePrefs(); }
+        else if(t.id === "intg-discord-on"){
+          p.discord = t.checked; savePrefs();
+          if(t.checked && !webhookOk(p.webhook)) say("Add a Discord webhook URL first.");
+        }
+        else if(t.id === "intg-webhook"){
+          p.webhook = String(t.value || "").trim(); savePrefs();
+          if(p.webhook && !webhookOk(p.webhook)) say("That doesn't look like a Discord webhook URL.");
+        }
+        else if(t.id === "intg-discord-name"){ p.discordName = String(t.value || "").trim(); savePrefs(); }
+        else if(t.id === "intg-mpmb-file"){ mpmbImportFile(t.files && t.files[0]); t.value = ""; }
+      });
+      host.addEventListener("click", function(e){
+        var b = e.target.closest ? e.target.closest("button") : null;
+        if(!b) return;
+        if(b.id === "intg-b20-test") b20Test();
+        else if(b.id === "intg-discord-test") discordTest();
+        else if(b.id === "intg-foundry") exportFoundry();
+        else if(b.id === "intg-ddb-fetch") ddbFetch();
+        else if(b.id === "intg-ddb-import") ddbImportFromText();
+        else if(b.id === "intg-obr-copy"){
+          var u = $i("intg-obr-url");
+          if(u){
+            u.select();
+            var done = function(){ say("Manifest URL copied."); };
+            if(navigator.clipboard && navigator.clipboard.writeText)
+              navigator.clipboard.writeText(u.value).then(done, function(){ say("Copy it by hand: " + u.value); });
+            else { try{ document.execCommand("copy"); done(); }catch(err){ say("Copy it by hand: " + u.value); } }
+          }
+        }
+      });
+      syncUI();
+    }
+
+    /* ---- boot ---- */
+    try{
+      injectStyle();
+      applyOwlbear();
+      document.addEventListener("Beyond20_Loaded", function(){ _b20 = true; renderB20(); }, false);
+      document.addEventListener("dnd-sheet:roll", onRoll, false);
+      wire();
+      window.Integrations = { prefs: prefs, savePrefs: savePrefs, foundryActor: foundryActor,
+                              exportFoundry: exportFoundry, ddbParse: ddbParse, mpmbParse: mpmbParse,
+                              parseFormBytes: parseFormBytes, importToCharData: importToCharData,
+                              rollText: rollText, b20Formula: b20Formula, sendTest: b20Test,
+                              inOwlbear: inOwlbear, manifestUrl: obrManifestUrl, sync: syncUI,
+                              beyond20Ready: function(){ return _b20; },
+                              _queueDiscord: queueDiscord, _webhookOk: webhookOk };
     }catch(e){}
   })();
   </script>

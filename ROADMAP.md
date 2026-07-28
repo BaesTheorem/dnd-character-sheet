@@ -4,6 +4,14 @@ The forward-looking work list for the sheet. Shipped work lives in the in-app ch
 
 ## Planned
 
+### Integrations with other tables — SHIPPED 2.153.0 (2026-07-28)
+Settings → Integrations: Beyond20 live-roll bridge (Roll20 / Foundry VTT / Discord), Discord webhook, Foundry `dnd5e` actor export, an Owlbear Rodeo extension manifest, and importers for D&D Beyond and MPMB. Follow-ups if wanted:
+- Beyond20's richer roll types (`attack`, `spell-card`) instead of the universal `chat-message`, so a VTT renders a proper attack card rather than a text line.
+- Foundry: match items against the dnd5e compendium so class features and item mechanics come across, not just names and numbers.
+- Owlbear: use the extension SDK for room/player context (whose turn it is, syncing HP to a token) rather than just embedding the sheet.
+- D&D Beyond fetch is paste-only in practice (no CORS on their character service). A proxy would fix it but would route character data through a third party — not worth it unasked.
+- Fantasy Grounds XML export, if there's ever a table that needs it. Needs one real exported FG 5E character to derive the node structure.
+
 ### 3D dice rolling — SHIPPED 2.138.0–2.140.0 (phases A/B/C, 2026-07-22)
 All three phases live: roll engine + click wiring + roll log + plain-dice sidebar (2.138.0), 3D physics overlay with instant fallback under Disable animations / reduced motion / no WebGL (2.139.0), materials + color picker (2.140.0). Plan retained at [`plans/3d-dice-rolling.md`](plans/3d-dice-rolling.md) for the architecture notes. Possible follow-ups if asked: orient face digits upright on settle, d100 as paired d10s in 3D, roll-log entries tap-to-reroll. Ships in three phases (roll engine + log first, 3D second, materials third), each leaving the sheet fully working.
 
