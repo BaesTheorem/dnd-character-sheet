@@ -3226,11 +3226,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v608 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v609 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.155.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.156.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3238,6 +3238,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v609", semver:"2.156.0", items:[
+      "Removed the Owlbear Rodeo integration. An extension has to be reachable over the web, and browser storage is tied to where a page is served from, so a sheet embedded in a room could never see the characters in your local copy of this file. Better to drop it than to ship a panel that opens empty.",
+      "The other integrations are untouched: live rolls, the Discord webhook, Foundry export, and both importers."
+    ]},
     {v:"v608", semver:"2.155.0", items:[
       "New Version History (☰ menu, or Character Settings). The sheet keeps a rolling record of your character as you play, and you can roll back to any of it.",
       "The save just before a level-up and the first one after it are kept permanently and highlighted, so the list reads as a record of the character growing rather than a pile of autosaves. Ordinary snapshots roll over after 40; level-up ones never do.",
@@ -18129,9 +18133,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
        • Beyond20 bridge   → Roll20 / Foundry VTT / Discord, live, using Beyond20's documented DOM API
        • Discord webhook   → posts rolls straight to a channel, no extension needed
        • Foundry export    → a dnd5e actor JSON the GM drops on an Actor (right-click → Import Data)
-       • Owlbear Rodeo     → detects being embedded, and hands over the manifest URL to install
        • D&D Beyond import → paste (or fetch) a character JSON, land it as a new character here
-       • MPMB import       → read an MPMB sheet's form data (.xfdf / .fdf / .pdf) into a new character
+       • Sheet PDF import  → read an MPMB or official-sheet form (.pdf / .xfdf / .fdf) into a new character
 
      Self-contained: no dependencies, no build step. Every read of a main-script global is guarded, so
      nothing in here can take the sheet down. Settings → Integrations is rendered from this module
@@ -18458,25 +18461,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     }
 
     /* ================================================================================================
-       4. OWLBEAR RODEO — an extension is a hosted manifest.json describing a page Owlbear embeds in an
-       iframe. The sheet already IS a self-contained page, so the wrapper is: ship a manifest at the
-       site root pointing back at index.html, and notice when we're the embedded one so the chrome can
-       get out of the way. (Manifest fields follow Owlbear's own first-party extensions.)
-       ================================================================================================ */
-    function obrManifestUrl(){
-      if(location.protocol === "file:") return "https://baestheorem.github.io/dnd-character-sheet/manifest.json";
-      return location.href.split("#")[0].replace(/[^/]*$/, "") + "manifest.json";
-    }
-    function inOwlbear(){
-      try{ return window.self !== window.top && /owlbear\.rodeo/i.test(document.referrer || ""); }
-      catch(e){ return window.self !== window.top; }
-    }
-    function applyOwlbear(){
-      if(!inOwlbear()) return;
-      document.documentElement.classList.add("in-owlbear");
-      try{ document.body.classList.add("in-owlbear"); }catch(e){}
-    }
-
     /* ================================================================================================
        5+6. IMPORTERS. Both land in the same normalised shape and go through one applier, so the two
        front doors share every mapping decision:
@@ -19100,7 +19084,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         "#intg-body textarea{width:100%; min-height:74px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px}" +
         "#intg-body .btn{margin:0}" +
         ".intg-mono{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; word-break:break-all}" +
-        "html.in-owlbear .toolbar .brand{display:none}";
+        ".intg-mono{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:11px; word-break:break-all}";
       document.head.appendChild(s);
     }
     function bodyHTML(){
@@ -19130,13 +19114,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         '<p class="wiz-hint">Writes a <code>dnd5e</code> actor JSON. In Foundry: make (or pick) an actor in the sidebar, right-click it → <strong>Import Data</strong>, choose the file. That overwrites the actor you picked, so import onto a fresh one. Abilities, skills, saves, HP, AC, speed, currency, spell slots, attacks, inventory and spells come across; class features and item mechanics do not — Foundry rebuilds those from its own compendium.</p>' +
       '</div></details>' +
 
-      '<details class="set-group"><summary class="set-head">Owlbear Rodeo</summary><div class="set-body">' +
-        '<p class="intg-status"><span class="intg-dot" id="intg-obr-dot"></span><span id="intg-obr-status">Not running inside Owlbear Rodeo</span></p>' +
-        '<div class="intg-row"><input type="text" id="intg-obr-url" spellcheck="false" readonly>' +
-          '<button class="btn" id="intg-obr-copy" type="button">Copy</button></div>' +
-        '<p class="wiz-hint">In an Owlbear Rodeo room: <strong>Extensions → Add Extension</strong>, paste that manifest URL. The sheet then opens in a panel inside the room, sharing the same characters as the tab you use now. Only works from the hosted copy (an extension has to be reachable over the web), so the URL above always points at the published sheet.</p>' +
-      '</div></details>' +
-
       '<details class="set-group"><summary class="set-head">Import from D&amp;D Beyond</summary><div class="set-body">' +
         '<div class="intg-row"><input type="text" id="intg-ddb-id" placeholder="Character URL or id" spellcheck="false">' +
           '<button class="btn" id="intg-ddb-fetch" type="button">Fetch</button></div>' +
@@ -19160,14 +19137,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       dot.classList.toggle("on", _b20);
       st.textContent = _b20 ? "Beyond20 detected" : "Beyond20 not detected on this page";
     }
-    function renderObr(){
-      var dot = $i("intg-obr-dot"), st = $i("intg-obr-status"), url = $i("intg-obr-url");
-      if(url) url.value = obrManifestUrl();
-      if(!dot || !st) return;
-      var inside = inOwlbear();
-      dot.classList.toggle("on", inside);
-      st.textContent = inside ? "Running inside Owlbear Rodeo" : "Not running inside Owlbear Rodeo";
-    }
     function syncUI(){
       var p = prefs();
       var on = $i("intg-b20-on"); if(on) on.checked = !!p.b20;
@@ -19175,7 +19144,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var dc = $i("intg-discord-on"); if(dc) dc.checked = !!p.discord;
       var wh = $i("intg-webhook"); if(wh) wh.value = p.webhook || "";      // property, never an attribute
       var dn = $i("intg-discord-name"); if(dn) dn.value = p.discordName || "";
-      renderB20(); renderObr();
+      renderB20();
     }
     function wire(){
       var host = $i("intg-body");
@@ -19205,16 +19174,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         else if(b.id === "intg-foundry") exportFoundry();
         else if(b.id === "intg-ddb-fetch") ddbFetch();
         else if(b.id === "intg-ddb-import") ddbImportFromText();
-        else if(b.id === "intg-obr-copy"){
-          var u = $i("intg-obr-url");
-          if(u){
-            u.select();
-            var done = function(){ say("Manifest URL copied."); };
-            if(navigator.clipboard && navigator.clipboard.writeText)
-              navigator.clipboard.writeText(u.value).then(done, function(){ say("Copy it by hand: " + u.value); });
-            else { try{ document.execCommand("copy"); done(); }catch(err){ say("Copy it by hand: " + u.value); } }
-          }
-        }
       });
       syncUI();
     }
@@ -19222,7 +19181,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     /* ---- boot ---- */
     try{
       injectStyle();
-      applyOwlbear();
       document.addEventListener("Beyond20_Loaded", function(){ _b20 = true; renderB20(); }, false);
       document.addEventListener("dnd-sheet:roll", onRoll, false);
       wire();
@@ -19232,7 +19190,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
                               pdfFormText: pdfFormText, importFields: importFields,
                               parseFormBytes: parseFormBytes, importToCharData: importToCharData,
                               rollText: rollText, b20Formula: b20Formula, sendTest: b20Test,
-                              inOwlbear: inOwlbear, manifestUrl: obrManifestUrl, sync: syncUI,
+                              sync: syncUI,
                               beyond20Ready: function(){ return _b20; },
                               _queueDiscord: queueDiscord, _webhookOk: webhookOk };
     }catch(e){}
