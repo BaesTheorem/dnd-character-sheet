@@ -689,6 +689,32 @@
   .settings-content{flex:1; padding:18px; min-height:120px; overflow:auto}
   .set-sec{display:none}
   .set-sec.active{display:block}
+  /* Settings sub-sections are collapsible groups, closed by default — the panel was several screens of
+     scrolling with everything expanded. Headers read as headers here (13px sentence case) rather than the
+     10px all-caps `.lbl` treatment used for field labels on the sheet itself. */
+  .set-group{border-top:1px solid var(--line)}
+  .set-sec > .set-group:first-child{border-top:none}
+  .set-head{font:inherit; font-size:13px; font-weight:600; color:var(--ink); text-transform:none; letter-spacing:normal;
+            padding:11px 4px 11px 21px; cursor:pointer; list-style:none; position:relative; user-select:none}
+  .set-head::-webkit-details-marker{display:none}
+  .set-head::before{content:""; position:absolute; left:6px; top:15px; width:6px; height:6px;
+            border-right:1.5px solid var(--muted); border-bottom:1.5px solid var(--muted); transform:rotate(-45deg)}
+  .set-group[open] > .set-head::before{transform:rotate(45deg); top:13px}
+  .set-head:hover{color:var(--accent)}
+  .set-head .wiz-hint{font-weight:400; display:inline; font-size:11px}
+  .set-body{padding:0 4px 14px 21px}
+  /* Version history rows. The two either side of a level-up are the point of the feature, so they carry
+     an accent edge and a tinted ground — you should be able to find them without reading the dates. */
+  .ver-row{display:flex; align-items:center; gap:10px; padding:9px 10px; border-bottom:1px solid var(--line)}
+  .ver-row:last-child{border-bottom:none}
+  .ver-main{flex:1; min-width:0}
+  .ver-when{font-size:12px; font-weight:600; color:var(--ink)}
+  .ver-date{font-size:11px; font-weight:400; color:var(--muted); margin-left:8px}
+  .ver-what{font-size:11px; color:var(--muted); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .ver-badge{margin-left:8px; color:var(--muted)}
+  .ver-boundary{border-left:3px solid var(--accent); background:var(--accent-soft); padding-left:9px}
+  .ver-boundary .ver-badge{color:var(--accent); font-weight:600}
+  .set-body > .lbl:first-child{margin-top:0}
   .sheet.no-addspell [data-addspellsheet]{display:none !important}   /* Settings → Spells: hide the + Add spell sheet button (created sheets stay) */
   @media (max-width:560px){
     .settings-wrap{flex-direction:column}
@@ -2091,6 +2117,7 @@
         <button class="btn menu-item" id="btn-hb-studio-top" type="button" title="Create and manage your custom spells, items, feats, and more">Homebrew Studio</button>
         <button class="btn menu-item" id="btn-print">Print / PDF</button>
         <button class="btn menu-item" id="btn-rolllog" type="button" title="This character's recent dice rolls (last 50)">Roll Log</button>
+        <button class="btn menu-item" id="btn-verhist" type="button" title="Roll this character back to an earlier state">Version History</button>
         <button class="btn menu-item" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
       </div>
     </div>
@@ -3034,9 +3061,6 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
             <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
             <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
-            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Manual overrides</label>
-            <button class="btn" id="btn-reset-overrides" type="button" title="Clear every hand-pinned value and return to calculated values">Clear all manual overrides</button>
-            <p class="wiz-hint">Double-click any calculated value on the sheet (ability scores, modifiers, proficiency, AC, initiative, saves, skills, spell DC, attacks, HP…) to pin a custom value. A pinned source value still feeds everything below it. Pinned fields are outlined with a small marker and their tooltip shows the calculated value; Alt-click one to revert. <strong>On a phone or tablet, long-press a field to edit it</strong>, and clear the value to revert it to calculated. This button clears them all at once.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Export a blank sheet</label>
             <button class="btn" id="btn-export-blank" type="button" title="Download a blank copy of this sheet — no character data, default settings, but every loaded sourcebook baked in. Hand it to someone so they can start a character with all your sources ready to go.">Export a blank sheet</button>
             <p class="wiz-hint">Downloads a fresh copy with no characters and default settings, but with every sourcebook you've loaded baked in. Good for handing someone a ready-to-use sheet. It opens blank for them (and for you), and it keeps your own characters and settings untouched.</p>
@@ -3069,14 +3093,19 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Enabled sources</label>
             <p class="wiz-hint" style="margin-top:0">Which loaded sources <strong>this character</strong> uses. Unchecking one hides its content (races, spells, items…) for this character only — every character keeps its own choices. Unchecking Tasha's Cauldron here also turns off its optional rules below, and the Ancestral Weapons row turns that whole rules module on or off. Loading, importing, and deleting sources for the whole sheet lives in Settings → Advanced.</p>
             <div id="char-sources"></div>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Version history</label>
+            <button class="btn" id="btn-verhist-settings" type="button" title="Roll this character back to an earlier state">Open version history…</button>
+            <p class="wiz-hint">This sheet keeps a rolling record of this character as you play, so you can go back to an earlier state. The save just before a level-up and the first one after it are kept permanently and highlighted, so the record reads as the character's own history. Ordinary snapshots roll over after 40. Restoring saves the state you're leaving first, so it can be undone.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Manual overrides</label>
+            <button class="btn" id="btn-reset-overrides" type="button" title="Clear every hand-pinned value and return to calculated values">Clear all manual overrides</button>
+            <p class="wiz-hint">Double-click any calculated value on the sheet (ability scores, modifiers, proficiency, AC, initiative, saves, skills, spell DC, attacks, HP…) to pin a custom value. A pinned source value still feeds everything below it. Pinned fields are outlined with a small marker and their tooltip shows the calculated value; Alt-click one to revert. <strong>On a phone or tablet, long-press a field to edit it</strong>, and clear the value to revert it to calculated. This button clears them all at once.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Tasha's Cauldron of Everything — optional rules</label>
             <p class="wiz-hint" style="margin-top:0">Every optional rule is on by default. The origin rules change what the creation wizard lets you customize; the class-feature rules add the feature to a character that has the class (limited-use ones get a tracker, and a few replace a base feature). Changes apply when you next create or edit a character.</p>
             <div id="tce-allbtns" style="margin:6px 0 10px"><button class="btn" id="tce-all-on" type="button" style="font-size:11px; padding:3px 9px">Enable all</button> <button class="btn" id="tce-all-off" type="button" style="font-size:11px; padding:3px 9px">Disable all</button></div>
             <div id="tce-toggles"></div>
           </section>
           <section class="set-sec" data-sec="advanced">
-            <div id="homebrew-list"></div>
-            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Source books</label>
+            <label class="lbl" style="display:block; margin-bottom:6px">Source books</label>
             <p class="wiz-hint" id="sourcebook-status" style="margin:0 0 8px"><strong>49 books loaded</strong> — 505 spells, 16 classes, 126 races.</p>
             <div class="srcbook-load">
               <select id="book-select"><option value="">Open Settings to load…</option></select>
@@ -3197,11 +3226,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v607 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v608 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.154.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.155.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3209,6 +3238,16 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v608", semver:"2.155.0", items:[
+      "New Version History (☰ menu, or Character Settings). The sheet keeps a rolling record of your character as you play, and you can roll back to any of it.",
+      "The save just before a level-up and the first one after it are kept permanently and highlighted, so the list reads as a record of the character growing rather than a pile of autosaves. Ordinary snapshots roll over after 40; level-up ones never do.",
+      "Restoring saves the state you're leaving first, so changing your mind costs nothing.",
+      "Settings sub-sections now collapse, and start collapsed — the panel was several screens of scrolling. All of Tasha's optional rules now sit under the one Tasha's heading.",
+      "Settings headings are easier to read: proper sentence-case headers rather than the small all-caps labels used for fields on the sheet.",
+      "Clear all manual overrides has moved to Character Settings, where it belongs — it only ever affected the open character.",
+      "The Homebrew Studio entry has been removed from Advanced settings; it is already in the ☰ menu.",
+      "The dice tray handle now carries the accent colour and a larger die, so it reads as a button rather than part of the page edge."
+    ]},
     {v:"v607", semver:"2.154.0", items:[
       "Character sheet PDFs now import directly — no Acrobat step. Settings → Integrations reads the file and works out which sheet it is.",
       "Added the official fillable 5e sheet as a second supported layout, alongside MPMB. A D&D Beyond PDF export should import too if it uses that template.",
@@ -10302,8 +10341,10 @@
     if(_suppressSave) return;
     const d = collect();
     delete d.portrait;                                       // the image lives in IndexedDB (persistPortrait), never the main key
-    csSet(KEY, JSON.stringify(d));   // → IndexedDB (gigabyte quota) via the in-memory cache; no more out-of-space autosave failures
+    const json = JSON.stringify(d);
+    csSet(KEY, json);                // → IndexedDB (gigabyte quota) via the in-memory cache; no more out-of-space autosave failures
     flashStatus("Saved");
+    try{ maybeSnapshot(json); }catch(e){}   // version history rides every save; never let it break saving
   }
 
   // ---- Inspiration toggle ----
@@ -10647,8 +10688,8 @@
   function idb(){
     if(_idb) return _idb;
     _idb = new Promise((resolve, reject) => {
-      let req; try{ req = indexedDB.open("dnd-sheet", 2); }catch(e){ reject(e); return; }
-      req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains("portraits")) db.createObjectStore("portraits"); if(!db.objectStoreNames.contains("chars")) db.createObjectStore("chars"); };
+      let req; try{ req = indexedDB.open("dnd-sheet", 3); }catch(e){ reject(e); return; }
+      req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains("portraits")) db.createObjectStore("portraits"); if(!db.objectStoreNames.contains("chars")) db.createObjectStore("chars"); if(!db.objectStoreNames.contains("versions")) db.createObjectStore("versions", {keyPath:"id"}); };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
@@ -14845,6 +14886,12 @@
       document.addEventListener("keydown", e => { if(e.key === "Escape" && !pop.hidden) close(); });
       $("btn-hb-studio-top").addEventListener("click", () => openHbStudio());
     })();
+    $("btn-verhist").addEventListener("click", openVersionHistory);
+    { const vb = $("btn-verhist-settings"); if(vb) vb.addEventListener("click", openVersionHistory); }
+    _verPrev = { json: csGet(KEY) || "", level: charLevel() };   // baseline for level-up detection
+    seedVersions();
+
+    groupSettings();
     $("settings-nav").addEventListener("click", e => {   // left-side section tabs
       const b = e.target.closest(".set-tab"); if(!b) return;
       document.querySelectorAll("#settings-nav .set-tab").forEach(t => t.classList.toggle("active", t === b));
@@ -14907,7 +14954,7 @@
       requestAnimationFrame(() => requestAnimationFrame(fitDefenses)); }   // one settle pass after initial layout
     $("char-sources").addEventListener("change", e => { const a = e.target.closest(".csrc-aw"); if(a){ setAwEnabled(a.checked); return; } const t = e.target.closest(".csrc-book"); if(t){ toggleBook(t.dataset.book, t.checked); return; } const h = e.target.closest(".csrc-hb"); if(h){ hbToggleSource(h.dataset.hb, h.checked); } });   // per-CHARACTER enabled-source checkboxes (Character Settings)
     $("loaded-books").addEventListener("click", e => { const b = e.target.closest(".book-del"); if(b){ deleteBook(b.dataset.book); return; } const h = e.target.closest(".hbsrc-del"); if(h){ hbDeleteSource(h.dataset.hb); } });   // browser-wide loaded-source management (Advanced): delete only
-    $("homebrew-list").addEventListener("click", e => { if(e.target.closest("#btn-hb-studio")) openHbStudio(); });
+    // (The Homebrew Studio entry lives in the ☰ menu; the old duplicate in Settings → Advanced is gone.)
     $("server-url").addEventListener("change", ()=>{ try{ localStorage.setItem(SERVER_KEY, $("server-url").value.trim()); }catch(e){} });
     $("settings-close").addEventListener("click", ()=> $("settings").classList.remove("open"));
     $("settings-done").addEventListener("click", ()=> $("settings").classList.remove("open"));
@@ -15292,6 +15339,34 @@
     if(ov._onKey) document.removeEventListener("keydown", ov._onKey);
     ov.hidden = true;
   }
+  /* Wrap each settings sub-section into a collapsible group, keyed off the `label.lbl` headers that were
+     already delimiting them. Done at runtime rather than in the markup so every section (present and
+     future) is covered by one rule, and it's idempotent: a saved copy serialises the wrapped DOM, so a
+     section that already carries a group is left alone instead of being wrapped twice. Content sitting
+     ABOVE the first header (the update banner) deliberately stays outside any group and always visible. */
+  function groupSettings(){
+    document.querySelectorAll("#settings .set-sec").forEach(sec => {
+      if(sec.querySelector(":scope > .set-group")) return;
+      let body = null;
+      [...sec.childNodes].forEach(node => {
+        if(node.nodeType === 1 && node.matches("label.lbl")){
+          const grp = document.createElement("details");
+          grp.className = "set-group";
+          const head = document.createElement("summary");
+          head.className = "set-head";
+          head.innerHTML = node.innerHTML;          // carries any inline `.wiz-hint` aside with it
+          body = document.createElement("div");
+          body.className = "set-body";
+          grp.appendChild(head); grp.appendChild(body);
+          sec.insertBefore(grp, node);
+          node.remove();
+          return;
+        }
+        if(body) body.appendChild(node);
+      });
+    });
+  }
+
   function maybeShowIntro(){
     let seenVer = null;
     try{ seenVer = localStorage.getItem("introSeenVersion") || (localStorage.getItem("introSeen") === "1" ? "" : null); }catch(e){}   // migrate the old boolean flag: treat a prior "seen" as an unknown old version so the updated guide shows once
@@ -15595,6 +15670,167 @@
     return Math.floor(mo/12) + " yr ago";
   }
   function newSlotId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  /* ---- Version history --------------------------------------------------------------------------
+     A rolling record of the character you can roll back to, in the spirit of a document's revision
+     history. Two of them are special and are never pruned: the LAST state before a level-up and the
+     FIRST state after it. Those are written as a pair the moment a level increase is seen — the "before"
+     comes from the previous save's payload, held in memory, so the boundary is exact rather than
+     "whichever autosave happened to land nearby". Everything lives in IndexedDB; a character record is
+     far too big for the localStorage cap, which is why portraits and characters moved there already. */
+  const VER_AUTO_KEEP = 40;                    // rolling window of automatic snapshots, per character
+  const VER_AUTO_GAP  = 3 * 60 * 1000;         // and no more often than this
+  let _verPrev = null;                         // {json, level} from the previous save — the "before" source
+  let _verLastAuto = 0, _verLastJson = "", _verSeeded = false;
+
+  function verSlot(){ return SLOT || ""; }
+  function idbVersAll(){
+    return idb().then(db => new Promise(res => {
+      const out = [], slot = verSlot();
+      const tx = db.transaction("versions", "readonly");
+      const cur = tx.objectStore("versions").openCursor();
+      cur.onsuccess = e => {
+        const c = e.target.result;
+        if(c){ if(c.value && c.value.slot === slot) out.push(c.value); c.continue(); }
+        else res(out.sort((a, b) => b.t - a.t));                       // newest first
+      };
+      cur.onerror = () => res(out);
+    })).catch(() => []);
+  }
+  function idbVersPut(rec){
+    return idb().then(db => new Promise((res, rej) => {
+      const tx = db.transaction("versions", "readwrite");
+      tx.objectStore("versions").put(rec);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    })).catch(() => {});
+  }
+  function idbVersDel(ids){
+    if(!ids || !ids.length) return Promise.resolve();
+    return idb().then(db => new Promise(res => {
+      const tx = db.transaction("versions", "readwrite"), st = tx.objectStore("versions");
+      ids.forEach(id => st.delete(id));
+      tx.oncomplete = () => res(); tx.onerror = () => res();
+    })).catch(() => {});
+  }
+  // Only automatic snapshots are ever pruned — level-up boundaries and pre-restore states are permanent.
+  function pruneVersions(){
+    return idbVersAll().then(list => {
+      const autos = list.filter(v => v.kind === "auto");
+      return idbVersDel(autos.slice(VER_AUTO_KEEP).map(v => v.id));
+    });
+  }
+  function writeVersion(json, meta){
+    if(!json) return Promise.resolve();
+    let d = {}; try{ d = JSON.parse(json) || {}; }catch(e){}
+    const rec = Object.assign({
+      id: newSlotId(), slot: verSlot(), t: Date.now(), data: json,
+      name: String(d.charname || "").trim(), cls: String(d.classlevel || "").trim()
+    }, meta || {});
+    return idbVersPut(rec).then(() => pruneVersions());
+  }
+  function maybeSnapshot(json){
+    const lvl = charLevel();
+    const prev = _verPrev;
+    _verPrev = { json: json, level: lvl };
+    if(!prev) return;                                                  // nothing to compare against yet
+    if(prev.level != null && lvl != null && lvl > prev.level){         // LEVEL-UP: write the exact pair
+      _verLastAuto = Date.now(); _verLastJson = json;
+      writeVersion(prev.json, { kind:"pre-levelup",  level: prev.level, toLevel: lvl })
+        .then(() => writeVersion(json, { kind:"post-levelup", level: lvl, fromLevel: prev.level }));
+      return;
+    }
+    const now = Date.now();
+    if(json === _verLastJson || now - _verLastAuto < VER_AUTO_GAP) return;
+    _verLastAuto = now; _verLastJson = json;
+    writeVersion(json, { kind:"auto", level: lvl });
+  }
+  // Give a character that has no history at all a baseline to roll back to. Once per session, and only
+  // for a character that actually exists — a blank sheet has nothing worth keeping.
+  function seedVersions(){
+    if(_verSeeded || !characterCreated) return;
+    _verSeeded = true;
+    idbVersAll().then(list => {
+      if(list.length) return;
+      const json = csGet(KEY);
+      if(json) writeVersion(json, { kind:"auto", level: charLevel(), label:"Earliest saved state" });
+    });
+  }
+
+  function verBoundaryText(v){
+    if(v.kind === "pre-levelup")  return "Last save at level " + v.level + (v.toLevel ? " (before reaching " + v.toLevel + ")" : "");
+    if(v.kind === "post-levelup") return "First save at level " + v.level + (v.fromLevel ? " (just after leaving " + v.fromLevel + ")" : "");
+    if(v.kind === "restore")      return "Replaced by a restore";
+    if(v.label)                   return v.label;
+    return v.level == null ? "" : "Level " + v.level;
+  }
+  function renderVersionList(){
+    const host = $("ver-list"); if(!host) return;
+    idbVersAll().then(list => {
+      if(!list.length){
+        host.innerHTML = `<p class="wiz-hint">No versions saved yet. This sheet takes one automatically as you play, and always keeps the save either side of a level-up.</p>`;
+        return;
+      }
+      host.innerHTML = list.map(v => {
+        const boundary = v.kind === "pre-levelup" || v.kind === "post-levelup";
+        return `<div class="ver-row${boundary ? " ver-boundary" : ""}">
+            <div class="ver-main">
+              <div class="ver-when">${esc(relTime(v.t))}<span class="ver-date">${esc(new Date(v.t).toLocaleString())}</span></div>
+              <div class="ver-what">${esc(v.cls || v.name || "Character")}<span class="ver-badge">${esc(verBoundaryText(v))}</span></div>
+            </div>
+            <button class="btn" type="button" data-ver="${esc(v.id)}">Restore</button>
+          </div>`;
+      }).join("");
+    });
+  }
+  function restoreVersion(id){
+    idbVersAll().then(list => {
+      const v = list.filter(x => x.id === id)[0];
+      if(!v) return;
+      showConfirm("Restore this version?",
+        `<p>This puts <strong>${esc(v.cls || v.name || "the character")}</strong> back to how it was ${esc(relTime(v.t))} (${esc(new Date(v.t).toLocaleString())}).</p>
+         <p class="wiz-hint">The state you're leaving is saved as its own version first, so this is reversible. The sheet reloads once it's done.</p>`,
+        () => {
+          const current = csGet(KEY) || null;
+          writeVersion(current, { kind:"restore", level: charLevel() }).then(() => {
+            _suppressSave = true;                       // no pending autosave may overwrite what we just put back
+            csSet(KEY, v.data);
+            setTimeout(() => location.reload(), 60);    // let the IndexedDB write settle before the reload
+          });
+        }, "Restore", "Cancel");
+    });
+  }
+  function buildVerModal(){
+    let m = $("verhist");
+    if(m && m._live) return m;
+    if(m) m.remove();                                   // a corpse serialised into a saved copy — rebuild it
+    m = document.createElement("div");
+    m.className = "modal noprint"; m.id = "verhist"; m.dataset.transient = "1";
+    m.innerHTML = `<div class="modal-panel" role="dialog" aria-modal="true" style="max-width:640px">
+        <div class="modal-head"><h2>Version history</h2><button class="btn ghost" id="ver-close" type="button">✕</button></div>
+        <div class="modal-body"><div id="ver-list"></div></div>
+        <div class="modal-foot"><button class="btn" id="ver-snap" type="button">Save a version now</button>
+          <span class="wiz-hint" style="margin:0">Level-up saves are kept for good; ordinary ones roll over after ${VER_AUTO_KEEP}.</span></div>
+      </div>`;
+    document.body.appendChild(m);
+    m._live = true;
+    $("ver-close").addEventListener("click", () => m.classList.remove("open"));
+    m.addEventListener("mousedown", e => { if(e.target === m) m.classList.remove("open"); });
+    m.addEventListener("click", e => {
+      const b = e.target.closest("button[data-ver]");
+      if(b) restoreVersion(b.dataset.ver);
+    });
+    $("ver-snap").addEventListener("click", () => {
+      flushSave();
+      writeVersion(csGet(KEY), { kind:"manual", level: charLevel(), label:"Saved by hand" })
+        .then(renderVersionList);
+      flashStatus("Version saved.");
+    });
+    return m;
+  }
+  function openVersionHistory(){
+    buildVerModal().classList.add("open");
+    renderVersionList();
+  }
   function gotoSlot(slot){            // switch the view to another character (autosaves the current one first)
     flushSave();
     const base = location.href.split("#")[0];
@@ -17800,7 +18036,13 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         // The rail docks to any edge (or floats) — `data-pos` drives it. Base rules are position-agnostic;
         // each dock then sets its own anchor, flex direction and which border is dropped against the screen.
         "#dice-rail{position:fixed; z-index:40; display:flex; align-items:center; font-family:var(--font); color:var(--ink)}" +
-        "#dice-rail .dr-toggle{border:1px solid var(--line2); background:var(--card); color:var(--ink); cursor:pointer; padding:9px 5px; line-height:0}" +
+        /* The tray handle is the only way in to the dice, so it carries the accent fill and a slightly
+           bigger die than the rail's own buttons — as plain card chrome it read as part of the page edge
+           and people missed it. Ink stays near-black on the light gold the dark palette uses. */
+        "#dice-rail .dr-toggle{border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; padding:11px 7px; line-height:0}" +
+        "#dice-rail .dr-toggle svg{width:22px; height:22px}" +
+        "#dice-rail .dr-toggle:hover{filter:brightness(1.08)}" +
+        "body.dark #dice-rail .dr-toggle{color:#1a1a1a}" +
         "#dice-rail .dr-body{display:none; gap:4px; background:var(--card); border:1px solid var(--line2); padding:6px; overflow:auto}" +
         "#dice-rail.open .dr-body{display:flex}" +
         /* vertical docks: a column of dice, bounded by viewport height */
@@ -18863,8 +19105,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     }
     function bodyHTML(){
       return '' +
-      '<div class="intg-sec">' +
-        '<label class="lbl" style="display:block; margin-bottom:6px">Live rolls · Roll20, Foundry VTT, Discord</label>' +
+      '<details class="set-group"><summary class="set-head">Live rolls · Roll20, Foundry VTT, Discord</summary><div class="set-body">' +
         '<p class="intg-status"><span class="intg-dot" id="intg-b20-dot"></span><span id="intg-b20-status">Beyond20 not detected on this page</span></p>' +
         '<label class="lay-row"><input type="checkbox" id="intg-b20-on"> Send my rolls through Beyond20</label>' +
         '<div class="intg-row"><label class="lbl" for="intg-b20-mode" style="margin:0">Send</label>' +
@@ -18874,45 +19115,40 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           '</select>' +
           '<button class="btn" id="intg-b20-test" type="button">Send a test</button></div>' +
         '<p class="wiz-hint">Beyond20 is a browser extension that relays rolls into a Roll20 or Foundry tab (and on to Discord if you set that up inside Beyond20). Install it, open your VTT in another tab, then add this sheet\'s address to Beyond20\'s <strong>custom domains</strong> list under its advanced options — it only injects itself into sites it knows about.</p>' +
-      '</div>' +
+      '</div></details>' +
 
-      '<div class="intg-sec">' +
-        '<label class="lbl" style="display:block; margin-bottom:6px">Discord webhook</label>' +
+      '<details class="set-group"><summary class="set-head">Discord webhook</summary><div class="set-body">' +
         '<label class="lay-row"><input type="checkbox" id="intg-discord-on"> Post my rolls to a Discord channel</label>' +
         '<div class="intg-row"><input type="url" id="intg-webhook" placeholder="https://discord.com/api/webhooks/…" spellcheck="false" autocomplete="off"></div>' +
         '<div class="intg-row"><input type="text" id="intg-discord-name" placeholder="Post as (defaults to the character name)" spellcheck="false" autocomplete="off">' +
           '<button class="btn" id="intg-discord-test" type="button">Send a test</button></div>' +
         '<p class="wiz-hint">In Discord: Channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL. Rolls are queued and spaced out so a flurry of them can\'t hit the rate limit. The URL is stored in this browser only — it is never saved into a character, an exported sheet, or a shared copy, so treat it like a password and re-enter it on each device.</p>' +
-      '</div>' +
+      '</div></details>' +
 
-      '<div class="intg-sec">' +
-        '<label class="lbl" style="display:block; margin-bottom:6px">Export to Foundry VTT</label>' +
+      '<details class="set-group"><summary class="set-head">Export to Foundry VTT</summary><div class="set-body">' +
         '<div class="intg-row"><button class="btn" id="intg-foundry" type="button">Export this character as a Foundry actor</button></div>' +
         '<p class="wiz-hint">Writes a <code>dnd5e</code> actor JSON. In Foundry: make (or pick) an actor in the sidebar, right-click it → <strong>Import Data</strong>, choose the file. That overwrites the actor you picked, so import onto a fresh one. Abilities, skills, saves, HP, AC, speed, currency, spell slots, attacks, inventory and spells come across; class features and item mechanics do not — Foundry rebuilds those from its own compendium.</p>' +
-      '</div>' +
+      '</div></details>' +
 
-      '<div class="intg-sec">' +
-        '<label class="lbl" style="display:block; margin-bottom:6px">Owlbear Rodeo</label>' +
+      '<details class="set-group"><summary class="set-head">Owlbear Rodeo</summary><div class="set-body">' +
         '<p class="intg-status"><span class="intg-dot" id="intg-obr-dot"></span><span id="intg-obr-status">Not running inside Owlbear Rodeo</span></p>' +
         '<div class="intg-row"><input type="text" id="intg-obr-url" spellcheck="false" readonly>' +
           '<button class="btn" id="intg-obr-copy" type="button">Copy</button></div>' +
         '<p class="wiz-hint">In an Owlbear Rodeo room: <strong>Extensions → Add Extension</strong>, paste that manifest URL. The sheet then opens in a panel inside the room, sharing the same characters as the tab you use now. Only works from the hosted copy (an extension has to be reachable over the web), so the URL above always points at the published sheet.</p>' +
-      '</div>' +
+      '</div></details>' +
 
-      '<div class="intg-sec">' +
-        '<label class="lbl" style="display:block; margin-bottom:6px">Import from D&amp;D Beyond</label>' +
+      '<details class="set-group"><summary class="set-head">Import from D&amp;D Beyond</summary><div class="set-body">' +
         '<div class="intg-row"><input type="text" id="intg-ddb-id" placeholder="Character URL or id" spellcheck="false">' +
           '<button class="btn" id="intg-ddb-fetch" type="button">Fetch</button></div>' +
         '<p class="wiz-hint" id="intg-ddb-hint">D&amp;D Beyond has no public API and blocks cross-site reads, so Fetch usually can\'t reach it. When it can\'t, it hands you the direct link: open that, copy the whole page, and paste it below. The character has to be public for this to work at all.</p>' +
         '<textarea id="intg-ddb-json" placeholder="…or paste the character JSON here" spellcheck="false"></textarea>' +
         '<div class="intg-row"><button class="btn" id="intg-ddb-import" type="button">Import pasted JSON</button></div>' +
-      '</div>' +
+      '</div></details>' +
 
-      '<div class="intg-sec">' +
-        '<label class="lbl" style="display:block; margin-bottom:6px">Import from a character sheet PDF</label>' +
+      '<details class="set-group"><summary class="set-head">Import from a character sheet PDF</summary><div class="set-body">' +
         '<div class="intg-row"><input type="file" id="intg-sheet-file" accept=".xfdf,.fdf,.pdf,application/pdf,application/vnd.adobe.xfdf"></div>' +
         '<p class="wiz-hint">Pick a filled-in <strong>MPMB</strong> sheet or the <strong>official fillable</strong> 5e sheet — the layout is detected from the file. A plain <code>.pdf</code> is read directly, no Acrobat needed, and <code>.xfdf</code> / <code>.fdf</code> exports work too. A D&amp;D Beyond PDF export should land here as well if it uses the official template.<br><br>Two things to know. On the official sheet the proficiency ticks have no readable names, so proficiency and expertise are worked out from each bonus against its ability modifier — worth checking afterwards. And an MPMB <code>.pdf</code> brings identity, ability scores, HP, speed, coins, senses and languages, but its attacks, spells and skill ticks are stored under names the file can\'t resolve on its own — export that sheet as <code>.xfdf</code> from Acrobat to get those too.</p>' +
-      '</div>' +
+      '</div></details>' +
 
       '<div id="intg-import-result"></div>' +
 
