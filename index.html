@@ -3197,11 +3197,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v606 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v607 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.153.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.154.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3209,6 +3209,12 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v607", semver:"2.154.0", items:[
+      "Character sheet PDFs now import directly — no Acrobat step. Settings → Integrations reads the file and works out which sheet it is.",
+      "Added the official fillable 5e sheet as a second supported layout, alongside MPMB. A D&D Beyond PDF export should import too if it uses that template.",
+      "On the official sheet the proficiency ticks carry no readable names, so proficiency and expertise are worked out from each skill and save bonus against its ability modifier. Worth a glance after importing.",
+      "An MPMB .pdf brings identity, ability scores, HP, speed, coins, senses and languages. Its attacks, spells and skill ticks live under names the file can't resolve alone, so export that sheet as .xfdf if you want those as well."
+    ]},
     {v:"v606", semver:"2.153.0", items:[
       "New Settings → Integrations tab, connecting the sheet to the tools other tables already use.",
       "Live rolls: with the Beyond20 browser extension installed, every roll you make here can appear in Roll20, Foundry VTT or Discord. Choose whether to send the result this sheet's dice produced, or just the formula so the VTT rolls its own.",
@@ -18500,8 +18506,169 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
     }
     function parseFormBytes(text){
       var a = parseXfdf(text);
-      if(Object.keys(a).length > 4) return a;
-      return parseFdf(text);
+      if(Object.keys(a).length > 4) return trimKeys(a);
+      return trimKeys(parseFdf(text));
+    }
+    /* Field names in the wild carry stray trailing spaces ("Race ", "Stealth ", "Wpn3 AtkBonus  ") —
+       real names on the official WotC sheet, not typos here. Trim on ingest so lookups can be sane. */
+    function trimKeys(o){
+      var out = {};
+      for(var k in o){ var t = String(k).trim(); if(t && out[t] == null) out[t] = o[k]; }
+      return out;
+    }
+
+    /* ---- reading a .pdf directly -------------------------------------------------------------------
+       A form PDF keeps its field data in objects that are almost always Flate-compressed — measured on
+       two real sheets, the official WotC fillable one has ZERO field markers in its raw bytes and 357
+       inside compressed streams. So a plain text scan finds nothing and the file looks empty.
+       Browsers ship DecompressionStream, so inflating is dependency-free: decode the file as latin1
+       (1 byte = 1 char, so string offsets ARE byte offsets), inflate every plausible stream, and scan
+       the lot. Image and font streams are skipped — they're the bulk of the file and never hold fields.
+       ------------------------------------------------------------------------------------------------ */
+    /* Only OBJECT STREAMS are worth inflating, and that's a correctness point rather than a shortcut:
+       a PDF can only compress whole objects inside an /ObjStm, so a field dictionary is either plain text
+       in the file or inside one of those. Content, font and image streams can never hold one. Inflating
+       everything on an 8MB sheet meant ~1500 needless decompressions and a multi-minute wait. */
+    var PDF_OBJSTM = /\/ObjStm\b/;
+    function inflateBytes(bytes){
+      if(typeof DecompressionStream !== "function") return Promise.reject(new Error("no DecompressionStream"));
+      function attempt(fmt){
+        var ds, w;
+        try{ ds = new DecompressionStream(fmt); w = ds.writable.getWriter(); }
+        catch(e){ return Promise.reject(e); }
+        // A stream that isn't really deflate rejects on BOTH sides. Swallow the writer side explicitly:
+        // its promises are otherwise unhandled, and a big PDF has thousands of them (16k console errors).
+        w.write(bytes).catch(function(){});
+        w.close().catch(function(){});
+        return new Response(ds.readable).arrayBuffer().then(function(ab){
+          return new TextDecoder("latin1").decode(new Uint8Array(ab));
+        });
+      }
+      // Cheap zlib-header test (CMF/FLG: low nibble 8, and the pair divisible by 31) so we start with the
+      // format that's actually likely and skip most doomed attempts entirely.
+      var zlibish = bytes.length > 1 && (bytes[0] & 0x0f) === 8 && (((bytes[0] << 8) | bytes[1]) % 31) === 0;
+      return zlibish ? attempt("deflate").catch(function(){ return attempt("deflate-raw"); })
+                     : attempt("deflate-raw");
+    }
+    function pdfFormText(buffer){
+      var bytes = new Uint8Array(buffer);
+      var latin = new TextDecoder("latin1").decode(bytes);
+      // The `stream` keyword ALWAYS follows a stream dictionary, so anchor on `>> stream`. Matching the
+      // bare keyword instead catches hundreds of false hits inside compressed bytes, and each one swallows
+      // everything up to the next real `endstream` — which is how real field dictionaries went missing.
+      var spans = [], re = />>\s*stream\r?\n/g, m;
+      while((m = re.exec(latin)) && spans.length < 6000){
+        var s = m.index + m[0].length, e = latin.indexOf("endstream", s);
+        if(e < 0) continue;
+        while(e > s && (latin.charCodeAt(e - 1) === 10 || latin.charCodeAt(e - 1) === 13)) e--;
+        if(e - s < 8) continue;
+        var dict = latin.slice(Math.max(0, m.index - 500), m.index + 2);
+        spans.push([s, e, PDF_OBJSTM.test(dict)]);
+      }
+      // Base text = the file with every stream BODY cut out. Raw stream bytes are binary and would throw
+      // stray "(" / "<<" at the dictionary walker; the dicts themselves live outside the streams.
+      var base = "", cut = 0;
+      spans.forEach(function(span){ base += latin.slice(cut, span[0]); cut = span[1]; });
+      base += latin.slice(cut);
+      var parts = [base], total = base.length;
+      return spans.filter(function(s){ return s[2]; }).reduce(function(chain, span){
+        return chain.then(function(){
+          if(total > 80e6) return;                               // hard ceiling: never eat the tab's memory
+          return inflateBytes(bytes.subarray(span[0], span[1])).then(function(txt){
+            if(txt && txt.indexOf("/T") >= 0){ parts.push(txt); total += txt.length; }
+          }, function(){});                                      // a stream that won't inflate is fine, skip it
+        });
+      }, Promise.resolve()).then(function(){ return parts.join("\n"); });
+    }
+    /* Pull a PDF value at `i`: literal (string), hex <…> (UTF-16BE aware), or a /Name (checkbox state). */
+    function readPdfValue(text, i){
+      var n = text.length;
+      while(i < n && /\s/.test(text.charAt(i))) i++;
+      var c = text.charAt(i);
+      if(c === "("){
+        var out = "", depth = 1, j = i + 1;
+        while(j < n){
+          var ch = text.charAt(j);
+          if(ch === "\\"){
+            var nx = text.charAt(j + 1), oct = text.substr(j + 1, 3);
+            if(/^[0-7]{1,3}$/.test(oct)){ out += String.fromCharCode(parseInt(oct, 8)); j += 1 + oct.length; continue; }
+            out += ({ n:"\n", r:"\r", t:"\t", b:"\b", f:"\f" })[nx] || nx;
+            j += 2; continue;
+          }
+          if(ch === "("){ depth++; out += ch; j++; continue; }
+          if(ch === ")"){ if(--depth === 0){ j++; break; } out += ch; j++; continue; }
+          out += ch; j++;
+        }
+        return { value: decodeUtf16(out), next: j };
+      }
+      if(c === "<" && text.charAt(i + 1) !== "<"){
+        var end = text.indexOf(">", i);
+        if(end < 0) return null;
+        var hex = text.slice(i + 1, end).replace(/[^0-9A-Fa-f]/g, ""), s = "";
+        for(var h = 0; h + 1 < hex.length; h += 2) s += String.fromCharCode(parseInt(hex.substr(h, 2), 16));
+        return { value: decodeUtf16(s), next: end + 1 };
+      }
+      if(c === "/"){
+        var mm = /^\/([^\s/<>\[\]()]*)/.exec(text.slice(i));
+        if(!mm) return null;
+        var nm = mm[1].replace(/#([0-9A-Fa-f]{2})/g, function(_, x){ return String.fromCharCode(parseInt(x, 16)); });
+        return { value: (nm === "Off" ? "" : nm), next: i + mm[0].length };   // /Off is an UNticked box
+      }
+      return null;
+    }
+    function decodeUtf16(s){
+      if(s.charCodeAt(0) !== 0xFE || s.charCodeAt(1) !== 0xFF) return s;
+      var out = "";
+      for(var i = 2; i + 1 < s.length; i += 2) out += String.fromCharCode((s.charCodeAt(i) << 8) | s.charCodeAt(i + 1));
+      return out;
+    }
+    /* Pair each /T (field name) with its /V (value) STRICTLY WITHIN THE SAME DICTIONARY.
+       Pairing by proximity instead looks tempting (object streams have no obj/endobj markers to split on)
+       and is badly wrong: a blank field simply borrows the next field's value, so on a real sheet every
+       untouched skill came back proficient. So walk the text tracking `<< >>` depth — skipping over
+       string literals, which can contain those characters — and only emit a name/value pair when the
+       dictionary holding them closes. A nested dict gets its own frame and can't leak into its parent. */
+    function pdfFields(text){
+      var out = {}, n = text.length, i = 0, stack = [];
+      function record(f){
+        if(!f || !f.t) return;
+        var v = f.v == null ? "" : f.v;
+        if(out[f.t] == null || (!out[f.t] && v)) out[f.t] = v;
+      }
+      while(i < n){
+        var c = text.charAt(i);
+        if(c === "("){ i = skipLiteral(text, i); continue; }
+        if(c === "<" && text.charAt(i + 1) === "<"){ stack.push({ t:null, v:null }); i += 2; continue; }
+        if(c === ">" && text.charAt(i + 1) === ">"){ record(stack.pop()); i += 2; continue; }
+        if(c === "<"){ var he = text.indexOf(">", i); i = he < 0 ? n : he + 1; continue; }
+        if(c === "/"){
+          var k = text.charAt(i + 1);
+          if((k === "T" || k === "V") && !/[A-Za-z0-9]/.test(text.charAt(i + 2) || " ")){
+            var val = readPdfValue(text, i + 2);
+            if(val){
+              var f = stack[stack.length - 1];
+              if(f){ if(k === "T"){ if(f.t == null) f.t = val.value; } else if(f.v == null) f.v = val.value; }
+              i = Math.max(val.next, i + 2); continue;
+            }
+          }
+          var nm = /^\/[^\s/<>\[\]()]*/.exec(text.slice(i, i + 128));
+          i += nm ? Math.max(nm[0].length, 1) : 1; continue;
+        }
+        i++;
+      }
+      while(stack.length) record(stack.pop());        // tolerate a truncated/odd tail
+      return trimKeys(out);
+    }
+    function skipLiteral(text, i){
+      var n = text.length, depth = 0, j = i;
+      while(j < n){
+        var ch = text.charAt(j);
+        if(ch === "\\"){ j += 2; continue; }
+        if(ch === "("){ depth++; j++; continue; }
+        if(ch === ")"){ if(--depth === 0) return j + 1; j++; continue; }
+        j++;
+      }
+      return n;
     }
     function mpmbParse(fields){
       var x = blankImport();
@@ -18561,23 +18728,114 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       if(!x.name && !x.classlevel && !Object.keys(x.abilities).length) throw new Error("no MPMB fields found");
       return x;
     }
-    function mpmbImportFile(file){
-      if(!file) return;
-      var reader = new FileReader();
-      reader.onerror = function(){ say("Couldn't read that file."); };
-      reader.onload = function(){
-        var text = String(reader.result || ""), x;
-        try{ x = mpmbParse(parseFormBytes(text)); }
-        catch(e){
-          say(/\.pdf$/i.test(file.name)
-              ? "That PDF's fields are compressed — export it from Acrobat as .xfdf instead."
-              : "No MPMB character fields in that file.");
-          return;
+    /* ---- the official WotC fillable sheet (and anything built on that template) --------------------
+       Different beast from MPMB: its skill and save boxes hold the BONUS, and the proficiency ticks are
+       generically named ("Check Box 23"), so which ones are ticked can't be read by name. The bonus does
+       carry it though — a skill sitting a full proficiency bonus above its ability modifier is proficient,
+       two above is expertise. That's an inference, and the UI says so.                                  */
+    var WOTC_ABIL  = { STR:"str", DEX:"dex", CON:"con", INT:"int", WIS:"wis", CHA:"cha" };
+    var WOTC_SAVE  = { "ST Strength":"str", "ST Dexterity":"dex", "ST Constitution":"con",
+                       "ST Intelligence":"int", "ST Wisdom":"wis", "ST Charisma":"cha" };
+    var WOTC_SKILL = { Acrobatics:["acrobatics","dex"], Animal:["animal","wis"], Arcana:["arcana","int"],
+      Athletics:["athletics","str"], Deception:["deception","cha"], History:["history","int"],
+      Insight:["insight","wis"], Intimidation:["intimidation","cha"], Investigation:["investigation","int"],
+      Medicine:["medicine","wis"], Nature:["nature","int"], Perception:["perception","wis"],
+      Performance:["performance","cha"], Persuasion:["persuasion","cha"], Religion:["religion","int"],
+      SleightofHand:["sleight","dex"], Stealth:["stealth","dex"], Survival:["survival","wis"] };
+
+    function wotcParse(fields){
+      var x = blankImport();
+      function f(name){ return String(fields[name] == null ? "" : fields[name]).trim(); }
+      x.name       = f("CharacterName");
+      x.classlevel = f("ClassLevel");
+      x.race       = f("Race");
+      x.background = f("Background");
+      x.alignment  = f("Alignment");
+      x.player     = f("PlayerName");
+      x.xp         = num(f("XP"));
+      x.ac         = num(f("AC"));
+      x.speed      = num(f("Speed"));
+      x.init       = num(f("Initiative"));
+      x.hp.max     = num(f("HPMax"));
+      x.hp.cur     = num(f("HPCurrent"));
+      x.hp.temp    = num(f("HPTemp"));
+      for(var ab in WOTC_ABIL){ var v = num(f(ab)); if(v != null) x.abilities[WOTC_ABIL[ab]] = v; }
+
+      var pb = num(f("ProfBonus")) || 0;
+      function modOfScore(k){ var s = x.abilities[k]; return s == null ? null : Math.floor((s - 10) / 2); }
+      if(pb > 0){
+        for(var sv in WOTC_SAVE){
+          var sk = WOTC_SAVE[sv], sb = num(f(sv)), sm = modOfScore(sk);
+          if(sb != null && sm != null && sb - sm >= pb) x.saves[sk] = true;
         }
-        var slot = landImport(x, "MPMB");
-        offerOpen(slot, x.name || "character");
-      };
-      reader.readAsText(file, "utf-8");
+        for(var wk in WOTC_SKILL){
+          var key = WOTC_SKILL[wk][0], abil = WOTC_SKILL[wk][1];
+          var b = num(f(wk)), m = modOfScore(abil);
+          if(b == null || m == null) continue;
+          var over = b - m;
+          if(over >= pb * 2) x.skills[key] = 2;
+          else if(over >= pb) x.skills[key] = 1;
+        }
+      }
+      for(var w = 1; w <= 3; w++){
+        var nm = f(w === 1 ? "Wpn Name" : "Wpn Name " + w);
+        if(!nm) continue;
+        x.attacks.push({ name:nm, bonus:num(f("Wpn" + w + " AtkBonus")), damage:f("Wpn" + w + " Damage") });
+      }
+      f("Equipment").split(/\r?\n/).forEach(function(line){
+        var s = line.trim(); if(s) x.inventory.push({ name:s, qty:null, wt:null });
+      });
+      ["CP","SP","EP","GP","PP"].forEach(function(c){
+        var v = num(f(c)); if(v != null) x.coins[c.toLowerCase()] = v;
+      });
+      x.proficiencies = f("ProficienciesLang");
+      x.features      = f("Features and Traits");
+      var notes = ["PersonalityTraits", "Ideals", "Bonds", "Flaws", "Backstory", "Treasure", "Allies"]
+        .map(function(k){ var v = f(k); return v ? k + ": " + v : ""; }).filter(Boolean);
+      if(notes.length) x.notes = notes.join("\n\n");
+      if(!x.name && !x.classlevel && !Object.keys(x.abilities).length) throw new Error("no fields found");
+      return x;
+    }
+    /* Which sheet layout is this? Keyed on names only one of them uses. */
+    function detectProfile(fields){
+      if(fields["PC Name"] != null || fields["Class and Levels"] != null || fields["Attack.1.Weapon"] != null) return "mpmb";
+      if(fields["CharacterName"] != null || fields["ClassLevel"] != null || fields["ProfBonus"] != null) return "wotc";
+      return null;
+    }
+    var PROFILE_LABEL = { mpmb:"MPMB", wotc:"the official sheet" };
+    function importFields(fields, filename){
+      var prof = detectProfile(fields);
+      if(!prof){
+        say(Object.keys(fields).length
+            ? "That form doesn't match a sheet layout I recognise."
+            : "No form fields in that file.");
+        return;
+      }
+      var x;
+      try{ x = (prof === "wotc") ? wotcParse(fields) : mpmbParse(fields); }
+      catch(e){ say("That sheet's fields are empty."); return; }
+      var slot = landImport(x, PROFILE_LABEL[prof]);
+      offerOpen(slot, x.name || "character");
+    }
+    function readFile(file, asBuffer){
+      return new Promise(function(res, rej){
+        var r = new FileReader();
+        r.onerror = function(){ rej(new Error("Couldn't read that file.")); };
+        r.onload = function(){ res(r.result); };
+        if(asBuffer) r.readAsArrayBuffer(file); else r.readAsText(file, "utf-8");
+      });
+    }
+    function sheetImportFile(file){
+      if(!file) return;
+      var isPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
+      var busy = $i("intg-sheet-file");
+      if(busy) busy.disabled = true;
+      say(isPdf ? "Reading the PDF…" : "Reading the form data…");
+      readFile(file, isPdf)
+        .then(function(data){ return isPdf ? pdfFormText(data).then(pdfFields) : parseFormBytes(String(data || "")); })
+        .then(function(fields){ importFields(fields, file.name); })
+        .catch(function(err){ say((err && err.message) || "Couldn't read that file."); })
+        .then(function(){ if(busy) busy.disabled = false; });
     }
 
     /* ================================================================================================
@@ -18651,9 +18909,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       '</div>' +
 
       '<div class="intg-sec">' +
-        '<label class="lbl" style="display:block; margin-bottom:6px">Import from MPMB</label>' +
-        '<div class="intg-row"><input type="file" id="intg-mpmb-file" accept=".xfdf,.fdf,.pdf,application/pdf,application/vnd.adobe.xfdf"></div>' +
-        '<p class="wiz-hint">In Acrobat, with the MPMB sheet open: <strong>Tools → Prepare Form → More → Export Data</strong>, save as <code>.xfdf</code>, then pick that file here. A <code>.pdf</code> often works too, but Acrobat compresses the form data on some saves and there is nothing readable to pull out when it does.</p>' +
+        '<label class="lbl" style="display:block; margin-bottom:6px">Import from a character sheet PDF</label>' +
+        '<div class="intg-row"><input type="file" id="intg-sheet-file" accept=".xfdf,.fdf,.pdf,application/pdf,application/vnd.adobe.xfdf"></div>' +
+        '<p class="wiz-hint">Pick a filled-in <strong>MPMB</strong> sheet or the <strong>official fillable</strong> 5e sheet — the layout is detected from the file. A plain <code>.pdf</code> is read directly, no Acrobat needed, and <code>.xfdf</code> / <code>.fdf</code> exports work too. A D&amp;D Beyond PDF export should land here as well if it uses the official template.<br><br>Two things to know. On the official sheet the proficiency ticks have no readable names, so proficiency and expertise are worked out from each bonus against its ability modifier — worth checking afterwards. And an MPMB <code>.pdf</code> brings identity, ability scores, HP, speed, coins, senses and languages, but its attacks, spells and skill ticks are stored under names the file can\'t resolve on its own — export that sheet as <code>.xfdf</code> from Acrobat to get those too.</p>' +
       '</div>' +
 
       '<div id="intg-import-result"></div>' +
@@ -18701,7 +18959,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
           if(p.webhook && !webhookOk(p.webhook)) say("That doesn't look like a Discord webhook URL.");
         }
         else if(t.id === "intg-discord-name"){ p.discordName = String(t.value || "").trim(); savePrefs(); }
-        else if(t.id === "intg-mpmb-file"){ mpmbImportFile(t.files && t.files[0]); t.value = ""; }
+        else if(t.id === "intg-sheet-file"){ sheetImportFile(t.files && t.files[0]); t.value = ""; }
       });
       host.addEventListener("click", function(e){
         var b = e.target.closest ? e.target.closest("button") : null;
@@ -18734,6 +18992,8 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       wire();
       window.Integrations = { prefs: prefs, savePrefs: savePrefs, foundryActor: foundryActor,
                               exportFoundry: exportFoundry, ddbParse: ddbParse, mpmbParse: mpmbParse,
+                              wotcParse: wotcParse, detectProfile: detectProfile, pdfFields: pdfFields,
+                              pdfFormText: pdfFormText, importFields: importFields,
                               parseFormBytes: parseFormBytes, importToCharData: importToCharData,
                               rollText: rollText, b20Formula: b20Formula, sendTest: b20Test,
                               inOwlbear: inOwlbear, manifestUrl: obrManifestUrl, sync: syncUI,
