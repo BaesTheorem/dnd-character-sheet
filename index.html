@@ -3233,11 +3233,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v617 (2026-07-31)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v618 (2026-07-31)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.159.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.159.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3245,6 +3245,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v618", semver:"2.159.2", items:[
+      "Half-feats now say what they raise. Tavern Brawler's +1 to Strength or Constitution, Actor's +1 Charisma and so on were missing from the description, so a feat that boosts a score read as if it didn't. Every feat picker and the hover card now show the increase above the feat's rules text.",
+    ]},
     {v:"v617", semver:"2.159.1", items:[
       "Optional features now stop at your limit: once you've taken all the invocations (or metamagic, maneuvers, arcane shots, runes) you know, the rest grey out with an \"at known limit\" note until you drop one. A character already carrying more than the limit keeps them and can still drop them.",
     ]},
@@ -4826,6 +4829,25 @@
     }
     return false;
   }
+  // A half-feat's ability increase is stored as a STRUCTURED field and left out of its prose (true of all 51
+  // 2014 feats that grant one), so the description alone never mentions the +1 and the feat reads incomplete.
+  // Render it from the mechanics, the way the race detail panel already does -- there's no source sentence to quote.
+  function featAbilLine(f){
+    const a = f && f.ability; if(!a) return "";
+    const full = k => (ABILITIES.find(x => x[0] === k) || [])[1] || k;
+    const bits = [];
+    for(const k in (a.fixed || {})) if(a.fixed[k]) bits.push(`${full(k)} +${a.fixed[k]}`);
+    if(a.choose && (a.choose.from || []).length){
+      const names = a.choose.from.map(full);
+      const list = names.length > 1 ? names.slice(0,-1).join(", ") + " or " + names[names.length-1] : names[0];
+      bits.push(`+${a.choose.amount || 1} to ${list}`);
+    }
+    return bits.length ? "Ability Score Increase: " + bits.join(", ") : "";
+  }
+  function featDescHtml(f){   // the ability line above the feat's own rules text, for every feat picker
+    const line = featAbilLine(f);
+    return `<div class="pick-desc">${line ? `<b>${esc(line)}</b>\n` : ""}${esc((f && f.text) || "")}</div>`;
+  }
   // A feat can be taken only once unless it says otherwise. Elemental Adept is the sole exception in the
   // 2014 ruleset (each pick names a different damage type) — verified against the feat data, not recalled.
   // Newer/homebrew data can flag its own with `repeatable`, which is honoured here too.
@@ -5096,7 +5118,7 @@
           `<div class="feat-list">`+ feats.map(f => {
             const dupe = s.feat !== f.name && taken.has((f.name||"").toLowerCase());
             return `<div class="pick-item${dupe?" taken":""}"><input type="radio" name="asi-feat-${i}" class="asi-feat-radio" data-i="${i}" value="${esc(f.name)}"${s.feat===f.name?" checked":""}${dupe?" disabled":""}>`+
-            `<details class="pick-det"${s.feat===f.name?" open":""}><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`; }).join("") +`</div></div>`+
+            `<details class="pick-det"${s.feat===f.name?" open":""}><summary>${esc(f.name)}</summary>${featDescHtml(f)}</details></div>`; }).join("") +`</div></div>`+
           featAbilPicker(s, i) + featSpellPicker(s, i) + featSkillPicker(s, i)
         : `<div class="asi-body"><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
       if(s.source === "race"){                       // racial feat — feat only, no ASI option
@@ -7210,7 +7232,9 @@
       meta = ((typeof spellMetaLine==="function") && spellMetaLine(oo)) || [((oo.level||0)===0?"Cantrip":"Level "+oo.level), oo.school].filter(Boolean).join(" · ");   // full data line: level/school · cast · range · components · duration · ritual/conc
       body = ((typeof spellTitle==="function") && spellTitle(o)) || (o.text||"") + (o.higher?"\n\nAt Higher Levels. "+o.higher:""); }
     else if(t==="items"){ meta = [o.type, o.rarity, o.attune?"requires attunement":""].filter(Boolean).join(" · "); body = o.text||""; flav = o.flavor||""; }
-    else if(t==="feats"){ meta = o.prerequisite ? ("Prerequisite: "+o.prerequisite) : "Feat"; body = o.text||""; }
+    else if(t==="feats"){ meta = o.prerequisite ? ("Prerequisite: "+o.prerequisite) : "Feat";
+      const al = (typeof featAbilLine === "function") ? featAbilLine(o) : "";
+      body = (al ? al + "\n\n" : "") + (o.text||""); }
     else if(t==="races"){ meta = [o.subraceOf?("Subrace of "+o.subraceOf):(o.size||""), o.speed?(o.speed+" ft"):""].filter(Boolean).join(" · "); body = (o.traits||[]).map(tr => (tr.name?tr.name+". ":"")+(tr.text||"")).join("\n\n") || (Array.isArray(o.flavor)?o.flavor.join("\n\n"):""); }
     else if(t==="backgrounds"){ meta = "Background"; body = (o.feature && ((o.feature.name?o.feature.name+". ":"")+(o.feature.text||""))) || ""; }
     else if(t==="subclasses"){ meta = (o.className||"") + " subclass"; body = (o.features||[]).map(ff => (ff.name||"")+(ff.level?" (lvl "+ff.level+")":"")+". "+(ff.text||"")).join("\n\n"); }
@@ -13592,7 +13616,7 @@
           html += `<div class="wiz-racechoice"><label>Feat${r.featGrants>1?` #${i+1}`:""} — pick one (click a name to read it)</label>`
             + `<div class="feat-list">` + feats.map(f =>
               `<div class="pick-item"><input type="radio" name="rc-feat-${i}" class="rc-feat-radio" data-i="${i}" value="${esc(f.name)}">`
-              + `<details class="pick-det"><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("")   // greyed for dupes by refreshRcFeatTaken()
+              + `<details class="pick-det"><summary>${esc(f.name)}</summary>${featDescHtml(f)}</details></div>`).join("")   // greyed for dupes by refreshRcFeatTaken()
             + `</div><div class="rc-feat-abil" data-i="${i}"></div><div class="rc-feat-spell" data-i="${i}"></div></div>`;
         } else {
           html += `<div class="wiz-racechoice"><label class="lbl">Feat — your choice</label><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
