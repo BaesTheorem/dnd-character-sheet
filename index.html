@@ -1011,25 +1011,25 @@
   .inf-att-fixed{font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:var(--accent); cursor:help}
   /* infusions-known picker (mirrors the Ancestral Weapons upgrade list) */
   .inf-sec-head{font-weight:700; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:3px; margin:6px 0; display:flex; align-items:center}
-  .inf-picklist{margin-bottom:4px}
-  .inf-up{display:flex; gap:8px; align-items:flex-start; padding:5px 2px; border-bottom:1px solid var(--line)}
-  .inf-up.chosen{background:color-mix(in srgb, var(--accent) 8%, transparent)}
-  .inf-pick{flex:0 0 auto; width:24px; height:24px; border:1px solid var(--line); background:var(--card); cursor:pointer; font-size:13px; line-height:1}
-  .inf-up.chosen .inf-pick{background:var(--accent); color:#fff; border-color:var(--accent)}
-  .inf-up.locked{opacity:.5}
-  .inf-up.locked .inf-pick{cursor:not-allowed; color:var(--muted)}
-  .inf-up-main{flex:1}
-  .inf-up-name{font-weight:600; font-size:13px}
-  .inf-up-cost{font-size:11px; color:var(--accent); margin-left:6px}
-  .inf-up-tag{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-left:6px}
-  .inf-up-why{font-size:10px; color:#b42318; margin-left:6px}
-  .inf-up-toggle{background:none; border:none; padding:0; margin:0; font:inherit; color:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:5px; text-align:left}
-  .inf-chev{display:inline-block; font-size:9px; color:var(--muted); transition:transform .12s; transform:translateY(-1px)}
-  .inf-up.open .inf-chev{transform:translateY(-1px) rotate(90deg)}
-  .inf-up-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:2px; display:none}
-  .inf-up.open .inf-up-text{display:block}
-  .inf-up-tools{display:inline-flex; gap:8px; margin-left:auto}
-  .inf-up-all{background:none; border:none; padding:0; font-size:11px; letter-spacing:normal; text-transform:none; color:var(--accent); cursor:pointer}
+  .inf-picklist, .of-picklist{margin-bottom:4px}
+  .inf-up, .of-up{display:flex; gap:8px; align-items:flex-start; padding:5px 2px; border-bottom:1px solid var(--line)}
+  .inf-up.chosen, .of-up.chosen{background:color-mix(in srgb, var(--accent) 8%, transparent)}
+  .inf-pick, .of-take{flex:0 0 auto; width:24px; height:24px; border:1px solid var(--line); background:var(--card); cursor:pointer; font-size:13px; line-height:1}
+  .inf-up.chosen .inf-pick, .of-up.chosen .of-take{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .inf-up.locked, .of-up.locked{opacity:.5}
+  .inf-up.locked .inf-pick, .of-up.locked .of-take{cursor:not-allowed; color:var(--muted)}
+  .inf-up-main, .of-up-main{flex:1}
+  .inf-up-name, .of-up-name{font-weight:600; font-size:13px}
+  .inf-up-cost, .of-up-cost{font-size:11px; color:var(--accent); margin-left:6px}
+  .inf-up-tag, .of-up-tag{font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-left:6px}
+  .inf-up-why, .of-up-why{font-size:10px; color:#b42318; margin-left:6px}
+  .inf-up-toggle, .of-up-toggle{background:none; border:none; padding:0; margin:0; font:inherit; color:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:5px; text-align:left}
+  .inf-chev, .of-chev{display:inline-block; font-size:9px; color:var(--muted); transition:transform .12s; transform:translateY(-1px)}
+  .inf-up.open .inf-chev, .of-up.open .of-chev{transform:translateY(-1px) rotate(90deg)}
+  .inf-up-text, .of-up-text{font-size:11px; color:var(--muted); line-height:1.45; margin-top:2px; display:none; white-space:pre-line}
+  .inf-up.open .inf-up-text, .of-up.open .of-up-text{display:block}
+  .inf-up-tools, .of-up-tools{display:inline-flex; gap:8px; margin-left:auto}
+  .inf-up-all, .of-up-all{background:none; border:none; padding:0; font-size:11px; letter-spacing:normal; text-transform:none; color:var(--accent); cursor:pointer}
   @media print{ #add-infusion, .inf-rm, #inf-pick-head, .inf-picklist{display:none} .inf-up.chosen{background:none} .inf-table th, .inf-table td{border-color:#999} }
 
   /* ---- spell sheet ---- */
@@ -3233,11 +3233,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v615 (2026-07-31)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v616 (2026-07-31)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.158.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.159.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3245,6 +3245,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v616", semver:"2.159.0", items:[
+      "Eldritch Invocations are now a browsable list like feats and infusions: click any name to expand what it does, then press + to take it. No more choosing from a dropdown and hoping you picked the right one. Expand all / Collapse all sit in the section header.",
+      "The same list serves Metamagic, Maneuvers, Arcane Shot options and Runes, and each option shows its prerequisites, with a red ⚠ on the ones your level doesn't meet yet.",
+    ]},
     {v:"v615", semver:"2.158.2", items:[
       "The race list now shows just race names. The sourcebook moved to the top of the details panel on the right, next to the race name, so the list is easier to scan. If two of your loaded sources ever define the same race name, those two rows still name their book so you can tell them apart.",
     ]},
@@ -11881,6 +11885,7 @@
     {type:"Rune",       cls:"Fighter",  known:[0,0,0,2,2,2,2,3,3,3,4,4,4,4,4,5,5,5,5,5,5], gate:3, sub:"Rune Knight", label:"Runes", verb:"rune", dc:"con"},
   ];
   let optFeats = [];   // [{type, name}] — the character's chosen optional features
+  const _ofUpOpen = new Set();   // lc names whose description is expanded; module-level so a take/drop re-render keeps them open
   function optfeatText(n){ const d = DATA && DATA.optionalFeatures; return (d && d[n]) || ""; }   // de-baked rules text from the DATA layer (baked into #source-data, loadable from a 5etools server) — strip-ready
   function _withOFText(o){ if(!o) return o; const t = optfeatText(o.name); return t ? {...o, text:t} : o; }   // prefer DATA text; fall back to any baked const text
   function optfeatByName(n){ return _withOFText(OPTIONAL_FEATURES.find(o => o.name === n)) || null; }
@@ -11913,38 +11918,65 @@
     const section = t => {
       const lv=optfeatClassLevel(t.cls), known=optfeatKnown(t);
       const picks=optFeats.filter(x=>x.type===t.type);
-      const opt = sel => `<option value="">— choose —</option>` + optfeatList(t.type).map(o => {
-        const pr=optfeatPrereq(o), low=o.pr && o.pr.level && lv && o.pr.level>lv;
-        return `<option value="${esc(o.name)}"${sel===o.name?" selected":""}>${esc(o.name)}${pr?" — "+esc(pr):""}${low?" ⚠":""}</option>`;
-      }).join("");
-      const rows = picks.map((p,i) => { const o=optfeatByName(p.name);
-        return `<tr><td style="vertical-align:top;padding:3px 4px;width:46%"><select class="of-pick" data-type="${t.type}" data-i="${i}" style="width:100%">${opt(p.name)}</select></td>`+
-          `<td style="font-size:12px;color:var(--muted);padding:3px 6px">${o?esc(o.text):""}</td>`+
-          `<td style="padding:3px 4px;text-align:center;width:34px"><button type="button" class="of-del btn" data-type="${t.type}" data-i="${i}" title="Remove" style="padding:2px 8px">✕</button></td></tr>`;
-      }).join("");
       const chosen=picks.filter(p=>p.name).length, over=chosen>known;
       let dcHtml="";
       if(t.dc){ const pb=pbValue();
         if(pb != null){ const ks=Array.isArray(t.dc)?t.dc:[t.dc];
           const mod=Math.max(...ks.map(k=>modOf(k)||0));
           dcHtml=` · Save DC ${8+pb+mod} (8 + prof + ${ks.map(k=>ABBR[k]).join("/")})`; } }
-      return `<div style="margin-bottom:14px"><div style="margin-bottom:4px"><b>${esc(t.label)}</b> `+
-        `<span style="color:${over?"#b42318":"var(--muted)"}">known ${chosen}/${known}${dcHtml}</span></div>`+
-        `<table style="width:100%;border-collapse:collapse"><tbody>${rows}</tbody></table>`+
-        `<button type="button" class="btn of-add" data-type="${t.type}" style="margin-top:6px">+ Add ${esc(t.verb)}</button></div>`;
+      return `<div style="margin-bottom:14px"><div style="margin-bottom:4px;display:flex;align-items:baseline;gap:8px"><b>${esc(t.label)}</b> `+
+        `<span style="color:${over?"#b42318":"var(--muted)"}">known ${chosen}/${known}${dcHtml}</span>`+
+        `<span class="of-up-tools"><button type="button" class="of-up-all of-all" data-type="${t.type}" data-act="open">Expand all</button>`+
+        `<button type="button" class="of-up-all of-all" data-type="${t.type}" data-act="close">Collapse all</button></span></div>`+
+        `<div class="of-picklist">${optfeatPickList(t)}</div></div>`;
     };
     card.innerHTML = `<h2>Optional Features</h2>`+
-      `<p class="wiz-hint" style="margin-top:0">Pick from your class's optional-feature lists (invocations, metamagic, maneuvers). ⚠ marks an option whose level prerequisite you don't meet yet. You can swap selections when you level up, per each feature's rules.</p>`+
+      `<p class="wiz-hint" style="margin-top:0">Pick from your class's optional-feature lists (invocations, metamagic, maneuvers). Click a name to read what it does before you take it; the + button takes it. ⚠ marks an option whose level prerequisite you don't meet yet. You can swap selections when you level up, per each feature's rules.</p>`+
       all.map(section).join("");
+  }
+  // Browsable pick-list for one optional-feature type — the same expand-in-place model as the infusion and
+  // Ancestral Weapon lists, so you can read an invocation's rules before choosing it.
+  function optfeatPickList(t){
+    const lv = optfeatClassLevel(t.cls);
+    const taken = new Set(optFeats.filter(x => x.type === t.type && x.name).map(x => x.name));
+    return optfeatList(t.type).map(o => {
+      const isTaken = taken.has(o.name);
+      const pr = optfeatPrereq(o), low = !!(o.pr && o.pr.level && lv && o.pr.level > lv);
+      const open = _ofUpOpen.has(o.name.toLowerCase());
+      const tag = pr ? `<span class="${low ? "of-up-why" : "of-up-tag"}">${low ? "⚠ " : ""}${esc(pr)}</span>` : "";
+      return `<div class="of-up${isTaken ? " chosen" : ""}${open ? " open" : ""}">`+
+        `<button type="button" class="of-take" data-type="${esc(t.type)}" data-name="${esc(o.name)}" title="${isTaken ? "Remove" : "Take this " + esc(t.verb)}">${isTaken ? "✓" : "+"}</button>`+
+        `<div class="of-up-main">`+
+          `<button type="button" class="of-up-toggle" data-name="${esc(o.name)}" title="Show description">`+
+            `<span class="of-chev">▸</span><span class="of-up-name">${esc(o.name)}</span></button>${tag}`+
+          `<div class="of-up-text">${esc(o.text || "")}</div>`+
+        `</div></div>`;
+    }).join("");
   }
   function setupOptFeats(){
     const card=$("optfeat-inner"); if(!card) return;
     card.addEventListener("click", e => {
-      const add=e.target.closest(".of-add"); if(add){ optFeats.push({type:add.dataset.type, name:""}); renderOptFeats(); save(); compute(); return; }
-      const del=e.target.closest(".of-del"); if(del){ const picks=optFeats.filter(x=>x.type===del.dataset.type); const tgt=picks[+del.dataset.i]; if(tgt) optFeats=optFeats.filter(x=>x!==tgt); renderOptFeats(); save(); compute(); return; }
-    });
-    card.addEventListener("change", e => {
-      const sel=e.target.closest(".of-pick"); if(sel){ const picks=optFeats.filter(x=>x.type===sel.dataset.type); if(picks[+sel.dataset.i]) picks[+sel.dataset.i].name=sel.value; renderOptFeats(); save(); compute(); }
+      const take=e.target.closest(".of-take");
+      if(take){                                                   // take / drop this option
+        const {type, name} = take.dataset;
+        if(optFeats.some(x => x.type===type && x.name===name)) optFeats = optFeats.filter(x => !(x.type===type && x.name===name));
+        else optFeats.push({type, name});
+        renderOptFeats(); save(); compute(); return;
+      }
+      const tog=e.target.closest(".of-up-toggle");
+      if(tog){                                                    // expand/collapse IN PLACE — re-rendering a long list would jump the scroll
+        const row=tog.closest(".of-up"), key=(tog.dataset.name||"").toLowerCase();
+        const opening=!row.classList.contains("open");
+        row.classList.toggle("open", opening);
+        if(opening) _ofUpOpen.add(key); else _ofUpOpen.delete(key);
+        return;
+      }
+      const all=e.target.closest(".of-all");
+      if(all){                                                    // expand/collapse every option of this type
+        const names=optfeatList(all.dataset.type).map(o => o.name.toLowerCase());
+        if(all.dataset.act === "open") names.forEach(n => _ofUpOpen.add(n)); else names.forEach(n => _ofUpOpen.delete(n));
+        renderOptFeats(); return;
+      }
     });
   }
   function renderInfusions(){
