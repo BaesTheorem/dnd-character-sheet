@@ -3233,11 +3233,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v616 (2026-07-31)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v617 (2026-07-31)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.159.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.159.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3245,6 +3245,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v617", semver:"2.159.1", items:[
+      "Optional features now stop at your limit: once you've taken all the invocations (or metamagic, maneuvers, arcane shots, runes) you know, the rest grey out with an \"at known limit\" note until you drop one. A character already carrying more than the limit keeps them and can still drop them.",
+    ]},
     {v:"v616", semver:"2.159.0", items:[
       "Eldritch Invocations are now a browsable list like feats and infusions: click any name to expand what it does, then press + to take it. No more choosing from a dropdown and hoping you picked the right one. Expand all / Collapse all sit in the section header.",
       "The same list serves Metamagic, Maneuvers, Arcane Shot options and Runes, and each option shows its prerequisites, with a red ⚠ on the ones your level doesn't meet yet.",
@@ -11937,18 +11940,22 @@
   // Browsable pick-list for one optional-feature type — the same expand-in-place model as the infusion and
   // Ancestral Weapon lists, so you can read an invocation's rules before choosing it.
   function optfeatPickList(t){
-    const lv = optfeatClassLevel(t.cls);
+    const lv = optfeatClassLevel(t.cls), known = optfeatKnown(t);
     const taken = new Set(optFeats.filter(x => x.type === t.type && x.name).map(x => x.name));
+    const full = known > 0 && taken.size >= known;   // at your known limit — an untaken option can't be added
     return optfeatList(t.type).map(o => {
       const isTaken = taken.has(o.name);
+      const atCap = !isTaken && full;
       const pr = optfeatPrereq(o), low = !!(o.pr && o.pr.level && lv && o.pr.level > lv);
       const open = _ofUpOpen.has(o.name.toLowerCase());
       const tag = pr ? `<span class="${low ? "of-up-why" : "of-up-tag"}">${low ? "⚠ " : ""}${esc(pr)}</span>` : "";
-      return `<div class="of-up${isTaken ? " chosen" : ""}${open ? " open" : ""}">`+
-        `<button type="button" class="of-take" data-type="${esc(t.type)}" data-name="${esc(o.name)}" title="${isTaken ? "Remove" : "Take this " + esc(t.verb)}">${isTaken ? "✓" : "+"}</button>`+
+      const cap = atCap ? `<span class="of-up-why">at known limit</span>` : "";
+      return `<div class="of-up${isTaken ? " chosen" : ""}${atCap ? " locked" : ""}${open ? " open" : ""}">`+
+        `<button type="button" class="of-take" data-type="${esc(t.type)}" data-name="${esc(o.name)}"${atCap ? " disabled" : ""} `+
+          `title="${isTaken ? "Remove" : (atCap ? `You already know ${known} — drop one first` : "Take this " + esc(t.verb))}">${isTaken ? "✓" : "+"}</button>`+
         `<div class="of-up-main">`+
           `<button type="button" class="of-up-toggle" data-name="${esc(o.name)}" title="Show description">`+
-            `<span class="of-chev">▸</span><span class="of-up-name">${esc(o.name)}</span></button>${tag}`+
+            `<span class="of-chev">▸</span><span class="of-up-name">${esc(o.name)}</span></button>${tag}${cap}`+
           `<div class="of-up-text">${esc(o.text || "")}</div>`+
         `</div></div>`;
     }).join("");
@@ -11960,7 +11967,12 @@
       if(take){                                                   // take / drop this option
         const {type, name} = take.dataset;
         if(optFeats.some(x => x.type===type && x.name===name)) optFeats = optFeats.filter(x => !(x.type===type && x.name===name));
-        else optFeats.push({type, name});
+        else {
+          const t = OPTFEAT_TYPES.find(x => x.type === type), known = t ? optfeatKnown(t) : 0;
+          const have = optFeats.filter(x => x.type===type && x.name).length;
+          if(known > 0 && have >= known) return;   // at the known limit — guard the DATA too, not just the button
+          optFeats.push({type, name});
+        }
         renderOptFeats(); save(); compute(); return;
       }
       const tog=e.target.closest(".of-up-toggle");
