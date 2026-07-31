@@ -3233,11 +3233,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v614 (2026-07-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v615 (2026-07-31)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.158.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.158.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3245,6 +3245,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v615", semver:"2.158.2", items:[
+      "The race list now shows just race names. The sourcebook moved to the top of the details panel on the right, next to the race name, so the list is easier to scan. If two of your loaded sources ever define the same race name, those two rows still name their book so you can tell them apart.",
+    ]},
     {v:"v614", semver:"2.158.1", items:[
       "FIX: a two-digit attack bonus was cut off by the dice-roll button beside it, so +10 read as +1. The Bonus field now has room for the number and the button together, at any bonus you can reach.",
     ]},
@@ -13373,8 +13376,13 @@
   function renderRaceList(){   // left-hand race picker (mirrors the class step's wiz-class-list)
     const box = $("wiz-race-list"); if(!box || !DATA) return;
     const cur = $("wiz-race").value, curSrc = ($("wiz-race").dataset.src)||"";
-    box.innerHTML = byName(DATA.races).map(r =>
-      `<button type="button" class="wiz-rce${(r.name===cur && (r._src||"")===curSrc)?" active":""}" data-race="${esc(r.name)}" data-src="${esc(r._src||"")}">${esc(optLabel(r))}</button>`).join("");
+    // Names only: the sourcebook rides in the detail panel instead (Alex's call). The one exception is a name TWO
+    // loaded sources both define — those rows would be indistinguishable without it, which is the whole point of
+    // letting a same-name race coexist. Nothing collides in the shipped set, so in practice the list reads clean.
+    const races = byName(DATA.races), byLc = {};
+    races.forEach(r => { const k = (r.name||"").toLowerCase(); byLc[k] = (byLc[k]||0) + 1; });
+    box.innerHTML = races.map(r =>
+      `<button type="button" class="wiz-rce${(r.name===cur && (r._src||"")===curSrc)?" active":""}" data-race="${esc(r.name)}" data-src="${esc(r._src||"")}">${esc(byLc[(r.name||"").toLowerCase()] > 1 ? optLabel(r) : (r.name||""))}</button>`).join("");
     scrollListToActive(box);
   }
   function raceHint(){   // refresh active highlight + run-down + choice pickers for the current selection
@@ -13417,7 +13425,9 @@
       const body = r.flavor.map(s => (s.name ? `<b>${esc(s.name)}</b>\n` : "") + esc(s.text||"")).join("\n\n");
       flavor = `<details class="wiz-race-lore"><summary>Description &amp; lore</summary><div class="pick-desc">${body}</div></details>`;
     }
-    box.innerHTML = `<div class="wiz-cd-head">${grants.map(esc).join("<br>")}</div>`
+    // Lead with the race and the book it came from — the list itself shows bare names, so this is where you check the source.
+    const head = `<b>${esc(r.name)}</b>` + (r._srcName ? ` · ${esc(srcShort(r._srcName))}` : "");
+    box.innerHTML = `<div class="wiz-cd-head">${head}<br>${grants.map(esc).join("<br>")}</div>`
       + `<div class="wiz-cd-table">${traits || '<span class="wiz-hint">No traits listed for the loaded sources.</span>'}</div>`
       + flavor;
   }
