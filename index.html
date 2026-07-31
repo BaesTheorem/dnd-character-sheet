@@ -2609,7 +2609,7 @@
           </div>
           <div class="atk-cols">
           <table class="attacks">
-            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Name</th><th style="width:64px">Bonus</th><th>Damage / Type</th></tr></thead>
+            <thead><tr><th class="invdrag noprint" style="width:20px"></th><th>Name</th><th style="width:72px">Bonus</th><th>Damage / Type</th></tr></thead>
             <tbody id="attacks"><tr data-r="0"><td class="invdrag noprint" draggable="true" title="Drag to reorder">⠿</td><td class="atkitem"><button class="atk-del noprint" data-a="0" type="button" tabindex="-1" title="Delete">✕</button><input data-save="" id="atkname-0"></td><td><input data-save="" id="atkbonus-0"></td><td><input data-save="" id="atkdmg-0"></td></tr></tbody>
           </table>
           </div>
@@ -3233,11 +3233,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v613 (2026-07-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v614 (2026-07-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.158.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.158.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3245,6 +3245,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v614", semver:"2.158.1", items:[
+      "FIX: a two-digit attack bonus was cut off by the dice-roll button beside it, so +10 read as +1. The Bonus field now has room for the number and the button together, at any bonus you can reach.",
+    ]},
     {v:"v613", semver:"2.158.0", items:[
       "Barbarian: Fast Movement now adds its +10 ft to your Speed from 5th level, and correctly stops applying while you're in heavy armour. It stacks with a Monk multiclass's Unarmored Movement.",
       "Barbarian: Primal Champion adds its +4 to Strength and Constitution at 20th level. It's derived from your class level, so it can't be left behind if you rebuild the character.",
@@ -18229,7 +18232,9 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
       var s = document.createElement("style");
       s.dataset.transient = "1";
       s.textContent =
-        "td.atk-roll-host{position:relative} td.atk-roll-host input{padding-right:24px}" +
+        /* the d20 sits over the right of the Bonus field, so reserve its width — and drop the inherited left padding,
+           which the centred value doesn't need and which cost enough room to clip a two-digit bonus to "+1" */
+        "td.atk-roll-host{position:relative} td.atk-roll-host input{padding-right:24px; padding-left:2px}" +
         ".atk-roll{position:absolute; right:2px; top:50%; transform:translateY(-50%); border:1px solid var(--line2); background:var(--card); color:var(--ink); cursor:pointer; padding:2px 3px; line-height:0}" +
         ".atk-roll:hover{color:var(--accent)} html.mobile .atk-roll{padding:7px 5px}" +
         "@media print{ td.atk-roll-host input{padding-right:1px} #dice-rail,#dice-card,#rolllog-modal,#dice-canvas{display:none !important} }" +
