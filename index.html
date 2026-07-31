@@ -2767,7 +2767,8 @@
             <div><label class="lbl" for="spellclass">Spellcasting Class</label>
               <select data-save="" id="spellclass">
                 <option value=""></option>
-                <option>Artificer</option><option>Bard</option><option>Cleric</option><option>Druid</option>
+                <option>Artificer</option><option>Barbarian (Path of the Totem Warrior)</option>
+                <option>Bard</option><option>Cleric</option><option>Druid</option>
                 <option>Fighter (Eldritch Knight)</option>
                 <option>Monk (Way of Shadow)</option>
                 <option>Paladin</option><option>Ranger</option><option>Rogue (Arcane Trickster)</option>
@@ -3232,11 +3233,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v612 (2026-07-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v613 (2026-07-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.157.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.158.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3244,6 +3245,13 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v613", semver:"2.158.0", items:[
+      "Barbarian: Fast Movement now adds its +10 ft to your Speed from 5th level, and correctly stops applying while you're in heavy armour. It stacks with a Monk multiclass's Unarmored Movement.",
+      "Barbarian: Primal Champion adds its +4 to Strength and Constitution at 20th level. It's derived from your class level, so it can't be left behind if you rebuild the character.",
+      "Path of the Totem Warrior now gets a spell sheet: Speak with Animals and Beast Sense from 3rd level (Spirit Seeker), plus Commune with Nature at 10th (Spirit Walker). They're ritual-only and use no spell slots, which the sheet says on the page.",
+      "Primal Knowledge (Tasha's) now asks you to pick a skill when you hit 3rd level, and again at 10th, and ticks the proficiency for you. The second pick won't offer the skill you already chose.",
+      "Fixed a scaling bug outside the barbarian: the Fathomless warlock's Tentacle of the Deeps was stuck at 1d8 and never stepped up to 2d8 at 10th level.",
+    ]},
     {v:"v612", semver:"2.157.0", items:[
       "Feat pickers now grey out a feat you already have, in both places you pick one: the ASI & Feats wizard and the race feat on the Race step. You can still open a greyed feat to read it, you just can't take it twice. Elemental Adept stays selectable, since it's the one feat that says you may take it again (each time for a different damage type).",
       "An 'important update' notice is now aimed at the versions it actually fixes, so a build past the problem gets the ordinary update banner instead of an urgent one.",
@@ -4688,7 +4696,25 @@
     if(genMode === "manual"){ const n = parseInt(manualScores[k],10); return isNaN(n) ? null : n; }   // blank → null
     return baseVals[k];                                     // may be null (unassigned array)
   }
-  function totalBonus(k){ let s = 0; for(const [c] of BONUS_CATS) s += (bonusVals[c][k] || 0); return s; }
+  // A named class's level for feature math: the built character's class list first, else parse the Class & Level
+  // text so a hand-typed sheet gets the same features (the idiom the Monk speed bonus already used inline).
+  function classLevelNamed(name){
+    const lc = String(name||"").toLowerCase(); if(!lc) return 0;
+    const built = (charClasses||[]).find(c => String(c.name||"").toLowerCase() === lc);
+    if(built && built.level) return built.level;
+    const el = $("classlevel"), s = (el ? el.value : "").toLowerCase();
+    if(!s.includes(lc)) return 0;
+    const m = s.match(new RegExp(lc.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "[^\\d]*(\\d+)"));
+    return m ? parseInt(m[1],10) : (charLevel() || 0);
+  }
+  // Class features that raise ability scores outright. Barbarian Primal Champion (20) is the only one in the 2014
+  // ruleset: +4 Strength and Constitution. Derived from the class level on every pass rather than written into the
+  // bonus columns, so it can't be clobbered by a hand edit or stranded if the character is rebuilt at a lower level.
+  function classScoreBonus(k){
+    if(k !== "str" && k !== "con") return 0;
+    return classLevelNamed("Barbarian") >= 20 ? 4 : 0;
+  }
+  function totalBonus(k){ let s = 0; for(const [c] of BONUS_CATS) s += (bonusVals[c][k] || 0); return s + classScoreBonus(k); }
   function rawFinalScore(k){ const b = baseScore(k); return b == null ? null : b + totalBonus(k); }   // base + ASI/racial/magical/misc, before any override
   function finalScore(k){
     if(hasOv("score-"+k+"-out")){ const v = ovInt("score-"+k+"-out"); if(v != null) return v; }   // a pinned score feeds the modifier, carrying capacity, etc.
@@ -6839,11 +6865,23 @@
     "Monk (Way of Shadow)": {fullList:false, prepares:false, ability:"wis",
       fixed:{0:["Minor Illusion"], 2:["Darkness","Darkvision","Pass Without Trace","Silence"]}, noSlots:true,
       note:"Monk (Way of Shadow) — Shadow Arts: cast these spells with ki (no spell slots, no material components); always known, not prepared. Minor Illusion cantrip included."},
+    "Barbarian (Path of the Totem Warrior)": {fullList:false, prepares:false, ritual:true, noSlots:true,
+      fixed: lvl => (lvl && lvl < 3) ? {}                                          // Spirit Seeker starts at 3rd
+        : (lvl >= 10 ? {1:["Speak with Animals"], 2:["Beast Sense"], 5:["Commune with Nature"]}   // + Spirit Walker
+                     : {1:["Speak with Animals"], 2:["Beast Sense"]}),
+      note:"Barbarian (Path of the Totem Warrior) — Spirit Seeker: these are cast as RITUALS only, with no spell slots. Commune with Nature joins the list at 10th level (Spirit Walker)."},
     "Fighter (Eldritch Knight)": {fullList:false, prepares:false, ability:"int",
       note:"Eldritch Knight — one-third caster (Int). Pick spells known from the wizard list (mostly abjuration & evocation). Slots recharge on a long rest."},
     "Rogue (Arcane Trickster)": {fullList:false, prepares:false, ability:"int",
       note:"Arcane Trickster — one-third caster (Int). Pick spells known from the wizard list (mostly enchantment & illusion). Slots recharge on a long rest."},
   };
+  // A fixed caster's list is normally a plain {spellLevel:[names]} map, but it may be a function of CLASS level for a
+  // subclass that unlocks more later (Totem Warrior gains Commune with Nature at 10). Always read it through here.
+  function casterFixed(info, cls){
+    if(!info || !info.fixed) return {};
+    if(typeof info.fixed !== "function") return info.fixed;
+    return info.fixed(classLevelNamed(String(cls||"").split(" (")[0])) || {};
+  }
   const SPELL_LIST_FROM = { "Fighter (Eldritch Knight)":"Wizard", "Rogue (Arcane Trickster)":"Wizard" };   // borrow another class's spell list for the per-row dropdowns
   const SUB_CANTRIPS = {   // cantrips known per level for subclass casters not in the class data
     "Fighter (Eldritch Knight)":[0,0,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3],
@@ -8574,13 +8612,14 @@
     const canRit = canRitualCast(inst);   // only ritual casters get the left-hand "R" tag
     sEl(inst,"spelltable").classList.toggle("hide-prep", !!(info && !info.prepares && !canRit));   // hide the Prep column only for casters that neither prepare nor ritual-cast
     if(info && info.fixed){                      // fixed-list caster (e.g. Shadow Monk) — exactly these spells, no blank rows
+      const fixedMap = casterFixed(info, cls);
       // these spells live ONLY in the fixed list — scrub any copies out of the write-in rows so they don't linger when you switch class
-      const fixedNames = new Set(Object.values(info.fixed).flat().map(n => n.toLowerCase()));
+      const fixedNames = new Set(Object.values(fixedMap).flat().map(n => n.toLowerCase()));
       for(let l=0; l<=9; l++) if(spellEntries[l]) spellEntries[l].forEach(r => { if(r.name && fixedNames.has(r.name.trim().toLowerCase())) r.name = ""; });
       let fbody = "";
-      Object.keys(info.fixed).map(Number).sort((a,b)=>a-b).forEach(l => {
+      Object.keys(fixedMap).map(Number).sort((a,b)=>a-b).forEach(l => {
         fbody += `<tr class="sp-section"><td colspan="8">${l===0 ? "Cantrips" : "Level "+l}</td></tr>`;
-        info.fixed[l].slice().sort((a,b)=>a.localeCompare(b)).forEach(name => {
+        fixedMap[l].slice().sort((a,b)=>a.localeCompare(b)).forEach(name => {
           const d = spellData(name);
           fbody += `<tr><td class="col-prep"></td><td class="col-name"><span data-card="${esc(name)}">${esc(name)}</span>${castBtnHTML(0, name)}${spMobileMeta(d)}</td>`+ propCells(d) +`</tr>`;   // fixed-list spells cast without slots — damaging ones get a roll-only Cast button
         });
@@ -9620,6 +9659,10 @@
       const mm = clsLow.match(/monk[^\d]*(\d+)/), mlvl = mm ? parseInt(mm[1],10) : (charLevel() || 0);
       if(mlvl >= 2) speedBonus = Math.min(30, Math.floor((mlvl - 2) / 4) * 5 + 10);
     }
+    // Barbarian Fast Movement: +10 ft from 5th level while not wearing heavy armor (stacks with Unarmored Movement
+    // on a Monk multiclass — they're separate features, each adding to walking speed)
+    { const wornArmor = armorByName(armorSel);
+      if(classLevelNamed("Barbarian") >= 5 && !(wornArmor && wornArmor.type === "HA")) speedBonus += 10; }
     speedBonus += awEff.speed;   // Ancestral Weapon Mobile upgrade
     speedBonus += featSpeedBonus();   // Mobile feat (+10 ft) — walking only, so it rides speedBonus like Unarmored Movement
     // Combat Speed (page 1): box shows base − encumbrance penalty + Unarmored Movement, then condition effects (not while editing)
@@ -11215,6 +11258,9 @@
         if(w.level >= ch.level && !(w.classChoices||{})[ch.id])
           out.push({kind:"classChoice", i, label:`${w.name}: ${ch.prompt}`, choice:ch}); });
       pactChoicesFor(w).forEach(ch => {                                                       // Warlock Pact Boon (Chain / Blade / Tome) at level 3
+        if(w.level >= ch.level && !(w.classChoices||{})[ch.id])
+          out.push({kind:"classChoice", i, label:`${w.name}: ${ch.prompt}`, choice:ch}); });
+      barbarianChoicesFor(w).forEach(ch => {                                                  // Primal Knowledge skill (TCE) at 3 and again at 10
         if(w.level >= ch.level && !(w.classChoices||{})[ch.id])
           out.push({kind:"classChoice", i, label:`${w.name}: ${ch.prompt}`, choice:ch}); });
     });
@@ -12898,7 +12944,7 @@
   const _md = s => s > 0 ? "+"+s : (s < 0 ? ""+s : "");
   function _abMod(ab){ return ab === "finesse" ? Math.max(modOf("str"), modOf("dex")) : modOf(ab || "str"); }
   function martialArtsDie(){ const w = (charClasses||[]).find(c => /monk/i.test(c.name||"")); const l = w ? (w.level||1) : (charLevel()||1); return l>=17?10 : l>=11?8 : l>=5?6 : 4; }
-  function classLevelOf(re){ const w = (charClasses||[]).find(c => re.test(c.name||"")); return w ? (w.level||0) : 0; }
+  function classLevelMatching(re){ const w = (charClasses||[]).find(c => re.test(c.name||"")); return w ? (w.level||0) : 0; }   // by regex; the by-NAME classLevelOf is declared later and would otherwise shadow this
   function hasSubclassLvl(clsRe, subRe, min){ return (charClasses||[]).some(c => clsRe.test(c.name||"") && subRe.test(c.sub||"") && (c.level||0) >= (min||1)); }
   function hasFeatNamed(re){ return (asiChoices||[]).some(s => re.test(s.feat||"")) || re.test($("features").value||""); }
   function equippedPolearm(){ for(let i=0;i<NINV;i++){ const cb=$("invequip-"+i), nm=$("invname-"+i); if(cb && cb.checked && nm && /\b(glaive|halberd|pike|quarterstaff|spear)\b/i.test(nm.value||"")) return true; } return false; }
@@ -12926,7 +12972,7 @@
     }
     let die = spec.die;
     if(spec.ma) die = "1d"+martialArtsDie();
-    else if(spec.scale){ const lvl = classLevelOf(spec.scaleCls||spec.cls); die = spec.scale[0][1]; for(const [L,d] of spec.scale){ if(lvl>=L) die=d; } }
+    else if(spec.scale){ const lvl = classLevelMatching(spec.scaleCls||spec.cls); die = spec.scale[0][1]; for(const [L,d] of spec.scale){ if(lvl>=L) die=d; } }
     return {bonus: sgn(m+pb), dmg: `${die}${m?_md(m):""} ${spec.type}${spec.note?` (${spec.note})`:""}`};
   }
   function activeFeatureAttacks(){           // [{name, compute}] the character should currently have
@@ -13729,6 +13775,18 @@
     if(w.name !== "Warlock") return [];
     return [{id:"pactBoon", level:3, prompt:"choose Pact Boon", options:PACT_BOON_NAMES.filter(n => n !== "Pact of the Talisman" || tashaEnabled()), kind:"feature"}];
   }
+  // Primal Knowledge (TCE): a skill proficiency at 3rd, and another at 10th, from the barbarian 1st-level list.
+  // The 10th-level picker drops the 3rd's choice so the same skill can't be taken twice.
+  const BARBARIAN_SKILLS = ["Animal Handling","Athletics","Intimidation","Nature","Perception","Survival"];
+  function barbarianChoicesFor(w){
+    if(w.name !== "Barbarian" || !tceOn("barb-primal-knowledge")) return [];
+    const took3 = (w.classChoices||{}).primalKnowledge3 || "";
+    return [
+      {id:"primalKnowledge3",  level:3,  prompt:"choose Primal Knowledge skill", options:BARBARIAN_SKILLS, kind:"prof"},
+      {id:"primalKnowledge10", level:10, prompt:"choose a second Primal Knowledge skill",
+        options:BARBARIAN_SKILLS.filter(s => s !== took3), kind:"prof"},
+    ];
+  }
   function rangerChoicesFor(w){
     if(w.name !== "Ranger") return [];
     const out = [];
@@ -14206,6 +14264,12 @@
         pactChoicesFor(w).forEach(ch => {                                           // Warlock Pact Boon → a Features line with the chosen boon's rules
           const pick = (w.classChoices||{})[ch.id]; if(!pick) return;
           featLines.push(`Pact Boon: ${pick} (${w.name} ${ch.level}). ${optfeatText(pick) || ""}`.trim());
+        });
+        barbarianChoicesFor(w).forEach(ch => {                                      // Primal Knowledge (TCE): tick the chosen skill's proficiency
+          const pick = (w.classChoices||{})[ch.id]; if(!pick) return;
+          const key = SKILL_KEY[pick.toLowerCase()];
+          if(key){ const pb = $("skp-"+key); if(pb) pb.checked = true; }
+          featLines.push(`Primal Knowledge skill: ${pick} (${w.name} ${ch.level}).`);
         });
         if(w.name === "Ranger" && tceOn("ranger-primal-awareness") && sInfo){      // Primal Awareness (TCE): always-prepared spells, once each per long rest
           const PA = [[3,"Speak with Animals",1],[5,"Beast Sense",2],[9,"Speak with Plants",3],[13,"Locate Creature",4],[17,"Commune with Nature",5]];
