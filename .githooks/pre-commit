@@ -56,6 +56,9 @@ fi
 # Optional "critical update" flag: if update-note.txt exists and is non-empty, version.json carries
 # {critical:true, note:"<its text>"} so the in-app banner shows it prominently and keeps resurfacing
 # until the user updates (clients on a build that predates this feature simply ignore the extra fields).
+# TARGET IT: make the FIRST line "<=X.Y.Z" (the newest affected SemVer) and it becomes criticalMax, so only
+# builds at or below that version see the urgent banner; anyone past it gets the ordinary update banner.
+# Without that line the note hits every older build, which is rarely what you want.
 # STICKY: the note rides every release until you delete update-note.txt — remove it once the urgency passes.
 if [ -f version.json ]; then
   # True UNCOMPRESSED byte size of index.html (measured after the stamps above land). The app uses this as the
@@ -63,12 +66,29 @@ if [ -f version.json ]; then
   # response's content-length is the compressed size and can't drive an honest bar.
   size="$(wc -c < index.html 2>/dev/null | tr -d '[:space:]')"
   [ -z "$size" ] && size=0
-  note=""
-  [ -f update-note.txt ] && note="$(tr -d '\r' < update-note.txt | tr '\n' ' ' | sed 's/[[:space:]]\{1,\}/ /g; s/^ *//; s/ *$//')"
-  if [ -n "$note" ] && command -v python3 >/dev/null 2>&1; then
-    ver="$ver" semver="$semver" size="$size" note="$note" python3 -c 'import json,os; open("version.json","w").write(json.dumps({"version":os.environ["ver"],"semver":os.environ["semver"],"size":int(os.environ["size"]),"critical":True,"note":os.environ["note"]})+"\n")' \
-      && git add version.json \
-      && echo "pre-commit: wrote version.json = $ver / $semver (size $size, CRITICAL: $note)"
+  raw=""
+  [ -f update-note.txt ] && raw="$(cat update-note.txt)"
+  if [ -n "$(printf '%s' "$raw" | tr -d '[:space:]')" ] && command -v python3 >/dev/null 2>&1; then
+    ver="$ver" semver="$semver" size="$size" raw="$raw" python3 - <<'PYNOTE'
+import json, os, re
+lines = os.environ["raw"].replace("\r", "").split("\n")
+cap = ""
+m = re.match(r"^\s*<=?\s*(\d+\.\d+\.\d+)\s*$", lines[0]) if lines else None
+if m:                                  # first line is a "<=X.Y.Z" ceiling, not part of the message
+    cap, lines = m.group(1), lines[1:]
+note = re.sub(r"\s+", " ", " ".join(lines)).strip()
+out = {"version": os.environ["ver"], "semver": os.environ["semver"], "size": int(os.environ["size"])}
+if note:
+    out["critical"] = True
+    out["note"] = note
+    if cap:
+        out["criticalMax"] = cap
+with open("version.json", "w") as f:
+    f.write(json.dumps(out) + "\n")
+print("pre-commit: wrote version.json = %s / %s (size %s, CRITICAL%s: %s)"
+      % (out["version"], out["semver"], out["size"], " for <=" + cap if cap else " for ALL older builds", note))
+PYNOTE
+    git add version.json
   else
     printf '{"version":"%s","semver":"%s","size":%s}\n' "$ver" "$semver" "$size" > version.json \
       && git add version.json \

@@ -843,6 +843,10 @@
   .pick-item{display:flex; align-items:flex-start; gap:7px; padding:4px 0; border-bottom:1px solid var(--line)}
   .pick-item:last-child{border-bottom:0}
   .pick-item.maxed input:not(:checked){opacity:.35}
+  .pick-item.taken > input{opacity:.35}
+  .pick-item.taken .pick-det > summary{color:var(--muted)}
+  .pick-item.taken .pick-det > summary::after{content:" (already taken)"; font-size:10px; font-weight:700;
+    letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
   .pick-item > input{margin-top:3px; flex:none}
   .pick-det{flex:1; min-width:0}
   .pick-det > summary{cursor:pointer; font-size:13px; font-weight:600; list-style:none; user-select:none; padding:1px 0}
@@ -3228,11 +3232,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v611 (2026-07-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v612 (2026-07-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.156.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.157.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3240,6 +3244,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v612", semver:"2.157.0", items:[
+      "Feat pickers now grey out a feat you already have, in both places you pick one: the ASI & Feats wizard and the race feat on the Race step. You can still open a greyed feat to read it, you just can't take it twice. Elemental Adept stays selectable, since it's the one feat that says you may take it again (each time for a different damage type).",
+      "An 'important update' notice is now aimed at the versions it actually fixes, so a build past the problem gets the ordinary update banner instead of an urgent one.",
+    ]},
     {v:"v611", semver:"2.156.2", items:[
       "FIX: in dark mode, an Ability Score Improvement card went pale and washed out once you'd chosen it — the completed state used a light green fill that the light text disappeared into. It now uses a dark green tint, so a finished choice still reads as finished and you can still read it.",
     ]},
@@ -4779,6 +4787,29 @@
     }
     return false;
   }
+  // A feat can be taken only once unless it says otherwise. Elemental Adept is the sole exception in the
+  // 2014 ruleset (each pick names a different damage type) — verified against the feat data, not recalled.
+  // Newer/homebrew data can flag its own with `repeatable`, which is honoured here too.
+  const REPEATABLE_FEATS = new Set(["elemental adept"]);
+  function featRepeatable(name){
+    const lc = (name || "").trim().toLowerCase();
+    if(!lc) return false;
+    if(REPEATABLE_FEATS.has(lc)) return true;
+    const f = (DATA && DATA.feats) ? DATA.feats.find(x => (x.name||"").toLowerCase() === lc) : null;
+    return !!(f && f.repeatable);
+  }
+  // Feats already spoken for by the OTHER slots, so a picker can grey them out. `skip` is the slot being
+  // drawn (its own pick must stay selectable); skipRace ignores the race slots, for the Race step that is
+  // re-choosing exactly those. Repeatable feats are never counted as taken.
+  function featsTakenElsewhere(skip, opts){
+    const taken = new Set();
+    (asiChoices || []).forEach((s,i) => {
+      if(i === skip) return;
+      if(opts && opts.skipRace && s.source === "race") return;
+      if(s.type === "feat" && s.feat && !featRepeatable(s.feat)) taken.add(s.feat.toLowerCase());
+    });
+    return taken;
+  }
   // Feats granted by the chosen race (Variant Human, Custom Lineage, …) — looked up by the Race field.
   function raceFeatGrants(){
     const rn = ($("race").value || "").trim().toLowerCase();
@@ -5020,11 +5051,13 @@
     const slotsHtml = asiChoices.map((s,i) => {
       const done = asiSlotComplete(s);
       const feats = (DATA && DATA.feats) ? DATA.feats.slice().sort((a,b) => a.name.localeCompare(b.name)) : [];
+      const taken = featsTakenElsewhere(i);   // feats another slot already spent — greyed out, still readable
       const featBody = feats.length   // browsable list: each feat selectable + a collapsible full description
         ? `<div class="asi-body" style="display:block"><label>Feat — pick one (click a name to read it)</label>`+
-          `<div class="feat-list">`+ feats.map(f =>
-            `<div class="pick-item"><input type="radio" name="asi-feat-${i}" class="asi-feat-radio" data-i="${i}" value="${esc(f.name)}"${s.feat===f.name?" checked":""}>`+
-            `<details class="pick-det"${s.feat===f.name?" open":""}><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("") +`</div></div>`+
+          `<div class="feat-list">`+ feats.map(f => {
+            const dupe = s.feat !== f.name && taken.has((f.name||"").toLowerCase());
+            return `<div class="pick-item${dupe?" taken":""}"><input type="radio" name="asi-feat-${i}" class="asi-feat-radio" data-i="${i}" value="${esc(f.name)}"${s.feat===f.name?" checked":""}${dupe?" disabled":""}>`+
+            `<details class="pick-det"${s.feat===f.name?" open":""}><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`; }).join("") +`</div></div>`+
           featAbilPicker(s, i) + featSpellPicker(s, i) + featSkillPicker(s, i)
         : `<div class="asi-body"><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
       if(s.source === "race"){                       // racial feat — feat only, no ASI option
@@ -10302,18 +10335,31 @@
     for(const url of [VERSION_SRC, VERSION_SRC_FALLBACK]){
       try{
         const r = await fetch(url + (url.includes("?") ? "&" : "?") + "_v=" + Date.now(), {cache:"no-store"});   // unique URL → bypasses the service-worker cache
-        if(r && r.ok){ const j = await r.json(); if(j && j.version) return { version: String(j.version), semver: j.semver ? String(j.semver) : null, size: (typeof j.size === "number" && j.size > 0) ? j.size : 0, critical: !!j.critical, note: j.note ? String(j.note) : "" }; }
+        if(r && r.ok){ const j = await r.json(); if(j && j.version) return { version: String(j.version), semver: j.semver ? String(j.semver) : null, size: (typeof j.size === "number" && j.size > 0) ? j.size : 0, critical: !!j.critical, note: j.note ? String(j.note) : "", criticalMax: j.criticalMax ? String(j.criticalMax) : "" }; }
       }catch(e){}
     }
     return null;
   }
   function semverLabel(s){ const m = String(s||"").match(/\d+\.\d+\.\d+/); return m ? m[0] : null; }   // pull a SemVer out of a string
+  function cmpSemver(a, b){   // -1 / 0 / 1
+    const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
+    for(let i=0;i<3;i++){ const x = pa[i]||0, y = pb[i]||0; if(x !== y) return x < y ? -1 : 1; }
+    return 0;
+  }
+  // An "important update" is aimed at the builds it actually fixes: `criticalMax` is the newest affected
+  // SemVer, so a build past it gets the ordinary banner. No ceiling → it applies to every older build.
+  function critApplies(latest){
+    if(!latest || !latest.critical) return false;
+    const cap = semverLabel(latest.criticalMax); if(!cap) return true;
+    const mine = semverLabel(APP_SEMVER); if(!mine) return true;   // can't place ourselves → err toward showing it
+    return cmpSemver(mine, cap) <= 0;
+  }
   function showUpdateBanner(latest){
     const bar = $("update-banner"); if(!bar) return;
     const hosted = /^https?:$/.test(location.protocol);
     const newLbl = latest.semver || semverLabel(latest.version) || (latest.version||"").split(" ")[0];   // prefer SemVer; fall back to the build id
     const curLbl = appLabel();
-    const crit = !!latest.critical;
+    const crit = critApplies(latest);
     bar.classList.toggle("critical", crit);
     const lead = crit ? "<strong>Important update.</strong> " : "";
     const noteHtml = (crit && latest.note) ? ("<span class=\"ub-note\">" + esc(latest.note) + "</span>") : "";
@@ -10330,7 +10376,7 @@
     if(!latest || !latest.version) return;
     const cur = verNum(APP_VERSION), lat = verNum(latest.version);   // compare by monotonic build id (works across the SemVer switch)
     if(cur == null || lat == null || lat <= cur) return;          // nothing newer
-    if(!latest.critical){                                          // a critical update bypasses the persistent dismiss so it keeps surfacing until you actually update (the ✕ only hides it for this session)
+    if(!critApplies(latest)){                                      // a critical update bypasses the persistent dismiss so it keeps surfacing until you actually update (the ✕ only hides it for this session)
       let dismissed = null; try{ dismissed = localStorage.getItem("cs_update_dismissed"); }catch(e){}
       if(dismissed && verNum(dismissed) != null && verNum(dismissed) >= lat) return;   // already dismissed this (or newer)
     }
@@ -13443,7 +13489,7 @@
           html += `<div class="wiz-racechoice"><label>Feat${r.featGrants>1?` #${i+1}`:""} — pick one (click a name to read it)</label>`
             + `<div class="feat-list">` + feats.map(f =>
               `<div class="pick-item"><input type="radio" name="rc-feat-${i}" class="rc-feat-radio" data-i="${i}" value="${esc(f.name)}">`
-              + `<details class="pick-det"><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("")
+              + `<details class="pick-det"><summary>${esc(f.name)}</summary><div class="pick-desc">${esc(f.text||"")}</div></details></div>`).join("")   // greyed for dupes by refreshRcFeatTaken()
             + `</div><div class="rc-feat-abil" data-i="${i}"></div><div class="rc-feat-spell" data-i="${i}"></div></div>`;
         } else {
           html += `<div class="wiz-racechoice"><label class="lbl">Feat — your choice</label><span class="wiz-hint" style="margin:0">Load a sourcebook to list feats.</span></div>`;
@@ -13492,6 +13538,21 @@
     syncAbilDupes();
     updateRaceSkillLimit();   // grey out race-granted dupes + lock the picker at its choose-count
     refreshLangPickers();
+    refreshRcFeatTaken();
+  }
+  // Grey out a race feat the character already has: one the class ASI slots spent, or one another race-feat
+  // group on this step just picked. The race slots themselves are excluded — this step is re-choosing them.
+  function refreshRcFeatTaken(){
+    const box = $("wiz-race-choices"); if(!box) return;
+    const base = featsTakenElsewhere(-1, {skipRace:true});
+    const picked = new Map();   // feat → the group holding it, so the other groups grey it out
+    box.querySelectorAll(".rc-feat-radio:checked").forEach(r => { if(!featRepeatable(r.value)) picked.set((r.value||"").toLowerCase(), r.dataset.i); });
+    box.querySelectorAll(".rc-feat-radio").forEach(r => {
+      const lc = (r.value || "").toLowerCase();
+      const dupe = !r.checked && (base.has(lc) || (picked.has(lc) && picked.get(lc) !== r.dataset.i));
+      r.disabled = dupe;
+      const item = r.closest(".pick-item"); if(item) item.classList.toggle("taken", dupe);
+    });
   }
   // Mirror of updateWizSkillLimit/updateCustomBgLimit for the Race step's "choose N skills" checkbox picker:
   // disable a skill the race already grants outright, and once N are checked grey out the rest.
@@ -13546,7 +13607,7 @@
     if(d.ancestry){ const a = box.querySelector(".rc-ancestry"); if(a) a.value = d.ancestry; }
     (d.feats || []).forEach((val, i) => { if(!val) return;
       const radio = [...box.querySelectorAll('input[name="rc-feat-' + i + '"]')].find(r => r.value === val);
-      if(radio){ radio.checked = true; const dt = radio.nextElementSibling; if(dt && dt.tagName === "DETAILS") dt.open = true; renderRcFeatAbil(i); renderRcFeatSpell(i); } });
+      if(radio){ radio.checked = true; const dt = radio.nextElementSibling; if(dt && dt.tagName === "DETAILS") dt.open = true; renderRcFeatAbil(i); renderRcFeatSpell(i); refreshRcFeatTaken(); } });
     (d.featAbil || []).forEach((v, i) => { const sel = box.querySelector('.rc-featabil[data-i="' + i + '"]'); if(sel && v != null) sel.value = v; });
     (d.featSpell || []).forEach((p, i) => { if(p) applyRcFeatSpellPicks(i, p); });
   }
@@ -15252,7 +15313,7 @@
       if(r){   // race feat picked → open its description (close the rest) and show any half-feat ability + spell pickers, like the ASI wizard
         const i = +r.dataset.i;
         document.querySelectorAll('.rc-feat-radio[data-i="'+i+'"]').forEach(rr => { const d = rr.nextElementSibling; if(d && d.tagName === "DETAILS") d.open = (rr === r); });
-        renderRcFeatAbil(i); renderRcFeatSpell(i); return;
+        renderRcFeatAbil(i); renderRcFeatSpell(i); refreshRcFeatTaken(); return;
       }
       const v = e.target.closest(".rc-featvariant");   // chose the class/college for a multi-pick spell feat → refresh its spell options
       if(v) renderRcFeatSpell(+v.dataset.i);
