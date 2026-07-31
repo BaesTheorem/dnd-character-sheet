@@ -332,6 +332,8 @@
   .asi-slot-head .badge{font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
     padding:2px 7px; border-radius:999px; background:#fee2e2; color:#991b1b}
   .asi-slot.done .badge{background:#dcfce7; color:#166534}
+  body.dark .asi-slot.done{border-color:#22c55e; background:#12301d}
+  body.dark .asi-slot.done .badge{background:#14532d; color:#bbf7d0}
   .asi-type{display:flex; gap:16px; font-size:12px; margin-bottom:7px}
   .asi-type label{display:flex; align-items:center; gap:5px; font-weight:600; cursor:pointer}
   .asi-body{display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:12px}
@@ -3226,11 +3228,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v610 (2026-07-28)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v611 (2026-07-30)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.156.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.156.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3238,6 +3240,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v611", semver:"2.156.2", items:[
+      "FIX: in dark mode, an Ability Score Improvement card went pale and washed out once you'd chosen it — the completed state used a light green fill that the light text disappeared into. It now uses a dark green tint, so a finished choice still reads as finished and you can still read it.",
+    ]},
     {v:"v610", semver:"2.156.1", items:[
       "FIX: 2.155.0 changed the storage version, which broke this sheet and every older copy of it on the same machine. Characters appeared to vanish and the menu stopped responding. Nothing was ever deleted — the characters were in storage the whole time, and this build reads them again.",
       "Two faults, one cause. A copy asking for the older storage version was refused outright, so it opened with no characters; and because all local copies of this file share one storage area, that hit older copies too. Separately, the upgrade stalled whenever another copy was open, and since the sheet waits for characters before wiring up the rest of the page, the menu never got connected.",
