@@ -3233,11 +3233,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v618 (2026-07-31)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v619 (2026-08-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.159.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.159.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3245,6 +3245,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v619", semver:"2.159.3", items:[
+      "Fixed characters seeming to vanish after you save a copy of the sheet. Opening one from Manage Characters could show an empty library and a blank sheet. Saving changes the file's storage key, and opening a character by slot skipped unpacking the characters baked into the file, so they never appeared. Nothing was ever deleted. They now unpack correctly, and if the character you asked for came from an older copy of the file you land on your default character instead of a blank sheet.",
+    ]},
     {v:"v618", semver:"2.159.2", items:[
       "Half-feats now say what they raise. Tavern Brawler's +1 to Strength or Constitution, Actor's +1 Charisma and so on were missing from the description, so a feat that boosts a score read as if it didn't. Every feat picker and the hover card now show the increase above the feat's rules text.",
     ]},
@@ -15877,7 +15880,14 @@
     }catch(e){}
   }
   function restoreRosterIfFresh(){
-    if(SLOT) return null;                                          // a "New"-tab slot never restores a bundle
+    // NOTE: this used to bail whenever SLOT was set ("a New-tab slot never restores a bundle"), but the
+    // don't-clobber guard below already covers that case — a New tab only ever opens against a library
+    // this browser has, which that guard catches. Bailing on SLOT alone had a nasty consequence: BASE_KEY
+    // is a hash of the baked roster, so SAVING a file changes its storage partition, and opening a
+    // character from Manage Characters navigates to #slot=<id>. Together that meant a freshly-saved file
+    // opened by slot landed in a partition this browser had never seen AND skipped the restore — an empty
+    // library that reads exactly like "all my characters were deleted" (they were never gone; the roster
+    // simply never unpacked).
     let roster=null; try{ roster = JSON.parse(($("embedded-roster")||{}).textContent || "null"); }catch(e){}
     if(!roster || !Array.isArray(roster.chars) || !roster.chars.length) return null;
     if(characterSlots().some(s => !s.unsaved)) return null;       // don't clobber a library this browser already has
@@ -15901,6 +15911,16 @@
       if(ch.portrait && ch.portrait.data){ idbPortraitPut(key, ch.portrait).catch(()=>{}); if(!slot) activePortrait = ch.portrait; }
     });
     try{ applySheetPrefs(JSON.parse(($("embedded-prefs")||{}).textContent || "null")); }catch(e){}   // a freshly-opened saved file keeps its dark mode / animation setting
+    // Opened at #slot=<id> that this file's roster doesn't carry? Baking regenerates slot ids, so a slot
+    // id from the PREVIOUS partition never matches — the library would restore correctly but the view
+    // would sit on an empty slot, which still looks like the characters are missing. Drop the hash and
+    // reload so we land on the character that opens by default. This can't loop: SLOT is read from the
+    // hash, so the next load has none. If the reload outruns the async portrait writes the restore simply
+    // runs again (it's idempotent), and that pass has no SLOT to redirect.
+    if(SLOT && !chars.some(c => (c.slot || "") === SLOT)){
+      try{ location.hash = ""; location.reload(); }catch(e){}
+      return null;
+    }
     return { activePortrait };
   }
   // Card portraits use a small cached thumbnail, never the full-res original — a grid of multi-MB
