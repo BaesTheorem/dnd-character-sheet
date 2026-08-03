@@ -3228,11 +3228,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v620 (2026-08-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v621 (2026-08-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.159.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.159.5";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3240,6 +3240,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v621", semver:"2.159.5", items:[
+      "The docked dice sidebar now reserves its own gutter while open, so it never covers sheet content (passives, Experience). Collapsing it returns the space; print and saved copies are untouched.",
+    ]},
     {v:"v620", semver:"2.159.4", items:[
       "Internal cleanup: removed dead code (a shadowed duplicate charLabel, the unused featOptions helper, the retired Settings homebrew summary, and leftover feat-editor styles). No behavior changes.",
     ]},
@@ -18104,6 +18107,27 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         r.style.left = ""; r.style.top = ""; r.style.right = ""; r.style.bottom = "";
       }
       try{ Engine.syncRail(); }catch(e){}                         // the collider follows the rail wherever it goes
+      try{ syncGutter(); }catch(e){}                              // gutter follows the dock + open state
+    }
+    function syncGutter(){
+      // Reserve room for a docked, OPEN rail so it never sits over sheet content (it used to cover the
+      // passives / Experience corner on desktop). The padding lives in its own transient <style> scoped
+      // to @media screen: it can never serialize into a saved copy and can never touch print layout.
+      try{ if(window.matchMedia && matchMedia("print").matches) return; }catch(e){}   // never mutate layout mid-print
+      var st = document.getElementById("dice-gutter-style");
+      if(!st){ st = document.createElement("style"); st.id = "dice-gutter-style"; st.dataset.transient = "1"; document.head.appendChild(st); }
+      var css = "";
+      try{
+        var r = el("dice-rail"), p = prefs(), pos = railPosEff();
+        if(r && p.rail && p.railOpen && pos !== "float" && getComputedStyle(r).display !== "none"){
+          var b = r.getBoundingClientRect();
+          if(pos === "right")       css = "@media screen{ body{padding-right:"  + Math.ceil(b.width)  + "px} }";
+          else if(pos === "left")   css = "@media screen{ body{padding-left:"   + Math.ceil(b.width)  + "px} }";
+          else if(pos === "bottom") css = "@media screen{ body{padding-bottom:" + Math.ceil(b.height) + "px} }";
+          else if(pos === "top")    css = "@media screen{ body{padding-top:"    + Math.ceil(b.height) + "px} }";
+        }
+      }catch(e){}
+      if(st.textContent !== css) st.textContent = css;   // idempotent write; the rail's ResizeObserver drives updates
     }
     function buildRail(){
       var old = el("dice-rail"); if(old) old.remove();        // serialized corpse from a saved copy (belt & suspenders; it's data-transient anyway)
@@ -18122,7 +18146,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         "</div></div>";
       document.body.appendChild(r);
       railDrag(r);
-      try{ if(window.ResizeObserver) new ResizeObserver(reclampFloat).observe(r); }catch(e){}   // only ever moves the rail, never resizes it → no observer loop
+      try{ if(window.ResizeObserver) new ResizeObserver(function(){ reclampFloat(); syncGutter(); }).observe(r); }catch(e){}   // moves the rail / pads the body, never resizes the rail → no observer loop
       r.addEventListener("change", onDiceSettingChange);
       r.addEventListener("click", function(ev){
         if(onDiceActionClick(ev)) return;
