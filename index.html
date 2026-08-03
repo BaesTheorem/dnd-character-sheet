@@ -933,11 +933,6 @@
   .attacks tbody tr.dragging{opacity:.4}
   .attacks tr.drop-target::after{content:"";position:absolute;left:0;right:0;top:-1px;height:2px;background:var(--accent);pointer-events:none;z-index:2}
   /* Features page: a collapsible raw-text editor + one independent card per feature */
-  .feat-editor{margin-bottom:12px}
-  .feat-editor > summary{cursor:pointer; font-weight:600; font-size:13px; color:var(--accent); padding:4px 0; list-style:none; user-select:none}
-  .feat-editor > summary::-webkit-details-marker{display:none}
-  .feat-editor > summary::before{content:"▸ "; }
-  .feat-editor[open] > summary::before{content:"▾ "; }
   .feat-cards{display:flex; flex-direction:column; gap:8px}
   .feat-card-head{display:flex; align-items:flex-start; gap:8px}
   .feat-card-title{font-weight:700; font-size:14px; margin-bottom:3px; flex:1}
@@ -3233,11 +3228,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v619 (2026-08-02)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v620 (2026-08-03)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.159.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.159.4";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3245,6 +3240,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v620", semver:"2.159.4", items:[
+      "Internal cleanup: removed dead code (a shadowed duplicate charLabel, the unused featOptions helper, the retired Settings homebrew summary, and leftover feat-editor styles). No behavior changes.",
+    ]},
     {v:"v619", semver:"2.159.3", items:[
       "Fixed characters seeming to vanish after you save a copy of the sheet. Opening one from Manage Characters could show an empty library and a blank sheet. Saving changes the file's storage key, and opening a character by slot skipped unpacking the characters baked into the file, so they never appeared. Nothing was ever deleted. They now unpack correctly, and if the character you asked for came from an older copy of the file you land on your default character instead of a blank sheet.",
     ]},
@@ -5092,11 +5090,6 @@
     return `<option value=""></option>` + ABILITIES.map(([k,name]) =>
       `<option value="${k}"${sel===k?" selected":""}>${name}</option>`).join("");
   }
-  function featOptions(sel){
-    const feats = (DATA && DATA.feats) ? DATA.feats.slice().sort((a,b)=>a.name.localeCompare(b.name)) : [];
-    return `<option value=""></option>` + feats.map(f =>
-      `<option value="${esc(f.name)}"${sel===f.name?" selected":""}>${esc(optLabel(f))}</option>`).join("");
-  }
   function renderAsiList(){
     syncAsiSlots();
     const lvlPlan = (()=>{                         // map each slot index to the level it comes from (single-class only, for labelling)
@@ -5594,16 +5587,7 @@
     html += srcListHdr("Other sources", "homebrew, imported files, and rules modules") + g.other.map(row).join("") + homebrewSources.map(hbrow).join("") + awRow;
     el.innerHTML = html;
   }
-  function renderHomebrewList(){   // Settings: summary + entry to the Homebrew Studio (the sources themselves toggle/delete in the loaded-sources list above)
-    const el = $("homebrew-list"); if(!el) return;
-    const ns = homebrewSources.length;
-    const totals = HB_BAGS.map(k => { const n = homebrewSources.reduce((a,s) => a + Object.keys(s[k]||{}).length, 0); return n ? n+" "+HB_BAG_LABEL[k]+(n===1?"":"s") : null; }).filter(Boolean);
-    const summary = totals.length ? (totals.join(", ") + " across " + (ns||0) + " source" + (ns===1?"":"s") + ".") : ("No homebrew content yet, across " + (ns||0) + " source" + (ns===1?"":"s") + ".");
-    el.innerHTML = `<label class="lbl" style="display:block; margin:0 0 6px">Homebrew <span class="wiz-hint" style="font-weight:400; display:inline">— your own content, as one or more named sources. Lives in this browser, survives character clears, and travels with shared sheets. Delete a source in the loaded list below; choose which sources each character uses in Settings → Character Settings → Enabled sources.</span></label>`+
-      `<p class="wiz-hint" style="margin:0 0 8px">${summary}</p>`+
-      `<button class="btn primary" id="btn-hb-studio" type="button">Open Homebrew Studio…</button>`;
-  }
-  function refreshHomebrew(){ saveHomebrew(); if(typeof hbApplyToData === "function") hbApplyToData(); renderHomebrewList(); renderLoadedBookList(); renderCharSourceToggles(); if($("hb-studio")) renderHbStudio(); if(typeof populateWizard === "function") populateWizard(); if(typeof populateMonsterList === "function") populateMonsterList(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-inject structured homebrew into DATA + re-render everything that reads homebrew (incl. the builder pickers + Companions monster list)
+  function refreshHomebrew(){ saveHomebrew(); if(typeof hbApplyToData === "function") hbApplyToData(); renderLoadedBookList(); renderCharSourceToggles(); if($("hb-studio")) renderHbStudio(); if(typeof populateWizard === "function") populateWizard(); if(typeof populateMonsterList === "function") populateMonsterList(); renderAllSpellSheets(false); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); }   // persist + re-inject structured homebrew into DATA + re-render everything that reads homebrew (incl. the builder pickers + Companions monster list)
   function hbToggleSource(name, enabled){ const i = hbFindIdx(name); if(i < 0) return; srcOffRecord(homebrewSources[i].name, enabled); homebrewSources[i].enabled = enabled; refreshHomebrew(); flashStatus((homebrewSources[i].name) + (enabled ? " shown" : " hidden") + " for this character"); }
   function hbDeleteSource(name){
     const i = hbFindIdx(name); if(i < 0) return;
@@ -8103,7 +8087,7 @@
     setTimeout(() => $("hbi-name").focus(), 0);
   }
   function hbCloseItemForm(){ _hbEditItemKey = null; const f = $("hb-item-form"); if(f) f.style.display = "none"; const l = $("hb-item-list"); if(l) l.style.display = ""; }
-  function refreshHbItems(){ saveHomebrew(); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); renderHomebrewList(); renderLoadedBookList(); if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }   // persist + re-render everything that reads homebrew items (applyLayout: AW page visibility)
+  function refreshHbItems(){ saveHomebrew(); populateItemList(); if(typeof refreshEquipToggles === "function") refreshEquipToggles(); if(typeof refreshEquippedPickers === "function") refreshEquippedPickers(); compute(); renderLoadedBookList(); if(typeof applyLayout==="function") applyLayout(); if(typeof renderAwPage==="function") renderAwPage(); }   // persist + re-render everything that reads homebrew items (applyLayout: AW page visibility)
   function hbSaveItemForm(){
     const cur = hbEnsureSource();
     const name = ($("hbi-name").value||"").trim();
@@ -8138,7 +8122,7 @@
   }
   // ---- Creatures (homebrew monster stat blocks) \u2014 stored per-source in the `monsters` bag, surfaced in the Companions
   // "Pick a stat block" picker via the lookup-overlay in monsterByName/populateMonsterList (they're NOT merged into DATA).
-  function refreshHbCreatures(){ saveHomebrew(); if(typeof populateMonsterList === "function") populateMonsterList(); if(typeof renderCompanions === "function") renderCompanions(); renderHomebrewList(); renderLoadedBookList(); }
+  function refreshHbCreatures(){ saveHomebrew(); if(typeof populateMonsterList === "function") populateMonsterList(); if(typeof renderCompanions === "function") renderCompanions(); renderLoadedBookList(); }
   function renderHbCreatureList(){
     const el = $("hb-creature-list"); if(!el) return;
     const cur = homebrewSources[_hbCurId] || {monsters:{}};
@@ -8256,7 +8240,7 @@
     if(_hbImg.spell) obj.img = _hbImg.spell;
     if(_hbEditKey && _hbEditKey !== lc) delete cur.spells[_hbEditKey];   // renamed → drop the old key
     cur.spells[lc] = obj; cur.enabled = true;
-    saveHomebrew(); renderAllSpellSheets(false); compute(); renderHomebrewList(); renderLoadedBookList();
+    saveHomebrew(); renderAllSpellSheets(false); compute(); renderLoadedBookList();
     if(_hbRowCtx){   // opened from a write-in row → link it + refile by level, then close the Studio
       const {inst, l, i} = _hbRowCtx, SE = spellEntriesOf(inst);
       SE[l] = SE[l] || []; SE[l][i] = SE[l][i] || {name:"", prep:false};
@@ -8274,7 +8258,7 @@
     if(!cur.spells[lc]) return;
     if(!confirm(`Delete homebrew spell “${name}” from ${cur.name}? This removes it for all characters.`)) return;
     delete cur.spells[lc];
-    saveHomebrew(); renderAllSpellSheets(false); compute(); renderHomebrewList(); renderLoadedBookList(); renderHbSpellList();
+    saveHomebrew(); renderAllSpellSheets(false); compute(); renderLoadedBookList(); renderHbSpellList();
   }
   // the highest spell level a class can EVER reach (caps the sheet by class alone, even with no level)
   const THIRD_CASTERS = ["Fighter (Eldritch Knight)","Rogue (Arcane Trickster)"];
@@ -10818,10 +10802,6 @@
     else if(APP_SEMVER && APP_SEMVER !== "0.0.0") v = "v" + APP_SEMVER;                        // this build's SemVer
     else                             v = APP_VERSION.split(" ")[0];                            // last resort: build id
     return "Character Sheet " + v + ".html";
-  }
-  function charLabel(){
-    const n = ($("charname").value || "character").trim();
-    return n.replace(/[^\w\- ]+/g,"").replace(/\s+/g,"-") || "character";
   }
 
   // ---- Character portrait (original bytes stored with the character) ----
@@ -14545,7 +14525,6 @@
     updateSourcebookStatus();
     renderLoadedBookList();
     renderCharSourceToggles();
-    renderHomebrewList();
     if(sourcesAreStale()) flashStatus("Loaded sourcebooks are out of date — open Settings → Source books → “Reload all loaded sources” to enable new features (e.g. subclass choices).");
     checkForMissingBooks();   // if the open character has spells that don't resolve (a needed sourcebook isn't loaded), show the "Load the missing book" banner — manual, user decides
     maybeHealStarvedAwText();   // a file an OLDER build produced can have awText stripped (blank AW-builder descriptions) — re-fetch the rules text from the web once on open, since the file itself has lost it
@@ -15143,7 +15122,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderCharSourceToggles(); renderHomebrewList(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; refreshDarkAvail(); $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("set-renaissance").checked = showRenaissance; updateBlockMode(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderCharSourceToggles(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; refreshDarkAvail(); $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("set-renaissance").checked = showRenaissance; updateBlockMode(); $("settings").classList.add("open"); });
     // Overflow menu (hamburger): toggle, close on outside-click / Escape / any item click.
     (function(){
       const pop = $("app-menu"), btn = $("btn-menu");
