@@ -28,9 +28,12 @@ VARIANTS = {
     "Sword of Sharpness": "Sword of Sharpness", "Vicious": "Vicious Weapon", "Dancing": "Dancing Sword",
     "Defender": "Defender", "Dragon Slayer": "Dragon Slayer", "Giant Slayer": "Giant Slayer",
     "Holy Avenger": "Holy Avenger", "Berserker": "Berserker Axe", "Nine Lives Stealer": "Nine Lives Stealer",
-    "Luck Blade": "Luck Blade", "Oathbow": "Oathbow",
+    "Luck Blade": "Luck Blade",
 }
-ITEMS = {"Sun Blade": "Sun Blade", "Dwarven Thrower": "Dwarven Thrower", "Mace of Disruption": "Mace of Disruption"}
+# Named weapons that aren't generic enchantments, plus Oathbow — 2024 reworked it into a variant, but the
+# 2014 version we want is a plain item.
+ITEMS = {"Sun Blade": "Sun Blade", "Dwarven Thrower": "Dwarven Thrower", "Mace of Disruption": "Mace of Disruption",
+         "Oathbow": "Oathbow"}
 
 
 def strip(s):
@@ -46,6 +49,19 @@ def strip(s):
     return s
 
 
+RULESET_2024 = {"XPHB", "XDMG", "XMM", "XSCREEN", "XSAC"}
+
+
+def is_2024(e):
+    """True for a One D&D / 2024 entry. `edition` marks 2014 as "classic" on the variants;
+    the source code is the reliable signal everywhere else."""
+    inh = e.get("inherits") or {}
+    ed = e.get("edition") or inh.get("edition")
+    if ed:
+        return str(ed).lower() in ("one", "2024")
+    return str(e.get("source") or inh.get("source") or "").upper() in RULESET_2024
+
+
 def bonus_num(v):
     m = re.search(r'\+(\d+)', str(v or ""))
     return int(m.group(1)) if m else 0
@@ -54,10 +70,17 @@ def bonus_num(v):
 def main():
     mv = json.load(open(os.path.join(D, "magicvariants.json"))).get("magicvariant", [])
     items = json.load(open(os.path.join(D, "items.json"))).get("item", [])
-    mv_by = {e.get("name"): e for e in mv}
-    it_by = {}
-    for e in items:
-        it_by.setdefault(e.get("name"), e)
+    # The data ships a 2014 AND a 2024 entry under the same name; take the 2014 one. Keeping the
+    # first match is not enough for magicvariants (2024 entries come later and a plain dict
+    # comprehension kept them), so filter on the edition/source markers before falling back.
+    mv_by, it_by = {}, {}
+    for bag, e in [(mv_by, e) for e in mv] + [(it_by, e) for e in items]:
+        n = e.get("name")
+        if is_2024(e):
+            bag.setdefault(n, e)   # only ever a fallback, never overwrites a 2014 entry
+            continue
+        if n not in bag or is_2024(bag[n]):
+            bag[n] = e
 
     catalog, text = [], {}
     for disp, src in VARIANTS.items():
