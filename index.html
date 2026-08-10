@@ -3229,11 +3229,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v623 (2026-08-08)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v624 (2026-08-10)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.160.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.161.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3241,6 +3241,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v624", semver:"2.161.0", items:[
+      "Manage Characters gained an Export button beside Duplicate and Delete: it downloads one character in its own otherwise-blank sheet, with every loaded sourcebook and your homebrew baked in, and nothing else from your library.",
+      "A blank sheet or single-character export no longer carries the rendered Manage Characters grid — the names, campaigns and portrait thumbnails of every other character in your library used to ride along in the file.",
+    ]},
     {v:"v623", semver:"2.160.1", items:[
       "Snicker-Snack no longer carries Vorpal's +3 attack and damage bonus \u2014 it keeps the property's decapitation effect and slashing-resistance clause only.",
       "A magic-weapon property with a deliberate 0 bonus no longer prints a meaningless \u201c(+0)\u201d on the weapon.",
@@ -6796,10 +6800,24 @@
   // as a dead, uncloseable modal). Runtime-appended chrome tags itself data-transient; strip it from any
   // clone we serialize.
   function stripTransientChrome(root){ root.querySelectorAll("[data-transient]").forEach(el => el.remove()); }
+  // Strip THIS browser's library residue from a clone that isn't meant to carry the whole library.
+  // The Character Manager grid holds fully-rendered cards — every character's name, campaign and portrait
+  // thumbnail (a data URL) — and a modal that happened to be open when you exported serializes its `open`
+  // class, so the file would greet the recipient with that modal already up. Neither belongs in a blank
+  // sheet or a single-character export. (Manager markup is rebuilt from storage on open, so clearing it
+  // costs nothing.)
+  function scrubLibraryChrome(root){
+    root.querySelectorAll(".modal.open").forEach(m => m.classList.remove("open"));
+    const g = root.querySelector("#cm-grid"); if(g) g.innerHTML = "";
+    const n = root.querySelector("#cm-count"); if(n) n.textContent = "";
+    const w = root.querySelector("#cm-warn"); if(w){ w.textContent = ""; w.hidden = true; }
+    const il = root.querySelector("#imp-list"); if(il) il.innerHTML = "";   // characters listed from a file you last browsed to import
+    const ic = root.querySelector("#imp-count"); if(ic) ic.textContent = "";
+  }
   function shareBlankSheet(){            // download a blank, ready-to-use copy: no character, default settings, every loaded book baked in
     bakeSourceData();
     const clone = document.documentElement.cloneNode(true);
-    stripTransientChrome(clone);
+    stripTransientChrome(clone); scrubLibraryChrome(clone);
     const ed = clone.querySelector("#embedded-data"); if(ed) ed.textContent = "null";   // a clean data template, no specific character
     const er = clone.querySelector("#embedded-roster"); if(er) er.textContent = "null";   // and no character library
     const ep = clone.querySelector("#embedded-prefs"); if(ep) ep.textContent = "null";   // and no baked appearance prefs → defaults on open
@@ -16232,6 +16250,7 @@
           `<div class="cm-when">${c.unsaved ? "unsaved" : "edited " + esc(relTime(c.savedAt))}</div></div>` +
         `<div class="cm-acts">` +
           `<button type="button" class="cm-dupe">Duplicate</button>` +
+          `<button type="button" class="cm-export" title="Download a sheet containing only this character">Export</button>` +
           `<button type="button" class="cm-del">Delete</button>` +
         `</div>`;
       const portEl = card.querySelector(".cm-port");
@@ -16250,6 +16269,7 @@
       portEl.addEventListener("click", open);
       card.querySelector(".cm-meta").addEventListener("click", open);
       card.querySelector(".cm-dupe").addEventListener("click", e=>{ e.stopPropagation(); duplicateSlot(c); });
+      card.querySelector(".cm-export").addEventListener("click", e=>{ e.stopPropagation(); exportSlot(c); });
       card.querySelector(".cm-del").addEventListener("click", e=>{ e.stopPropagation(); deleteSlot(c); });
       return card;
     }
@@ -16292,6 +16312,40 @@
     idbPortraitGet(c.key).then(p => { if(p && p.data) idbPortraitPut(nk, p).catch(()=>{}); });   // copy the portrait (IndexedDB)
     try{ const th = csGet(c.key + "_thumb"); if(th) csSet(nk + "_thumb", th); }catch(e){}
     renderCharMgr();
+  }
+  function exportFileName(name){          // "Cyriel (Character Sheet v2.4.1).html" — safe on every filesystem
+    const clean = String(name || "").replace(/[\\\/:*?"<>|]+/g, "").replace(/\s+/g, " ").trim().slice(0, 60) || "Character";
+    return clean + " (" + versionedFileName().replace(/\.html$/, "") + ").html";
+  }
+  // Export ONE character to its own otherwise-blank sheet: a complete copy of the app (every loaded
+  // sourcebook + homebrew baked in, so it works offline) carrying just this character and nothing else
+  // from the library. Same shape as the Share → blank sheet download, with one character baked in, so
+  // it opens to its OWN per-file storage partition (BASE_KEY hashes the baked roster) and can never
+  // read or overwrite the exporter's personal library.
+  async function exportSlot(c){
+    let data = null, portrait = null;
+    if(c.slot === SLOT){ flushSave(); data = collect(); portrait = data.portrait || null; }   // active character: take the live state
+    else {
+      try{ data = JSON.parse(csGet(c.key)); }catch(e){ data = null; }
+      if(!data){ flashStatus("Couldn't read that character to export."); return; }
+      portrait = await readStoredPortrait(c.key);                 // portraits live in IndexedDB, not with the character blob
+      data = Object.assign({}, data, { portrait: portrait });     // #embedded-data carries the portrait inline, like a single-character save
+    }
+    bakeSourceData();
+    const clone = document.documentElement.cloneNode(true);
+    stripTransientChrome(clone); scrubLibraryChrome(clone);   // the manager is open when you click Export — don't ship its cards for every OTHER character
+    const rosterData = Object.assign({}, data); delete rosterData.portrait;   // the roster keeps the portrait in its own field
+    const ed = clone.querySelector("#embedded-data"); if(ed) ed.textContent = JSON.stringify(data);
+    const rEl = clone.querySelector("#embedded-roster");
+    if(rEl) rEl.textContent = JSON.stringify({ v:1, chars:[ { slot:"", data:rosterData, portrait:portrait, thumb:slotThumb(c.key) || null } ] });   // a library of exactly one, opened by default
+    const ep = clone.querySelector("#embedded-prefs"); if(ep) ep.textContent = JSON.stringify(sheetPrefsNow());   // dark / disable-animations travel with the file
+    const ti = clone.querySelector("#embedded-template-id");   // a fresh partition tag, so a file this character is later deleted from
+    if(ti) ti.textContent = JSON.stringify("tpl-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,10));   // still can't fall back to the personal library
+    const st = clone.querySelector("#status"); if(st) st.textContent = "";
+    const fn = exportFileName(data.charname);
+    download("<!DOCTYPE html>\n" + clone.outerHTML, fn, "text/html");
+    const nb = (DATA && DATA._meta && (DATA._meta.books||[]).length) || 0;
+    flashStatus("Exported “" + (data.charname || "Unnamed character") + "” to “" + fn + "”" + (nb ? " with " + nb + " sourcebook" + (nb===1?"":"s") + " baked in" : "") + " — a sheet with only this character.");
   }
   // Turn a character's saved-data blob into a Simulacrum (Simulacrum spell): an identical duplicate with HALF the
   // hit point maximum, NO equipment, and — for any Wizard spell sheet — only the cantrips and the leveled spells that
