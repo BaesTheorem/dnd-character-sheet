@@ -564,61 +564,100 @@ def _extract_spells(obj):
                 expanded.append({"n": _titlecase(_clean(nm)), "l": _lvl(lv, nm)})
     return spells, expanded
 
+def _subclass_choosers(raw_feats):
+    choosers = []                                   # features offering a "choose one" set (Totem Spirit, …)
+    _raw_ch = []                                     # (name, level, options, count) for every options block
+    for cf in raw_feats:
+        for refs, cnt in _chooser_option_blocks(cf.get("entries", [])):
+            _raw_ch.append((cf.get("name"), cf.get("level",1), refs, cnt))
+    _set_count = {}                                  # a set spanning 2+ features is a PERSISTENT choose-one (e.g. Storm Herald's Desert/Sea/Tundra across Storm Aura/Soul/Raging Storm)
+    for _,_,refs,_c in _raw_ch:
+        k = tuple(sorted(refs)); _set_count[k] = _set_count.get(k,0)+1
+    for nm, lv, refs, cnt in _raw_ch:
+        firm = cnt is not None and cnt < len(refs)              # explicit "choose N of M" (Totem Spirit, Maneuvers)
+        persistent = _set_count[tuple(sorted(refs))] >= 2      # same option-set recurs → one-time choice that carries forward
+        # no count and referenced by a single feature = "gain ALL of these" (e.g. Soulknife's Psionic Power / Soul Blades) → NOT a chooser
+        if firm or persistent: choosers.append({"name": nm, "level": lv, "options": refs})
+    return choosers
+
+def _subclass_features(raw_feats):
+    sfeats = [{"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))} for f in raw_feats]
+    sfeats.sort(key=lambda x: (x["level"], x["name"]))
+    return sfeats
+
+def _build_subclass(s, short, raw_feats):
+    choosers = _subclass_choosers(raw_feats)
+    sfeats = _subclass_features(raw_feats)
+    _lvl = lambda lv: int(str(lv).lstrip("sS")) if str(lv).lstrip("sS").isdigit() else 0   # "s1"→1 (expanded-spell level keys)
+    sspells = []; sexpanded = []; _seen_sp = set()
+    for blk in s.get("additionalSpells") or []:
+        for grp in ("prepared", "known", "innate"):   # merge ALL grant types — one block can grant a prepared spell AND a known cantrip (e.g. Star Map: Guiding Bolt + Guidance), so never short-circuit between them
+            for lv, val in (blk.get(grp) or {}).items():
+                names = []; _collect_spell_names(val, names)   # val may be array or nested object (e.g. Sun Soul resource:{2:[...]})
+                for nm in names:
+                    n = _titlecase(_clean(nm))
+                    spl = 0 if "#c" in str(nm).lower() else _lvl(lv)   # the level key is the ACQUISITION level, not the spell level; the "#c" marker flags a cantrip (spell level 0)
+                    key = (n.lower(), spl)
+                    if key in _seen_sp: continue
+                    _seen_sp.add(key); sspells.append({"n": n, "l": spl})
+        for lv, val in (blk.get("expanded") or {}).items():   # Warlock patron expanded lists
+            names = []; _collect_spell_names(val, names)
+            for nm in names:
+                sexpanded.append({"n": _titlecase(_clean(nm)), "l": _lvl(lv)})
+    sub = {"name": s["name"], "short": short, "features": sfeats, "choosers": choosers, "spells": sspells, "expanded": sexpanded, "featChoices": []}
+    normalize_subclass(sub)
+    return sub
+
 def build_classes():
-    out = []
+    """Returns (classes, subclasses, subAug) — mirroring the JS etClasses.
+
+    A book routinely adds a subclass to a class it does NOT define (EGW's Chronurgy Magic
+    belongs to the PHB Wizard), and 5eTools splits class/subclass/feature entries across
+    per-class files. So pool every class file first and key subclasses by className, rather
+    than only walking the subclasses of classes defined in this book — that older shape
+    dropped every cross-book subclass on the floor, and a book like EGW, which defines no
+    class at all, extracted to nothing. mergeBook attaches `subclasses` to whichever class
+    is already loaded, and stashes `subAug` until its base subclass shows up.
+    """
+    all_class, all_sub, all_subfeat, all_classfeat = [], [], [], []
     for fn in sorted(os.listdir(os.path.join(SRC, "class"))):
         if not fn.startswith("class-") or not fn.endswith(".json"): continue
         data = load("class", fn)
-        for c in data.get("class", []):
+        all_class += data.get("class", [])
+        all_sub += data.get("subclass", [])
+        all_subfeat += data.get("subclassFeature", [])
+        all_classfeat += data.get("classFeature", [])
+    # THIS book's subclass features, grouped by (className, shortName) — NOT filtered by
+    # subclassSource, so a book that ADDS options to another book's subclass is captured too.
+    feats_by_sub = {}
+    for f in all_subfeat:
+        if not is_src(f) or not f.get("className") or not f.get("subclassShortName") or not f.get("name"): continue
+        feats_by_sub.setdefault((f["className"], f["subclassShortName"]), []).append(f)
+    defined_here, sub_map = set(), {}
+    for s in all_sub:
+        if not is_src(s) or not s.get("className"): continue
+        short = s.get("shortName", s["name"])
+        key = (s["className"], short)
+        defined_here.add(key)
+        arr = sub_map.setdefault(s["className"], [])
+        if any(x["short"] == short for x in arr): continue
+        arr.append(_build_subclass(s, short, feats_by_sub.get(key, [])))
+    # Feature groups whose subclass isn't defined in THIS book → augmentations, attached at merge time.
+    sub_aug = {}
+    for (cn, short), raw_feats in feats_by_sub.items():
+        if (cn, short) in defined_here: continue
+        sub_aug.setdefault(cn, {})[short] = {"features": _subclass_features(raw_feats),
+                                             "choosers": _subclass_choosers(raw_feats)}
+    out = []
+    if True:
+        for c in all_class:
             if not is_src(c): continue
             sp = c.get("startingProficiencies", {})
             sk_fixed, sk_choose = skills_from(sp.get("skills"))
             cls_prof = prof_block({"armorProficiencies": sp.get("armor"), "weaponProficiencies": sp.get("weapons")})
             ct = _norm_class_tools(sp.get("tools"))   # canonical tool tokens (preserves "artisan's tools OR instrument")
             if ct: cls_prof["tools"] = ct
-            seen, subs = set(), []
-            for s in data.get("subclass", []):
-                if not is_src(s) or s.get("className") != c["name"]: continue
-                short = s.get("shortName", s["name"])
-                if short in seen: continue
-                seen.add(short)
-                # NOT filtered by subclassSource — same as JS — so a same-book subclass keeps all its features.
-                raw_feats = [f for f in data.get("subclassFeature", [])
-                          if is_src(f) and f.get("className")==c["name"] and f.get("subclassShortName")==short and f.get("name")]
-                choosers = []                                   # features offering a "choose one" set (Totem Spirit, …)
-                _raw_ch = []                                     # (name, level, options, count) for every options block
-                for cf in raw_feats:
-                    for refs, cnt in _chooser_option_blocks(cf.get("entries", [])):
-                        _raw_ch.append((cf.get("name"), cf.get("level",1), refs, cnt))
-                _set_count = {}                                  # a set spanning 2+ features is a PERSISTENT choose-one (e.g. Storm Herald's Desert/Sea/Tundra across Storm Aura/Soul/Raging Storm)
-                for _,_,refs,_c in _raw_ch:
-                    k = tuple(sorted(refs)); _set_count[k] = _set_count.get(k,0)+1
-                for nm, lv, refs, cnt in _raw_ch:
-                    firm = cnt is not None and cnt < len(refs)              # explicit "choose N of M" (Totem Spirit, Maneuvers)
-                    persistent = _set_count[tuple(sorted(refs))] >= 2      # same option-set recurs → one-time choice that carries forward
-                    # no count and referenced by a single feature = "gain ALL of these" (e.g. Soulknife's Psionic Power / Soul Blades) → NOT a chooser
-                    if firm or persistent: choosers.append({"name": nm, "level": lv, "options": refs})
-                sfeats = [{"name": f.get("name",""), "level": f.get("level",1), "text": entries_to_text(f.get("entries",[]))} for f in raw_feats]
-                sfeats.sort(key=lambda x: (x["level"], x["name"]))
-                _lvl = lambda lv: int(str(lv).lstrip("sS")) if str(lv).lstrip("sS").isdigit() else 0   # "s1"→1 (expanded-spell level keys)
-                sspells = []; sexpanded = []; _seen_sp = set()
-                for blk in s.get("additionalSpells") or []:
-                    for grp in ("prepared", "known", "innate"):   # merge ALL grant types — one block can grant a prepared spell AND a known cantrip (e.g. Star Map: Guiding Bolt + Guidance), so never short-circuit between them
-                        for lv, val in (blk.get(grp) or {}).items():
-                            names = []; _collect_spell_names(val, names)   # val may be array or nested object (e.g. Sun Soul resource:{2:[...]})
-                            for nm in names:
-                                n = _titlecase(_clean(nm))
-                                spl = 0 if "#c" in str(nm).lower() else _lvl(lv)   # the level key is the ACQUISITION level, not the spell level; the "#c" marker flags a cantrip (spell level 0)
-                                key = (n.lower(), spl)
-                                if key in _seen_sp: continue
-                                _seen_sp.add(key); sspells.append({"n": n, "l": spl})
-                    for lv, val in (blk.get("expanded") or {}).items():   # Warlock patron expanded lists
-                        names = []; _collect_spell_names(val, names)
-                        for nm in names:
-                            sexpanded.append({"n": _titlecase(_clean(nm)), "l": _lvl(lv)})
-                sub = {"name": s["name"], "short": short, "features": sfeats, "choosers": choosers, "spells": sspells, "expanded": sexpanded, "featChoices": []}
-                normalize_subclass(sub)
-                subs.append(sub)
+            subs = sub_map.get(c["name"], [])
             sub_lvl = None
             for f in c.get("classFeatures", []):
                 if isinstance(f, dict) and f.get("gainSubclassFeature") and f.get("classFeature"):
@@ -630,7 +669,7 @@ def build_classes():
                      "gold": render_tags(se.get("goldAlternative", ""))}
             feats_c = [{"name": f.get("name", ""), "level": f.get("level", 1),
                         "text": entries_to_text(f.get("entries", []))}
-                       for f in data.get("classFeature", [])
+                       for f in all_classfeat
                        if f.get("source") == SRC_TAG and f.get("className") == c["name"]
                        and f.get("classSource", SRC_TAG) == SRC_TAG and f.get("name")]
             feats_c.sort(key=lambda x: (x["level"], x["name"]))
@@ -650,7 +689,7 @@ def build_classes():
                         "equip": equip, "features": feats_c,
                         "mcReq": mc.get("requirements"), "mcProf": mc_prof,
                         "subclassTitle": c.get("subclassTitle",""), "subclassLevel": sub_lvl, "subclasses": subs})
-    return out
+    return out, sub_map, sub_aug
 
 def build_feats(raw):
     out = []
@@ -1221,13 +1260,16 @@ def main():
                   "source": f"D&D 5e {SRC_TAG} via local 5eTools — personal use, do not redistribute"},
         "races": build_races(races),
         "backgrounds": build_backgrounds(load("backgrounds.json")),
-        "classes": build_classes(),
+        "classes": None,   # filled below (build_classes also yields the cross-book subclass maps)
         "feats": build_feats(load("feats.json")),
         "spells": build_spells(),
         "classSpells": build_class_spells(),
         "monsters": build_monsters(),
         "acItems": build_ac_items(),
     }
+    # `subclasses` / `subAug` carry this book's subclasses for classes it doesn't define
+    # (EGW → the PHB Wizard); mergeBook attaches them to whichever class is already loaded.
+    out["classes"], out["subclasses"], out["subAug"] = build_classes()
     items_base = load("items-base.json")
     try: items = load("items.json")
     except Exception: items = {}
