@@ -1447,7 +1447,15 @@
     .xp-wrap > #xp{width:100%; min-height:15px}
 
     .ability{padding:1px 0; gap:4px}
+    /* Printed ability labels are abbreviated + emphasized, matching the on-screen cluster view. Driven by
+       the static data-abbr attribute rather than the cluster JS text swap, so it holds on every printed
+       sheet whether or not that layout is on (print always restores the canonical cards) and nothing has
+       to mutate mid-print. The row's height comes from the 18px mod box, so the larger label costs no
+       vertical space — Core still fits one page. */
     .ability .name{font-size:8px}
+    .ability .name[data-abbr]{font-size:0; letter-spacing:0}
+    .ability .name[data-abbr]::after{content:attr(data-abbr); font-size:10px; font-weight:800;
+      letter-spacing:.1em; color:var(--accent)}
     .ability .mod{width:18px; height:18px; font-size:9px}   /* all value boxes share one print size so saves/skills/passive match the ability boxes (and Core still fits one page) */
     .score-out{width:18px; height:18px; font-size:9px; border:1px solid #999}
     .ability-head{gap:4px; padding-bottom:2px}
@@ -2380,7 +2388,7 @@
         <div class="card" data-csec="abilities" data-open>
           <h2>Abilities</h2>
           <div class="ability-head"><span class="name"></span><span class="col">Score</span><span class="col">Mod</span></div>
-          <div id="abilities"><div class="ability"><span class="name">Strength</span><span class="score-out" id="score-str-out"></span><span class="mod" id="mod-str"></span></div><div class="ability"><span class="name">Dexterity</span><span class="score-out" id="score-dex-out"></span><span class="mod" id="mod-dex"></span></div><div class="ability"><span class="name">Constitution</span><span class="score-out" id="score-con-out"></span><span class="mod" id="mod-con"></span></div><div class="ability"><span class="name">Intelligence</span><span class="score-out" id="score-int-out"></span><span class="mod" id="mod-int"></span></div><div class="ability"><span class="name">Wisdom</span><span class="score-out" id="score-wis-out"></span><span class="mod" id="mod-wis"></span></div><div class="ability"><span class="name">Charisma</span><span class="score-out" id="score-cha-out"></span><span class="mod" id="mod-cha"></span></div></div>
+          <div id="abilities"><div class="ability"><span class="name" data-abbr="STR">Strength</span><span class="score-out" id="score-str-out"></span><span class="mod" id="mod-str"></span></div><div class="ability"><span class="name" data-abbr="DEX">Dexterity</span><span class="score-out" id="score-dex-out"></span><span class="mod" id="mod-dex"></span></div><div class="ability"><span class="name" data-abbr="CON">Constitution</span><span class="score-out" id="score-con-out"></span><span class="mod" id="mod-con"></span></div><div class="ability"><span class="name" data-abbr="INT">Intelligence</span><span class="score-out" id="score-int-out"></span><span class="mod" id="mod-int"></span></div><div class="ability"><span class="name" data-abbr="WIS">Wisdom</span><span class="score-out" id="score-wis-out"></span><span class="mod" id="mod-wis"></span></div><div class="ability"><span class="name" data-abbr="CHA">Charisma</span><span class="score-out" id="score-cha-out"></span><span class="mod" id="mod-cha"></span></div></div>
         </div>
 
         <div class="card" data-csec="saves">
@@ -3289,11 +3297,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v636 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v637 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.166.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.167.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3301,6 +3309,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v637", semver:"2.167.0", items:[
+      "Printed sheets now use the abbreviated, emphasized ability labels too (STR, DEX, CON, INT, WIS, CHA), matching the cluster view. This applies to every printed sheet, since printing always uses the standard layout. Row heights are unchanged, so the Core page still fits one page.",
+    ]},
     {v:"v636", semver:"2.166.3", items:[
       "The ability labels in the cluster view are now abbreviated (STR, DEX, CON, INT, WIS, CHA) and set larger in the accent colour, so each cluster is headed by a label as legible as the card's own heading. The standard layout and printed sheets keep the full names.",
     ]},
@@ -4901,7 +4912,7 @@
   // ---- Main sheet: only the final score + modifier per ability ----
   function renderAbilities(){
     $("abilities").innerHTML = ABILITIES.map(([k,name]) =>
-      `<div class="ability"><span class="name">${name}</span>`+
+      `<div class="ability"><span class="name" data-abbr="${ABBR[k].toUpperCase()}">${name}</span>`+   // data-abbr drives the PRINT label (STR/DEX/…); the screen shows the full name unless the cluster layout swaps it
       `<span class="score-out" id="score-${k}-out"></span>`+
       `<span class="mod" id="mod-${k}"></span></div>`).join("");
   }
