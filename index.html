@@ -391,7 +391,7 @@
      underlying #skp-/#ske- checkboxes stay in the DOM as the persisted data (compute + save read them) AND the
      PRINT representation (both boxes still print). The .sk-tri just drives + mirrors them. none = hollow square,
      proficient = solid square, expertise = solid square with a nested ring (a "double" square = double proficiency). */
-  #skills .marks{display:none}
+  #skills .marks, #saves .marks{display:none}   /* saves share the square control (two-state — no expertise on saves); their checkbox + "Prof" label are print-only, like the skill pair */
   .sk-tri{width:16px; height:16px; flex:none; box-sizing:border-box; padding:0; margin:0; border:1.5px solid var(--line2);
     background:transparent; border-radius:0; cursor:pointer; position:relative; display:inline-block; vertical-align:middle}
   .sk-tri[data-state="1"]{background:var(--accent); border-color:var(--accent)}
@@ -399,7 +399,7 @@
   .sk-tri[data-state="2"]::after{content:""; position:absolute; inset:3px; border:1.5px solid var(--bg)}
   .sk-tri:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
   html.mobile .sk-tri{width:20px; height:20px}
-  @media print{ #skills .marks{display:flex} .sk-tri{display:none !important} }
+  @media print{ #skills .marks, #saves .marks{display:flex} .sk-tri{display:none !important} }
   /* Tiny sort toggle in the Skills header — flips the list between alphabetical and grouped-by-ability. */
   #sk-sort{float:right; width:auto; font:inherit; font-size:9px; font-weight:700; letter-spacing:.08em;
     text-transform:uppercase; background:none; border:none; border-radius:0; padding:0; color:var(--muted); cursor:pointer}
@@ -422,7 +422,7 @@
   #skill-clusters .ability .mod{order:0}
   #skill-clusters .ability .score-out{order:1; width:32px; height:22px; font-size:12px}
   #skill-clusters .row .rname .ab{display:none}            /* the ability tag is redundant inside its own cluster */
-  #skill-clusters .row:not(.cl-save) .marks{display:none}  /* skill rows keep the on-screen tri-state (the #skills scope no longer reaches them) */
+  #skill-clusters .row .marks{display:none}  /* all rows use the square control on screen (the #skills/#saves scopes no longer reach them) */
   @media print{ #skill-clusters{display:none !important} } /* belt & suspenders: print restores the canonical cards before this could matter */
 
   .passive{display:flex; align-items:center; gap:12px; margin-bottom:12px}
@@ -3277,11 +3277,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v632 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v633 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.165.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.166.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3289,6 +3289,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v633", semver:"2.166.0", items:[
+      "Saving-throw proficiency now uses the same square control as skills — click to toggle it on or off (saves have no expertise, so it's a simple two-state). The old checkbox and its “Prof” label are gone from the screen; printed sheets keep the checkbox as before.",
+    ]},
     {v:"v632", semver:"2.165.0", items:[
       "New in Settings → Character Settings: “Group saves and skills under their abilities.” It rearranges the Core page like the newer official sheets — each ability becomes a cluster with its saving throw and its skills beside it, replacing the separate Abilities, Saving Throws, and Skills cards. Per character, off by default.",
       "Everything keeps working in the clustered view — proficiency clicks, computed totals, advantage badges, dice rolls — and printing always uses the standard layout.",
@@ -5483,7 +5486,7 @@
       g.appendChild(box); g.appendChild(rows); wrap.appendChild(g);
     });
     host.appendChild(wrap);
-    wrap.addEventListener("click", e => { const t = e.target.closest(".sk-tri"); if(t) cycleSkillTri(t.dataset.key); });   // twin of the #skills tri listener — the rows live here now
+    wrap.addEventListener("click", e => { const t = e.target.closest(".sk-tri"); if(t) triClick(t); });   // twin of the #skills/#saves tri listeners — the rows live here now
     host.classList.add("cl-on");
     ["abilities","saves"].forEach(k => { const c = document.querySelector('[data-csec="'+k+'"]'); if(c) c.classList.add("cl-hidden"); });
     const h2t = host.querySelector("h2"); if(h2t && h2t.firstChild && h2t.firstChild.nodeType === 3) h2t.firstChild.nodeValue = "Abilities & Skills ";
@@ -7049,9 +7052,29 @@
     });
     syncSkillTri();
   }
+  // Saves get the same square control, but TWO-state (none <-> proficient — no expertise on saves). The
+  // #savep-* checkboxes stay the source of truth and the print representation, exactly like the skill pair.
+  function buildSaveTri(){
+    const box = $("saves"); if(!box) return;
+    box.querySelectorAll(".row").forEach(row => {
+      const p = row.querySelector('input[id^="savep-"]'); if(!p) return;
+      if(row.querySelector(".sk-tri")) return;                      // idempotent
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.className = "sk-tri sv-tri"; btn.dataset.key = p.id.slice(6);
+      btn.setAttribute("aria-label", "Saving throw proficiency (click to toggle)");
+      row.insertBefore(btn, row.querySelector(".marks"));
+    });
+    syncSkillTri();
+  }
   function syncSkillTri(){
-    // rows live in #skills normally, or spread across the ability clusters when that layout is on — repaint both homes
-    document.querySelectorAll("#skills .sk-tri, #skill-clusters .sk-tri").forEach(btn => {
+    // rows live in #skills/#saves normally, or spread across the ability clusters when that layout is on — repaint every home
+    document.querySelectorAll("#skills .sk-tri, #saves .sk-tri, #skill-clusters .sk-tri").forEach(btn => {
+      if(btn.classList.contains("sv-tri")){
+        const p = $("savep-"+btn.dataset.key), on = !!(p && p.checked);
+        btn.dataset.state = on ? "1" : "0";
+        btn.title = on ? "Proficient (click to clear)" : "Not proficient (click to add)";
+        return;
+      }
       const s = skillTriState(btn.dataset.key);
       btn.dataset.state = String(s);
       btn.title = s === 2 ? "Expertise — double proficiency (click to clear)" : s === 1 ? "Proficient (click for expertise)" : "Not proficient (click to add)";
@@ -7063,6 +7086,12 @@
     p.checked = next >= 1; x.checked = next === 2;                  // expertise implies proficiency
     save(); compute();                                             // compute() re-paints the control via syncSkillTri
   }
+  function toggleSaveTri(key){
+    const p = $("savep-"+key); if(!p) return;
+    p.checked = !p.checked;
+    save(); compute();                                             // compute() re-paints via syncSkillTri
+  }
+  function triClick(t){ if(t.classList.contains("sv-tri")) toggleSaveTri(t.dataset.key); else cycleSkillTri(t.dataset.key); }   // shared router for every delegated tri listener
   const round1 = n => (Math.round(n*10)/10).toString();
 
   // ---- class-specific spell-sheet formatting ----
@@ -14715,7 +14744,9 @@
     buildStatic();
     buildConditionsPanel();   // build the conditions/exhaustion controls (with their data-save inputs) BEFORE applyAll restores them
     buildSkillTri();   // inject the single tri-state proficiency control per skill row (screen); print keeps both checkboxes
-    { const sk = $("skills"); if(sk) sk.addEventListener("click", e => { const t = e.target.closest(".sk-tri"); if(t){ cycleSkillTri(t.dataset.key); } }); }
+    buildSaveTri();    // same square control on save rows, two-state; print keeps the checkbox
+    { const sk = $("skills"); if(sk) sk.addEventListener("click", e => { const t = e.target.closest(".sk-tri"); if(t) triClick(t); }); }
+    { const sv = $("saves"); if(sv) sv.addEventListener("click", e => { const t = e.target.closest(".sk-tri"); if(t) triClick(t); }); }
     wireLabels();
     let _stored = null, _baked = null;
     try{ const s = localStorage.getItem(SOURCES_KEY); if(s) _stored = JSON.parse(s); }catch(e){}            // books loaded from the server / imported
