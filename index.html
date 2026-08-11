@@ -101,28 +101,17 @@
   .toolbar .brand{font-weight:700; letter-spacing:.04em; margin-right:auto; font-size:14px; display:inline-flex; align-items:center; gap:6px}
   .toolbar .brand .brand-logo{flex:0 0 auto; color:var(--accent)}
   .toolbar .brand span{color:var(--accent)}
-  /* ---- Floating dark-mode toggle ----
-     A one-tap twin of Settings -> Appearance -> Dark mode, deliberately outside both the toolbar and the
-     hamburger menu. Pinned to the upper-right, tucked under whatever chrome owns the top edge (top set in
-     JS by positionDarkToggle: the sticky toolbar on desktop, the sticky tab bar on phones); --rail-right
-     (written by the dice module's syncGutter) shifts it clear of a dice rail docked on that edge. z-index
-     sits BELOW the toolbar (20) so the top bar stays clickable; the detached "Can Prepare" box offsets
-     left of it. Hidden on Classic, which is a light-only sheet. */
-  .dark-toggle{
-    position:fixed; z-index:15;
-    right:var(--rail-right,0px); top:0;
-    display:flex; align-items:center; justify-content:center;
-    width:38px; height:38px; padding:0; line-height:0;
-    border:1px solid var(--line2); border-right:none; border-top:none;
-    background:var(--card); color:var(--muted); cursor:pointer;
-  }
-  .dark-toggle:hover{color:var(--accent); border-color:var(--accent)}
+  /* ---- Dark-mode toggle (toolbar) ----
+     A one-tap twin of Settings -> Appearance -> Dark mode, inline in the top bar beside the menu.
+     An icon-only .btn (18px glyph + the .btn 7px vertical padding = the text buttons' 34px); the moon/sun
+     swap follows body.dark. Classic is light-only, but it hides the whole toolbar anyway — the theme rule
+     below is belt-and-suspenders for any future surface that reuses the class. */
+  .dark-toggle{display:inline-flex; align-items:center; justify-content:center; padding:7px 9px; line-height:0}
   .dark-toggle svg{width:18px; height:18px}
   .dark-toggle .dt-sun{display:none}
   body.dark .dark-toggle .dt-sun{display:block}
   body.dark .dark-toggle .dt-moon{display:none}
   body[data-theme="classic"] .dark-toggle{display:none}
-  html.mobile .dark-toggle{width:44px; height:44px}
   .btn{
     font:inherit; font-size:13px; font-weight:600;
     border:1px solid var(--line2); background:#fff; color:var(--ink);
@@ -1319,8 +1308,8 @@
   .prep-cur.over{color:#b42318}                                           /* over the cap (e.g. after a level/Int drop) */
   .prep-sep{color:var(--muted); font-weight:400}
   .prep-free-note{color:#d4a017; font-size:11px; font-weight:600; white-space:nowrap}
-  /* The header "Can Prepare" box (#prep-stat) itself detaches into the top-right — tucked UNDER the sticky toolbar (top set in JS from the toolbar height) — when it scrolls off the top, then re-attaches into the spell-header grid on the way back up. Solid card background; z-index sits BELOW the toolbar (20) so the top bar / Manage Characters button stay uncovered and clickable. right clears the 38px dark-mode toggle now parked in that corner (detach only happens >880px, where the toggle is desktop-sized). */
-  .stat.prep-detached{position:fixed; right:calc(52px + var(--rail-right, 0px)); top:14px; z-index:15; margin:0; background:var(--card)}
+  /* The header "Can Prepare" box (#prep-stat) itself detaches into the top-right — tucked UNDER the sticky toolbar (top set in JS from the toolbar height) — when it scrolls off the top, then re-attaches into the spell-header grid on the way back up. Solid card background; z-index sits BELOW the toolbar (20) so the top bar / Manage Characters button stay uncovered and clickable. --rail-right (published by the dice module's syncGutter, open or collapsed) keeps it clear of a dice rail docked on that edge. */
+  .stat.prep-detached{position:fixed; right:calc(14px + var(--rail-right, 0px)); top:14px; z-index:15; margin:0; background:var(--card)}
   .stat.prep-detached.over{z-index:60}                                    /* during the prepare-spells overlay, float above the modal (z-50) */
   @media print{ .stat.prep-detached{position:static !important; right:auto; top:auto} }   /* never print it stuck in a corner */
   /* Post-long-rest "prepare spells" overlay: a wide, scrollable modal that hosts the real spell sheet */
@@ -2136,6 +2125,11 @@
     <button class="btn" id="btn-savecopy" title="Save this character to a self-contained HTML file (your character plus all loaded sourcebooks baked in — works offline, no localStorage needed)">Save</button>
     <button class="btn" id="btn-search" title="Search this character (⌘K / Ctrl-K)">Search</button>
     <button class="btn" id="btn-mobile" type="button" title="Toggle mobile view (auto-on below 820px)" aria-pressed="false">Mobile</button>
+    <!-- Dark mode, one tap without opening the menu or Settings. Icon-only; the moon/sun swap follows body.dark. -->
+    <button class="btn dark-toggle" type="button" id="dark-toggle" aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode">
+      <svg class="dt-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13.6A8.2 8.2 0 0 1 10.4 3.5a8.5 8.5 0 1 0 10.1 10.1Z"/></svg>
+      <svg class="dt-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2.5 12h2M19.5 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
     <div class="menu-wrap">
       <button class="btn menu-btn" id="btn-menu" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu" title="More">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
@@ -2156,12 +2150,6 @@
 
   <!-- Floating Save — always reachable in Mobile view (the toolbar scrolls off-screen). Hidden otherwise. -->
   <button class="btn primary mobile-save noprint" type="button" title="Save character to a file" onclick="document.getElementById('btn-savecopy').click()">Save</button>
-
-  <!-- Dark mode, reachable in one tap without opening the menu or Settings. See the .dark-toggle CSS. -->
-  <button class="dark-toggle noprint" type="button" id="dark-toggle" aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode">
-    <svg class="dt-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13.6A8.2 8.2 0 0 1 10.4 3.5a8.5 8.5 0 1 0 10.1 10.1Z"/></svg>
-    <svg class="dt-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2.5 12h2M19.5 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-  </button>
 
   <!-- First-load intro overlay: obscures the sheet the first time it's opened in a browser, then never again (see maybeShowIntro). -->
   <div class="intro-overlay noprint" id="intro-overlay" hidden="">
@@ -3262,11 +3250,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v630 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v631 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.164.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.164.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3274,6 +3262,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v631", semver:"2.164.1", items:[
+      "The dark-mode toggle settled into the top bar itself, sitting inline beside the Menu button instead of floating in a corner.",
+    ]},
     {v:"v630", semver:"2.164.0", items:[
       "The Skills card has a small sort toggle in its header: the usual A–Z list, or grouped by ability (Str, Dex, Int, Wis, Cha) with each group alphabetized. The choice is remembered across all of your characters, like dark mode.",
       "The floating dark-mode toggle moved from the bottom-left corner to the upper-right, tucked just under the top bar. It still steps aside for a dice rail docked on its edge, and the detached “Can Prepare” box shifts over so the two never overlap.",
@@ -5426,25 +5417,6 @@
     b.setAttribute("aria-label", b.title);
   }
   applySkillSort();
-  // Keep the floating dark-mode toggle tucked under whatever chrome owns the top edge: the sticky toolbar
-  // on desktop, the sticky page-tab bar on phones (the toolbar is static there and scrolls away, so the
-  // anchor moves per scroll frame — this runs on scroll/resize beside updatePrepFloat). A top-docked dice
-  // rail (--rail-top, published by syncGutter) pushes it down too; syncGutter re-invokes this on dock changes.
-  function positionDarkToggle(){
-    const b = $("dark-toggle"); if(!b) return;
-    try{ if(window.matchMedia && matchMedia("print").matches) return; }catch(e){}   // never mutate layout mid-print
-    let top = 0;
-    const tb = document.querySelector(".toolbar");
-    if(tb && getComputedStyle(tb).display !== "none" && getComputedStyle(tb).position === "sticky"){
-      top = tb.getBoundingClientRect().bottom;
-    } else {
-      const pt = document.querySelector(".pagetabs");
-      if(pt && getComputedStyle(pt).display !== "none") top = pt.getBoundingClientRect().bottom;
-    }
-    const railTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--rail-top")) || 0;
-    b.style.top = Math.max(0, Math.round(top), railTop) + "px";
-  }
-  positionDarkToggle();
   // The sheet-wide appearance prefs (dark / disable-animations) ride with a saved or imported file so it keeps
   // its look. Applying them updates the global localStorage prefs + the body classes + the Settings checkboxes.
   function applySheetPrefs(prefs){
@@ -15101,8 +15073,6 @@
     (function setupPrepFloat(){   // detach/re-attach the header "Can Prepare" box as the spell sheet scrolls
       window.addEventListener("scroll", updatePrepFloat, {passive:true});
       window.addEventListener("resize", updatePrepFloat);
-      window.addEventListener("scroll", positionDarkToggle, {passive:true});   // same anchors, same cadence
-      window.addEventListener("resize", positionDarkToggle);
     })();
 
     // --- inventory drag-to-reorder (across both columns) ---
@@ -15312,7 +15282,7 @@
     $("sk-sort").addEventListener("click", () => {   // global pref like dark mode — not per-character
       skillSortAbility = !skillSortAbility; setPrefBool(SKSORT_KEY, skillSortAbility); applySkillSort();
     });
-    $("dark-toggle").addEventListener("click", () => {   // floating twin of #set-dark, same global pref (Classic is light-only, so it is a no-op there)
+    $("dark-toggle").addEventListener("click", () => {   // toolbar twin of #set-dark, same global pref (Classic is light-only, so it is a no-op there)
       if(theme === "classic") return;
       darkMode = !darkMode; setPrefBool(DARK_KEY, darkMode); applyDarkSetting();   // applyDarkSetting -> syncDarkToggle keeps #set-dark in step
     });
@@ -18322,7 +18292,7 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         if(r && p.rail && pos !== "float" && getComputedStyle(r).display !== "none"){
           var b = r.getBoundingClientRect();
           // Edge vars: how much of the docked edge the rail covers, OPEN OR COLLAPSED. Other fixed
-          // chrome anchored to those edges (the floating dark-mode toggle, upper-right) offsets off them
+          // chrome anchored to those edges (the detached "Can Prepare" box, top-right) offsets off them
           // so it can never end up underneath the rail. Unlike the body padding, these apply while collapsed too.
           if(pos === "left")        css += "@media screen{ :root{--rail-left:"   + Math.ceil(b.width)  + "px} }";
           else if(pos === "bottom") css += "@media screen{ :root{--rail-bottom:" + Math.ceil(b.height) + "px} }";
@@ -18337,7 +18307,6 @@ T>=2*U&&(x._wakeUpAfterNarrowphase=!0)}if(R.allowSleep&&R.type===c.DYNAMIC&&R.sl
         }
       }catch(e){}
       if(st.textContent !== css) st.textContent = css;   // idempotent write; the rail's ResizeObserver drives updates
-      try{ if(typeof positionDarkToggle === "function") positionDarkToggle(); }catch(e){}   // its top reads --rail-top (a CSS var can't drive the JS-set top)
     }
     function buildRail(){
       var old = el("dice-rail"); if(old) old.remove();        // serialized corpse from a saved copy (belt & suspenders; it's data-transient anyway)
