@@ -405,6 +405,25 @@
     text-transform:uppercase; background:none; border:none; border-radius:0; padding:0; color:var(--muted); cursor:pointer}
   #sk-sort:hover{color:var(--accent)}
   #sk-sort:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  /* ---- Ability-cluster layout (built by clusterActivate; see the JS for the move/restore contract) ----
+     The Skills card hosts six clusters: the real .ability box docks left (mod big, score small, name under —
+     the newer official sheets' arrangement), its save row + skill rows stack right. The moved rows left the
+     #skills scope, so the tri-state/print .marks visibility is re-scoped here for the screen; print never
+     sees this layout (beforeprint restores the canonical cards). */
+  .cl-hidden{display:none !important}
+  .card.cl-on #sk-sort{display:none}   /* grouping supersedes sorting while clustered */
+  #skill-clusters .abcluster{display:flex; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line)}
+  #skill-clusters .abcluster:last-child{border-bottom:none}
+  #skill-clusters .cl-box{flex:0 0 76px; align-self:stretch; display:flex; align-items:center; justify-content:center; border-right:1px solid var(--line)}
+  #skill-clusters .cl-rows{flex:1 1 auto; min-width:0}
+  #skill-clusters .cl-rows .row:last-child{border-bottom:none}
+  #skill-clusters .ability{flex-direction:column; gap:3px; padding:0; border-bottom:none}
+  #skill-clusters .ability .name{flex:none; font-size:8px; letter-spacing:.05em; max-width:72px; text-align:center; white-space:normal; order:2}
+  #skill-clusters .ability .mod{order:0}
+  #skill-clusters .ability .score-out{order:1; width:32px; height:22px; font-size:12px}
+  #skill-clusters .row .rname .ab{display:none}            /* the ability tag is redundant inside its own cluster */
+  #skill-clusters .row:not(.cl-save) .marks{display:none}  /* skill rows keep the on-screen tri-state (the #skills scope no longer reaches them) */
+  @media print{ #skill-clusters{display:none !important} } /* belt & suspenders: print restores the canonical cards before this could matter */
 
   .passive{display:flex; align-items:center; gap:12px; margin-bottom:12px}
   .passive .v{flex:none; width:40px; height:40px; display:flex; align-items:center; justify-content:center;
@@ -1733,6 +1752,7 @@
   html.mobile #page-core .columns .card{ order:50; margin-bottom:0; }   /* gap owns spacing; baseline order falls after the prioritized few */
   html.mobile #page-core .columns .card.grow{ flex:0 0 auto; }          /* don't let grow cards stretch in the new flex column */
   html.mobile #page-core .card[data-csec="abilities"]{ order:1; }
+  html.mobile #page-core .card[data-csec="skills"].cl-on{ order:1; }   /* clustered, it IS the abilities card — take that slot */
   /* label the two per-ability boxes — the Score/Mod column header scrolls away on a phone */
   html.mobile .ability{ padding-bottom:22px; }
   html.mobile .ability .score-out, html.mobile .ability .mod{ position:relative; }
@@ -1742,6 +1762,10 @@
     pointer-events:none; white-space:nowrap;
   }
   html.mobile .ability .mod::after{ content:"Mod"; }
+  /* Inside an ability cluster the column is self-labelling (big mod, small score, name under) — the phone
+     Score/Mod sublabels would print on top of the stacked layout, so drop them + the padding they reserve. */
+  html.mobile #skill-clusters .ability{ padding-bottom:0; }
+  html.mobile #skill-clusters .ability .score-out::after, html.mobile #skill-clusters .ability .mod::after{ content:none; }
   html.mobile #page-core .card[data-csec="combat"]{ order:2; }
   html.mobile #page-core .card[data-csec="topstats"]{ order:3; }
   html.mobile #page-core .card[data-csec="saves"]{ order:4; }
@@ -3099,6 +3123,9 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Portrait</label>
             <label class="lay-row"><input type="checkbox" id="set-hideportrait"> Hide the character portrait</label>
             <p class="wiz-hint">Removes the portrait box on the Core page from both the tab view and print. Your uploaded image is kept.</p>
+            <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Ability clusters</label>
+            <label class="lay-row"><input type="checkbox" id="set-abcluster"> Group saves and skills under their abilities</label>
+            <p class="wiz-hint">Rearranges the Core page like the newer official sheets: each ability becomes a cluster with its saving throw and its skills beside it, replacing the separate Abilities, Saving Throws, and Skills cards. Printing always uses the standard layout.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Encumbrance</label>
             <label class="lay-row"><input type="checkbox" id="set-variant-enc"> Use the variant Encumbrance rule</label>
             <p class="wiz-hint">Off by default. When on, the Carrying Capacity card adds the Encumbered (×5) and Heavily Encumbered (×10) thresholds and applies their speed penalties. When off, only your Max Carry (×15) and Push/Drag/Lift (×30) are shown.</p>
@@ -3250,11 +3277,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v631 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v632 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.164.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.165.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3262,6 +3289,10 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v632", semver:"2.165.0", items:[
+      "New in Settings → Character Settings: “Group saves and skills under their abilities.” It rearranges the Core page like the newer official sheets — each ability becomes a cluster with its saving throw and its skills beside it, replacing the separate Abilities, Saving Throws, and Skills cards. Per character, off by default.",
+      "Everything keeps working in the clustered view — proficiency clicks, computed totals, advantage badges, dice rolls — and printing always uses the standard layout.",
+    ]},
     {v:"v631", semver:"2.164.1", items:[
       "The dark-mode toggle settled into the top bar itself, sitting inline beside the Menu button instead of floating in a corner.",
     ]},
@@ -5407,6 +5438,7 @@
   let skillSortAbility = prefBool(SKSORT_KEY);
   function applySkillSort(){
     const box = $("skills"); if(!box) return;
+    if(clusterActive()) return;   // ability-cluster layout owns the rows (grouping supersedes sorting); deactivation re-runs this
     const AB_ORD = {str:0, dex:1, con:2, int:3, wis:4, cha:5};
     const order = SKILLS.slice();
     if(skillSortAbility) order.sort((a,b) => (AB_ORD[a[2]] - AB_ORD[b[2]]) || a[1].localeCompare(b[1]));
@@ -5417,6 +5449,66 @@
     b.setAttribute("aria-label", b.title);
   }
   applySkillSort();
+  // ---- Ability-cluster layout (Settings → Character Settings → Ability clusters) ----
+  // Rearranges the Core page like the newer official sheets: the Skills card hosts six clusters, each the
+  // real .ability box docked beside its saving-throw row and skill rows; the Abilities and Saving Throws
+  // cards hide. Nodes are MOVED by id (never rebuilt) so compute/save/tri-state/badges all keep working,
+  // and deactivation returns every node to its fixed-id home (#abilities/#saves/#skills) — deterministic
+  // from ANY state, so a file saved while active self-heals with no placeholders. Print always uses the
+  // canonical cards: beforeprint deactivates, afterprint/focus reapplies (activate self-guards on print
+  // media, mirroring the UCS engine's print invariant).
+  let abilityCluster = false;   // per-character (data.abilityCluster), applied in applyAll
+  const CL_ABILS = [["str","Strength"],["dex","Dexterity"],["con","Constitution"],["int","Intelligence"],["wis","Wisdom"],["cha","Charisma"]];
+  function clusterActive(){ return !!$("skill-clusters"); }
+  function clusterActivate(){
+    const w = $("skill-clusters");
+    if(w && w._live) return;
+    if(w) clusterDeactivate();   // corpse from a copy saved while active: rebuild so the tri listener exists
+    if(window.matchMedia && matchMedia("print").matches) return;   // print invariant: never rearrange Core mid-print
+    const host = document.querySelector('[data-csec="skills"]');
+    if(!host || !$("abilities") || !$("saves") || !$("skills")) return;
+    const wrap = document.createElement("div"); wrap.id = "skill-clusters"; wrap._live = true;
+    CL_ABILS.forEach(([k]) => {
+      const g = document.createElement("div"); g.className = "abcluster";
+      const box = document.createElement("div"); box.className = "cl-box";
+      const rows = document.createElement("div"); rows.className = "cl-rows";
+      const abox = $("mod-"+k) && $("mod-"+k).closest(".ability"); if(abox) box.appendChild(abox);
+      const srow = $("savetot-"+k) && $("savetot-"+k).closest(".row");
+      if(srow){ srow.classList.add("cl-save");
+        const rn = srow.querySelector(".rname");
+        if(rn && rn.firstChild && rn.firstChild.nodeType === 3) rn.firstChild.nodeValue = "Saving Throw";   // the ability name is the cluster header now
+        rows.appendChild(srow); }
+      SKILLS.forEach(([key, , a]) => { if(a !== k) return;
+        const r = $("sktot-"+key) && $("sktot-"+key).closest(".row"); if(r) rows.appendChild(r); });
+      g.appendChild(box); g.appendChild(rows); wrap.appendChild(g);
+    });
+    host.appendChild(wrap);
+    wrap.addEventListener("click", e => { const t = e.target.closest(".sk-tri"); if(t) cycleSkillTri(t.dataset.key); });   // twin of the #skills tri listener — the rows live here now
+    host.classList.add("cl-on");
+    ["abilities","saves"].forEach(k => { const c = document.querySelector('[data-csec="'+k+'"]'); if(c) c.classList.add("cl-hidden"); });
+    const h2t = host.querySelector("h2"); if(h2t && h2t.firstChild && h2t.firstChild.nodeType === 3) h2t.firstChild.nodeValue = "Abilities & Skills ";
+  }
+  function clusterDeactivate(){
+    const wrap = $("skill-clusters"), host = document.querySelector('[data-csec="skills"]');
+    CL_ABILS.forEach(([k, name]) => {   // every node goes home by id, in canonical order — works from any state
+      const abox = $("mod-"+k) && $("mod-"+k).closest(".ability"); if(abox && $("abilities")) $("abilities").appendChild(abox);
+      const srow = $("savetot-"+k) && $("savetot-"+k).closest(".row");
+      if(srow){ const rn = srow.querySelector(".rname");
+        if(rn && rn.firstChild && rn.firstChild.nodeType === 3) rn.firstChild.nodeValue = name;
+        if($("saves")) $("saves").appendChild(srow); }
+    });
+    if($("skills")) SKILLS.forEach(([key]) => { const r = $("sktot-"+key) && $("sktot-"+key).closest(".row"); if(r) $("skills").appendChild(r); });
+    if(wrap) wrap.remove();
+    if(host){ host.classList.remove("cl-on");
+      const h2t = host.querySelector("h2"); if(h2t && h2t.firstChild && h2t.firstChild.nodeType === 3) h2t.firstChild.nodeValue = "Skills "; }
+    document.querySelectorAll(".cl-hidden").forEach(c => c.classList.remove("cl-hidden"));
+    applySkillSort();   // rows are back in #skills — restore the user's chosen order
+  }
+  function applyAbilityClusterSetting(){ if(abilityCluster) clusterActivate(); else if(clusterActive()) clusterDeactivate(); }
+  window.addEventListener("beforeprint", () => { if(clusterActive()) clusterDeactivate(); });
+  const _clReapply = () => { if(abilityCluster && !clusterActive()) clusterActivate(); };   // idempotent; activate self-guards while print media still matches
+  window.addEventListener("afterprint", () => setTimeout(_clReapply, 0));
+  window.addEventListener("focus", _clReapply);   // Safari fallback — afterprint doesn't fire reliably there
   // The sheet-wide appearance prefs (dark / disable-animations) ride with a saved or imported file so it keeps
   // its look. Applying them updates the global localStorage prefs + the body classes + the Settings checkboxes.
   function applySheetPrefs(prefs){
@@ -6958,8 +7050,8 @@
     syncSkillTri();
   }
   function syncSkillTri(){
-    const box = $("skills"); if(!box) return;
-    box.querySelectorAll(".sk-tri").forEach(btn => {
+    // rows live in #skills normally, or spread across the ability clusters when that layout is on — repaint both homes
+    document.querySelectorAll("#skills .sk-tri, #skill-clusters .sk-tri").forEach(btn => {
       const s = skillTriState(btn.dataset.key);
       btn.dataset.state = String(s);
       btn.title = s === 2 ? "Expertise — double proficiency (click to clear)" : s === 1 ? "Proficient (click for expertise)" : "Not proficient (click to add)";
@@ -10076,6 +10168,7 @@
     data.hiddenPages = hiddenPages;
     data.showAddSpell = showAddSpell;
     data.hidePortrait = hidePortrait;
+    data.abilityCluster = abilityCluster;
     data.theme = theme;   // per-character sheet theme (default Universal)
     // darkMode + noAnimations are global prefs (localStorage), not stored per-character.
     data.variantEncumbrance = variantEncumbrance;
@@ -10207,6 +10300,7 @@
     hiddenPages = (data && data.hiddenPages) ? {...data.hiddenPages} : {};
     showAddSpell = !!(data && data.showAddSpell);   // default off; only an explicit true enables it
     hidePortrait = !!(data && data.hidePortrait);   // default off
+    abilityCluster = !!(data && data.abilityCluster);   // default off (classic three-card Core layout)
     theme = (data && typeof data.theme === "string" && data.theme) ? data.theme : DEFAULT_THEME;   // per-character; default Universal
     if(theme === "universal" || theme === "dndbeyond" || theme === "material") theme = "ucs";   // legacy theme ids (incl. the removed Material Design theme) migrate to the Universal Character Sheet
     // darkMode + noAnimations are global (localStorage), loaded once at startup — not per-character.
@@ -10279,6 +10373,7 @@
     applyLayout();
     applyAddSpellSetting();
     applyPortraitSetting();
+    applyAbilityClusterSetting();
     applyThemeSetting();
     applyAnimSetting();
     applyDarkSetting();
@@ -14372,7 +14467,7 @@
     if(editing){ _removeBlocks("features", genFeatures); _removeLines("proficiencies", genProf); _removeLines("defnotes", genDefenses); }   // drop last run's generated lines so we REPLACE them, never duplicate
     const _profBefore = new Set($("proficiencies").value.split("\n"));           // baseline → capture exactly what this run appends to Proficiencies
     // a fresh build is authoritative for saves/skills; on Edit, leave the player's skill choices intact (saves are re-derived explicitly below)
-    if(!editing) document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"]').forEach(c=>c.checked=false);
+    if(!editing) document.querySelectorAll('#saves input[type="checkbox"], #skills input[type="checkbox"], #skill-clusters input[type="checkbox"]').forEach(c=>c.checked=false);   // clusters host the same rows when that layout is on
     if(name) $("charname").value = name;
     if(race){
       const profSkills = [...document.querySelectorAll(".rc-prof")].map(s => s.value).filter(Boolean);   // Tasha's custom proficiencies
@@ -15252,7 +15347,7 @@
       if($("wizard").classList.contains("open")) renderWizPending();   // keep the builder's "N ASIs due" row in sync as choices are made
     });
 
-    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderCharSourceToggles(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; refreshDarkAvail(); $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("set-renaissance").checked = showRenaissance; updateBlockMode(); $("settings").classList.add("open"); });
+    $("btn-settings").addEventListener("click", ()=>{ renderThemeOptions(); renderLayoutToggles(); renderTceToggles(); updateSourcebookStatus(); populateBookSelect(); renderLoadedBookList(); renderCharSourceToggles(); $("set-addspell").checked = showAddSpell; $("set-hideportrait").checked = hidePortrait; $("set-abcluster").checked = abilityCluster; $("set-noanim").checked = noAnimations; $("set-dark").checked = darkMode; refreshDarkAvail(); $("set-variant-enc").checked = variantEncumbrance; $("set-futuristic").checked = showFuturistic; $("set-modern").checked = showModern; $("set-renaissance").checked = showRenaissance; updateBlockMode(); $("settings").classList.add("open"); });
     // Overflow menu (hamburger): toggle, close on outside-click / Escape / any item click.
     (function(){
       const pop = $("app-menu"), btn = $("btn-menu");
@@ -15276,10 +15371,12 @@
     });
     $("set-addspell").addEventListener("change", e => { showAddSpell = e.target.checked; applyAddSpellSetting(); save(); });
     $("set-hideportrait").addEventListener("change", e => { hidePortrait = e.target.checked; applyPortraitSetting(); save(); });
+    $("set-abcluster").addEventListener("change", e => { abilityCluster = e.target.checked; applyAbilityClusterSetting(); save(); });
     $("set-theme").addEventListener("change", e => { theme = e.target.value || DEFAULT_THEME; applyThemeSetting(); applyDarkSetting(); applyLayout(); refreshDarkAvail(); save(); });   // per-character; dark mode stays a separate global toggle (but is force-off + disabled on Classic), and Classic hides the non-canon tabs
     $("set-noanim").addEventListener("change", e => { noAnimations = e.target.checked; setPrefBool(NOANIM_KEY, noAnimations); applyAnimSetting(); });   // global pref — not per-character
     $("set-dark").addEventListener("change", e => { darkMode = e.target.checked; setPrefBool(DARK_KEY, darkMode); applyDarkSetting(); });               // global pref — not per-character
-    $("sk-sort").addEventListener("click", () => {   // global pref like dark mode — not per-character
+    $("sk-sort").addEventListener("click", e => {   // global pref like dark mode — not per-character
+      e.stopPropagation();   // the h2 it sits in is a tap-to-collapse toggle on mobile — sorting must not also collapse the card
       skillSortAbility = !skillSortAbility; setPrefBool(SKSORT_KEY, skillSortAbility); applySkillSort();
     });
     $("dark-toggle").addEventListener("click", () => {   // toolbar twin of #set-dark, same global pref (Classic is light-only, so it is a no-op there)
