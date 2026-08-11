@@ -423,6 +423,7 @@
   #skill-clusters .ability .score-out{order:1; width:32px; height:22px; font-size:12px}
   #skill-clusters .row .rname .ab{display:none}            /* the ability tag is redundant inside its own cluster */
   #skill-clusters .row .marks{display:none}  /* all rows use the square control on screen (the #skills/#saves scopes no longer reach them) */
+  #skill-clusters .topstats{margin-bottom:8px; padding-bottom:10px; border-bottom:1px solid var(--line)}  /* Prof Bonus + Inspiration head the merged card (their own card hides) */
   @media print{ #skill-clusters{display:none !important} } /* belt & suspenders: print restores the canonical cards before this could matter */
 
   .passive{display:flex; align-items:center; gap:12px; margin-bottom:12px}
@@ -2047,6 +2048,10 @@
     body.ucs-layout #ucs-topbar .ucs-ident .xp-add, body.ucs-layout #ucs-topbar .ucs-ident #btn-addxp{ display:none; }   /* keep the +gained / Add XP convenience out of the header; edit the XP total directly */
     body.ucs-layout #ucs-topbar .ucs-ident .xp-status{ font-size:11px; color:var(--muted); }   /* the Level Up button (#btn-levelup) + level/XP status now show in the full-width Experience row */
     body.ucs-layout #ucs-topbar .ucs-abilstrip{ grid-area:abilities; align-self:start; display:flex; gap:12px; align-items:stretch; }
+    /* Ability-cluster layout: abilities + topstats both live in the merged skills-column card, so the strip
+       would hold nothing but hidden cards — drop it AND its grid row (an empty named row still costs a gap). */
+    body.abcluster.ucs-layout #ucs-topbar{ grid-template-areas:"ident" "combat"; }
+    body.abcluster.ucs-layout #ucs-topbar .ucs-abilstrip{ display:none; }
     body.ucs-layout #ucs-topbar .ucs-abilstrip > .card{ margin:0; }
     body.ucs-layout #ucs-topbar .ucs-abilstrip [data-csec="abilities"]{ flex:1 1 auto; }
     body.ucs-layout #ucs-topbar [data-csec="topstats"]{ flex:0 0 150px; }   /* Prof Bonus + Inspiration sit at the end of the abilities strip */
@@ -3277,11 +3282,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v633 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v634 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.166.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.166.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3289,6 +3294,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v634", semver:"2.166.1", items:[
+      "With ability clusters on, Proficiency Bonus and Inspiration were left alone in the row the ability strip used to fill, wasting a band of empty space. They now sit at the top of the merged “Abilities & Skills” card — where the numbers they drive live — and the emptied row collapses, so Combat moves up.",
+    ]},
     {v:"v633", semver:"2.166.0", items:[
       "Saving-throw proficiency now uses the same square control as skills — click to toggle it on or off (saves have no expertise, so it's a simple two-state). The old checkbox and its “Prof” label are gone from the screen; printed sheets keep the checkbox as before.",
     ]},
@@ -5471,6 +5479,8 @@
     const host = document.querySelector('[data-csec="skills"]');
     if(!host || !$("abilities") || !$("saves") || !$("skills")) return;
     const wrap = document.createElement("div"); wrap.id = "skill-clusters"; wrap._live = true;
+    const ts = document.querySelector(".topstats");   // Prof Bonus + Inspiration head the merged card — alone they'd orphan a whole strip row in the UCS topbar
+    if(ts) wrap.appendChild(ts);
     CL_ABILS.forEach(([k]) => {
       const g = document.createElement("div"); g.className = "abcluster";
       const box = document.createElement("div"); box.className = "cl-box";
@@ -5488,7 +5498,8 @@
     host.appendChild(wrap);
     wrap.addEventListener("click", e => { const t = e.target.closest(".sk-tri"); if(t) triClick(t); });   // twin of the #skills/#saves tri listeners — the rows live here now
     host.classList.add("cl-on");
-    ["abilities","saves"].forEach(k => { const c = document.querySelector('[data-csec="'+k+'"]'); if(c) c.classList.add("cl-hidden"); });
+    ["abilities","saves","topstats"].forEach(k => { const c = document.querySelector('[data-csec="'+k+'"]'); if(c) c.classList.add("cl-hidden"); });
+    document.body.classList.add("abcluster");   // lets the UCS topbar drop its now-empty abilities-strip row
     const h2t = host.querySelector("h2"); if(h2t && h2t.firstChild && h2t.firstChild.nodeType === 3) h2t.firstChild.nodeValue = "Abilities & Skills ";
   }
   function clusterDeactivate(){
@@ -5501,6 +5512,8 @@
         if($("saves")) $("saves").appendChild(srow); }
     });
     if($("skills")) SKILLS.forEach(([key]) => { const r = $("sktot-"+key) && $("sktot-"+key).closest(".row"); if(r) $("skills").appendChild(r); });
+    { const ts = document.querySelector(".topstats"), home = document.querySelector('[data-csec="topstats"]'); if(ts && home && ts.parentElement !== home) home.appendChild(ts); }
+    document.body.classList.remove("abcluster");
     if(wrap) wrap.remove();
     if(host){ host.classList.remove("cl-on");
       const h2t = host.querySelector("h2"); if(h2t && h2t.firstChild && h2t.firstChild.nodeType === 3) h2t.firstChild.nodeValue = "Skills "; }
