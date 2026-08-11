@@ -422,7 +422,10 @@
   #skill-clusters .cl-rows{flex:1 1 auto; min-width:0}
   #skill-clusters .cl-rows .row:last-child{border-bottom:none}
   #skill-clusters .ability{flex-direction:column; gap:3px; padding:0; border-bottom:none}
-  #skill-clusters .ability .name{flex:none; font-size:8px; letter-spacing:.05em; max-width:72px; text-align:center; white-space:normal; order:2}
+  /* Abbreviated + accent-coloured, so each cluster is headed by a label as legible as the card's own h2
+     (the JS swaps the text to STR/DEX/…; the full name goes back on deactivate, which is what prints). */
+  #skill-clusters .ability .name{flex:none; font-size:13px; font-weight:800; letter-spacing:.12em;
+    color:var(--accent); max-width:72px; text-align:center; white-space:nowrap; order:2}
   #skill-clusters .ability .mod{order:0}
   #skill-clusters .ability .score-out{order:1; width:32px; height:22px; font-size:12px}
   #skill-clusters .row .rname .ab{display:none}            /* the ability tag is redundant inside its own cluster */
@@ -3286,11 +3289,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v635 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v636 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.166.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.166.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3298,6 +3301,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v636", semver:"2.166.3", items:[
+      "The ability labels in the cluster view are now abbreviated (STR, DEX, CON, INT, WIS, CHA) and set larger in the accent colour, so each cluster is headed by a label as legible as the card's own heading. The standard layout and printed sheets keep the full names.",
+    ]},
     {v:"v635", semver:"2.166.2", items:[
       "In the ability-cluster view, the rule between each ability group is now the strongest line in the card, so the six clusters read as distinct sections instead of one long list.",
     ]},
@@ -5492,7 +5498,10 @@
       const g = document.createElement("div"); g.className = "abcluster";
       const box = document.createElement("div"); box.className = "cl-box";
       const rows = document.createElement("div"); rows.className = "cl-rows";
-      const abox = $("mod-"+k) && $("mod-"+k).closest(".ability"); if(abox) box.appendChild(abox);
+      const abox = $("mod-"+k) && $("mod-"+k).closest(".ability");
+      if(abox){ const n = abox.querySelector(".name");   // "Strength" -> "STR": the cluster header reads as a label, and 3 letters never wrap
+        if(n && n.firstChild && n.firstChild.nodeType === 3) n.firstChild.nodeValue = ABBR[k].toUpperCase();
+        box.appendChild(abox); }
       const srow = $("savetot-"+k) && $("savetot-"+k).closest(".row");
       if(srow){ srow.classList.add("cl-save");
         const rn = srow.querySelector(".rname");
@@ -5512,7 +5521,10 @@
   function clusterDeactivate(){
     const wrap = $("skill-clusters"), host = document.querySelector('[data-csec="skills"]');
     CL_ABILS.forEach(([k, name]) => {   // every node goes home by id, in canonical order — works from any state
-      const abox = $("mod-"+k) && $("mod-"+k).closest(".ability"); if(abox && $("abilities")) $("abilities").appendChild(abox);
+      const abox = $("mod-"+k) && $("mod-"+k).closest(".ability");
+      if(abox){ const n = abox.querySelector(".name");
+        if(n && n.firstChild && n.firstChild.nodeType === 3) n.firstChild.nodeValue = name;   // back to the full name for the canonical card + print
+        if($("abilities")) $("abilities").appendChild(abox); }
       const srow = $("savetot-"+k) && $("savetot-"+k).closest(".row");
       if(srow){ const rn = srow.querySelector(".rname");
         if(rn && rn.firstChild && rn.firstChild.nodeType === 3) rn.firstChild.nodeValue = name;
