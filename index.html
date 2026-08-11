@@ -412,8 +412,12 @@
      sees this layout (beforeprint restores the canonical cards). */
   .cl-hidden{display:none !important}
   .card.cl-on #sk-sort{display:none}   /* grouping supersedes sorting while clustered */
-  #skill-clusters .abcluster{display:flex; gap:12px; align-items:center; padding:8px 0; border-bottom:1px solid var(--line)}
-  #skill-clusters .abcluster:last-child{border-bottom:none}
+  /* The cluster separator is the strongest rule in the card ON PURPOSE: the skill rows inside each cluster
+     already use the --line hairline, so a matching divider made the six groups read as one flat list.
+     --line2 is the emphasis rule (gold under the Universal + Classic themes, a darker grey elsewhere). */
+  #skill-clusters .abcluster{display:flex; gap:12px; align-items:center; padding:12px 0; border-bottom:2px solid var(--line2)}
+  #skill-clusters .abcluster:first-child{padding-top:2px}
+  #skill-clusters .abcluster:last-child{padding-bottom:0; border-bottom:none}
   #skill-clusters .cl-box{flex:0 0 76px; align-self:stretch; display:flex; align-items:center; justify-content:center; border-right:1px solid var(--line)}
   #skill-clusters .cl-rows{flex:1 1 auto; min-width:0}
   #skill-clusters .cl-rows .row:last-child{border-bottom:none}
@@ -3282,11 +3286,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v634 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v635 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.166.1";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.166.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3294,6 +3298,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v635", semver:"2.166.2", items:[
+      "In the ability-cluster view, the rule between each ability group is now the strongest line in the card, so the six clusters read as distinct sections instead of one long list.",
+    ]},
     {v:"v634", semver:"2.166.1", items:[
       "With ability clusters on, Proficiency Bonus and Inspiration were left alone in the row the ability strip used to fill, wasting a band of empty space. They now sit at the top of the merged “Abilities & Skills” card — where the numbers they drive live — and the emptied row collapses, so Combat moves up.",
     ]},
