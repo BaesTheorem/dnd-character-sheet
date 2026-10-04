@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="./support.js"></script>
+  </head>
+  <body>
+    <x-dc>
+      <helmet data-dc-atomics>
+        <meta name="design_doc_mode" content="canvas" />
+        <style>
+          body { margin: 0; background: #e9eaec; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif; color: #1d1f23; }
+          a { color: #8a6d22; } a:hover { color: #1d1f23; }
+          .dv-turn { padding: 40px 44px 32px; border-bottom: 1px solid rgba(0,0,0,.08); }
+          .dv-thd { display: flex; align-items: baseline; gap: 10px; margin: 0 0 6px; }
+          .dv-tid { font: 600 10px ui-monospace, Menlo, monospace; padding: 3px 7px; background: #1d1f23; color: #fff; text-decoration: none; }
+          .dv-tname { font: 600 13px/1.2 system-ui, sans-serif; color: #1d1f23; }
+          .dv-note { font: 12px/1.5 system-ui, sans-serif; color: rgba(0,0,0,.6); max-width: 820px; margin: 0 0 24px; }
+          .dv-opts { display: flex; flex-wrap: wrap; gap: 36px; align-items: flex-start; }
+          .dv-opt { flex: none; display: flex; flex-direction: column; gap: 9px; }
+          .dv-oid { font: 600 10.5px ui-monospace, Menlo, monospace; padding: 3px 7px; background: rgba(0,0,0,.08); color: #1d1f23; text-decoration: none; }
+          .dv-olabel { display: flex; align-items: baseline; gap: 8px; font: 400 11px/1.3 system-ui, sans-serif; color: rgba(0,0,0,.55); }
+          .dv-card { width: 1440px; background: #e9eaec; border: 1px solid #dadde2; overflow: hidden; }
+          .dv-next { margin: 22px 0 0; font: 12px/1.5 system-ui, sans-serif; color: rgba(0,0,0,.5); }
+
+          /* ---- sheet tokens (from tokens.css, light) ---- */
+          .sheet { --bg:#e9eaec; --card:#fff; --ink:#1d1f23; --muted:#6a6f78; --line:#dadde2; --gold:#a07d22; --gold-deep:#8a6d22; --gold-soft:#f3eedf; --field:#f5f6f8; --panel:#f4f5f7; --hp:#9e2b25; --hp-soft:#f6e6e4; --ok:#2f6b3a; --ok-soft:#e4efe6; }
+          .sheet { background: var(--bg); color: var(--ink); font-size: 13px; line-height: 1.3; }
+          .sheet * { box-sizing: border-box; }
+          .card { background: var(--card); border: 1px solid var(--line); }
+          .lab { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+          .lab.g { color: var(--gold); }
+          .num { font-variant-numeric: tabular-nums; font-weight: 700; }
+          .big { font-size: 34px; line-height: 1; letter-spacing: -.02em; }
+          .mid { font-size: 22px; line-height: 1; }
+          .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--line); background: #fff; font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+          .btn.p { background: var(--gold); border-color: var(--gold); color: #fff; }
+          .btn.hp { border-color: var(--hp); color: var(--hp); }
+          .btn.heal { border-color: var(--ok); color: var(--ok); }
+          .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border: 1px solid var(--line); background: var(--panel); font-size: 11px; font-weight: 600; }
+          .chip.warn { border-color: #c98a2b; background: #fbf1df; color: #6b4a0b; }
+          .chip.conc { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-deep); }
+          .pips { display: inline-flex; gap: 4px; }
+          .pip { width: 12px; height: 12px; border: 1.5px solid var(--gold); }
+          .pip.on { background: var(--gold); }
+          .pip.spent { border-color: var(--line); }
+          .bar { height: 10px; background: var(--hp-soft); border: 1px solid var(--line); }
+          .bar > i { display: block; height: 100%; background: var(--hp); }
+          .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); }
+          .tab { padding: 10px 14px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+          .tab.on { color: var(--gold-deep); border-bottom-color: var(--gold); }
+          .row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+          .row:last-child { border-bottom: 0; }
+          .dot { width: 10px; height: 10px; border: 1.5px solid var(--gold); display: inline-block; }
+          .dot.on { background: var(--gold); }
+          .abil { display: grid; grid-template-rows: auto auto auto; justify-items: center; gap: 4px; padding: 10px 0; }
+          .abil .mod { font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+          .abil .score { font-size: 11px; color: var(--muted); font-weight: 600; }
+          .stat { display: grid; justify-items: center; align-content: center; gap: 4px; padding: 10px 6px; border: 1px solid var(--line); background: #fff; min-width: 96px; }
+          .hpnum { font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+          .hpmax { font-size: 20px; color: var(--muted); font-weight: 600; }
+          .atk { display: grid; grid-template-columns: 1.3fr .7fr 1fr 1fr; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+          .atk:last-child { border-bottom: 0; }
+          .atk .h { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+          .die { width: 40px; height: 40px; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: var(--muted); }
+          .die span { font-size: 13px; color: var(--ink); }
+          .portrait { width: 72px; height: 88px; background: repeating-linear-gradient(135deg, #e4e6ea 0 6px, #eef0f3 6px 12px); border: 1px solid var(--line); display: grid; place-items: center; font: 600 9px ui-monospace, Menlo, monospace; color: var(--muted); text-align: center; }
+          .state { position: absolute; top: 0; right: 0; font: 600 10px ui-monospace, Menlo, monospace; background: #1d1f23; color: #fff; padding: 3px 7px; }
+        </style>
+      </helmet>
+
+      <section class="dv-turn" id="t1">
+        <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Core page, desktop 1440. Two directions from the brief.</span></div>
+        <p class="dv-note">Both keep the current tokens (gold accent, hairlines, flat and sharp, system type) and put every number a combat turn needs above the fold. <a class="dv-oid" href="#1a">1a</a> stacks the sheet in bands with one dominant HP block. <a class="dv-oid" href="#1b">1b</a> moves abilities, saves and skills into a left rail so the center column is only what changes during a fight. Sample: Vessa Thornwick, Half-Elf Ranger 5, shown in combat (HP under max, two conditions, concentrating).</p>
+        <div class="dv-opts">
+
+          <!-- ================= 1a : bands ================= -->
+          <div class="dv-opt" id="1a">
+            <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Bands: identity strip, combat band, detail tabs</div>
+            <div class="dv-card" data-screen-label="1a Core desktop, bands">
+              <div class="sheet" style="position:relative;padding:0 0 24px">
+                <span class="state">state: in combat</span>
+                <!-- top bar -->
+                <div class="fx ac jb" style="height:48px;padding:0 20px;background:#fff;border-bottom:1px solid var(--line)">
+                  <div class="fx ac gap10"><span style="font-weight:800;font-size:14px">Character Sheet</span><span class="lab g">5e</span></div>
+                  <div class="fx ac gap8">
+                    <span class="btn">Short rest</span><span class="btn">Long rest</span>
+                    <span style="width:1px;height:20px;background:var(--line);margin:0 6px"></span>
+                    <span class="btn">Search</span><span class="btn">Save</span><span class="btn">Menu</span>
+                  </div>
+                </div>
+
+                <div style="padding:16px 20px;display:grid;gap:12px">
+                  <!-- identity strip -->
+                  <div class="card fx ac gap16" style="padding:12px 16px">
+                    <div class="portrait">portrait</div>
+                    <div style="flex:1;min-width:0">
+                      <div class="fx ac gap12" style="flex-wrap:wrap">
+                        <span style="font-size:24px;font-weight:800;letter-spacing:-.01em">Vessa Thornwick</span>
+                        <span style="font-size:13px;color:var(--muted)">Half-Elf · Ranger 5 · Outlander · Chaotic Good</span>
+                      </div>
+                      <div class="fx ac gap16" style="margin-top:8px;font-size:12px;color:var(--muted)">
+                        <span>Player <b style="color:var(--ink)">Alex</b></span>
+                        <span>Campaign <b style="color:var(--ink)">Thornwood Reach</b></span>
+                        <span>XP <b style="color:var(--ink)">7,100 / 14,000</b></span>
+                      </div>
+                    </div>
+                    <div class="fx ac gap8">
+                      <div class="stat"><span class="lab">Prof</span><span class="num mid">+3</span></div>
+                      <div class="stat"><span class="lab">Inspiration</span><span class="dot on" style="width:16px;height:16px"></span></div>
+                    </div>
+                  </div>
+
+                  <!-- combat band -->
+                  <div style="display:grid;grid-template-columns:380px 1fr 300px;gap:12px">
+                    <!-- HP -->
+                    <div class="card" style="padding:14px 16px;display:grid;gap:10px">
+                      <div class="fx ac jb"><span class="lab g">Hit points</span><span class="chip">Temp +5</span></div>
+                      <div class="fx ac gap10" style="align-items:baseline"><span class="hpnum" style="color:var(--hp)">38</span><span class="hpmax">/ 44</span></div>
+                      <div class="bar"><i style="width:86%"></i></div>
+                      <div class="fx ac gap8">
+                        <span class="btn hp">Damage</span>
+                        <span style="width:72px;height:30px;border:1px solid var(--line);background:var(--field)"></span>
+                        <span class="btn heal">Heal</span>
+                        <span style="flex:1"></span>
+                        <span class="lab">Hit dice</span><span class="pips"><i class="pip on"></i><i class="pip on"></i><i class="pip on"></i><i class="pip spent"></i><i class="pip spent"></i></span>
+                      </div>
+                    </div>
+                    <!-- derived numbers -->
+                    <div class="card" style="padding:14px 16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-content:start">
+                      <div class="stat" style="border:0;padding:4px 0"><span class="lab">Armor class</span><span class="num big">16</span></div>
+                      <div class="stat" style="border:0;padding:4px 0"><span class="lab">Initiative</span><span class="num big">+4</span></div>
+                      <div class="stat" style="border:0;padding:4px 0"><span class="lab">Speed</span><span class="num big">35<span style="font-size:14px;color:var(--muted);margin-left:2px">ft</span></span></div>
+                      <div class="stat" style="border:0;padding:4px 0"><span class="lab">Passive Perc.</span><span class="num big">15</span></div>
+                      <div style="grid-column:1 / -1;border-top:1px solid var(--line);padding-top:10px" class="fx ac gap8">
+                        <span class="lab">Conditions</span>
+                        <span class="chip warn">Poisoned</span><span class="chip warn">Exhaustion 1</span>
+                        <span class="chip conc">Concentrating · Spike Growth</span>
+                        <span style="flex:1"></span>
+                        <span class="btn" style="height:26px;font-size:11px">Manage</span>
+                      </div>
+                    </div>
+                    <!-- abilities -->
+                    <div class="card" style="display:grid;grid-template-columns:repeat(6,1fr)">
+                      <div class="abil"><span class="lab">Str</span><span class="mod">+1</span><span class="score">12</span></div>
+                      <div class="abil"><span class="lab">Dex</span><span class="mod">+4</span><span class="score">18</span></div>
+                      <div class="abil"><span class="lab">Con</span><span class="mod">+2</span><span class="score">14</span></div>
+                      <div class="abil"><span class="lab">Int</span><span class="mod">+0</span><span class="score">10</span></div>
+                      <div class="abil"><span class="lab">Wis</span><span class="mod">+2</span><span class="score">15</span></div>
+                      <div class="abil"><span class="lab">Cha</span><span class="mod">−1</span><span class="score">8</span></div>
+                    </div>
+                  </div>
+
+                  <!-- lower: saves + skills | tabs -->
+                  <div style="display:grid;grid-template-columns:220px 260px 1fr;gap:12px;align-items:start">
+                    <div class="card" style="padding:12px 14px">
+                      <div class="lab g" style="margin-bottom:6px">Saving throws</div>
+                      <div class="row"><span>Strength</span><span class="dot on"></span><span class="num">+4</span></div>
+                      <div class="row"><span>Dexterity</span><span class="dot on"></span><span class="num">+7</span></div>
+                      <div class="row"><span>Constitution</span><span class="dot"></span><span class="num">+2</span></div>
+                      <div class="row"><span>Intelligence</span><span class="dot"></span><span class="num">+0</span></div>
+                      <div class="row"><span>Wisdom</span><span class="dot"></span><span class="num">+2</span></div>
+                      <div class="row"><span>Charisma</span><span class="dot"></span><span class="num">−1</span></div>
+                      <div class="lab" style="margin:12px 0 6px">Death saves</div>
+                      <div class="fx ac gap12"><span class="pips"><i class="pip" style="border-color:var(--ok)"></i><i class="pip" style="border-color:var(--ok)"></i><i class="pip" style="border-color:var(--ok)"></i></span><span class="pips"><i class="pip" style="border-color:var(--hp)"></i><i class="pip" style="border-color:var(--hp)"></i><i class="pip" style="border-color:var(--hp)"></i></span></div>
+                    </div>
+                    <div class="card" style="padding:12px 14px">
+                      <div class="fx ac jb" style="margin-bottom:6px"><span class="lab g">Skills</span><span class="lab">by stat</span></div>
+                      <div class="row"><span>Acrobatics <span style="color:var(--muted)">Dex</span></span><span class="dot"></span><span class="num">+4</span></div>
+                      <div class="row"><span>Animal Handling <span style="color:var(--muted)">Wis</span></span><span class="dot on"></span><span class="num">+5</span></div>
+                      <div class="row"><span>Athletics <span style="color:var(--muted)">Str</span></span><span class="dot on"></span><span class="num">+4</span></div>
+                      <div class="row"><span>Insight <span style="color:var(--muted)">Wis</span></span><span class="dot"></span><span class="num">+2</span></div>
+                      <div class="row"><span>Nature <span style="color:var(--muted)">Int</span></span><span class="dot on"></span><span class="num">+3</span></div>
+                      <div class="row"><span>Perception <span style="color:var(--muted)">Wis</span></span><span class="dot on"></span><span class="num">+5</span></div>
+                      <div class="row"><span>Stealth <span style="color:var(--muted)">Dex</span></span><span class="dot on"></span><span class="num">+7</span></div>
+                      <div class="row"><span>Survival <span style="color:var(--muted)">Wis</span></span><span class="dot on"></span><span class="num">+5</span></div>
+                      <div style="padding-top:8px;font-size:11px;color:var(--muted)">+ 10 more, collapsed</div>
+                    </div>
+                    <div class="card">
+                      <div class="tabs">
+                        <span class="tab on">Actions</span><span class="tab">Spells</span><span class="tab">Inventory</span><span class="tab">Features</span><span class="tab">Background</span><span class="tab">Notes</span>
+                      </div>
+                      <div style="padding:14px 16px;display:grid;gap:14px">
+                        <div>
+                          <div class="fx ac jb"><span class="lab g">Attacks</span><span class="chip">2 attacks / action</span></div>
+                          <div class="atk" style="padding-top:8px"><span class="h">Weapon</span><span class="h">To hit</span><span class="h">Damage</span><span class="h">Range</span></div>
+                          <div class="atk"><b>Longbow</b><span class="num mid">+7</span><span>1d8+4 piercing</span><span style="color:var(--muted)">150 / 600 ft</span></div>
+                          <div class="atk"><b>Shortsword</b><span class="num mid">+7</span><span>1d6+4 piercing</span><span style="color:var(--muted)">melee, light</span></div>
+                          <div class="atk"><b>Shortsword (off hand)</b><span class="num mid">+7</span><span>1d6 piercing</span><span style="color:var(--muted)">bonus action</span></div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                          <div>
+                            <div class="lab g">Limited use</div>
+                            <div class="row"><span>Favored Foe</span><span class="pips"><i class="pip on"></i><i class="pip on"></i><i class="pip spent"></i></span><span class="lab">long rest</span></div>
+                            <div class="row"><span>Spell slots · 1st</span><span class="pips"><i class="pip on"></i><i class="pip on"></i><i class="pip spent"></i><i class="pip spent"></i></span><span class="lab">long rest</span></div>
+                            <div class="row"><span>Spell slots · 2nd</span><span class="pips"><i class="pip on"></i><i class="pip spent"></i></span><span class="lab">long rest</span></div>
+                          </div>
+                          <div>
+                            <div class="lab g">Action economy</div>
+                            <div class="row"><span>Action</span><span></span><span style="color:var(--muted)">Attack ×2, Cast, Dash, Hide</span></div>
+                            <div class="row"><span>Bonus</span><span></span><span style="color:var(--muted)">Off-hand attack, Hunter's Mark</span></div>
+                            <div class="row"><span>Reaction</span><span></span><span style="color:var(--muted)">Opportunity attack</span></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ================= 1b : rail ================= -->
+          <div class="dv-opt" id="1b">
+            <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Rail: static numbers left, what changes in a fight center, dice right</div>
+            <div class="dv-card" data-screen-label="1b Core desktop, rail">
+              <div class="sheet" style="position:relative;display:grid;grid-template-columns:272px 1fr 64px;min-height:900px">
+                <span class="state">state: in combat</span>
+                <!-- left rail -->
+                <div style="background:#fff;border-right:1px solid var(--line);padding:16px 14px;display:grid;gap:16px;align-content:start">
+                  <div class="fx ac gap12">
+                    <div class="portrait" style="width:56px;height:68px">portrait</div>
+                    <div style="min-width:0">
+                      <div style="font-size:16px;font-weight:800;line-height:1.1">Vessa Thornwick</div>
+                      <div style="font-size:11px;color:var(--muted);margin-top:4px">Half-Elf Ranger 5 · Outlander</div>
+                      <div class="fx ac gap6" style="margin-top:6px"><span class="chip" style="height:20px;font-size:10px">Prof +3</span><span class="chip" style="height:20px;font-size:10px">Insp ●</span></div>
+                    </div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+                    <div class="stat" style="padding:8px 4px;min-width:0"><span class="lab">Str</span><span class="num mid">+1</span><span class="score" style="font-size:10px;color:var(--muted)">12</span></div>
+                    <div class="stat" style="padding:8px 4px;min-width:0"><span class="lab">Dex</span><span class="num mid">+4</span><span class="score" style="font-size:10px;color:var(--muted)">18</span></div>
+                    <div class="stat" style="padding:8px 4px;min-width:0"><span class="lab">Con</span><span class="num mid">+2</span><span class="score" style="font-size:10px;color:var(--muted)">14</span></div>
+                    <div class="stat" style="padding:8px 4px;min-width:0"><span class="lab">Int</span><span class="num mid">+0</span><span class="score" style="font-size:10px;color:var(--muted)">10</span></div>
+                    <div class="stat" style="padding:8px 4px;min-width:0"><span class="lab">Wis</span><span class="num mid">+2</span><span class="score" style="font-size:10px;color:var(--muted)">15</span></div>
+                    <div class="stat" style="padding:8px 4px;min-width:0"><span class="lab">Cha</span><span class="num mid">−1</span><span class="score" style="font-size:10px;color:var(--muted)">8</span></div>
+                  </div>
+                  <div>
+                    <div class="lab g" style="margin-bottom:4px">Saves</div>
+                    <div class="row" style="padding:5px 0"><span>Str</span><span class="dot on"></span><span class="num">+4</span></div>
+                    <div class="row" style="padding:5px 0"><span>Dex</span><span class="dot on"></span><span class="num">+7</span></div>
+                    <div class="row" style="padding:5px 0"><span>Con</span><span class="dot"></span><span class="num">+2</span></div>
+                    <div class="row" style="padding:5px 0"><span>Int</span><span class="dot"></span><span class="num">+0</span></div>
+                    <div class="row" style="padding:5px 0"><span>Wis</span><span class="dot"></span><span class="num">+2</span></div>
+                    <div class="row" style="padding:5px 0"><span>Cha</span><span class="dot"></span><span class="num">−1</span></div>
+                  </div>
+                  <div>
+                    <div class="fx ac jb" style="margin-bottom:4px"><span class="lab g">Skills</span><span class="lab">Passive Perc 15</span></div>
+                    <div class="row" style="padding:5px 0"><span>Perception</span><span class="dot on"></span><span class="num">+5</span></div>
+                    <div class="row" style="padding:5px 0"><span>Stealth</span><span class="dot on"></span><span class="num">+7</span></div>
+                    <div class="row" style="padding:5px 0"><span>Survival</span><span class="dot on"></span><span class="num">+5</span></div>
+                    <div class="row" style="padding:5px 0"><span>Animal Handling</span><span class="dot on"></span><span class="num">+5</span></div>
+                    <div class="row" style="padding:5px 0"><span>Athletics</span><span class="dot on"></span><span class="num">+4</span></div>
+                    <div class="row" style="padding:5px 0"><span>Nature</span><span class="dot on"></span><span class="num">+3</span></div>
+                    <div class="row" style="padding:5px 0"><span>Acrobatics</span><span class="dot"></span><span class="num">+4</span></div>
+                    <div style="padding-top:6px;font-size:11px;color:var(--muted)">+ 11 more</div>
+                  </div>
+                </div>
+
+                <!-- center -->
+                <div style="padding:16px 20px;display:grid;gap:12px;align-content:start">
+                  <div class="fx ac jb">
+                    <div class="fx ac gap8"><span class="btn">Short rest</span><span class="btn">Long rest</span></div>
+                    <div class="fx ac gap8"><span class="chip warn">Poisoned</span><span class="chip warn">Exhaustion 1</span><span class="chip conc">Concentrating · Spike Growth</span><span class="btn" style="height:26px;font-size:11px">Conditions</span></div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 420px;gap:12px">
+                    <div class="card" style="padding:14px 16px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-content:center">
+                      <div class="stat" style="border:0;padding:0"><span class="lab">Armor class</span><span class="num big">16</span></div>
+                      <div class="stat" style="border:0;padding:0"><span class="lab">Initiative</span><span class="num big">+4</span></div>
+                      <div class="stat" style="border:0;padding:0"><span class="lab">Speed</span><span class="num big">35<span style="font-size:14px;color:var(--muted);margin-left:2px">ft</span></span></div>
+                      <div class="stat" style="border:0;padding:0"><span class="lab">Spell DC</span><span class="num big">13</span></div>
+                    </div>
+                    <div class="card" style="padding:12px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:center">
+                      <span class="lab g">Hit points</span><span class="fx ac gap8 jb"><span class="chip">Temp +5</span><span class="fx ac gap6"><span class="lab">HD</span><span class="pips"><i class="pip on"></i><i class="pip on"></i><i class="pip on"></i><i class="pip spent"></i><i class="pip spent"></i></span></span></span>
+                      <span class="fx ac gap8" style="align-items:baseline"><span class="hpnum" style="color:var(--hp);font-size:44px">38</span><span class="hpmax">/ 44</span></span>
+                      <span class="fx ac gap8"><span class="btn hp" style="flex:1">Damage</span><span class="btn heal" style="flex:1">Heal</span></span>
+                      <span class="bar" style="grid-column:1 / -1"><i style="width:86%"></i></span>
+                    </div>
+                  </div>
+                  <div class="card">
+                    <div class="tabs"><span class="tab on">Actions</span><span class="tab">Spells</span><span class="tab">Inventory</span><span class="tab">Features</span><span class="tab">Background</span><span class="tab">Notes</span></div>
+                    <div style="padding:14px 16px;display:grid;grid-template-columns:1.4fr 1fr;gap:20px">
+                      <div>
+                        <div class="fx ac jb"><span class="lab g">Attacks</span><span class="chip">2 attacks / action</span></div>
+                        <div class="atk" style="padding-top:8px"><span class="h">Weapon</span><span class="h">To hit</span><span class="h">Damage</span><span class="h">Range</span></div>
+                        <div class="atk"><b>Longbow</b><span class="num mid">+7</span><span>1d8+4 piercing</span><span style="color:var(--muted)">150 / 600 ft</span></div>
+                        <div class="atk"><b>Shortsword</b><span class="num mid">+7</span><span>1d6+4 piercing</span><span style="color:var(--muted)">melee, light</span></div>
+                        <div class="atk"><b>Shortsword (off hand)</b><span class="num mid">+7</span><span>1d6 piercing</span><span style="color:var(--muted)">bonus action</span></div>
+                        <div class="lab g" style="margin-top:14px">Action economy</div>
+                        <div class="row"><span>Action</span><span></span><span style="color:var(--muted)">Attack ×2, Cast, Dash, Hide</span></div>
+                        <div class="row"><span>Bonus</span><span></span><span style="color:var(--muted)">Off-hand attack, Hunter's Mark</span></div>
+                        <div class="row"><span>Reaction</span><span></span><span style="color:var(--muted)">Opportunity attack</span></div>
+                      </div>
+                      <div>
+                        <div class="lab g">Limited use</div>
+                        <div class="row"><span>Favored Foe</span><span class="pips"><i class="pip on"></i><i class="pip on"></i><i class="pip spent"></i></span><span class="lab">LR</span></div>
+                        <div class="row"><span>Slots · 1st</span><span class="pips"><i class="pip on"></i><i class="pip on"></i><i class="pip spent"></i><i class="pip spent"></i></span><span class="lab">LR</span></div>
+                        <div class="row"><span>Slots · 2nd</span><span class="pips"><i class="pip on"></i><i class="pip spent"></i></span><span class="lab">LR</span></div>
+                        <div class="lab g" style="margin-top:14px">Prepared, quick cast</div>
+                        <div class="row"><span>Hunter's Mark</span><span class="chip" style="height:20px;font-size:10px">1st</span><span class="lab">bonus</span></div>
+                        <div class="row"><span>Cure Wounds</span><span class="chip" style="height:20px;font-size:10px">1st</span><span class="lab">action</span></div>
+                        <div class="row"><span>Spike Growth</span><span class="chip conc" style="height:20px;font-size:10px">2nd · conc</span><span class="lab">action</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- dice rail -->
+                <div style="background:#fff;border-left:1px solid var(--line);padding:12px 12px;display:grid;gap:6px;align-content:start;justify-items:center">
+                  <span class="lab" style="margin-bottom:2px">Roll</span>
+                  <div class="die">d<span>4</span></div><div class="die">d<span>6</span></div><div class="die">d<span>8</span></div><div class="die">d<span>10</span></div><div class="die">d<span>12</span></div><div class="die" style="border-color:var(--gold)">d<span>20</span></div><div class="die">d<span>100</span></div>
+                  <span class="lab" style="margin-top:8px">×1</span>
+                  <span class="lab" style="margin-top:8px">Log</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <p class="dv-next">Try next: "take <a class="dv-oid" href="#1a">1a</a> and move the dice rail in like <a class="dv-oid" href="#1b">1b</a>" · "<a class="dv-oid" href="#1b">1b</a> at rest, out of combat" · "dark mode of either" · "the phone layout".</p>
+      </section>
+    </x-dc>
+    <script
+      type="text/x-dc"
+      data-dc-script
+      data-props='{}'
+    >
+      class Component extends DCLogic {
+        renderVals() { return {}; }
+      }
+    </script>
+  </body>
+</html>
