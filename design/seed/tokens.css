@@ -1,0 +1,46 @@
+/* Current Universal Character Sheet (ucs) tokens, extracted from index.html for the Claude Design seed. Light first, then dark. */
+  :root{
+    --bg:#eef0f3;
+    --card:#ffffff;
+    --ink:#1a1d23;
+    --muted:#6b7280;
+    --line:#e3e6ea;
+    --line2:#d6dbe1;
+    --accent:#3b4a63;
+    --accent-soft:#eef1f6;
+    --field:#f7f8fa;
+    --radius:12px;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.05);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji",sans-serif;
+  body[data-theme="ucs"]{
+    --bg:#e9eaec;            /* desk behind the sheet (light) */
+    --card:#ffffff;          /* panel surface */
+    --ink:#1d1f23;           /* primary text */
+    --muted:#6a6f78;         /* sublabels */
+    --line:#dadde2;          /* hairline separators */
+    --line2:#9a7c33;         /* gold rule / emphasis */
+    --accent:#8a6d22;        /* values & active accents read as deep gold on light */
+    --accent-soft:#f3eedf;   /* soft gold fill */
+    --field:#f5f6f8;         /* fillable boxes */
+    --radius:6px;
+    --shadow:none;
+    --ucs-panel:#f4f5f7;     /* slightly inset panels (rail/skills) */
+    --ucs-gold:#a07d22;
+    --ucs-hp:#9e2b25;
+  }
+  body[data-theme="ucs"].dark{
+    --bg:#0c0d0f;            /* near-black desk */
+    --card:#16181c;          /* charcoal panel */
+    --ink:#e4e5e8;
+    --muted:#8a8f98;
+    --line:#2c3037;
+    --line2:#c6a458;         /* gold rule */
+    --accent:#e2c477;        /* bright gold values */
+    --accent-soft:#23262c;
+    --field:#1c1f25;
+    --ucs-panel:#101216;
+    --ucs-gold:#c6a458;
+    --ucs-hp:#d4534a;
+  }
+
+  /* ---- Panels + gold section headers ---- */
