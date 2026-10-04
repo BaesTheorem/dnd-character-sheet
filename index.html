@@ -1376,6 +1376,12 @@
     body.print-dark{ background:#15171c !important; }   /* opted-in dark print: keep the page dark (beats the html,body white-forcing below); surfaces ride the body.dark vars */
     :root{--bg:#fff; --shadow:none}
     @page{size:letter; margin:8mm}
+    /* Quick Print Blank Sheet: the three official Classic pages as plain images, nothing else on paper.
+       731x946 = the same 0.86 fit the Classic print uses (850x1100 art inside Letter at 8mm margins). */
+    body.blank-printing > *:not(#blank-print){ display:none !important; }
+    body.blank-printing #blank-print{ display:block !important; }
+    #blank-print img{ display:block; width:731px; height:946px; margin:0 auto; break-after:page; break-inside:avoid; }
+    #blank-print img:last-child{ break-after:auto; }
     html,body{background:#fff; padding:0; font-size:9px;
       -webkit-print-color-adjust:exact; print-color-adjust:exact}
     /* hide builder/interaction chrome — print character data only */
@@ -1839,6 +1845,7 @@
      canonical pages (core / bg / spells) render here; every other tab except Mini
      is hidden in Classic (applyLayout). Universal theme is untouched.
      ============================================================================ */
+  #blank-print{ display:none; }
   .cl-canvas-wrap{ display:none; width:100%; overflow:hidden; justify-content:center; }
   body.classic-layout #page-core > *:not(.cl-canvas-wrap),
   body.classic-layout #page-bg   > *:not(.cl-canvas-wrap),
@@ -2183,6 +2190,7 @@
         <button class="btn menu-item" id="btn-manage" title="See all your characters and switch between them">Manage Characters</button>
         <button class="btn menu-item" id="btn-hb-studio-top" type="button" title="Create and manage your custom spells, items, feats, and more">Homebrew Studio</button>
         <button class="btn menu-item" id="btn-print">Print / PDF</button>
+        <button class="btn menu-item" id="btn-print-blank" type="button" title="Print the official three-page blank character sheet (Classic) to fill in by hand. Your open character is not changed.">Quick Print Blank Sheet</button>
         <button class="btn menu-item" id="btn-rolllog" type="button" title="This character's recent dice rolls (last 50)">Roll Log</button>
         <button class="btn menu-item" id="btn-verhist" type="button" title="Roll this character back to an earlier state">Version History</button>
         <button class="btn menu-item" id="btn-settings" title="Sheet settings (page layout)">Settings</button>
@@ -3297,11 +3305,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v637 (2026-08-11)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v641 (2026-10-04)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.167.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.168.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3309,6 +3317,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v641", semver:"2.168.0", items:[
+      "New in the menu: Quick Print Blank Sheet. It prints the official three-page Classic character sheet with nothing filled in, to hand to a new player or fill in by pencil. The character you have open is not changed, and you do not need to switch themes.",
+    ]},
     {v:"v637", semver:"2.167.0", items:[
       "Printed sheets now use the abbreviated, emphasized ability labels too (STR, DEX, CON, INT, WIS, CHA), matching the cluster view. This applies to every printed sheet, since printing always uses the standard layout. Row heights are unchanged, so the Core page still fits one page.",
     ]},
@@ -15486,6 +15497,19 @@
       }
       window.print();
     });
+    // Quick Print Blank Sheet: print the official Classic art with no character on it. The pages go in a
+    // transient sibling of the sheet and print CSS hides everything else, so the open character, the theme and
+    // the live layout are never touched (the print invariant holds by construction).
+    $("btn-print-blank").addEventListener("click", () => {
+      const art = typeof window.classicBlankPages === "function" ? window.classicBlankPages() : [];
+      if(!art.length){ flashStatus("This copy of the sheet has no Classic page art to print"); return; }
+      const old = $("blank-print"); if(old) old.remove();
+      const box = document.createElement("div"); box.id = "blank-print"; box.setAttribute("data-transient", "");
+      art.forEach(src => { const im = new Image(); im.alt = ""; im.src = src; box.appendChild(im); });
+      document.body.appendChild(box); document.body.classList.add("blank-printing");
+      afterPrintOnce(() => { document.body.classList.remove("blank-printing"); box.remove(); });
+      Promise.all([...box.querySelectorAll("img")].map(im => im.decode().catch(() => {}))).then(() => window.print());
+    });
     $("set-variant-enc").addEventListener("change", e => { variantEncumbrance = e.target.checked; save(); compute(); });   // compute redraws the Carrying Capacity card
     $("set-futuristic").addEventListener("change", e => { showFuturistic = e.target.checked; save(); });   // item autocompletes read availableItemNames() live
     $("set-modern").addEventListener("change", e => { showModern = e.target.checked; save(); });
@@ -17025,6 +17049,7 @@
       }
     }
     window.buildClassicPages=buildAll; window.syncClassicPg1=syncClassic; window.applyClassicArt=applyArt;
+    window.classicBlankPages=function(){ return PAGES.map(function(d){ return d.light; }); };   // Core, Background, Spells: the blank official art (Quick Print Blank Sheet)
 
     if(typeof window.applyThemeSetting==='function'){ var oa=window.applyThemeSetting;
       window.applyThemeSetting=function(){ var r=oa.apply(this,arguments); try{
