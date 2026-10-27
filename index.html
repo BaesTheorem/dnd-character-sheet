@@ -520,6 +520,8 @@
   .combat-top .stat .k, .hp-grid .stat .k{margin-bottom:1px}
   .combat-top .stat input, .hp-grid .stat input{padding:0; border:none !important; background:transparent !important}
   body.dark .combat-top .stat input, body.dark .hp-grid .stat input{border:none !important; background:transparent !important}
+  .ac-noarmor{display:block; margin:2px auto 0; padding:0; border:0; background:none; color:var(--accent); font:inherit; font-size:10px; font-weight:600; text-decoration:underline; text-underline-offset:2px; cursor:pointer}   /* AC computed as unarmored because no armor is chosen: a link to the picker */
+  .ac-noarmor[hidden]{display:none}
   .combat-top:not(.hd-grid) .stat{justify-content:flex-start}   /* labels (Armor Class/Initiative/Speed) pinned to the top of their boxes */
   .combat-top.hd-grid{grid-template-columns:repeat(4,1fr); gap:8px}   /* Hit Dice: all 4 boxes on one line */
   .stat.toggle-stat{cursor:pointer; user-select:none}
@@ -1613,6 +1615,19 @@
   html.mobile .spelltable .sp-mmeta{ display:block; width:100%; flex-basis:100%; font-size:10px; color:var(--muted); line-height:1.25; margin-top:1px; white-space:normal; font-weight:400 }   /* the hidden columns fold into this stacked line so the properties still show */
   html.mobile .spelltable td.col-name-edit{ flex-wrap:wrap }   /* let the meta line drop below the name field on write-in rows */
   html.mobile .spelltable td.col-name{ font-size:14px; }   /* a touch larger now that there's room */
+  /* Spell names on a phone: the name shares its first line only with Cast; edit and delete drop to the second line
+     beside the meta text, and the damage cell may wrap, so a name like "Evard's Black Tentacles" fits instead of being
+     cut off. The flex bases force exactly that break: name 55% + Cast fits one line, adding the 55% meta line does not. */
+  html.mobile .spelltable td.col-name-edit .sp-name{ order:1; flex:1 1 55%; }
+  html.mobile .spelltable td.col-name-edit .sp-cast{ order:2; }
+  html.mobile .spelltable td.col-name-edit .sp-mmeta{ order:3; flex:1 1 55%; width:auto; }
+  html.mobile .spelltable td.col-name-edit .sp-edit, html.mobile .spelltable td.col-name-edit .sp-del{ order:4; align-self:flex-start; }
+  html.mobile .spelltable td.col-dmg{ white-space:normal; }
+  /* Features on a phone: the character's own features first, the pickers (invocations, metamagic, maneuvers,
+     infusions, Arcane Armor) after them. Screen only, so print keeps the DOM order. */
+  html.mobile #page-feat.active{ display:flex; flex-direction:column; }
+  html.mobile #page-feat > #feat-cards{ order:1; }
+  html.mobile #page-feat > #infusions-inner, html.mobile #page-feat > #optfeat-inner, html.mobile #page-feat > #arcane-armor-card{ order:2; }
   html.mobile body{ padding-bottom:calc(16px + env(safe-area-inset-bottom,0px)); }   /* clear the home-bar so it doesn't cover the last card */
   /* iOS Safari: the sticky .pagetabs is an overflow-x scroller with a margin:0 -10px edge-bleed; on a real
      device that lets you rubber-band/overscroll the document sideways into the empty -10px region (blank space +
@@ -1822,6 +1837,10 @@
   .sr-text{font-size:14px; color:var(--ink); line-height:1.35}
   .sr-text mark{background:var(--accent); color:#fff; padding:0 1px}
   .sr-meta{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+  .sr-field .sr-text{display:flex; align-items:baseline; justify-content:space-between; gap:12px}   /* a named box: label left, live value right */
+  .sr-label{font-weight:600}
+  .sr-val{font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; max-width:60%}
+  body.dark .sr-text mark{color:#141414}   /* the dark accent is a light gold: white ink on it fails contrast */
   .sr-empty{padding:16px 15px; color:var(--muted); font-size:13px}
   @keyframes search-flash{0%,55%{background:var(--accent-soft)} 100%{background:transparent}}
   .flash-hit{animation:search-flash 1.3s ease-out}
@@ -2240,7 +2259,7 @@
   <!-- Character Manager: card view of every character saved in this browser; switch / create / rename / duplicate / delete -->
   <div class="modal noprint" id="search-modal">
     <div class="modal-panel search-panel">
-      <input type="text" id="search-input" placeholder="Search this character — feats, spells, items, stats, notes…" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <input type="text" id="search-input" placeholder="Find a box (hp, ac, save dc) or any word on the sheet" autocomplete="off" autocapitalize="off" spellcheck="false">
       <div id="search-results" class="search-results"></div>
     </div>
   </div>
@@ -2399,7 +2418,7 @@
           <div id="abilities"><div class="ability"><span class="name" data-abbr="STR">Strength</span><span class="score-out" id="score-str-out"></span><span class="mod" id="mod-str"></span></div><div class="ability"><span class="name" data-abbr="DEX">Dexterity</span><span class="score-out" id="score-dex-out"></span><span class="mod" id="mod-dex"></span></div><div class="ability"><span class="name" data-abbr="CON">Constitution</span><span class="score-out" id="score-con-out"></span><span class="mod" id="mod-con"></span></div><div class="ability"><span class="name" data-abbr="INT">Intelligence</span><span class="score-out" id="score-int-out"></span><span class="mod" id="mod-int"></span></div><div class="ability"><span class="name" data-abbr="WIS">Wisdom</span><span class="score-out" id="score-wis-out"></span><span class="mod" id="mod-wis"></span></div><div class="ability"><span class="name" data-abbr="CHA">Charisma</span><span class="score-out" id="score-cha-out"></span><span class="mod" id="mod-cha"></span></div></div>
         </div>
 
-        <div class="card" data-csec="saves">
+        <div class="card" data-csec="saves" data-open>
           <h2>Saving Throws</h2>
           <div id="saves">
       <div class="row">
@@ -2434,7 +2453,7 @@
       </div></div>
         </div>
 
-        <div class="card" data-csec="skills">
+        <div class="card" data-csec="skills" data-open>
           <h2>Skills <button class="noprint" id="sk-sort" type="button">A–Z</button></h2>
           <div id="skills">
       <div class="row">
@@ -2582,7 +2601,7 @@
         <span class="rname">Survival <span class="ab">Wis</span></span>
       </div></div>
         </div>
-        <div class="card grow" data-csec="senses">
+        <div class="card grow" data-csec="senses" data-open>
           <h2>Senses</h2>
           <div class="passive">
             <span class="v" id="passive"></span>
@@ -2648,7 +2667,7 @@
                 </div>
               </div>
               <div class="combat-top">
-                <div class="stat"><div class="k">Armor Class</div><div class="calc" id="ac-calc"></div></div>
+                <div class="stat"><div class="k">Armor Class</div><div class="calc" id="ac-calc"></div><button type="button" class="ac-noarmor noprint" id="ac-noarmor" hidden title="This Armor Class assumes no armor. Tap to choose your armor on the Inventory page.">No armor selected</button></div>
                 <div class="stat"><div class="k">Initiative</div><div class="calc" id="init"></div></div>
                 <div class="stat"><div class="k">Speed</div><input id="speed" title="Effective walking speed (encumbrance / Unarmored Movement applied). Click to edit your base speed."></div>
               </div>
@@ -2671,7 +2690,7 @@
           </div>
         </div>
 
-        <div class="card" data-csec="attacks">
+        <div class="card" data-csec="attacks" data-open>
           <div class="atk-top">
             <h2>Attacks</h2>
             <div class="stat atk-per-box"><div class="k">Attacks / Action</div><div class="calc" id="attacks-per"></div></div>
@@ -2686,13 +2705,13 @@
           <p class="help noprint">Toggle a weapon's <strong>Atk</strong> box in Inventory to auto-fill a row. Drag the ⠿ handle to reorder, ✕ to delete a row, "+ Add row" for a manual attack. Ranged and thrown weapons show a fire/throw button with a live count of matching ammo; click it to spend one. "Per action" counts Extra Attack; bonus-action attacks (Monk, two-weapon, Crossbow Expert) and invocations like Thirsting Blade are separate.</p>
         </div>
 
-        <div class="card" id="action-econ-card" data-csec="actionecon" style="display:none">
+        <div class="card" id="action-econ-card" data-csec="actionecon" data-open style="display:none">
           <h2>Action Economy</h2>
           <div class="action-econ" id="action-econ"></div>
           <p class="help noprint">Auto-sorted from your features by action cost (Action / Bonus Action / Reaction). Derived from the feature text, so it's a quick combat reference, not exhaustive. Weapon attacks live in the Attacks table.</p>
         </div>
 
-        <div class="card" data-csec="limited">
+        <div class="card" data-csec="limited" data-open>
           <h2>Limited Features</h2>
           <div class="lf-cols">
           <table class="lftable">
@@ -2710,7 +2729,7 @@
           <p class="help noprint">Track uses per rest — Recover: LR (long rest), SR (short rest), or Dawn. The list grows as you add features. Drag ⠿ to reorder, ✕ to delete a row, "+ Add row" for a manual one.</p>
         </div>
 
-        <div class="card" data-csec="hitdice">
+        <div class="card" data-csec="hitdice" data-open>
           <h2>Hit Dice</h2>
           <div class="combat-top hd-grid">
             <div class="stat">
@@ -3305,11 +3324,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v642 (2026-10-05)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v643 (2026-10-27)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.168.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.169.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3317,6 +3336,14 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v643", semver:"2.169.0", items:[
+      "Search now knows what each box on the sheet is called. Type \"hp\", \"ac\", \"save dc\", \"dex save\", \"stealth\", \"slots\" or \"gold\" and the top result shows the number and takes you to it, opening the section first if it was closed. Before, Search only matched words written inside fields, so \"armor class\" or \"spell save\" found nothing.",
+      "On phones, Attacks, Saving Throws, Skills, Senses, Limited Features and Hit Dice now start open on the Core page. If you close or open a section, your phone remembers it. Before, every reload closed them again.",
+      "Armor Class is no longer blank when no armor is selected. It shows your unarmored AC (10 + Dex, or your class or race version of it), with a \"No armor selected\" link under it that opens the armor picker on the Inventory page.",
+      "On phones, a spell name now shares its line only with the Cast button, so names like \"Hypnotic Pattern\" are no longer cut off. The edit and delete buttons moved to the line below, next to the spell details.",
+      "On phones, the Features page lists your own features first. The pickers for invocations, metamagic, maneuvers and the rest now come after them.",
+      "Fixed: with the ability-cluster layout on, a phone opened the sheet with Abilities & Skills collapsed, so no ability scores showed.",
+    ]},
     {v:"v641", semver:"2.168.0", items:[
       "New in the menu: Quick Print Blank Sheet. It prints the official three-page Classic character sheet with nothing filled in, to hand to a new player or fill in by pencil. The character you have open is not changed, and you do not need to switch themes.",
     ]},
@@ -9836,9 +9863,7 @@
       const modVal = $("armormod") ? $("armormod").value : "";                  // Mithral / Adamantine / +1..+3
       let bonus = acItemsState().bonus;                                          // equipped (and, if required, attuned) AC-bonus items
       let acBase, realArmor = null;
-      if(sel === ""){
-        acBase = null;                                                          // no armor chosen → AC blank
-      } else if(sel === "Custom"){
+      if(sel === "Custom"){
         const m = ((customEl && customEl.value) || "").match(/-?\d+/);          // use the number you typed as the base AC
         acBase = m ? parseInt(m[0], 10) : null;
       } else {
@@ -9861,7 +9886,7 @@
           else if(armor.type === "MA"){ dexAdd = (mods.dex == null) ? null : Math.min(mods.dex, 2); }  // medium: Dex max 2
           // light (LA) and unarmored: full Dex
           if(armNote && armor.stealth && modVal !== "mithral"){ armNote.textContent = "Disadvantage on Dexterity (Stealth) checks while worn."; armNote.style.display = ""; }  // mithral removes it
-        } else if(sel === "Unarmored"){                                        // Unarmored Defense / natural armor / class & race AC
+        } else if(sel === "Unarmored" || sel === ""){                          // Unarmored Defense / natural armor / class & race AC (no armor chosen counts as unarmored; #ac-noarmor links to the picker)
           const cls = ($("classlevel").value || "").toLowerCase();
           if(/barbarian/.test(cls)) base = 10 + (mods.con || 0);               // Barbarian: 10 + Dex + Con
           else if(/monk/.test(cls)) base = 10 + (mods.wis || 0);               // Monk: 10 + Dex + Wis
@@ -9889,6 +9914,7 @@
       const fsDefense = (armorWorn && hasFightingStyle("Defense")) ? 1 : 0;
       const infDef = (armorWorn || bonus > 0) ? infusionEnhancedDefenseBonus() : 0;   // Artificer Enhanced Defense infusion (needs worn armor or a shield)
       $("ac-calc").textContent = (acBase == null) ? "" : (acBase + bonus + warforged + fsDefense + infDef);
+      const noArm = $("ac-noarmor"); if(noArm) noArm.hidden = (sel !== "");
     }
 
     // --- hit dice available = total - used ---
@@ -12130,7 +12156,7 @@
     return null;
   }
   function _searchItems(){
-    const items = [], pageName = k => k==="core" ? "Core" : (PAGES.find(p=>p[0]===k)||[k,k])[1];
+    const items = [], pageName = _searchPageName;
     const root = document.querySelector(".sheet") || document;
     root.querySelectorAll("input[type=text], input:not([type]), textarea, select").forEach(el => {
         if(el.type === "hidden") return;
@@ -12145,31 +12171,117 @@
           val.split(/\n+/).map(s=>s.trim()).filter(Boolean).forEach(line => items.push({text:line, page:pk, pageName:pageName(pk), ctx, el}));
         } else items.push({text:val, page:pk, pageName:pageName(pk), ctx, el});
     });
-    // a few by-name stats so "strength", "armor class", etc. land somewhere useful
-    const STAT_HINTS = [["abilities","Strength Dexterity Constitution Intelligence Wisdom Charisma ability scores","core","Abilities"],
-      ["combat-ac","Armor Class AC","core","Combat"],["combat-hp","Hit Points HP","core","Combat"],
-      ["skills","Skills","core","Skills"],["senses","Passive Perception senses","core","Senses"]];
-    STAT_HINTS.forEach(([id,text,pk,ctx]) => { const el = $(id); if(el) items.push({text, page:pk, pageName:"Core", ctx, el, stat:true}); });
     return items;
+  }
+  function _searchPageName(k){
+    if(k === "core") return "Core";
+    const sp = /^spells__(\d+)$/.exec(k); if(sp) return "Spells " + (+sp[1] + 1);   // second, third… spell sheet
+    return (PAGES.find(p=>p[0]===k)||[k,k])[1];
+  }
+  const _searchWords = s => String(s||"").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  function _searchText(el){   // a box's visible value, minus the advantage-marker SVG text that rides inside some totals
+    if(!el) return "";
+    if(el.tagName === "INPUT" || el.tagName === "TEXTAREA") return (el.value||"").trim();
+    if(el.tagName === "SELECT") return (el.value && el.selectedIndex >= 0) ? el.options[el.selectedIndex].textContent.trim() : "";
+    const c = el.cloneNode(true); c.querySelectorAll(".advmark").forEach(x => x.remove());
+    return c.textContent.replace(/\s+/g," ").trim();
+  }
+  // The sheet's own vocabulary: what a player (or the DM) calls each box. A query that names a box ("hp", "save dc",
+  // "dex save", "stealth", "gold") lands on the box itself and shows its live value, ranked above matches inside
+  // text. Read from the live DOM per search, so it follows compute and every layout (UCS relocation, clusters, phones).
+  function _searchFields(){
+    const out = [], t = id => _searchText(typeof id === "string" ? $(id) : id);
+    const add = (target, label, terms, val) => {
+      const el = typeof target === "string" ? $(target) : target; if(!el) return;
+      const page = _fieldPageKey(el); if(!page) return;
+      out.push({label, words:_searchWords(label + " " + terms), val:String(val == null ? "" : val).trim(), el, page,
+                pageName:_searchPageName(page), ctx:_searchContextLabel(el), field:true, stat:true});
+    };
+    const card = csec => document.querySelector('.card[data-csec="' + csec + '"]');
+    const kids = id => { const e = $(id); return e ? [...e.children].map(_searchText).filter(Boolean).join(", ") : ""; };
+    const hp = [t("hpcur"), t("hpmax")].filter(Boolean).join(" / "), tmp = t("hptmp");
+    add("hpcur", "Hit Points", "hp health current max", hp + (tmp ? " (+" + tmp + " temp)" : ""));
+    add("hptmp", "Temporary Hit Points", "temp thp hp", tmp);
+    add("ac-calc", "Armor Class", "ac armour defense", t("ac-calc"));
+    add("init", "Initiative", "init", t("init"));
+    add("speed", "Speed", "movement move walk walking feet ft", t("speed"));
+    add("pb", "Proficiency Bonus", "prof pb", t("pb"));
+    add("inspiration", "Inspiration", "insp", "");
+    add("passive", "Passive Perception", "pp", t("passive"));
+    add("sense-chips", "Senses", "sense darkvision blindsight truesight tremorsense", kids("sense-chips"));
+    add("def-chips", "Defenses", "defense resistance resistances resist immunity immunities immune vulnerability", kids("def-chips"));
+    add("cond-active", "Conditions", "condition exhaustion", t("cond-active"));
+    add(card("attacks"), "Attacks", "attack weapon weapons hit damage melee ranged",
+        [...document.querySelectorAll('#attacks input[id^="atkname-"]')].map(i => i.value.trim()).filter(Boolean).join(", "));
+    add("action-econ", "Action Economy", "actions action bonus reaction reactions", "");
+    add(card("limited"), "Limited Features", "limited uses charges recharge rest", "");
+    add("hitdice", "Hit Dice", "hd die short rest", [t("hitdice"), t("hd-avail")].filter(Boolean).join(" · "));
+    ABILITIES.forEach(([k, name]) => {
+      const sc = t("score-" + k + "-out"), md = t("mod-" + k);
+      add("mod-" + k, name, k + " ability check score modifier mod", sc ? sc + " (" + md + ")" : md);
+      add("savetot-" + k, name + " Saving Throw", k + " save saves", t("savetot-" + k));
+    });
+    SKILLS.forEach(([key, name, ab]) => add("sktot-" + key, name + " (" + ABBR[ab] + ")", "skill check", t("sktot-" + key)));
+    document.querySelectorAll('[id^="spelldc"]').forEach(el => {   // one set per spell sheet (sheet 0 = bare ids)
+      const inst = +(el.id.split("__")[1] || 0);
+      add(el, "Spell Save DC", "dc save spell spellcasting", t(el));
+      add(sEl(inst, "spellatk"), "Spell Attack", "spell attack bonus hit spellcasting", t(sEl(inst, "spellatk")));
+      add(sEl(inst, "slots-card"), "Spell Slots", "slots slot spell", "");
+    });
+    const coins = ["pp","gp","ep","sp","cp"].map(c => { const v = t(c); return v && v !== "0" ? v + " " + c : ""; }).filter(Boolean).join(", ");
+    add($("gp") && $("gp").closest(".card"), "Currency", "gold gp money coins coin platinum pp electrum ep silver sp copper cp", coins);
+    add("armorsel", "Armor", "armour", t("armorsel"));
+    add($("attune-0") && $("attune-0").closest(".card"), "Attuned Items", "attunement attune", "");
+    add("inv", "Inventory", "items item equipment gear pack backpack", "");
+    add("proficiencies", "Proficiencies and Languages", "proficiency languages language tools tool", "");
+    add("feat-cards", "Features & Traits", "features feature traits trait feats feat", "");
+    add("xp", "Experience", "xp level", t("xp"));
+    add("notes", "Notes", "note", "");
+    return out;
+  }
+  function _fieldScore(f, toks){   // every query word must name the box: exact word 3, word start 2 (2+ letters)
+    let s = 0;
+    for(const q of toks){
+      let best = 0;
+      for(const w of f.words){ if(w === q){ best = 3; break; } if(q.length > 1 && w.startsWith(q)) best = 2; }
+      if(!best) return 0;
+      s += best;
+    }
+    return s;
   }
   let _searchHits = [], _searchSel = 0;
   function _searchHi(text,q){ const i=text.toLowerCase().indexOf(q); if(i<0) return esc(text); return esc(text.slice(0,i))+"<mark>"+esc(text.slice(i,i+q.length))+"</mark>"+esc(text.slice(i+q.length)); }
   function runSearch(q){
     q = (q||"").trim().toLowerCase(); const box = $("search-results");
-    if(!q){ box.innerHTML = `<div class="sr-empty">Type to search feats, spells, items, proficiencies, notes…</div>`; _searchHits = []; return; }
+    if(!q){ box.innerHTML = `<div class="sr-empty">Type the name of a box (hp, ac, save dc, dex save, slots, gold) or any word on the sheet.</div>`; _searchHits = []; return; }
+    const toks = _searchWords(q);
+    const fields = toks.length ? _searchFields().map(f => ({f, s:_fieldScore(f, toks)})).filter(x => x.s > 0)
+      .sort((a,b) => b.s - a.s).slice(0,8).map(x => x.f) : [];
     const seen = new Set();
-    _searchHits = _searchItems().filter(it => it.text.toLowerCase().includes(q))
+    const texts = _searchItems().filter(it => it.text.toLowerCase().includes(q))
       .filter(it => { const k = it.page+"|"+it.text+"|"+it.ctx; if(seen.has(k)) return false; seen.add(k); return true; }).slice(0,60);
+    _searchHits = fields.concat(texts);
     _searchSel = 0;
     if(!_searchHits.length){ box.innerHTML = `<div class="sr-empty">No matches in this character.</div>`; return; }
-    box.innerHTML = _searchHits.map((it,i) => `<div class="sr-row${i===0?" sel":""}" data-i="${i}"><div class="sr-text">${_searchHi(it.text,q)}</div><div class="sr-meta">${esc(it.pageName)}${it.ctx && it.ctx!==it.pageName?" · "+esc(it.ctx):""}</div></div>`).join("");
+    const meta = it => `<div class="sr-meta">${esc(it.pageName)}${it.ctx && it.ctx!==it.pageName && it.ctx!==it.label?" · "+esc(it.ctx):""}</div>`;
+    box.innerHTML = _searchHits.map((it,i) => it.field
+      ? `<div class="sr-row sr-field${i===0?" sel":""}" data-i="${i}"><div class="sr-text"><span class="sr-label">${_searchHi(it.label,q)}</span>${it.val ? `<span class="sr-val">${esc(it.val)}</span>` : ""}</div>${meta(it)}</div>`
+      : `<div class="sr-row${i===0?" sel":""}" data-i="${i}"><div class="sr-text">${_searchHi(it.text,q)}</div>${meta(it)}</div>`).join("");
+  }
+  // Bring a field into view wherever it lives: switch to its page, open its card if the phone layout collapsed it,
+  // scroll it to the middle and flash it. Shared by Search and the "No armor selected" link under Armor Class.
+  function jumpToField(el, page, focus){
+    if(!el) return;
+    if(page) showPage(page);
+    const cc = el.closest(".card.collapsible.collapsed");
+    if(cc && typeof window.setCoreCardOpen === "function") window.setCoreCardOpen(cc, true);
+    setTimeout(()=>{ try{ el.scrollIntoView({block:"center", behavior:"smooth"}); el.classList.add("flash-hit"); setTimeout(()=>el.classList.remove("flash-hit"), 1400);
+      if(focus && el.focus && el.tagName !== "SELECT"){ try{ el.focus({preventScroll:true}); }catch(e){} } }catch(e){} }, 70);
   }
   function jumpToHit(i){
     const it = _searchHits[i]; if(!it) return;
     closeSearch();
-    if(it.page) showPage(it.page);
-    setTimeout(()=>{ try{ it.el.scrollIntoView({block:"center", behavior:"smooth"}); it.el.classList.add("flash-hit"); setTimeout(()=>it.el.classList.remove("flash-hit"), 1400);
-      if(!it.stat && it.el.focus && it.el.tagName !== "SELECT"){ try{ it.el.focus({preventScroll:true}); }catch(e){} } }catch(e){} }, 70);
+    jumpToField(it.el, it.page, !it.stat);
   }
   function _searchPaintSel(){ const rows = document.querySelectorAll(".sr-row"); rows.forEach((r,i)=>r.classList.toggle("sel", i===_searchSel)); const s = rows[_searchSel]; if(s) s.scrollIntoView({block:"nearest"}); }
   function openSearch(){ $("search-modal").classList.add("open"); const inp = $("search-input"); inp.value = ""; runSearch(""); setTimeout(()=>inp.focus(), 30); }
@@ -12187,6 +12299,8 @@
     box.addEventListener("click", e => { const r = e.target.closest(".sr-row"); if(r) jumpToHit(+r.dataset.i); });
     $("search-modal").addEventListener("click", e => { if(e.target.id === "search-modal") closeSearch(); });
     document.addEventListener("keydown", e => { if((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")){ e.preventDefault(); openSearch(); } });
+    const noArm = $("ac-noarmor");   // "No armor selected" under Armor Class goes to the armor picker (Inventory)
+    if(noArm) noArm.addEventListener("click", () => { const a = $("armorsel"); jumpToField(a, a && _fieldPageKey(a), false); });
   }
   // ---- Optional features: Eldritch Invocations / Metamagic / Battle Master Maneuvers ----
   // Hand-baked into app code (like FIGHTING_STYLES / ARTIFICER_INFUSIONS) so it works no matter
@@ -17289,26 +17403,38 @@
 
   <script>
   /* Mobile Core: make each section heading a tap-to-collapse toggle.
-     Pure view state (a class on the card) — no data-save, no localStorage —
-     so it can never touch the character blob. Cards flagged [data-open] start
-     expanded; the rest start collapsed to a one-line header. The handler is a
-     no-op unless the mobile layout is active: in the desktop column layout the
-     headings are inert chrome and the collapse CSS doesn't apply. */
+     View state only (a class on the card), never in the character blob. Cards flagged [data-open]
+     start expanded (every card a player reaches for in a turn); the rest start collapsed to a one-line
+     header. Once a player opens or closes a card, this device remembers it (localStorage, per file like
+     the skill sort), so a reload no longer undoes the choice. The handler is a no-op unless the mobile
+     layout is active: in the desktop column layout the headings are inert chrome and the collapse CSS
+     doesn't apply. A saved copy serializes the live classes, so the start state is SET both ways, never
+     only added. window.setCoreCardOpen lets Search and other jumps open a card they land in. */
   (function(){
+    var KEY = (typeof _TPL_ID !== "undefined" && _TPL_ID) ? ("dnd-sheet-mcards::tpl:" + _TPL_ID) : "dnd-sheet-mcards";
+    var saved = {};
+    try{ saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; }catch(e){ saved = {}; }
+    function setOpen(card, open, keep){
+      var head = card.firstElementChild;
+      card.classList.toggle("collapsed", !open);
+      if(head) head.setAttribute("aria-expanded", open ? "true" : "false");
+      var k = card.getAttribute("data-csec");
+      if(keep && k){ saved[k] = open; try{ localStorage.setItem(KEY, JSON.stringify(saved)); }catch(e){} }
+    }
+    window.setCoreCardOpen = function(card, open){ if(card && card.classList.contains("collapsible")) setOpen(card, !!open, true); };
     var cards = document.querySelectorAll("#page-core .columns .card");
     Array.prototype.forEach.call(cards, function(card){
       if(!card.querySelector("h2")) return;        // skip the Prof-Bonus/Inspiration card (no heading)
       var head = card.firstElementChild;           // the <h2>, or the .atk-top row on Attacks
       if(!head) return;
       card.classList.add("collapsible");
-      if(!card.hasAttribute("data-open")) card.classList.add("collapsed");
+      var k = card.getAttribute("data-csec");
+      setOpen(card, (k && typeof saved[k] === "boolean") ? saved[k] : card.hasAttribute("data-open"), false);
       head.setAttribute("role", "button");
       head.setAttribute("tabindex", "0");
-      head.setAttribute("aria-expanded", card.classList.contains("collapsed") ? "false" : "true");
       function toggle(){
         if(!document.documentElement.classList.contains("mobile")) return;
-        var collapsed = card.classList.toggle("collapsed");
-        head.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        setOpen(card, card.classList.contains("collapsed"), true);
       }
       head.addEventListener("click", toggle);
       head.addEventListener("keydown", function(e){

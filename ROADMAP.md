@@ -4,6 +4,9 @@ The forward-looking work list for the sheet. Shipped work lives in the in-app ch
 
 ## Planned
 
+### Phone layout for play: release 1 SHIPPED 2.169.0 (2026-10-27)
+Direction B from the phone audit. Release 1 shipped Search by box name, play cards that start open and remember their state, unarmored AC with a link when no armor is selected, roomier spell names, and own features above the pickers. Release 2 is a stats bar on every tab, a bottom tab bar, one slim top row, and Core in turn order. Spec, evidence and the player test that judges it: `plans/phone-play-layout.md`. A static mockup comes before any release 2 code.
+
 ### Integrations with other tables — SHIPPED 2.153.0 (2026-07-28)
 Settings → Integrations: Beyond20 live-roll bridge (Roll20 / Foundry VTT / Discord), Discord webhook, Foundry `dnd5e` actor export, and importers for D&D Beyond and character-sheet PDFs (MPMB + the official fillable sheet, read directly via DecompressionStream). Follow-ups if wanted:
 - Beyond20's richer roll types (`attack`, `spell-card`) instead of the universal `chat-message`, so a VTT renders a proper attack card rather than a text line.
