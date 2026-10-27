@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone play layout, release 2 mockup (v1)</title>
+<!-- Static mockup for plans/phone-play-layout.md. Invented sample character from design/seed/BRIEF.md.
+     Tokens are the shipped UCS palette (design/seed/tokens.css). Square corners, no shadows, system fonts.
+     ?full renders the bottom bar in flow so a full-page capture shows the whole order. ?light = light mode. -->
+<style>
+  :root{
+    --bg:#0c0d0f; --card:#16181c; --ink:#e4e5e8; --muted:#8a8f98; --line:#2c3037; --gold:#c6a458;
+    --accent:#e2c477; --field:#1c1f25; --hp:#d4534a; --on-accent:#141414;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  body.light{ --bg:#e9eaec; --card:#ffffff; --ink:#1d1f23; --muted:#6a6f78; --line:#dadde2; --gold:#9a7c33;
+    --accent:#8a6d22; --field:#f5f6f8; --hp:#9e2b25; --on-accent:#ffffff; --gold:#a07d22; }
+  *{ box-sizing:border-box; border-radius:0; box-shadow:none; }
+  html,body{ margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); -webkit-text-size-adjust:100%; }
+  body{ width:390px; padding-bottom:72px; }
+  body.full{ padding-bottom:0; }
+  button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+
+  /* 1. slim top row */
+  .top{ display:flex; align-items:center; gap:8px; height:48px; padding:0 4px 0 12px; background:var(--card); border-bottom:1px solid var(--line); }
+  .top .logo{ color:var(--accent); width:18px; height:18px; flex:none; }
+  .who{ flex:1; min-width:0; line-height:1.15; }
+  .who b{ display:block; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .who span{ font-size:12px; color:var(--muted); }
+  .icon-btn{ width:44px; height:44px; display:grid; place-items:center; color:var(--ink); }
+  .icon-btn svg{ width:20px; height:20px; }
+
+  /* 2. stats bar, sticky on every tab */
+  .stats{ position:sticky; top:0; z-index:5; display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr 1fr; background:var(--card); border-bottom:1px solid var(--gold); }
+  .stat{ min-height:56px; padding:6px 4px 5px; text-align:center; border-left:1px solid var(--line); display:flex; flex-direction:column; justify-content:center; }
+  .stat:first-child{ border-left:0; }
+  .stat .k{ font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .stat .v{ font-size:21px; font-weight:700; color:var(--accent); line-height:1.15; font-variant-numeric:tabular-nums; }
+  .stat.hp .v{ color:var(--hp); }
+  .stat.hp .v small{ font-size:13px; color:var(--muted); font-weight:600; }
+  .conc{ display:flex; align-items:center; gap:8px; padding:5px 12px; font-size:12px; background:var(--field); border-bottom:1px solid var(--line); }
+  .tag{ font-size:9px; font-weight:800; letter-spacing:.08em; padding:2px 5px; background:var(--accent); color:var(--on-accent); }
+
+  /* sections */
+  .card{ margin:8px; padding:12px; background:var(--card); border:1px solid var(--line); }
+  h2{ margin:0 0 8px; font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--gold); display:flex; align-items:center; gap:8px; }
+  h2 .aside{ margin-left:auto; font-size:10px; letter-spacing:.04em; color:var(--muted); font-weight:600; text-transform:none; }
+  .collapsed h2{ margin:0; }
+  .collapsed h2::before{ content:"\25B8"; color:var(--muted); }
+  .collapsed .sum{ margin-left:auto; font-size:11px; color:var(--muted); letter-spacing:0; text-transform:none; font-weight:500; }
+
+  /* 4a. abilities + saves, one 3 x 2 grid */
+  .abil{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .ab{ border:1px solid var(--line); background:var(--field); text-align:center; padding:6px 4px 0; }
+  .ab .n{ font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--muted); }
+  .ab .m{ font-size:26px; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .ab .s{ font-size:11px; color:var(--muted); }
+  .ab .sv{ margin-top:6px; display:flex; align-items:center; justify-content:center; gap:6px; height:28px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+  .ab .sv b{ color:var(--ink); font-size:14px; font-variant-numeric:tabular-nums; }
+  .pm{ width:10px; height:10px; border:1.5px solid var(--muted); display:inline-block; }
+  .pm.on{ background:var(--accent); border-color:var(--accent); }
+
+  /* 4b. actions */
+  .grp{ font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:10px 0 4px; }
+  .grp:first-of-type{ margin-top:0; }
+  .act{ display:grid; grid-template-columns:1fr 52px 104px; align-items:center; gap:8px; min-height:44px; border-top:1px solid var(--line); }
+  .act .nm{ font-size:15px; line-height:1.2; }
+  .act .nm small{ display:block; font-size:11px; color:var(--muted); }
+  .hit{ height:36px; border:1px solid var(--accent); color:var(--accent); font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; }
+  .dmg{ font-size:13px; font-weight:700; line-height:1.2; }
+  .dmg small{ display:block; font-weight:500; color:var(--muted); font-size:11px; }
+
+  /* 4c. resources */
+  .res{ display:flex; align-items:center; gap:10px; min-height:40px; border-top:1px solid var(--line); }
+  .res:first-of-type{ border-top:0; }
+  .res .l{ width:118px; font-size:14px; }
+  .res .l small{ display:block; font-size:11px; color:var(--muted); }
+  .pips{ display:flex; gap:8px; }
+  .pip{ width:22px; height:22px; border:1.5px solid var(--accent); }
+  .pip.on{ background:var(--accent); }
+  .res .cnt{ margin-left:auto; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+
+  /* 4d. skills */
+  .pass{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .chip{ font-size:12px; padding:4px 7px; border:1px solid var(--line); background:var(--field); }
+  .chip b{ color:var(--accent); }
+  .skills{ display:grid; grid-template-columns:1fr 1fr; column-gap:14px; }
+  .sk{ display:flex; align-items:center; gap:7px; min-height:32px; border-top:1px solid var(--line); font-size:13px; }
+  .sk .nm{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sk .nm i{ font-style:normal; color:var(--muted); font-size:10px; margin-left:3px; }
+  .sk b{ font-variant-numeric:tabular-nums; }
+
+  /* 3 + 2. bottom tab bar with the dice button */
+  .tabs{ position:fixed; left:0; bottom:0; width:390px; display:grid; grid-template-columns:repeat(5,1fr) 56px; height:60px; background:var(--card); border-top:1px solid var(--gold); z-index:6; }
+  body.full .tabs{ position:static; }
+  .tab{ font-size:12px; font-weight:600; color:var(--muted); border-top:2px solid transparent; }
+  .tab.on{ color:var(--accent); border-top-color:var(--accent); }
+  .dice{ background:var(--accent); color:var(--on-accent); display:grid; place-items:center; }
+  .dice svg{ width:24px; height:24px; }
+</style>
+</head>
+<body>
+<script>
+  const q = new URLSearchParams(location.search);
+  if(q.has("full")) document.body.classList.add("full");
+  if(q.has("light")) document.body.classList.add("light");
+</script>
+
+<header class="top">
+  <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 3.4 19.5 7.7V16.3L12 20.6 4.5 16.3V7.7Z"/><path d="M12 8.6 7.5 15.4H16.5Z"/><path d="M12 8.6V3.4M7.5 15.4 4.5 16.3M16.5 15.4 19.5 16.3"/></svg>
+  <div class="who"><b>Vessa Thornwick</b><span>Ranger 5 · Half-Elf</span></div>
+  <button class="icon-btn" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg></button>
+  <button class="icon-btn" aria-label="Menu"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+</header>
+
+<div class="stats">
+  <button class="stat hp"><span class="k">HP</span><span class="v">38<small>/44</small></span></button>
+  <button class="stat"><span class="k">AC</span><span class="v">16</span></button>
+  <button class="stat"><span class="k">Init</span><span class="v">+4</span></button>
+  <button class="stat"><span class="k">Speed</span><span class="v">35</span></button>
+  <button class="stat"><span class="k">Spell DC</span><span class="v">13</span></button>
+</div>
+<div class="conc"><span class="tag">CONC</span>Pass without Trace</div>
+
+<section class="card">
+  <h2>Abilities &amp; saves <span class="aside">Prof +3 · Inspiration ○</span></h2>
+  <div class="abil">
+    <div class="ab"><div class="n">STR</div><div class="m">+1</div><div class="s">12</div><div class="sv"><span class="pm on"></span>Save <b>+4</b></div></div>
+    <div class="ab"><div class="n">DEX</div><div class="m">+4</div><div class="s">18</div><div class="sv"><span class="pm on"></span>Save <b>+7</b></div></div>
+    <div class="ab"><div class="n">CON</div><div class="m">+2</div><div class="s">14</div><div class="sv"><span class="pm"></span>Save <b>+2</b></div></div>
+    <div class="ab"><div class="n">INT</div><div class="m">+0</div><div class="s">10</div><div class="sv"><span class="pm"></span>Save <b>+0</b></div></div>
+    <div class="ab"><div class="n">WIS</div><div class="m">+2</div><div class="s">15</div><div class="sv"><span class="pm"></span>Save <b>+2</b></div></div>
+    <div class="ab"><div class="n">CHA</div><div class="m">−1</div><div class="s">8</div><div class="sv"><span class="pm"></span>Save <b>−1</b></div></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Actions <span class="aside">2 attacks per Attack action</span></h2>
+  <div class="grp">Action</div>
+  <div class="act"><div class="nm">Longbow<small>150/600 ft</small></div><button class="hit">+7</button><div class="dmg">1d8+4<small>piercing</small></div></div>
+  <div class="act"><div class="nm">Shortsword</div><button class="hit">+7</button><div class="dmg">1d6+4<small>piercing</small></div></div>
+  <div class="act"><div class="nm">Unarmed Strike</div><button class="hit">+4</button><div class="dmg">2<small>bludgeoning</small></div></div>
+  <div class="grp">Bonus action</div>
+  <div class="act"><div class="nm">Shortsword, off-hand</div><button class="hit">+7</button><div class="dmg">1d6<small>piercing</small></div></div>
+  <div class="grp">Reaction</div>
+  <div class="act"><div class="nm">Opportunity attack<small>uses a melee weapon above</small></div><span></span><span></span></div>
+</section>
+
+<section class="card">
+  <h2>Resources <span class="aside">tap a square to spend it</span></h2>
+  <div class="res"><div class="l">1st-level slots</div><div class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></div><span class="cnt">3 of 4</span></div>
+  <div class="res"><div class="l">2nd-level slots</div><div class="pips"><span class="pip on"></span><span class="pip"></span></div><span class="cnt">1 of 2</span></div>
+  <div class="res"><div class="l">Favored Foe<small>long rest</small></div><div class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span></div><span class="cnt">3 of 3</span></div>
+  <div class="res"><div class="l">Hit Dice<small>d10, short rest</small></div><div class="pips"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></div><span class="cnt">4 of 5</span></div>
+</section>
+
+<section class="card">
+  <h2>Skills <span class="aside">A–Z</span></h2>
+  <div class="pass"><span class="chip">Passive Perception <b>15</b></span><span class="chip">Insight <b>15</b></span><span class="chip">Investigation <b>10</b></span><span class="chip">Darkvision <b>60 ft</b></span></div>
+  <div class="skills">
+    <div class="sk"><span class="pm"></span><span class="nm">Acrobatics<i>DEX</i></span><b>+4</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Medicine<i>WIS</i></span><b>+2</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Animal Handling<i>WIS</i></span><b>+2</b></div>
+    <div class="sk"><span class="pm on"></span><span class="nm">Nature<i>INT</i></span><b>+3</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Arcana<i>INT</i></span><b>+0</b></div>
+    <div class="sk"><span class="pm on"></span><span class="nm">Perception<i>WIS</i></span><b>+5</b></div>
+    <div class="sk"><span class="pm on"></span><span class="nm">Athletics<i>STR</i></span><b>+4</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Performance<i>CHA</i></span><b>−1</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Deception<i>CHA</i></span><b>−1</b></div>
+    <div class="sk"><span class="pm on"></span><span class="nm">Persuasion<i>CHA</i></span><b>+2</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">History<i>INT</i></span><b>+0</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Religion<i>INT</i></span><b>+0</b></div>
+    <div class="sk"><span class="pm on"></span><span class="nm">Insight<i>WIS</i></span><b>+5</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Sleight of Hand<i>DEX</i></span><b>+4</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Intimidation<i>CHA</i></span><b>−1</b></div>
+    <div class="sk"><span class="pm on"></span><span class="nm">Stealth<i>DEX</i></span><b>+7</b></div>
+    <div class="sk"><span class="pm"></span><span class="nm">Investigation<i>INT</i></span><b>+0</b></div>
+    <div class="sk"><span class="pm on"></span><span class="nm">Survival<i>WIS</i></span><b>+5</b></div>
+  </div>
+</section>
+
+<section class="card collapsed"><h2>Proficiencies &amp; languages <span class="sum">Common, Elvish, Sylvan</span></h2></section>
+<section class="card collapsed"><h2>Character <span class="sum">Outlander · Chaotic Good</span></h2></section>
+
+<nav class="tabs">
+  <button class="tab on">Play</button>
+  <button class="tab">Spells</button>
+  <button class="tab">Features</button>
+  <button class="tab">Gear</button>
+  <button class="tab">More</button>
+  <button class="dice" aria-label="Dice"><svg viewBox="0 0 20 20" aria-hidden="true"><polygon points="10,1.5 17.5,6 17.5,14 10,18.5 2.5,14 2.5,6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+</nav>
+</body>
+</html>

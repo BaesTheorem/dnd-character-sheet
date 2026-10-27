@@ -321,3 +321,4 @@ Vanilla HTML/CSS/JS only: no frameworks, no build step, no CDN, no web-fetched f
 system font stack). Edit it with any text editor. Data model is plain JSON keyed by field id. The app
 code stays free of copyrighted WotC text. All such content lives only in the baked `#source-data`
 block, so the app itself stays clean.
+Visual rules for new screens (type, palette, spacing, the phone layout) are in [`DESIGN.md`](DESIGN.md).
