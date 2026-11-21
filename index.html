@@ -910,6 +910,12 @@
   .equip-line select{width:100%}
   .equip-fixed{display:block; padding:3px 2px; font-size:13px; color:var(--muted)}
   .modal-foot{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-top:1px solid var(--line)}
+  /* Save As name box (askSaveName). The field keeps the theme's stock input look; ".html" sits beside it as plain text. */
+  .saveas-row{display:flex; align-items:center; gap:8px; margin-top:6px}
+  .saveas-row input{flex:1; min-width:0; padding:8px 10px; font:inherit; font-size:15px}
+  .saveas-ext{flex:none; color:var(--muted); font-size:14px}
+  .saveas-hint{margin:10px 0 0}
+  html.mobile .saveas-row input{font-size:16px}   /* iOS zooms into a focused field below 16px */
   .wiz-dots{display:flex; flex-wrap:wrap; justify-content:center; gap:4px; flex:1; margin:0 8px}
   .wiz-dot{font-size:11px; letter-spacing:.02em; color:var(--muted); background:#fff; border:1px solid var(--line2); padding:3px 7px; cursor:pointer; line-height:1.4; white-space:nowrap}
   .wiz-dot:hover{border-color:var(--accent); color:var(--accent)}
@@ -3324,11 +3330,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v643 (2026-10-27)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v646 (2026-11-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.169.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.170.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3336,6 +3342,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v646", semver:"2.170.0", items:[
+      "Save now asks what to call the file. In Chrome and Edge you get the regular Save As window, so you choose the name and the folder. Firefox, Safari and Brave do not let a page open that window, so there the sheet asks for the name and your browser puts the file in its downloads folder. The name you choose is suggested again the next time. Before, every save used the default name.",
+    ]},
     {v:"v643", semver:"2.169.0", items:[
       "Search now knows what each box on the sheet is called. Type \"hp\", \"ac\", \"save dc\", \"dex save\", \"stealth\", \"slots\" or \"gold\" and the top result shows the number and takes you to it, opening the section first if it was closed. Before, Search only matched words written inside fields, so \"armor class\" or \"spell save\" found nothing.",
       "On phones, Attacks, Saving Throws, Skills, Senses, Limited Features and Hit Dice now start open on the Core page. If you close or open a section, your phone remembers it. Before, every reload closed them again.",
@@ -11137,6 +11146,87 @@
     else                             v = APP_VERSION.split(" ")[0];                            // last resort: build id
     return "Character Sheet " + v + ".html";
   }
+  // ---- Save As ----
+  // Save asks for the file name before it writes anything. Chrome and Edge can open a real save dialog
+  // from a page (showSaveFilePicker: name and folder). Firefox and Safari have no such call and Brave
+  // turns it off, so there the sheet asks for the name itself and the browser puts the file in its
+  // download folder.
+  const SAVE_NAME_KEY = _TPL_ID ? ("dnd-sheet-save-name::tpl:" + _TPL_ID) : "dnd-sheet-save-name";
+  function cleanFileName(raw){   // what the player typed → a name every filesystem takes ("" if nothing usable is left)
+    let s = String(raw == null ? "" : raw).replace(/[\u0000-\u001f\u007f<>:"\/\\|?*]/g, " ").replace(/\s+/g, " ").trim();
+    s = s.replace(/\.html?$/i, "").replace(/^[. ]+|[. ]+$/g, "");   // no leading dot (hidden on Unix), no trailing dot or space (Windows drops them)
+    if(!s) return "";
+    if(/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(s)) s += " sheet";   // reserved device names on Windows
+    return s.slice(0, 120) + ".html";
+  }
+  function suggestedSaveName(){   // the name the player used last time, else the versioned default
+    let n = ""; try{ n = localStorage.getItem(SAVE_NAME_KEY) || ""; }catch(e){}
+    return cleanFileName(n) || versionedFileName();
+  }
+  function rememberSaveName(name){   // only a name the player chose is kept, so the default keeps following the version
+    try{ if(name && name !== versionedFileName()) localStorage.setItem(SAVE_NAME_KEY, name); else localStorage.removeItem(SAVE_NAME_KEY); }catch(e){}
+  }
+  function askSaveName(suggested){   // → Promise of the chosen file name, or null when cancelled
+    return new Promise(resolve => {
+      const old = $("saveas-modal"); if(old) old.remove();
+      const m = document.createElement("div"); m.className = "modal open noprint"; m.id = "saveas-modal"; m.dataset.transient = "1";
+      m.innerHTML = `<form class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="saveas-title" novalidate style="max-width:440px">`
+        + `<div class="modal-head"><h2 id="saveas-title">Save as</h2></div>`
+        + `<div class="modal-body"><label class="lbl" for="saveas-name">File name</label>`
+        + `<div class="saveas-row"><input type="text" id="saveas-name" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"><span class="saveas-ext">.html</span></div>`
+        + `<p class="wiz-hint saveas-hint">The file holds every character you have. Your browser puts it in its downloads folder.</p></div>`
+        + `<div class="modal-foot"><button type="button" class="btn" id="saveas-cancel">Cancel</button><button type="submit" class="btn primary" id="saveas-ok">Save</button></div></form>`;
+      document.body.appendChild(m);
+      const inp = $("saveas-name"); inp.value = String(suggested || "").replace(/\.html?$/i, "");
+      const done = v => { document.removeEventListener("keydown", onKey, true); m.remove(); if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock(); resolve(v); };
+      const onKey = e => { if(e.key === "Escape"){ e.preventDefault(); e.stopPropagation(); done(null); } };   // capture phase: the global Escape handler would hide the box and leave this promise pending
+      document.addEventListener("keydown", onKey, true);
+      m.addEventListener("mousedown", e => { if(e.target === m) done(null); });   // backdrop
+      $("saveas-cancel").addEventListener("click", () => done(null));
+      inp.addEventListener("input", e => e.stopPropagation());   // a file name is not sheet data: keep it away from the global recompute + autosave
+      m.querySelector("form").addEventListener("submit", e => { e.preventDefault(); const n = cleanFileName(inp.value); if(n) done(n); else inp.focus(); });
+      if(typeof syncOverlayScrollLock === "function") syncOverlayScrollLock();
+      inp.focus(); inp.select();
+    });
+  }
+  async function buildSheetHtml(){   // the whole sheet as one HTML string, every character and loaded sourcebook baked in
+    flushSave();                                             // capture any pending edit to the active character first
+    const clone = document.documentElement.cloneNode(true);
+    stripTransientChrome(clone);
+    const n = await bakeAllInto(clone);                      // ALL characters, not just the active one: the file is your whole library
+    return { html: "<!DOCTYPE html>\n" + clone.outerHTML, count: n };
+  }
+  let _savingAs = false;
+  async function saveSheetAs(){   // → {name, count, picked} once the file is written, or null when the player cancels
+    if(_savingAs) return null;
+    _savingAs = true;
+    try{
+      const suggested = suggestedSaveName();
+      let handle = null;
+      if(typeof window.showSaveFilePicker === "function"){
+        // Open the dialog BEFORE baking: the picker needs the click's user activation, and the bake can outlast it.
+        try{
+          handle = await window.showSaveFilePicker({ id:"dnd-sheet", startIn:"downloads", suggestedName:suggested,
+            types:[{ description:"Character sheet", accept:{ "text/html":[".html"] } }] });
+        }catch(e){
+          if(e && e.name === "AbortError") return null;   // the player closed the dialog
+          handle = null;                                  // no user gesture, or blocked by policy → ask for the name here instead
+        }
+      }
+      let name = handle ? handle.name : await askSaveName(suggested);
+      if(!name) return null;
+      flashStatus("Saving…");
+      const built = await buildSheetHtml();
+      let picked = false;
+      if(handle){
+        try{ const w = await handle.createWritable(); await w.write(new Blob([built.html], {type:"text/html"})); await w.close(); picked = true; }
+        catch(e){ name = cleanFileName(name) || suggested; }   // could not write to that spot → an ordinary download under the same name
+      }
+      if(!picked) download(built.html, name, "text/html");
+      rememberSaveName(name);
+      return { name, count: built.count, picked };
+    } finally { _savingAs = false; }
+  }
 
   // ---- Character portrait (original bytes stored with the character) ----
   let portraitData = null;   // { data: dataURL, name, type } | null
@@ -15800,13 +15890,10 @@
     });
 
     $("btn-savecopy").addEventListener("click", async ()=>{
-      flushSave();                                                                      // capture any pending edit to the active character first
-      const clone = document.documentElement.cloneNode(true);
-      stripTransientChrome(clone);
-      const n = await bakeAllInto(clone);                                               // ALL characters, not just the active one — the file is your whole library
-      download("<!DOCTYPE html>\n" + clone.outerHTML, versionedFileName(), "text/html");   // not tied to one character → generic name
+      const r = await saveSheetAs();   // asks for the file name first; null when the player cancels
+      if(!r) return;
       const books = (DATA && DATA._meta && (DATA._meta.books||[]).length) ? " and "+DATA._meta.books.length+" sourcebook"+(DATA._meta.books.length===1?"":"s") : "";
-      flashStatus("Downloaded “"+versionedFileName()+"” — all "+n+" character"+(n===1?"":"s")+books+" baked in.");
+      flashStatus((r.picked ? "Saved “" : "Downloaded “")+r.name+"”: all "+r.count+" character"+(r.count===1?"":"s")+books+" baked in.");
     });
 
     $("btn-manage").addEventListener("click", openCharMgr);

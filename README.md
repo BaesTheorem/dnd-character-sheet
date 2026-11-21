@@ -140,6 +140,9 @@ The top bar keeps a few direct buttons; the rest live under a **☰ menu**.
 - **Save** → downloads a self-contained copy of the sheet with your character (and portrait) baked
   in. Email / AirDrop / Drive it; opening that copy anywhere shows the character. This is the way to
   move a character between devices (auto-save is per-browser storage, not written to the file).
+  Save asks what to call the file first. Chrome and Edge open the regular Save As window (name and
+  folder). Firefox, Safari and Brave have no such window for a page to open, so the sheet asks for the
+  name and the browser puts the file in its downloads folder.
 - **Search** → jump to any field on any page by name.
 - **Mobile** → force the phone layout on a desktop (auto-on for narrow screens).
 - **☰ menu** → **Manage Characters**, **Homebrew Studio**, **Print / PDF**, and **Settings**.
