@@ -50,6 +50,15 @@ if grep -q '{v:"Unreleased"' index.html 2>/dev/null; then
     && echo "pre-commit: stamped CHANGELOG Unreleased -> v$num ($semver)"
 fi
 
+# Stamp the landing page's own copy of the version, date and size in MB. That page shows them at first
+# paint, long before the main script (which holds APP_SEMVER) has downloaded.
+if grep -q '@LP_STAMP@' index.html 2>/dev/null; then
+  mb=$(( ($(wc -c < index.html) + 500000) / 1000000 ))
+  semver="$semver" date="$date" mb="$mb" perl -i -pe 's/(var LP = \{ semver:")[^"]*(", date:")[^"]*(", mb:)\d+/$1$ENV{semver}$2$ENV{date}$3$ENV{mb}/ if /\@LP_STAMP\@/' index.html \
+    && git add index.html \
+    && echo "pre-commit: stamped landing page = $semver / $date / $mb MB"
+fi
+
 # Write the tiny version probe the in-app "update available" banner polls, so it can detect a
 # newer build without downloading the multi-MB index.html. Carries the build id (for comparison,
 # back-compatible with older clients) plus the SemVer (for display on newer clients).

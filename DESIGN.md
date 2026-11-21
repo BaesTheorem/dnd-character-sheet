@@ -34,3 +34,13 @@ The neutrals behind them (`--bg`, `--field`, `--line`) and the heading gold (`--
 ## Phone layout
 
 The phone view is a play surface: the numbers a player gets asked for at the table are on screen or one tap away, on every tab. The spec, the evidence behind it and the player test that judges it are in [`plans/phone-play-layout.md`](plans/phone-play-layout.md). The release 2 mockup is [`design/drafts/phone-play-r2-v1.html`](design/drafts/phone-play-r2-v1.html).
+
+## Landing page
+
+The web address opens a download page in place of the sheet. Its layout is direction 2 (procedure) from the mockup in [`design/drafts/landing-gate-v1.html`](design/drafts/landing-gate-v1.html): the pitch and a picture of the sheet on the left, numbered steps on the right, one column on a phone. It follows every rule above and adds three.
+
+- Its colors are its own variables (`--lp-*`, the UCS values, light and dark). The page paints from the first 60 KB of the file, before the main script has set a theme.
+- Its layout switches on media queries (900px and 600px), not on `html.mobile`, for the same reason.
+- Each screen has one filled button: 56px tall, `--accent` fill, white ink (near-black ink on the dark gold).
+
+The picture of the sheet is two hosted files, `landing-shot-light.png` and `landing-shot-dark.png`. They are not baked into the sheet. `design/landing-shot.py` builds the sample character and captures them again after a visual change to the Core page.

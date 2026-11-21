@@ -3,7 +3,7 @@
 A self-contained, **automated** D&D 5e (2014 rules) character sheet that runs in any web browser
 with **no install, no server, and no Adobe**. It works offline, and a blank copy prints as a
 perfectly good pen-and-paper sheet. The whole app (layout, styling, automation, and a full
-sourcebook library) lives in one file: `index.html` (~14 MB, most of which is the baked reference data).
+sourcebook library) lives in one file: `index.html` (~16 MB, most of which is the baked reference data).
 
 ## Why a single HTML file?
 The most universal runtime on any device (Windows, Mac, Linux, iPhone, Android, ChromeOS) is the
@@ -14,7 +14,9 @@ with the same kind of live calculation, in a runtime everyone already has.
 ## Use it
 Two ways to run it, same file either way:
 - **Download a copy and double-click it**: opens in your default browser, works fully offline forever. This is the primary way to use it. Use **Save** (see Toolbar) to keep a copy with your character baked in.
-- **Open it on the web**: [`baestheorem.github.io/dnd-character-sheet`](https://baestheorem.github.io/dnd-character-sheet) (handy on a phone). It installs as a home-screen app and works offline after the first load.
+- **Add it to a phone's home screen**: on an iPhone, iPad or Android phone the web address installs as a home-screen app that works offline after the first load.
+
+The web address, [`baestheorem.github.io/dnd-character-sheet`](https://baestheorem.github.io/dnd-character-sheet), is the download page for both. On a computer it offers the file, with the steps to download it, open it and save your work. On a phone it shows how to add the sheet to the home screen. If that browser already holds characters, the page offers the file with them inside. The sheet still runs in a browser tab if you pick "Use the sheet in this tab instead", and **Settings → General** has a button that brings the download page back.
 
 Then:
 1. Fill it in. Everything recalculates live:
@@ -41,8 +43,9 @@ Then:
 On iOS, use the web version, which installs as a real offline app:
 1. Open [`baestheorem.github.io/dnd-character-sheet`](https://baestheorem.github.io/dnd-character-sheet)
    in **Safari**.
-2. Tap **Share** (the square with the up arrow), then **Add to Home Screen** (the sheet shows the same
-   tip in a bar at the bottom).
+2. Tap **Share** (the square with the up arrow), then **Add to Home Screen**, and make sure **Open as
+   Web App** is on. On an iPhone with iOS 26 or later, Share can be behind Safari's menu button. The
+   page shows these steps with the buttons your version of iOS has.
 3. Launch it from the new home-screen icon: full screen, no browser chrome, and **fully offline** from
    then on. It updates itself automatically the next time you're online.
 
@@ -318,6 +321,14 @@ For a release that really needs attention (e.g. a data-correctness fix), create 
 `version.json` as `{critical:true, note:"…"}`, and the banner then renders an **Important update**
 style, shows the note, and **keeps resurfacing on every load until the user updates**. It's *sticky*:
 the note rides every subsequent release until you **delete `update-note.txt`**.
+
+## Tests
+`tests/` holds browser tests for the two parts of the sheet a visitor meets first. They run in headless
+Chromium, WebKit and Firefox through Playwright (`pip install playwright`, then
+`playwright install chromium webkit firefox`).
+- `python3 tests/test_landing.py`: the download page, per device and per state. It starts
+  `tests/serve.py`, a local stand-in for GitHub Pages.
+- `python3 tests/test_saveas.py`: the Save dialog and the name box.
 
 ## Design / longevity rules
 Vanilla HTML/CSS/JS only: no frameworks, no build step, no CDN, no web-fetched fonts (uses the

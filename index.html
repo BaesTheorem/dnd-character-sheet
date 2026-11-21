@@ -12,12 +12,12 @@
      ~15MB, and a crawler that reads only the first chunk before giving up still gets everything it needs.
      og:image must be an ABSOLUTE url — a relative one is ignored by most scrapers. Scrapers cache the image
      hard, so if og-image.png is ever redrawn, add a ?v=N to bust them. -->
-<meta name="description" content="A free, fully automated D&amp;D 5e character sheet that runs entirely in your browser. No account, no install, and it works offline.">
+<meta name="description" content="A free, fully automated D&amp;D 5e character sheet in one HTML file. Download it and it runs in your browser, offline, with no account.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="D&amp;D 5e Character Sheet">
 <meta property="og:url" content="https://baestheorem.github.io/dnd-character-sheet/">
 <meta property="og:title" content="D&amp;D 5e Character Sheet">
-<meta property="og:description" content="A free, fully automated D&amp;D 5e character sheet that runs entirely in your browser. No account, no install, and it works offline.">
+<meta property="og:description" content="A free, fully automated D&amp;D 5e character sheet in one HTML file. Download it and it runs in your browser, offline, with no account.">
 <meta property="og:image" content="https://baestheorem.github.io/dnd-character-sheet/og-image.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
@@ -25,7 +25,7 @@
 <meta property="og:image:alt" content="A twenty-sided die beside the words D&amp;D 5e Character Sheet.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="D&amp;D 5e Character Sheet">
-<meta name="twitter:description" content="A free, fully automated D&amp;D 5e character sheet that runs entirely in your browser. No account, no install, and it works offline.">
+<meta name="twitter:description" content="A free, fully automated D&amp;D 5e character sheet in one HTML file. Download it and it runs in your browser, offline, with no account.">
 <meta name="twitter:image" content="https://baestheorem.github.io/dnd-character-sheet/og-image.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjMuNyAzLjUgMjQuNiAyNC42Ij48c3R5bGU+LmJ7ZmlsbDojM2I0YTYzfS5se2ZpbGw6bm9uZTtzdHJva2U6I2VlZjBmMztzdHJva2Utd2lkdGg6MS41O3N0cm9rZS1saW5lam9pbjpyb3VuZDtzdHJva2UtbGluZWNhcDpyb3VuZH1AbWVkaWEgKHByZWZlcnMtY29sb3Itc2NoZW1lOmRhcmspey5ie2ZpbGw6I2U3ZWFmMX0ubHtzdHJva2U6IzJmM2I1MH19PC9zdHlsZT48cGF0aCBjbGFzcz0iYiIgZD0iTTE2IDQuNSAyNS45NiAxMC4yNVYyMS43NUwxNiAyNy41IDYuMDQgMjEuNzVWMTAuMjVaIi8+PGcgY2xhc3M9ImwiPjxwYXRoIGQ9Ik0xNiAxMS41IDEwIDIwLjVIMjJaIi8+PHBhdGggZD0iTTE2IDExLjVWNC41TTEwIDIwLjUgNi4wNCAyMS43NU0yMiAyMC41IDI1Ljk2IDIxLjc1Ii8+PC9nPjwvc3ZnPg==">
 <style>
@@ -843,6 +843,90 @@
   html.mobile .intro-card{max-width:none; border:none; padding:22px 18px;
     min-height:100%; padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
   @media print{ .intro-overlay{display:none} }
+  /* ---- Landing page (web address only) ----
+     Opened from a web address in a plain browser tab, the sheet is covered by this page, which asks the
+     visitor to download the file (or, on a phone, to add the sheet to the Home Screen). The script at the
+     top of <body> sets html.landing before the first paint. A file opened from disk and an installed web
+     app never get the class, so #landing stays display:none there.
+     The colours are its own (--lp-*, the UCS palette) and the layout uses media queries, not html.mobile:
+     this page paints before the main script has set a theme or a layout. The sheet underneath is hidden
+     with visibility, not display, so it still lays out normally and is ready the moment the page is left.
+     Screen only: print never sees it. */
+  #landing{display:none}
+  @media screen{
+    html.landing, html.landing body{overflow:hidden !important}
+    html.landing body > :not(#landing):not(#saveas-modal), html.landing body > :not(#landing):not(#saveas-modal) *{visibility:hidden !important}
+    html.landing #saveas-modal{z-index:12100}
+    #landing{--lp-bg:#e9eaec; --lp-card:#ffffff; --lp-ink:#1d1f23; --lp-muted:#6a6f78; --lp-line:#dadde2; --lp-rule:#9a7c33; --lp-accent:#8a6d22; --lp-gold:#a07d22; --lp-field:#f5f6f8; --lp-on:#ffffff}
+    body.dark #landing{--lp-bg:#0c0d0f; --lp-card:#16181c; --lp-ink:#e4e5e8; --lp-muted:#8a8f98; --lp-line:#2c3037; --lp-rule:#c6a458; --lp-accent:#e2c477; --lp-gold:#c6a458; --lp-field:#1c1f25; --lp-on:#141414}
+    html.landing #landing{display:block; position:fixed; top:0; right:0; bottom:0; left:0; z-index:12000; overflow:auto; overscroll-behavior:contain;
+      padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+      background:var(--lp-bg); color:var(--lp-ink); font-size:15px; line-height:1.5}
+    #landing h1{margin:0 0 16px; font-size:32px; line-height:1.15; font-weight:800; letter-spacing:-.01em}
+    #landing h2{margin:0 0 8px; font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--lp-gold)}
+    #landing p{margin:0}
+    #landing a{color:var(--lp-accent)}
+    #landing a:focus-visible, #landing button:focus-visible{outline-color:var(--lp-accent) !important}
+    #landing .lp-i{width:20px; height:20px; flex:none; fill:none; stroke:currentColor; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round}
+    #landing .lp-top{display:flex; align-items:center; gap:8px; height:48px; padding:0 24px; background:var(--lp-card); border-bottom:1px solid var(--lp-line); font-size:14px}
+    #landing .lp-brand{display:inline-flex; align-items:center; gap:8px; font-weight:700; letter-spacing:.04em}
+    #landing .lp-brand .lp-i{width:18px; height:18px; color:var(--lp-accent); stroke-width:1.4}
+    #landing .lp-brand span{color:var(--lp-accent)}
+    #landing .lp-ver{margin-left:auto; font-size:12px; color:var(--lp-muted); font-variant-numeric:tabular-nums}
+    #landing .lp-wrap{max-width:1120px; margin:56px auto 48px; padding:0 32px}
+    #landing .lp-desk{display:grid; grid-template-columns:5fr 6fr; gap:56px; align-items:start}
+    #landing .lp-apple, #landing .lp-droid{display:none; max-width:624px}
+    html.lp-ios #landing .lp-desk, html.lp-android #landing .lp-desk{display:none}
+    html.lp-ios #landing .lp-apple, html.lp-android #landing .lp-droid{display:block}
+    #landing .lp-eyebrow{margin:0 0 8px; font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--lp-gold)}
+    #landing .lp-lede{margin:0 0 24px; font-size:16px; max-width:54ch}
+    #landing .lp-shot{aspect-ratio:1040/656; border:1px solid var(--lp-line); background:var(--lp-card)}
+    #landing .lp-shot img{display:block; width:100%; height:auto}
+    #landing .lp-cap{margin:8px 0 0; font-size:12px; color:var(--lp-muted)}
+    #landing .lp-steps{margin:0; padding:0; list-style:none; counter-reset:lp; background:var(--lp-card); border:1px solid var(--lp-line)}
+    #landing .lp-steps > li{display:grid; grid-template-columns:40px 1fr; gap:16px; padding:24px; border-bottom:1px solid var(--lp-line); counter-increment:lp}
+    #landing .lp-steps > li:last-child{border-bottom:0}
+    #landing .lp-steps > li::before{content:counter(lp); display:flex; align-items:center; justify-content:center; width:40px; height:40px;
+      border:1px solid var(--lp-rule); color:var(--lp-accent); font-size:18px; font-weight:800; font-variant-numeric:tabular-nums}
+    html.lp-got #landing .lp-steps > li.lp-next::before{background:var(--lp-accent); border-color:var(--lp-accent); color:var(--lp-on)}   /* the download has started: point at the next step */
+    #landing .lp-dl{display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:56px; padding:16px 24px; font:inherit; font-size:17px; font-weight:700;
+      line-height:1.2; text-align:center; text-decoration:none; cursor:pointer; background:var(--lp-accent); color:var(--lp-on); border:1px solid var(--lp-accent)}
+    #landing .lp-dl small{margin-left:8px; font-size:13px; font-weight:600; opacity:.85; font-variant-numeric:tabular-nums; white-space:nowrap}
+    #landing .lp-dl.lp-busy{opacity:.6; pointer-events:none}
+    #landing .lp-note{margin:8px 0 0; font-size:12px; color:var(--lp-muted); font-variant-numeric:tabular-nums}
+    #landing .lp-done{margin:8px 0 0; font-size:14px; font-weight:700}
+    #landing .lp-done:empty{display:none}
+    #landing .lp-fine{margin:16px 0 0; font-size:13px; color:var(--lp-muted)}
+    #landing .lp-alt{display:flex; flex-wrap:wrap; gap:0 24px; align-items:baseline; margin:24px 0 0; padding-top:4px; border-top:1px solid var(--lp-line); font-size:13px; color:var(--lp-muted)}
+    #landing .lp-alt > *{padding:12px 0}   /* 44px tap rows */
+    #landing .lp-link{font:inherit; color:var(--lp-accent); background:none; border:0; text-decoration:underline; cursor:pointer}
+    #landing .lp-key{display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; margin:0 2px; vertical-align:-8px; border:1px solid var(--lp-line); background:var(--lp-field); color:var(--lp-ink)}
+    #landing .lp-key .lp-i{width:16px; height:16px}
+    #landing .lp-warn{margin:0 0 16px; padding:16px; border:1px solid var(--lp-line); border-left:3px solid var(--lp-accent); background:var(--lp-card)}
+    #landing .lp-warn .lp-dl{margin-top:16px}
+    #landing .lp-warn .lp-link{display:block; padding:12px 0; margin-bottom:-12px; text-align:left}   /* its own 44px row */
+    #landing .lp-on-install + .lp-manual{margin-top:12px}
+    /* One line of copy per case. The case is a class on <html>, set by the script at the top of <body>
+       (which browser, which iOS) or by landingReady() (characters already stored in this browser). */
+    #landing .lp-if{display:none}
+    html.lp-ios-27 #landing .lp-on-27, html.lp-ios-26 #landing .lp-on-26, html.lp-ios-share #landing .lp-on-share,
+    html.lp-ios-webapp #landing .lp-on-webapp, html.lp-ios:not(.lp-ios-webapp) #landing .lp-on-nowebapp, html.lp-inapp #landing .lp-on-inapp,
+    html.lp-has #landing .lp-on-has, html.lp-back:not(.lp-ready) #landing .lp-on-wait, html.lp-can-install #landing .lp-on-install{display:block}
+    html.lp-has #landing .lp-unless-has, html.lp-back:not(.lp-ready) #landing .lp-unless-has{display:none}
+    @media (max-width:900px){
+      #landing .lp-wrap{margin:32px auto; padding:0 16px}
+      #landing .lp-desk{grid-template-columns:1fr; gap:24px}
+      #landing .lp-shot, #landing .lp-cap{display:none}
+    }
+    @media (max-width:600px){
+      #landing .lp-top{padding:0 16px}
+      #landing .lp-wrap{margin:24px auto}
+      #landing h1{font-size:26px}
+      #landing .lp-steps > li{grid-template-columns:32px 1fr; gap:12px; padding:16px; font-size:16px}
+      #landing .lp-steps > li::before{width:32px; height:32px; font-size:15px}
+      #landing .lp-alt{font-size:14px}
+    }
+  }
   /* Multiclass class builder (step 2) */
   .wiz-build{display:grid; grid-template-columns:170px 1fr; gap:12px; align-items:start}
   .wiz-build-list{display:flex; flex-direction:column}
@@ -2177,6 +2261,198 @@
       if(localStorage.getItem(_nk) === "1") document.body.classList.add("no-animations");
     }catch(e){}
   </script>
+  <script>
+    /* Landing page gate. A web address opened in a plain browser tab gets the download page (#landing,
+       just below) in place of the sheet. A file opened from disk, an installed web app, and a visitor
+       who chose to stay on the web all skip it. Decided here, before anything paints, so the first paint
+       is the right one. Every class is recomputed on each load, because a saved copy can carry old ones. */
+    try{ (function(){
+      var de = document.documentElement, ua = navigator.userAgent || "";
+      var mm = function(q){ try{ return !!window.matchMedia && matchMedia(q).matches; }catch(e){ return false; } };
+      var keep = de.className.split(/\s+/).filter(function(c){ return c && c !== "landing" && c.indexOf("lp-") !== 0; });
+      var hosted = /^https?:$/.test(location.protocol);
+      var installed = navigator.standalone === true || mm("(display-mode: standalone)") || mm("(display-mode: fullscreen)") || mm("(display-mode: minimal-ui)");
+      var stay = /[?&]web\b/.test(location.search), back = false;
+      try{ stay = stay || localStorage.getItem("dnd-sheet-web") === "1"; back = !!(localStorage.getItem("introSeenVersion") || localStorage.getItem("introSeen")); }catch(e){}
+      if(hosted && !installed && !stay){
+        keep.push("landing");
+        if(back) keep.push("lp-back");   // the sheet has been open here before: hold the plain download until we know whether characters are stored
+        var ipad = /iPad/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        if(ipad || /iPhone|iPod/.test(ua)){
+          var safari = /Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo|GSA\//.test(ua);
+          var m = safari ? /Version\/(\d+)/.exec(ua) : /OS (\d+)[_\d]* like Mac OS X/.exec(ua), v = m ? +m[1] : 0;   // Safari 26+ freezes the OS number, so its own version is the one to trust
+          keep.push("lp-ios", ipad ? "lp-ipad" : "lp-iphone");
+          keep.push(!ipad && safari && v >= 27 ? "lp-ios-27" : !ipad && safari && v >= 26 ? "lp-ios-26" : "lp-ios-share");   // where Share sits
+          if(v >= 26) keep.push("lp-ios-webapp");                 // the Add to Home Screen sheet has an Open as Web App switch
+          if(!/Safari\//.test(ua)) keep.push("lp-inapp");         // a web view inside another app: it cannot add to the Home Screen
+        } else if(/Android/.test(ua)) keep.push("lp-android");
+      }
+      de.className = keep.join(" ");
+    })(); }catch(e){}
+  </script>
+  <!-- Landing page: what a web visitor sees in place of the sheet (the "Landing page" CSS, the script above
+       and the one below). Every variant of its copy is static here and a class on <html> picks one.
+       Icons adapted from Lucide. ISC License, Copyright (c) Lucide Icons and Contributors: permission to
+       use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby
+       granted, provided that the above copyright notice and this permission notice appear in all copies. -->
+  <main id="landing" class="noprint" aria-label="Get the character sheet">
+    <header class="lp-top">
+      <div class="lp-brand"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4 19.5 7.7V16.3L12 20.6 4.5 16.3V7.7Z"/><path d="M12 8.6 7.5 15.4H16.5Z"/><path d="M12 8.6V3.4M7.5 15.4 4.5 16.3M16.5 15.4 19.5 16.3"/></svg> Character Sheet <span>· 5e</span></div>
+      <div class="lp-ver">Version <span class="lp-semver"></span></div>
+    </header>
+
+    <div class="lp-wrap lp-desk">
+      <div>
+        <p class="lp-eyebrow">Automated D&amp;D 5e character sheet</p>
+        <h1>The sheet is a file. Start by downloading it.</h1>
+        <p class="lp-lede">It builds your character and keeps the math right while you play. It also lives on your computer, so it works offline and nobody needs an account.</p>
+        <div class="lp-shot"></div>
+        <p class="lp-cap">What opens when you double-click the file.</p>
+      </div>
+      <div>
+        <ol class="lp-steps">
+          <li><div>
+            <h2>Download the file</h2>
+            <div class="lp-unless-has"><a class="lp-dl lp-get" href="index.html" download="Character Sheet.html"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v6H3v-6"/><path d="m7 10 5 5 5-5"/></svg>Download the file <small class="lp-mb"></small></a></div>
+            <p class="lp-if lp-on-wait lp-note">Looking for your characters in this browser…</p>
+            <div class="lp-if lp-on-has">
+              <button class="lp-dl lp-save" type="button" data-next="Open that file from now on."><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v6H3v-6"/><path d="m7 10 5 5 5-5"/></svg><span>Download the file with my <span class="lp-count">characters</span></span></button>
+              <p class="lp-note">They are saved in this browser right now. This download puts them inside the file. <a class="lp-get" href="index.html" download="Character Sheet.html">Download an empty copy instead</a></p>
+            </div>
+            <p class="lp-note"><span class="lp-file">Character Sheet.html</span><span class="lp-upd"></span></p>
+            <p class="lp-done" role="status"></p>
+          </div></li>
+          <li class="lp-next"><div>
+            <h2>Open it</h2>
+            <p>Double-click the file in your Downloads folder. It opens in your browser, like a web page that lives on your computer.</p>
+          </div></li>
+          <li><div>
+            <h2>Save it yourself</h2>
+            <p>The sheet autosaves in your browser while you play. <strong>Don't rely on that alone. Press Save when you finish a session.</strong> You name the file and get a fresh copy with every character inside. Keep that copy somewhere safe.</p>
+          </div></li>
+        </ol>
+        <p class="lp-alt"><span>On an iPhone or iPad? Open this page there.</span><button type="button" class="lp-link lp-skip">Use the sheet in this tab instead</button></p>
+      </div>
+    </div>
+
+    <div class="lp-wrap lp-apple">
+      <p class="lp-eyebrow">Automated D&amp;D 5e character sheet</p>
+      <h1>On <span class="lp-dev">iPhone</span>, add the sheet to your Home Screen.</h1>
+      <p class="lp-lede">An <span class="lp-dev">iPhone</span> can't run a downloaded HTML file. Added to your Home Screen, the sheet opens full screen and works offline.</p>
+      <div class="lp-if lp-on-inapp lp-warn"><p><strong>You're in an in-app browser.</strong> It can't add anything to the Home Screen. Open this page in Safari first. <button type="button" class="lp-link lp-copy">Copy the link</button></p></div>
+      <div class="lp-if lp-on-has lp-warn">
+        <p>You have <span class="lp-count">characters</span> saved in this browser tab. The Home Screen app starts empty, so save them to a file first. Then open the app and go to Menu, Manage Characters, Import.</p>
+        <button class="lp-dl lp-save" type="button" data-next="Next, add the sheet to your Home Screen and import that file in the app."><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v6H3v-6"/><path d="m7 10 5 5 5-5"/></svg><span>Save my <span class="lp-count">characters</span> to a file</span></button>
+        <p class="lp-done" role="status"></p>
+      </div>
+      <ol class="lp-steps">
+        <li><div>
+          <h2>Open the Share menu</h2>
+          <p class="lp-if lp-on-27">Tap <span class="lp-key"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span> in Safari, then <b>Share</b> <span class="lp-key"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v10h16V12"/></svg></span>. If Share is already in the toolbar, tap that.</p>
+          <p class="lp-if lp-on-26">Tap <span class="lp-key"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></g></svg></span> in Safari, then <b>Share</b> <span class="lp-key"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v10h16V12"/></svg></span>. If Share is already in the toolbar, tap that.</p>
+          <p class="lp-if lp-on-share">Tap <b>Share</b> <span class="lp-key"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v10h16V12"/></svg></span> in your browser's toolbar.</p>
+        </div></li>
+        <li><div>
+          <h2>Add to Home Screen</h2>
+          <p>Scroll down the list and tap <b>Add to Home Screen</b> <span class="lp-key"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18"/><path d="M8 12h8M12 8v8"/></svg></span>. If it isn't there, tap <b>View More</b> or <b>More</b> first.</p>
+        </div></li>
+        <li><div>
+          <h2>Tap Add</h2>
+          <p class="lp-if lp-on-webapp">Make sure <b>Open as Web App</b> is on, then tap <b>Add</b>. The sheet is now an icon on your Home Screen.</p>
+          <p class="lp-if lp-on-nowebapp">Tap <b>Add</b>. The sheet is now an icon on your Home Screen.</p>
+        </div></li>
+        <li><div>
+          <h2>Save it yourself</h2>
+          <p>The app autosaves on your <span class="lp-dev">iPhone</span>. <strong>Don't rely on that alone. Press Save now and then.</strong> It puts a copy of the file, with every character inside, in your Files app.</p>
+        </div></li>
+      </ol>
+      <p class="lp-fine">No Add to Home Screen anywhere in the list? Then you're in an in-app browser. Open this page in Safari first.</p>
+      <p class="lp-alt"><button type="button" class="lp-link lp-copy">Copy the link</button><button type="button" class="lp-link lp-skip">Use the sheet in this tab instead</button></p>
+      <p class="lp-fine">Careful with the tab: iOS can delete what a site has saved there after 7 days without a visit. The Home Screen app doesn't have that limit.</p>
+    </div>
+
+    <div class="lp-wrap lp-droid">
+      <p class="lp-eyebrow">Automated D&amp;D 5e character sheet</p>
+      <h1>On Android, install the sheet as an app.</h1>
+      <p class="lp-lede">Installed, it opens full screen, works offline and keeps your characters on the phone.</p>
+      <ol class="lp-steps">
+        <li><div>
+          <h2>Install it</h2>
+          <div class="lp-if lp-on-install"><button class="lp-dl lp-install" type="button"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3"/><path d="M21 15v6H3v-6"/><path d="m7 10 5 5 5-5"/></svg>Install the app</button></div>
+          <p class="lp-manual">In your browser's menu <span class="lp-key"><svg class="lp-i" viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor" stroke="none"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></g></svg></span>, tap <b>Add to Home screen</b> or <b>Install app</b>.</p>
+          <p class="lp-done" role="status"></p>
+        </div></li>
+        <li><div>
+          <h2>Open it</h2>
+          <p>Tap the Character Sheet icon on your Home screen.</p>
+        </div></li>
+        <li><div>
+          <h2>Save it yourself</h2>
+          <p>The app autosaves on your phone. <strong>Don't rely on that alone. Press Save now and then.</strong> You get a copy of the file with every character inside, for a backup or for a computer.</p>
+        </div></li>
+      </ol>
+      <p class="lp-fine">No install option in the menu? Open this page in Chrome first.</p>
+      <p class="lp-alt"><button type="button" class="lp-link lp-copy">Copy the link</button><a class="lp-get" href="index.html" download="Character Sheet.html">Download the file instead</a><button type="button" class="lp-link lp-skip">Use the sheet in this tab instead</button></p>
+    </div>
+  </main>
+  <script>
+    /* Fills in and wires the landing page above. It sits here, megabytes ahead of the main script, so the
+       page works while the rest of the file is still downloading. The main script joins in later through
+       landingReady() and landingLeft(). */
+    try{ (function(){
+      var LP = { semver:"2.171.0", date:"2026-11-21", mb:16 };   /* @LP_STAMP@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+      var de = document.documentElement, box = document.getElementById("landing");
+      if(!box || !de.classList.contains("landing")) return;
+      function all(sel, fn){ Array.prototype.forEach.call(box.querySelectorAll(sel), fn); }
+      function say(from, msg){ var host = from.closest("li, .lp-warn, .lp-wrap"), out = host && host.querySelector(".lp-done"); if(out) out.textContent = msg; }
+      var file = "Character Sheet v" + LP.semver + ".html", here = location.href.replace(/[?#].*$/, "");
+      var d = /^(\d+)-(\d+)-(\d+)$/.exec(LP.date), when = "";
+      try{ if(d) when = new Date(+d[1], +d[2] - 1, +d[3]).toLocaleDateString(undefined, { year:"numeric", month:"long", day:"numeric" }); }catch(e){}
+      all(".lp-semver", function(el){ el.textContent = LP.semver; });
+      all(".lp-file", function(el){ el.textContent = file; });
+      all(".lp-upd", function(el){ el.textContent = when ? " · updated " + when : ""; });
+      all(".lp-mb", function(el){ el.textContent = LP.mb + " MB"; });
+      all(".lp-dev", function(el){ el.textContent = de.classList.contains("lp-ipad") ? "iPad" : "iPhone"; });
+      all(".lp-done", function(el){ el.textContent = ""; });                 // a saved copy can carry an old message
+      all(".lp-busy", function(el){ el.classList.remove("lp-busy"); });
+      all("a.lp-get", function(a){ a.href = here; a.download = file; });    // this page's own address: the file IS this document
+
+      if(!document.querySelector('link[rel="manifest"]')){   // in place before a phone visitor can reach Add to Home Screen
+        [["manifest", "manifest.webmanifest"], ["apple-touch-icon", "icon-180.png"]].forEach(function(p){
+          var l = document.createElement("link"); l.rel = p[0]; l.href = p[1]; l.setAttribute("data-transient", "1"); document.head.appendChild(l); });
+      }
+      var shot = box.querySelector(".lp-shot");   // the picture is a hosted file, so it is added here and never rides in a saved copy
+      if(shot && !shot.firstChild){
+        var im = document.createElement("img"); im.setAttribute("data-transient", "1"); im.setAttribute("loading", "lazy"); im.decoding = "async";
+        im.width = 1040; im.height = 656; im.alt = "The sheet with a sample character: abilities, hit points, armor class and attacks.";
+        im.src = "landing-shot-" + (document.body.classList.contains("dark") ? "dark" : "light") + ".png"; shot.appendChild(im);
+      }
+
+      function leave(){   // stay on the web: remember it, uncover the sheet
+        try{ localStorage.setItem("dnd-sheet-web", "1"); }catch(e){}
+        de.className = de.className.split(/\s+/).filter(function(c){ return c && c !== "landing" && c.indexOf("lp-") !== 0; }).join(" ");
+        window.scrollTo(0, 0);
+        if(typeof window.landingLeft === "function") window.landingLeft();
+      }
+      function copy(t){
+        if(!t._was) t._was = t.textContent;
+        var ok = function(){ t.textContent = "Link copied"; setTimeout(function(){ t.textContent = t._was; }, 2000); };
+        var ask = function(){ window.prompt("Copy this link:", here); };
+        try{ navigator.clipboard.writeText(here).then(ok, ask); }catch(e){ ask(); }
+      }
+      var offer = null;   // Chromium's install prompt, kept until the visitor asks for it
+      window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); offer = e; de.classList.add("lp-can-install"); });
+      window.addEventListener("appinstalled", function(){ de.classList.remove("lp-can-install"); all(".lp-droid .lp-done", function(el){ el.textContent = "Installed. Open Character Sheet from your Home screen."; }); });
+      box.addEventListener("click", function(e){
+        var t = e.target.closest ? e.target.closest(".lp-skip, .lp-copy, .lp-install, a.lp-get") : null; if(!t) return;
+        if(t.classList.contains("lp-skip")) leave();
+        else if(t.classList.contains("lp-copy")) copy(t);
+        else if(t.classList.contains("lp-install")){ if(offer){ var o = offer; offer = null; de.classList.remove("lp-can-install"); try{ o.prompt(); }catch(e2){} } }
+        else { de.classList.add("lp-got"); say(t, "Downloading. When it finishes, open the file from your Downloads folder."); }
+      });
+      window.addEventListener("load", function(){ setTimeout(function(){ if(de.classList.contains("landing")) de.classList.add("lp-ready"); }, 8000); });   // never leave a returning visitor without a download because the main script failed
+    })(); }catch(e){}
+  </script>
   <!-- Auto-shown when a newer build is published (polls a tiny version.json; needs a connection). -->
   <div class="update-banner noprint" id="update-banner" hidden="">
     <span class="ub-msg" id="update-banner-msg"></span>
@@ -3162,6 +3438,8 @@
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Guide</label>
             <button class="btn" id="btn-showguide" type="button" title="Reopen the welcome guide">Show the welcome guide</button>
             <p class="wiz-hint">Reopens the short intro that appears the first time you open this sheet.</p>
+            <button class="btn" id="btn-showlanding" type="button" hidden="" style="margin-top:8px" title="Go back to the page that offers the sheet as a file">Show the download page</button>
+            <p class="wiz-hint" id="showlanding-hint" hidden="">Brings back the page that offers the sheet as a file. It stopped showing when you chose to use the sheet in this browser tab.</p>
             <label class="lbl" style="display:block; margin:18px 0 6px; border-top:1px solid var(--line); padding-top:14px">Export a blank sheet</label>
             <button class="btn" id="btn-export-blank" type="button" title="Download a blank copy of this sheet — no character data, default settings, but every loaded sourcebook baked in. Hand it to someone so they can start a character with all your sources ready to go.">Export a blank sheet</button>
             <p class="wiz-hint">Downloads a fresh copy with no characters and default settings, but with every sourcebook you've loaded baked in. Good for handing someone a ready-to-use sheet. It opens blank for them (and for you), and it keeps your own characters and settings untouched.</p>
@@ -3330,11 +3608,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v646 (2026-11-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v647 (2026-11-21)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.170.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.171.0";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3342,6 +3620,11 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v647", semver:"2.171.0", items:[
+      "The web address now opens a download page in place of the sheet. On a computer it offers the sheet as a file, with the steps to download it, open it and save your work. On an iPhone or iPad it shows how to add the sheet to the Home Screen, with the buttons your version of iOS has. On Android it shows how to install the sheet as an app.",
+      "If this browser already holds characters, the download page offers the file with them inside, so none are left behind.",
+      "To keep using the sheet in a browser tab, choose \"Use the sheet in this tab instead\" on that page. Settings, General has a button that brings the page back. A file opened from your computer and an app on your Home Screen open straight to the sheet, as before.",
+    ]},
     {v:"v646", semver:"2.170.0", items:[
       "Save now asks what to call the file. In Chrome and Edge you get the regular Save As window, so you choose the name and the folder. Firefox, Safari and Brave do not let a page open that window, so there the sheet asks for the name and your browser puts the file in its downloads folder. The name you choose is suggested again the next time. Before, every save used the default name.",
     ]},
@@ -7054,7 +7337,11 @@
   // corpse on next open and never wires the buttons (a Studio that had been opened before saving shipped
   // as a dead, uncloseable modal). Runtime-appended chrome tags itself data-transient; strip it from any
   // clone we serialize.
-  function stripTransientChrome(root){ root.querySelectorAll("[data-transient]").forEach(el => el.remove()); }
+  function stripTransientChrome(root){
+    root.querySelectorAll("[data-transient]").forEach(el => el.remove());
+    if(root.classList){ [...root.classList].forEach(c => { if(c === "landing" || c.indexOf("lp-") === 0) root.classList.remove(c); });   // landing-page state belongs to the visit, not to the file
+      if(!root.classList.length) root.removeAttribute("class"); }
+  }
   // Strip THIS browser's library residue from a clone that isn't meant to carry the whole library.
   // The Character Manager grid holds fully-rendered cards — every character's name, campaign and portrait
   // thumbnail (a data URL) — and a modal that happened to be open when you exported serializes its `open`
@@ -14946,14 +15233,16 @@
   // Home screen" banner. Those users can just open the file, so suppress it — only iOS (which
   // never fires this event) should get the manual Home-Screen nudge in setupInstallHelper below.
   window.addEventListener("beforeinstallprompt", e => e.preventDefault());
-  function setupInstallHelper(){   // hosted → register the offline service worker + manifest; then nudge the user to keep an offline copy (Add to Home Screen on iOS, Save a copy elsewhere)
+  function setupInstallHelper(hintOnly){   // hosted → register the offline service worker + manifest; then nudge the user to keep an offline copy (Add to Home Screen on iOS, Save a copy elsewhere). hintOnly = just the nudge (landingLeft)
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     const ua = navigator.userAgent || "";
     const isIOS = (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) && !window.MSStream;
     const hosted = /^https?:$/.test(location.protocol);
-    if(hosted && "serviceWorker" in navigator){   // PWA wiring matters only when served; a locally-opened file stays fully self-contained (no external refs)
-      const mani = document.createElement("link"); mani.rel = "manifest"; mani.href = "manifest.webmanifest"; document.head.appendChild(mani);
-      const icon = document.createElement("link"); icon.rel = "apple-touch-icon"; icon.href = "icon-180.png"; document.head.appendChild(icon);
+    if(!hintOnly && hosted && "serviceWorker" in navigator){   // PWA wiring matters only when served; a locally-opened file stays fully self-contained (no external refs)
+      if(!document.querySelector('link[rel="manifest"]')){   // the landing page adds the same two links at first paint
+        const mani = document.createElement("link"); mani.rel = "manifest"; mani.href = "manifest.webmanifest"; mani.dataset.transient = "1"; document.head.appendChild(mani);
+        const icon = document.createElement("link"); icon.rel = "apple-touch-icon"; icon.href = "icon-180.png"; icon.dataset.transient = "1"; document.head.appendChild(icon);
+      }
       // Register the offline cache, and make it self-healing so a stale/broken cached build can NEVER
       // strand a user (no manual reload, no console commands, ever):
       //  • updateViaCache:"none" — the browser always revalidates sw.js itself, so a new worker is
@@ -14975,6 +15264,7 @@
       }).catch(()=>{});
     }
     if(isStandalone) return;   // already added to the Home Screen — nothing to nag
+    if(onLanding()) return;    // the landing page is the nudge; landingLeft() comes back for this tip if the visitor stays on the web
     try{ if(localStorage.getItem("installHintDismissed") === "1") return; }catch(e){}
     let msg, action = null;
     if(isIOS) msg = "To use this offline, add it to your Home Screen: tap Share, then “Add to Home Screen.”";
@@ -15931,6 +16221,10 @@
       if(g("bookexport")) g("bookexport").addEventListener("click", e=>{ if(e.target.id === "bookexport") closeBookExport(); });   // click backdrop to close
     }
     $("btn-showguide").addEventListener("click", ()=>{ $("settings").classList.remove("open"); showIntro(); });   // close Settings, re-run the welcome guide
+    $("btn-showlanding").addEventListener("click", ()=>{   // forget the choice to stay on the web, then load the plain address so the gate runs again
+      try{ localStorage.removeItem("dnd-sheet-web"); }catch(e){}
+      const u = location.href.replace(/[?#].*$/, ""); if(u === location.href) location.reload(); else location.replace(u);
+    });
     $("btn-update").addEventListener("click", updateApp);
     { const bl = $("book-load"); if(bl) bl.addEventListener("click", loadMissingBook);
       const bd = $("book-dismiss"); if(bd) bd.addEventListener("click", () => { const bn = $("book-banner"); if(bn) bn.hidden = true; }); }
@@ -16023,8 +16317,9 @@
     });
     setupInstallHelper();
     setupOverlayScrollLock();
-    maybeShowIntro();
+    if(!onLanding()) maybeShowIntro();   // behind the landing page the guide waits (landingLeft shows it)
     checkForUpdate();   // background: poll for a newer published build and surface the update banner
+    _initDone = true; landingReady();
   }
 
   // ===== Overlay scroll lock =====
@@ -16147,6 +16442,39 @@
     });
   }
 
+  // ---- Landing page hand-off ----
+  // The download page a web visitor gets (#landing) is drawn and wired by the scripts at the top of <body>,
+  // so it works before this script has loaded. These calls are the parts that need the sheet itself.
+  let _initDone = false;
+  function onLanding(){ return document.documentElement.classList.contains("landing"); }
+  function landingReady(){   // init is done: report the characters this browser already holds, and wire the buttons that save them
+    syncLandingSetting();
+    if(!onLanding()) return;
+    const n = characterSlots().filter(s => s.name || s.sub).length, label = n + " character" + (n === 1 ? "" : "s");
+    document.querySelectorAll("#landing .lp-count").forEach(el => { el.textContent = label; });
+    document.querySelectorAll("#landing .lp-save").forEach(b => {
+      if(b._live) return; b._live = true;
+      b.addEventListener("click", async () => {
+        b.classList.add("lp-busy");
+        let r = null; try{ r = await saveSheetAs(); }finally{ b.classList.remove("lp-busy"); }
+        if(!r) return;
+        const out = (b.closest("li, .lp-warn") || document).querySelector(".lp-done");
+        if(out) out.textContent = (r.picked ? "Saved “" : "Downloaded “") + r.name + "” with " + label + " inside. " + (b.dataset.next || "");
+      });
+    });
+    document.documentElement.classList.toggle("lp-has", n > 0);
+    document.documentElement.classList.add("lp-ready");
+  }
+  function landingLeft(){   // the visitor chose to stay on the web: the welcome guide and the Save tip are due now
+    if(!_initDone) return;  // still loading: init runs both itself once it sees the page is gone
+    maybeShowIntro(); setupInstallHelper(true); syncLandingSetting();
+  }
+  function syncLandingSetting(){   // Settings → "Show the download page" exists only for a web visitor who skipped that page
+    const b = $("btn-showlanding"), h = $("showlanding-hint"); if(!b) return;
+    let stayed = false; try{ stayed = localStorage.getItem("dnd-sheet-web") === "1"; }catch(e){}
+    const show = /^https?:$/.test(location.protocol) && stayed;
+    b.hidden = !show; if(h) h.hidden = !show;
+  }
   function maybeShowIntro(){
     let seenVer = null;
     try{ seenVer = localStorage.getItem("introSeenVersion") || (localStorage.getItem("introSeen") === "1" ? "" : null); }catch(e){}   // migrate the old boolean flag: treat a prior "seen" as an unknown old version so the updated guide shows once
