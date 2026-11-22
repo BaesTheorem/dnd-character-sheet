@@ -136,8 +136,23 @@ async def spell_tables(browser):
     check("baked spell damage is the 2014 value for every spell", not bad, bad[:5])
     up = {n: js[n]["up"] for n in names if js[n]["up"]}
     check("baked upcast table is exactly the 2014 one", D["spellUpcast"] == up, (sorted(set(D["spellUpcast"]) ^ set(up))[:8], [(n, D["spellUpcast"][n], up[n]) for n in up if n in D["spellUpcast"] and D["spellUpcast"][n] != up[n]][:4]))
-    atk = sorted(n for n in names if js[n]["atk"])
-    check("baked attack-roll list is exactly the 2014 one", sorted(D["attackSpells"]) == atk, sorted(set(D["attackSpells"]) ^ set(atk))[:8])
+    # The attack-roll list is keyed by name and is the ONLY place a spell's flag lives, so it must also cover the spells
+    # that only a per-book copy holds (a book that starts disabled). 2.171.1 judged the main list alone and removed one.
+    book = {}
+    for d in (D["_meta"].get("raw") or {}).values():
+        for bsp in d.get("spells", []):
+            if bsp["name"] not in top: book.setdefault(bsp["name"], bsp)
+    own = {}
+    for n, bsp in book.items():
+        c = src.get(n, []); same = [x for x in c if bd.entries_to_text(x.get("entries", [])) == bsp["text"]]
+        if same or len(c) == 1: own[n] = (same or c)[0]
+    check(f"every spell that only a per-book copy holds is found in a 2014 source ({len(own)} of {len(book)})", len(own) == len(book), sorted(set(book) - set(own))[:6])
+    atk = sorted([n for n in names if js[n]["atk"]] + [n for n, e in own.items() if e.get("spellAttack")])
+    check("baked attack-roll list is exactly the 2014 one, for the spells of every copy the build holds", sorted(D["attackSpells"]) == atk, sorted(set(D["attackSpells"]) ^ set(atk))[:8])
+    gone = (D["_meta"].get("dropped2024") or {})
+    kept = {"attackSpells": set(atk), "spellUpcast": set(up)}
+    wrong = [(k, n) for k in kept for n in gone.get(k, []) if n in kept[k]]
+    check("the removal lists name nothing that the 2014 tables keep", not wrong, wrong[:6])
 
 async def main():
     have_mirror = (ET / "js" / "render.js").is_file()

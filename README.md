@@ -334,7 +334,10 @@ Chromium, WebKit and Firefox through Playwright (`pip install playwright`, then
   values against its 2014 source entry. The comparisons with 5etools need a local 5etools mirror
   (`FIVETOOLS_ROOT`) and are skipped without one.
 - `python3 tests/test_textfix.py`: the corrected rules text, and the repair of data and characters
-  saved before a correction.
+  saved before a correction. Two more checks run only by name. `live` runs after a deploy: an older
+  copy updates from the real site and must open correct. `copy` takes a saved sheet of yours
+  (`SHEET_COPY=/path/to/file.html`), updates a copy of it, and searches every character for text the
+  repair did not reach. It never writes to the original file.
 
 ## Design / longevity rules
 Vanilla HTML/CSS/JS only: no frameworks, no build step, no CDN, no web-fetched fonts (uses the
