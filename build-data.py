@@ -35,28 +35,99 @@ WPROP = {"A":"ammunition","F":"finesse","H":"heavy","L":"light","LD":"loading","
          "S":"special","T":"thrown","2H":"two-handed","V":"versatile"}
 
 # ---- 5eTools {@tag ...} markup -> plain text ----
+# Each tag has its own rule for WHICH field a reader sees, so there is no generic "third field" fallback:
+# that fallback printed the chapter number of {@quickref difficult terrain||3} and the base damage of
+# {@scaledamage 4d6|1-9|1d6}. The rules below are 5etools' own (js/render.js, Renderer.tag.*._getStripped and
+# attackTagToFull), and tests/test_tags.py checks them against Renderer.stripTags for every tag in the data.
+# Two deliberate differences: "(Recharge 5-6)" keeps a plain hyphen, and "Melee or Ranged" keeps one space.
+# etTags() in index.html is the same table in JavaScript. Change both together.
 _tag = re.compile(r"\{@(\w+)(?: ([^{}]*))?\}")
-_ATK = {"mw":"Melee Weapon Attack","rw":"Ranged Weapon Attack","mw,rw":"Melee or Ranged Weapon Attack",
-        "ms":"Melee Spell Attack","rs":"Ranged Spell Attack","ms,rs":"Melee or Ranged Spell Attack"}
+_ABIL = {"str":"Strength","dex":"Dexterity","con":"Constitution","int":"Intelligence","wis":"Wisdom","cha":"Charisma"}
+_ORD = {"1":"First","2":"Second","3":"Third","4":"Fourth","5":"Fifth"}
+# cross-reference tags: field 0 is the name, and THIS field is the display text when the tag has one
+_DISPLAY_AT = {t: 2 for t in ("action background boon charoption class condition creature creatureFluff cult deck disease "
+    "facility feat hazard item itemProperty itemMastery language legroup object optfeature psionic race raceFluff recipe "
+    "reward vehicle vehupgrade sense skill spell status table trap variantrule cite").split()}
+_DISPLAY_AT.update({"card": 3, "deity": 3, "subclass": 4, "quickref": 4, "classFeature": 5, "subclassFeature": 7})
+_VAR = re.compile(r"<\$([^$]+)\$>")
+_VAR_TEXT = {"name": "(name)", "short_name": "(short name)", "title_short_name": "(short title name)", "dc": "({} DC)",
+    "spell_dc": "({} spellcasting DC)", "to_hit": "({} to-hit)", "damage_mod": "({} damage modifier)",
+    "damage_avg": "(damage average)", "size_mult": "(size multiplier)"}
+
+def _tag_vars(s):   # <$to_hit__dex$> -> "(DEX to-hit)": template stat blocks carry these in place of numbers
+    def r(m):
+        mode, _, detail = m.group(1).partition("__")
+        t = _VAR_TEXT.get(mode)
+        return m.group(0) if t is None else t.format(detail.upper())
+    return _VAR.sub(r, s) if "<$" in s else s
+
+def _tag_attack(body, roll=False):   # {@atk mw,rw} -> "Melee or Ranged Weapon Attack:"
+    groups = [list(g.strip()) for g in body.lower().split(",") if g.strip()]
+    if len(groups) > 1:   # a letter shared with a later group is said once, by the later group
+        seen = set(groups[-1])
+        for i in range(len(groups) - 2, -1, -1):
+            kept = [c for c in groups[i] if c not in seen]; seen.update(groups[i]); groups[i] = kept
+    def one(g):
+        kind = "Melee " if "m" in g else "Ranged " if "r" in g else "Magical " if "g" in g else "Area " if "a" in g else ""
+        how = "Weapon " if "w" in g else "Spell " if "s" in g else "Power " if "p" in g else ""
+        return (kind + how).strip()
+    return " ".join((" or ".join(one(g) for g in groups) + " Attack" + (" Roll" if roll else "")).split()) + ":"
+
+_NUM = re.compile(r"[+-]?\d+(?:\.\d+)?")
+def _tag_signed(s):   # "5" -> "+5", "-1" -> "-1"; anything that is not a number stays as written
+    t = s.strip()
+    if not _NUM.fullmatch(t): return s
+    return t if t[0] in "+-" else "+" + t
+
+def _tag_text(tag, body):
+    body = _tag_vars(body)
+    p = body.split("|")
+    f = lambda i: p[i] if len(p) > i else ""
+    if tag == "h": return "Hit: "                                  # monster damage-line marker
+    if tag == "m": return "Miss: "
+    if tag == "hom": return "Hit or Miss: "
+    if tag in ("atk", "atkr"): return _tag_attack(body, tag == "atkr")
+    if tag in ("damage", "dice", "autodice"): return f(1) or p[0].replace(";", "/")
+    if tag in ("scaledamage", "scaledice"): return f(4) or f(2) or p[0]   # base|slot levels|added per level|mode|display: the reader sees what is ADDED per level
+    if tag in ("hit", "d20", "initiative"): return f(1) or _tag_signed(p[0])
+    if tag == "dc": return "DC " + (f(1) or p[0])
+    if tag == "recharge":
+        n = p[0].strip() or "6"
+        return f"(Recharge {n}-6)" if n.isdigit() and int(n) < 6 else f"(Recharge {n})"
+    if tag == "chance": return f(1) or p[0] + " percent"
+    if tag == "ability":
+        if f(1): return f(1)
+        bits = p[0].split(); score = int(bits[1]) if len(bits) > 1 and re.fullmatch(r"-?\d+", bits[1]) else 0
+        mod = (score - 10) // 2
+        return f"{score} ({'+' if mod >= 0 else ''}{mod})"
+    if tag in ("savingThrow", "skillCheck"): return f(1) or p[0]
+    if tag == "coinflip": return p[0] or "flip a coin"
+    if tag == "hitYourSpellAttack": return p[0] or "your spell attack modifier"
+    if tag == "dcYourSpellSave": return p[0] or "your spell save DC"
+    if tag == "actSave": return _ABIL.get(body.strip().lower(), body) + " Saving Throw:"
+    if tag == "actSaveSuccess": return "Success:"
+    if tag == "actSaveFail": return (_ORD.get(p[0].strip(), p[0]) + " Failure:") if p[0].strip() else "Failure:"
+    if tag == "actSaveFailBy": return f"Failure by {p[0]} or More:"
+    if tag == "actSaveSuccessOrFail": return "Failure or Success:"
+    if tag == "actTrigger": return "Trigger:"
+    if tag == "actResponse": return "Response\u2014" if "d" in body else "Response:"
+    if tag == "area":
+        fl = f(2)
+        return p[0] if "x" in fl else ("Area " if "u" in fl else "area ") + p[0]
+    if tag == "homebrew":
+        new, old = p[0], f(1)
+        if new and old: return f'{new} [this is a homebrew addition, replacing the following: "{old}"]'
+        return f"{new} [this is a homebrew addition]" if new else f"[the following text has been removed due to homebrew: {old}]"
+    at = _DISPLAY_AT.get(tag)
+    if at is not None and len(p) > at and p[at].strip(): return p[at]
+    return p[0]   # every other tag, and a cross-reference with no display text: its first field
+
 def render_tags(s):
     if not isinstance(s, str): return s
     prev = None
     while prev != s:
         prev = s
-        def repl(m):
-            tag, body = m.group(1), m.group(2) or ""
-            parts = body.split("|")
-            if tag == "h": return "Hit: "                                  # monster damage-line marker
-            if tag == "atk": return (_ATK.get(body.strip(), body)) + ":"
-            if tag == "hit": return parts[0] if parts[0][:1] in "+-" else "+" + parts[0]
-            if tag == "dc": return "DC " + parts[0]
-            if tag == "recharge": return f"(Recharge {parts[0]}-6)" if parts[0] else "(Recharge 6)"
-            if tag in ("dice","damage","scaledamage","scaledice","d20","filter"):
-                return parts[0]   # @filter is {display|page|filters...} — display is parts[0], not parts[2]
-            if len(parts) >= 3 and parts[2].strip():   # explicit display text
-                return parts[2]
-            return parts[0]
-        s = _tag.sub(repl, s)
+        s = _tag.sub(lambda m: _tag_text(m.group(1), m.group(2) or ""), s)
     return s
 
 def entries_to_text(e):
@@ -725,6 +796,17 @@ def build_items(raw, items=None):
                           "stealth": bool(it.get("stealth")), "strength": it.get("strength")})
     return weapons, armor
 
+def spell_dmg(s):   # {type, dice} or {type, scale:{level: dice}} for the Damage column (etSpellDmg in index.html is the same code)
+    typ = (s.get("damageInflict") or [None])[0]
+    sld = s.get("scalingLevelDice")
+    if (s.get("level") or 0) == 0 and sld:
+        arr = sld if isinstance(sld, list) else [sld]
+        ch = next((e for e in arr if re.search("damage", e.get("label") or "", re.I)), arr[0])
+        sc = {str(k): v for k, v in ((ch or {}).get("scaling") or {}).items() if re.match(r"\d+d\d+", str(v))}
+        if sc: return {"type": typ, "scale": sc}
+    m = re.search(r"\{@damage (\d+d\d+)", json.dumps(s.get("entries") or []))
+    return {"type": typ, "dice": m.group(1)} if m else None
+
 def build_spells():
     spells = []
     for fn in os.listdir(os.path.join(SRC, "spells")):
@@ -745,14 +827,19 @@ def build_spells():
                            "higher": entries_to_text(s.get("entriesHigherLevel", [])),
                            "ritual": bool(s.get("meta", {}).get("ritual")),
                            "conc": bool(dur0.get("concentration")), "material": mat})
+            dmg = spell_dmg(s)
+            if dmg: spells[-1]["dmg"] = dmg
     spells.sort(key=lambda x: (x["level"], x["name"]))
     return spells
 
+# The two tables below are keyed by spell NAME across every spell file, so each must skip the 2024 reprints itself:
+# without that, Poison Spray became an attack-roll spell and Hunger of Hadar gained 2024 upcast dice.
 def build_attack_spells():   # names of every spell that requires a spell attack roll (5etools spellAttack) → Spell Sniper cantrip filter
     names = set()
-    for fn in os.listdir(os.path.join(SRC, "spells")):
+    for fn in sorted(os.listdir(os.path.join(SRC, "spells"))):
         if not re.match(r"spells-[a-z0-9]+\.json$", fn): continue
         for s in load("spells", fn).get("spell", []):
+            if is_2024(s): continue
             if s.get("spellAttack") and s.get("name"): names.add(s["name"])
     return sorted(names)
 
@@ -833,20 +920,41 @@ def build_tce_text():   # {TCE_RULES id: verbatim text} for the Tasha's optional
     except Exception: pass
     return out
 
-_SCALEDAMAGE = re.compile(r"\{@scaledamage\s+([^|]+)\|([^|]+)\|([^}]+)\}")
-def build_spell_upcast(spell_names):   # {name: {up: per-slot-level dice, at: base level}} from 5etools @scaledamage → upcast damage picker
+# {name: how the spell's damage dice grow with the slot level} from 5etools @scaledamage → the upcast damage picker.
+# Three shapes of rule (etSpellUpcast in index.html is the same code in JavaScript; change both together):
+#   {up:"1d6", at:1}            1d6 more for each slot level above 1st                    (Guiding Bolt)
+#   {up:"1d8", at:2, step:2}    1d8 more for every TWO slot levels above 2nd              (Spiritual Weapon)
+#   {at:3, tiers:[[5,"2d4"],[7,"3d4"]]}   the dice BECOME 2d4 at a 5th-level slot, 3d4 at 7th  (Elemental Weapon)
+_SCALEDAMAGE = re.compile(r"(?:\b(\w+) )?\{@scaledamage\s+([^|]+)\|([^|]+)\|([^|}]+)")   # word before | base | slot levels | added per step
+_SLOT_TIER = re.compile(r"spell slot of (\d+)(?:st|nd|rd|th)[^.{]*?\bto \{@scaledamage\s+[^|]+\|[^|]+\|([^|}]+)")
+def _slot_levels(rng):   # "1-9" -> [1..9]; "2,4,6,8" -> [2,4,6,8]
+    out = set()
+    for part in rng.split(","):
+        a, _, b = part.strip().partition("-")
+        if a.strip().isdigit(): out.update(range(int(a), (int(b) if b.strip().isdigit() else int(a)) + 1))
+    return sorted(out)
+def spell_upcast(sp):
+    txt = json.dumps(sp.get("entriesHigherLevel") or "")
+    m = _SCALEDAMAGE.search(txt)
+    if not m: return None
+    lv = _slot_levels(m.group(3)); at = lv[0] if lv else (sp.get("level") or 1)
+    if m.group(1) == "to":   # "the extra damage increases to …": dice at that slot, not an addition per level
+        tiers = [[int(a), b.strip()] for a, b in _SLOT_TIER.findall(txt)]
+        return {"at": at, "tiers": tiers} if tiers else None
+    out = {"up": m.group(4).strip(), "at": at}
+    gaps = {lv[i + 1] - lv[i] for i in range(len(lv) - 1)}
+    if len(gaps) == 1 and gaps != {1}: out["step"] = gaps.pop()
+    return out
+def build_spell_upcast(spell_names):
     out = {}
     keep = set(spell_names)
-    for fn in os.listdir(os.path.join(SRC, "spells")):
+    for fn in sorted(os.listdir(os.path.join(SRC, "spells"))):
         if not re.match(r"spells-[a-z0-9]+\.json$", fn): continue
         for s in load("spells", fn).get("spell", []):
             nm = s.get("name")
-            if nm not in keep or nm in out: continue
-            m = _SCALEDAMAGE.search(json.dumps(s.get("entriesHigherLevel") or ""))
-            if not m: continue
-            rng = m.group(2).strip()
-            at = int(rng.split("-")[0]) if "-" in rng else (s.get("level") or 1)
-            out[nm] = {"up": m.group(3).strip(), "at": at}
+            if nm not in keep or nm in out or is_2024(s): continue
+            up = spell_upcast(s)
+            if up: out[nm] = up
     return out
 
 # ---- Bestiary (monster stat blocks for the Companions & Forms page) ----

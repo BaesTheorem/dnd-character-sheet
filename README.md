@@ -329,6 +329,12 @@ Chromium, WebKit and Firefox through Playwright (`pip install playwright`, then
 - `python3 tests/test_landing.py`: the download page, per device and per state. It starts
   `tests/serve.py`, a local stand-in for GitHub Pages.
 - `python3 tests/test_saveas.py`: the Save dialog and the name box.
+- `python3 tests/test_tags.py`: the plain text of every 5etools `{@tag}`, in `build-data.py` and in the
+  sheet's loader, against 5etools' own renderer; and every spell's damage, upcast and attack-roll
+  values against its 2014 source entry. The comparisons with 5etools need a local 5etools mirror
+  (`FIVETOOLS_ROOT`) and are skipped without one.
+- `python3 tests/test_textfix.py`: the corrected rules text, and the repair of data and characters
+  saved before a correction.
 
 ## Design / longevity rules
 Vanilla HTML/CSS/JS only: no frameworks, no build step, no CDN, no web-fetched fonts (uses the
