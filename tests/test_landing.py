@@ -368,9 +368,19 @@ async def t_classic(pw):
     await page.screenshot(path=f"{OUT}/t-classic.png")
     await b.close()
 
+async def t_fullscreen(pw):
+    # A desktop browser window in full screen can match (display-mode: fullscreen). That is not an install,
+    # so the gate must still show (2.171.3: it used to open the sheet).
+    fs = "const mm = window.matchMedia.bind(window); window.matchMedia = q => /display-mode:\\s*fullscreen/.test(q) ? { matches: true, media: q, addListener(){}, removeListener(){}, addEventListener(){}, removeEventListener(){} } : mm(q);"
+    b, ctx, page = await open_page(pw, BASE, ua=UA["mac"], init=MAC_INIT + fs, wait=False)
+    await page.wait_for_timeout(1500)
+    r = await page.evaluate(STATE)
+    check("Desktop in full screen: the download page shows", "landing" in r["cls"] and r["gate"] == "block", r)
+    await b.close()
+
 TESTS = {"desktop": t_desktop_fresh, "early": t_early_paint, "bypass": t_bypass, "returning": t_returning,
          "namebox_webkit": lambda pw: t_returning_namebox(pw, "webkit"), "namebox_firefox": lambda pw: t_returning_namebox(pw, "firefox"),
-         "file": t_file, "ios": t_ios, "android": t_android, "layout": t_layout, "print": t_print, "sw": t_sw, "firefox": t_firefox, "classic": t_classic}
+         "file": t_file, "ios": t_ios, "android": t_android, "layout": t_layout, "print": t_print, "sw": t_sw, "firefox": t_firefox, "classic": t_classic, "fullscreen": t_fullscreen}
 
 def port_open():
     with socket.socket() as k:

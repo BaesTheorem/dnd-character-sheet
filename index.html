@@ -2271,7 +2271,7 @@
       var mm = function(q){ try{ return !!window.matchMedia && matchMedia(q).matches; }catch(e){ return false; } };
       var keep = de.className.split(/\s+/).filter(function(c){ return c && c !== "landing" && c.indexOf("lp-") !== 0; });
       var hosted = /^https?:$/.test(location.protocol);
-      var installed = navigator.standalone === true || mm("(display-mode: standalone)") || mm("(display-mode: fullscreen)") || mm("(display-mode: minimal-ui)");
+      var installed = navigator.standalone === true || mm("(display-mode: standalone)");   // the manifest asks for standalone. A browser window in full screen can match "fullscreen", so that one is not a sign of an install
       var stay = /[?&]web\b/.test(location.search), back = false;
       try{ stay = stay || localStorage.getItem("dnd-sheet-web") === "1"; back = !!(localStorage.getItem("introSeenVersion") || localStorage.getItem("introSeen")); }catch(e){}
       if(hosted && !installed && !stay){
@@ -2400,7 +2400,7 @@
        page works while the rest of the file is still downloading. The main script joins in later through
        landingReady() and landingLeft(). */
     try{ (function(){
-      var LP = { semver:"2.171.2", date:"2026-11-22", mb:16 };   /* @LP_STAMP@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+      var LP = { semver:"2.171.3", date:"2026-11-26", mb:16 };   /* @LP_STAMP@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
       var de = document.documentElement, box = document.getElementById("landing");
       if(!box || !de.classList.contains("landing")) return;
       function all(sel, fn){ Array.prototype.forEach.call(box.querySelectorAll(sel), fn); }
@@ -3608,11 +3608,11 @@
   const BASE_KEY = _EMBEDDED ? ("dnd-sheet-file-" + _hashStr(_EMBEDDED))
                  : _TPL_ID  ? ("dnd-sheet-file-" + _hashStr("tpl:" + _TPL_ID))
                  :            "dnd-sheet-2014-v1";
-  const APP_VERSION = "v649 (2026-11-22)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_VERSION = "v650 (2026-11-26)";  /* @APP_VERSION@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   // Human-facing Semantic Version (MAJOR.MINOR.PATCH), curated in the VERSION file and stamped here at commit
   // time. APP_VERSION above stays the monotonic build id used for all update *comparison* (so old builds keep
   // detecting new ones); APP_SEMVER is what we *show* people. Like iOS's short-version + build-number pair.
-  const APP_SEMVER = "2.171.2";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
+  const APP_SEMVER = "2.171.3";  /* @APP_SEMVER@ stamped at commit time by .githooks/pre-commit; do not hand-edit */
   function appLabel(){ return (APP_SEMVER && APP_SEMVER !== "0.0.0") ? APP_SEMVER : APP_VERSION.split(" ")[0]; }   // what to SHOW users (SemVer, else build id)
   // Changelog shown in the welcome guide (which reappears after each update). When you make a user-facing
   // change, add its bullet(s) to the TOP entry, giving its v an Unreleased tag if there isn't one yet.
@@ -3620,6 +3620,9 @@
   // time — the same N it stamps into APP_VERSION — so every release's notes get the right version with no
   // hand-editing. Keep a top Unreleased entry between releases so there's always somewhere to jot.
   const CHANGELOG = [
+    {v:"v650", semver:"2.171.3", items:[
+      "The web address shows the download page again in a browser window in full screen. That window counted as an installed app and opened the sheet.",
+    ]},
     {v:"v649", semver:"2.171.2", items:[
       "Jim's Magic Missile (Acquisitions Incorporated) asks for its attack roll again. Version 2.171.1 removed that by mistake.",
     ]},
